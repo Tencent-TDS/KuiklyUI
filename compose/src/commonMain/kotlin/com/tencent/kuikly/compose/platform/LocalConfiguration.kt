@@ -19,7 +19,6 @@ package com.tencent.kuikly.compose.platform
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import com.tencent.kuikly.core.base.EdgeInsets
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.pager.IPager
 import com.tencent.kuikly.core.pager.PageData
 
@@ -140,18 +139,9 @@ class Configuration(private val pager: IPager) {
         duration: Double,
         curve: Int
     ) {
-        val oldHeight = _imeBottomDp.value
-        val oldDuration = _imeAnimationDuration.value
-        val oldCurve = _imeAnimationCurve.value
         _imeBottomDp.value = height.toFloat().coerceAtLeast(0f)
         _imeAnimationDuration.value = normalizeImeAnimationDuration(duration).toFloat()
         _imeAnimationCurve.value = normalizeImeAnimationCurve(curve)
-        KLog.i(
-            "Kuikly.ComposeIME",
-            "[IME_EVENT][Configuration] pageName=${pager.pageName}, platform=${pageData.platform}, " +
-                "heightDp=$oldHeight->${_imeBottomDp.value}, durationMs=$oldDuration->${_imeAnimationDuration.value}, " +
-                "curve=$oldCurve->${_imeAnimationCurve.value}"
-        )
     }
 
     fun onFontConfigChange(

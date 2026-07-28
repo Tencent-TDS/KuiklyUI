@@ -57,7 +57,6 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.lifecycle.Lifecycle
 import com.tencent.kuikly.lifecycle.LifecycleOwner
@@ -290,11 +289,6 @@ open class ComposeContainer :
             val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
             configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
         } else if (pagerEvent == PAGER_EVENT_IME_INSETS_DID_CHANGED) {
-            KLog.i(
-                "Kuikly.ComposeIME",
-                "[IME_EVENT][ComposeContainer] pageName=$pageName, platform=${pageData.platform}, " +
-                    "hasConfiguration=${configuration != null}, eventData=$eventData"
-            )
             configuration?.onImeInsetsChanged(
                 height = eventData.optDouble(IME_HEIGHT),
                 duration = eventData.optDouble(IME_DURATION),

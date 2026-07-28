@@ -176,10 +176,6 @@ class KuiklyRenderView(
     ) {
         val tracer = KuiklyRenderTracer("KuiklyRenderView.init")
         this.pageName = pageName
-        logImePhase1(
-            "init start, size=$size, assetsPathReady=${assetsPath != null}, " +
-                "listenerRegistered=${pageKeyboardStatusListener != null}"
-        )
         dispatchLifecycleStateChanged(STATE_INIT)
         assert(isMainThread()) // init方法必须在主线程调用
         initKuiklyClassLoaderIfNeed(contextCode)
@@ -212,11 +208,6 @@ class KuiklyRenderView(
         var shouldSync = delegate?.syncSendEvent(event) == true
         if (!shouldSync) {
             shouldSync = innerSyncSendEvent(event)
-        }
-        if (event == EVENT_IME_INSETS_CHANGED) {
-            logImePhase1(
-                "dispatch pagerEvent=$event, shouldSync=$shouldSync, coreReady=${renderCore != null}, data=$data"
-            )
         }
         renderCore?.sendEvent(event, data, shouldSync) ?: also { // core没初始化时, lazy住事件, 等core初始化后统一发送
             val lazyEventList =
@@ -445,10 +436,6 @@ class KuiklyRenderView(
         trySendCoreEventList() // 尝试发送lazy事件，如果有的话
         performCoreLazyTaskList()
         registerPageKeyboardListenerIfNeed()
-        logImePhase1(
-            "renderCore initialized, listenerRegistered=${pageKeyboardStatusListener != null}, " +
-                "activitySize=${getActivitySize()}, deviceSize=${getDeviceSize()}"
-        )
         tracer.end()
     }
 
@@ -516,27 +503,19 @@ class KuiklyRenderView(
 
     private fun registerPageKeyboardListenerIfNeed() {
         if (pageKeyboardStatusListener != null) {
-            logImePhase1("registerPageKeyboardListenerIfNeed skip: listener already registered")
             return
         }
         val keyboardModule = module<KRKeyboardModule>(KRKeyboardModule.MODULE_NAME)
         if (keyboardModule == null) {
-            logImePhase1("registerPageKeyboardListenerIfNeed abort: KRKeyboardModule missing")
             return
         }
-        logImePhase1("registerPageKeyboardListenerIfNeed start")
         pageKeyboardStatusListener = object : KeyboardStatusListener {
             override fun onHeightChanged(height: Int) {
                 if (height == pageKeyboardHeight) {
-                    logImePhase1("pageKeyboardStatusListener skip duplicated height=$height")
                     return
                 }
-                val oldHeight = pageKeyboardHeight
                 pageKeyboardHeight = height
                 val heightDp = kuiklyRenderContext.toDpF(height.toFloat())
-                logImePhase1(
-                    "pageKeyboardStatusListener.onHeightChanged old=$oldHeight, new=$height, newDp=$heightDp"
-                )
                 // 页面级键盘高度统一从 RenderView 发给 pager，避免绑定到某个输入框实例。
                 sendEvent(
                     EVENT_IME_INSETS_CHANGED,
@@ -550,13 +529,11 @@ class KuiklyRenderView(
         }
         pageKeyboardStatusListener?.let { listener ->
             keyboardModule.addListener(listener)
-            logImePhase1("registerPageKeyboardListenerIfNeed success: listener=${listener.hashCode()}")
         }
     }
 
     private fun unregisterPageKeyboardListener() {
         val listener = pageKeyboardStatusListener ?: return
-        logImePhase1("unregisterPageKeyboardListener listener=${listener.hashCode()}, lastHeight=$pageKeyboardHeight")
         module<KRKeyboardModule>(KRKeyboardModule.MODULE_NAME)?.removeListener(listener)
         pageKeyboardStatusListener = null
         pageKeyboardHeight = Int.MIN_VALUE
@@ -710,10 +687,6 @@ class KuiklyRenderView(
 
     override fun isDebugLogEnable(): Boolean {
         return delegate?.debugLogEnable() == true
-    }
-
-    private fun logImePhase1(message: String) {
-        KuiklyRenderLog.i(TAG, "[IME_PHASE1][Android][$pageName][${hashCode()}] $message")
     }
 
     companion object {

@@ -61,11 +61,11 @@
 ## 7. Demo — HideKeyboardTestDemo
 
 - [x] 7.1 新增 `HideKeyboardTestDemo.kt` 测试页面，包含输入框 + hide() / show() / requestFocus+hide 三个按钮
-- [x] 7.2 通过 `@Page("223399")` 注解自动注册 Demo 页面入口
+- [x] 7.2 通过 `@Page("HideKeyboardTestDemo")` 注解自动注册 Demo 页面入口
 
 ## 8. 平台测试（iOS / Android / OHOS 三端均已验证）
 
-> 测试页面：`HideKeyboardTestDemo`（Page ID: 223399）
+> 测试页面：`HideKeyboardTestDemo`（Page ID: HideKeyboardTestDemo）
 > 测试方法：手动点击输入框获焦（键盘弹起），再依次点击按钮，观察键盘显隐和焦点状态
 
 ### 链路 1：手动获焦 → hide（收键盘保焦点）

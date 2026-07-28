@@ -15,9 +15,13 @@
 
 package com.tencent.kuikly.core.render.android.expand.module
 
+import android.content.Context
 import android.view.Choreographer
+import android.view.Display
+import android.view.WindowManager
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import kotlin.math.roundToInt
 
 /**
  *  监听Vsync回调
@@ -27,6 +31,7 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 class KRVsyncModule : KuiklyRenderBaseModule() {
 
     private var vsyncFrameCallback: Choreographer.FrameCallback? = null
+    private var windowManager: WindowManager? = null
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -38,25 +43,47 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
 
     private fun registerVsync(callback: KuiklyRenderCallback?) {
         if (vsyncFrameCallback == null) {
+            windowManager = context?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
             vsyncFrameCallback = Choreographer.FrameCallback {
-                callback?.invoke(null)
-                Choreographer.getInstance().postFrameCallback(vsyncFrameCallback);
+                callback?.invoke(currentFrameIntervalNanos())
+                Choreographer.getInstance().postFrameCallback(vsyncFrameCallback)
             }
-            Choreographer.getInstance().postFrameCallback(vsyncFrameCallback);
+            Choreographer.getInstance().postFrameCallback(vsyncFrameCallback)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun defaultDisplay(): Display? {
+        return windowManager?.defaultDisplay
+    }
+
+    private fun currentFrameIntervalNanos(): Int {
+        val refreshRate = defaultDisplay()?.refreshRate?.toDouble()
+        val frameIntervalNanos =
+            if (refreshRate != null && refreshRate.isFinite() && refreshRate > 0.0) {
+                (NANOS_PER_SECOND / refreshRate).roundToInt()
+            } else {
+                DEFAULT_FRAME_INTERVAL_NANOS
+            }
+        return frameIntervalNanos.takeIf {
+            it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+        } ?: DEFAULT_FRAME_INTERVAL_NANOS
     }
 
     private fun unRegisterVsync(callback: KuiklyRenderCallback?) {
         if (vsyncFrameCallback != null) {
-            Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback);
+            Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback)
             vsyncFrameCallback = null
+            windowManager = null
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         if (vsyncFrameCallback != null) {
-            Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback);
+            Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback)
+            vsyncFrameCallback = null
+            windowManager = null
         }
     }
 
@@ -65,5 +92,9 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
 
+        private const val NANOS_PER_SECOND = 1_000_000_000.0
+        private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+        private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+        private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000
     }
 }

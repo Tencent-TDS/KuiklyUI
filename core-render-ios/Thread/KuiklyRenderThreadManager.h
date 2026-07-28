@@ -22,6 +22,11 @@ NS_ASSUME_NONNULL_BEGIN
 @interface KuiklyRenderThreadManager : NSObject
 
 /*
+ * Context调度不再暴露底层GCD queue。业务如曾使用contextQueue，请改用以下
+ * performOnContextQueue系列方法，以保证所有页面共享Context线程的串行时序。
+ */
+
+/*
  * 指定Context线程执行闭包
  * @param block 任务闭包
  */
@@ -48,10 +53,6 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (void)performOnLogQueueWithBlock:(dispatch_block_t)block;
 
-/*
- * Context线程
- */
-+ (dispatch_queue_t)contextQueue;
 /*
  * 当前所处线程是否为context线程
  */

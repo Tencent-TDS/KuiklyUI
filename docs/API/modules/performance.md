@@ -95,6 +95,8 @@ typedef NS_OPTIONS(NSInteger, KRMonitorType) {
 }
 ```
 
+> `KRMonitorType_KotlinFPS` 在 iOS 上由 Kuikly Context Thread 的 DisplayLink 采样，反映实际帧回调频率。在支持高刷新率的 iPhone 上，该值可以高于 60；如需让宿主允许高刷新率，请在 App 的 `Info.plist` 设置 `CADisableMinimumFrameDurationOnPhone` 为 `YES`，见 [iOS平台开发方式](../../DevGuide/ios-dev.md)。
+
 ### **鸿蒙**
 
 >注意: 目前鸿蒙FPS监控仅支持mainFPS(以60Hz为基准的归一化值,越接近60越流畅)、内存监控仅支持PSS内存数据
@@ -210,6 +212,8 @@ PagerManager.getCurrentPager().acquireModule<PerformanceModule>(PerformanceModul
 定义：kotlin线程 平均FPS
 
 统计范围：完成首帧加载 - 退出页面 （退后台，切其他页面暂停）
+
+iOS 上该指标基于 Context Thread 的 DisplayLink 统计，因此会随设备和系统的动态刷新率变化；它不是固定按 60Hz 归一化的值。
 
 ### 指标4：内存增量
 

@@ -31,12 +31,21 @@ import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.container.SuperTouchManager
+import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlin.coroutines.CoroutineContext
+
+internal fun resolveFrameIntervalMillis(frameIntervalNanos: Int?): Double {
+    val validFrameIntervalNanos =
+        frameIntervalNanos?.takeIf {
+            it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+        } ?: DEFAULT_FRAME_INTERVAL_NANOS
+    return validFrameIntervalNanos.toDouble() / NANOS_PER_MILLISECOND
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 class ComposeSceneMediator(
@@ -114,10 +123,18 @@ class ComposeSceneMediator(
         return timer
     }
 
-    fun renderFrame() {
-        val timestamp = DateTime.nanoTime()
+    fun renderFrame(frameIntervalNanos: Int? = null) {
+        val timestampNanos = DateTime.nanoTime()
+        val localTimestampMillis = timestampNanos.toDouble() / NANOS_PER_MILLISECOND
+        val frameIntervalMillis = resolveFrameIntervalMillis(frameIntervalNanos)
+        scene.vsyncTickConditions.updateFrameTiming(
+            frameTimestampMillis = localTimestampMillis,
+            frameIntervalMillis = frameIntervalMillis
+        )
         scene.vsyncTickConditions.onDisplayLinkTick {
-            scene.render(null, timestamp)
+            // Keep Compose animations on the local monotonic clock. Native frame timing is only
+            // used for idle detection and prefetch deadlines.
+            scene.render(null, timestampNanos)
         }
     }
 
@@ -129,3 +146,8 @@ class ComposeSceneMediator(
         superTouchManager.manage(container, scene)
     }
 }
+
+private const val NANOS_PER_MILLISECOND = 1_000_000.0
+private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000

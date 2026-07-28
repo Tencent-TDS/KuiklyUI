@@ -14,49 +14,108 @@
  */
 
 #import "KRVsyncModule.h"
+#import "KuiklyContextParam.h"
 #import "KuiklyRenderThreadManager.h"
+#import <QuartzCore/QuartzCore.h>
+#include <TargetConditionals.h>
+
+#if TARGET_OS_OSX
+typedef NSTimer KRVsyncDisplayLink;
+#else
+typedef CADisplayLink KRVsyncDisplayLink;
+#endif
 
 @implementation KRVsyncModule
 {
     KuiklyRenderCallback _tipCb;
-    dispatch_source_t _kotlinTimer;
+    KRVsyncDisplayLink *_displayLink;
 }
 
 - (void)registerVsync:(NSDictionary *)args {
-    _tipCb = args[KR_CALLBACK_KEY];
-    
-    dispatch_queue_t contextQueue = [KuiklyRenderThreadManager contextQueue];
-    
-    if (!contextQueue) {
-        return ;
-    }
-    [self invalidateTimer];
-    _kotlinTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, contextQueue);
-    dispatch_source_set_timer(_kotlinTimer, DISPATCH_TIME_NOW, NSEC_PER_SEC / 60.0, NSEC_PER_MSEC);
-    __weak __typeof__(self) wself = self;
-    dispatch_source_set_event_handler(_kotlinTimer, ^{
-        __strong __typeof__(self) sself = wself;
-        [sself vsyncFire];
-    });
-    dispatch_resume(_kotlinTimer);
+    KuiklyRenderCallback callback = [args[KR_CALLBACK_KEY] copy];
+#if !TARGET_OS_OSX
+    BOOL isFrameworkMode = self.hr_contextParam.contextMode.modeId == KuiklyContextMode_Framework;
+#endif
 
+    __weak __typeof__(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __strong __typeof__(self) strongSelf = weakSelf;
+        if (!strongSelf) {
+            return;
+        }
+        [strongSelf invalidateVsyncOnContextThread];
+        strongSelf->_tipCb = callback;
+#if TARGET_OS_OSX
+        __weak __typeof__(strongSelf) weakModule = strongSelf;
+        NSTimer *timer = [NSTimer timerWithTimeInterval:1.0 / 60.0
+                                               repeats:YES
+                                                 block:^(NSTimer *firedTimer) {
+            [weakModule vsyncFire:firedTimer];
+        }];
+        strongSelf->_displayLink = timer;
+        [NSRunLoop.currentRunLoop addTimer:timer forMode:NSRunLoopCommonModes];
+#else
+        CADisplayLink *displayLink =
+            [CADisplayLink displayLinkWithTarget:strongSelf selector:@selector(vsyncFire:)];
+        CGFloat maximumFramesPerSecond = UIScreen.mainScreen.maximumFramesPerSecond;
+        if (isFrameworkMode) {
+            if (@available(iOS 15.0, *)) {
+                displayLink.preferredFrameRateRange = CAFrameRateRangeMake(
+                    MIN(60.0, maximumFramesPerSecond),
+                    maximumFramesPerSecond,
+                    maximumFramesPerSecond);
+            }
+        } else {
+            displayLink.preferredFramesPerSecond = 60;
+        }
+        strongSelf->_displayLink = displayLink;
+        [displayLink addToRunLoop:NSRunLoop.currentRunLoop forMode:NSRunLoopCommonModes];
+#endif
+    }];
 }
 
-- (void)vsyncFire {
+- (void)vsyncFire:(KRVsyncDisplayLink *)displayLink {
     if (_tipCb) {
-        _tipCb(@{});
+#if TARGET_OS_OSX
+        int32_t frameIntervalNanos = 16666667;
+#else
+        CADisplayLink *nativeDisplayLink = displayLink;
+        CFTimeInterval frameIntervalSeconds =
+            MAX(0, nativeDisplayLink.targetTimestamp - nativeDisplayLink.timestamp);
+        int64_t calculatedFrameIntervalNanos =
+            (int64_t)(frameIntervalSeconds * 1000000000.0 + 0.5);
+        int32_t frameIntervalNanos =
+            calculatedFrameIntervalNanos >= 1000000 && calculatedFrameIntervalNanos <= 100000000
+                ? (int32_t)calculatedFrameIntervalNanos
+                : 16666667;
+#endif
+        _tipCb(@(frameIntervalNanos));
     }
 }
 
-- (void)invalidateTimer {
-    if (_kotlinTimer) {
-        dispatch_source_cancel(_kotlinTimer);
-        _kotlinTimer = nil;
-    }
+- (void)invalidateVsyncOnContextThread {
+    [_displayLink invalidate];
+    _displayLink = nil;
+    _tipCb = nil;
 }
 
 - (void)unRegisterVsync:(NSDictionary *)args {
-    [self invalidateTimer];
+    __weak __typeof__(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __strong __typeof__(self) strongSelf = weakSelf;
+        [strongSelf invalidateVsyncOnContextThread];
+    }];
+}
+
+- (void)dealloc {
+    KRVsyncDisplayLink *displayLink = _displayLink;
+    _displayLink = nil;
+    _tipCb = nil;
+    if (displayLink) {
+        [KuiklyRenderThreadManager performOnContextQueueImmediatelyWithBlock:^{
+            [displayLink invalidate];
+        }];
+    }
 }
 
 @end

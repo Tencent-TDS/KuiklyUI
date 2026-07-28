@@ -200,7 +200,7 @@ class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
                                 lineHeight(18f)
                                 fontWeightSemiBold()
                                 text(ctx.attr.descriptionOfActions)
-                                if (getPager().isNightMode()) { color(0xFF89848a) } else { color(0xFF89848a) }
+                                if (getPager().isNightMode()) { color(0xFFAEAEB2) } else { color(0xFF89848a) }
                                 textAlignCenter()
                             }
                         }

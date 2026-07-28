@@ -6,14 +6,14 @@
 
 ## 2. Compose DSL 层 — SoftwareKeyboardController
 
-- [x] 2.1 `SoftwareKeyboardController` 接口新增 `hideKeepFocus()` 方法及文档注释
-- [x] 2.2 `PendingAction` 枚举新增 `FOCUS_NO_KEYBOARD` 值
+- [x] 2.1 `SoftwareKeyboardController.hide()` 语义变更——从「失焦+收键盘」改为「保持焦点+收键盘」，对齐官方 Compose
+- [x] 2.2 `PendingAction.HIDE_KEYBOARD` 分发改为调用 `focusWithoutKeyboard()`（原先调 `blur()`）
 - [x] 2.3 新增 `pendingFocusNoKeyboard` 标记成员变量
 - [x] 2.4 `show()` 中清理 `pendingFocusNoKeyboard` 标记
 - [x] 2.5 `stopInput()` 中清理 `pendingFocusNoKeyboard` 标记
-- [x] 2.6 实现 `hideKeepFocus()`：已有 view 时下发 `FOCUS_NO_KEYBOARD` 命令；无 view 时打标记
+- [x] 2.6 实现 `hide()`：已有 view 时调用 `focusWithoutKeyboard()`；无 view 时打标记
 - [x] 2.7 `startInput` 分支处理 `pendingFocusNoKeyboard` 标记：替换 `focus()` 为 `focusWithoutKeyboard()`
-- [x] 2.8 命令分发新增 `FOCUS_NO_KEYBOARD` 分支：调用 `focusWithoutKeyboard()` 并同步 `activeView`
+- [x] 2.8 `HIDE_KEYBOARD` 命令分发：调用 `focusWithoutKeyboard()` 并同步 `activeView`
 
 ## 3. Compose DSL 层 — CoreTextField
 
@@ -60,7 +60,7 @@
 
 ## 7. Demo — HideKeyboardTestDemo
 
-- [x] 7.1 新增 `HideKeyboardTestDemo.kt` 测试页面，包含输入框 + hide() / hideKeepFocus() / show() 三个按钮
+- [x] 7.1 新增 `HideKeyboardTestDemo.kt` 测试页面，包含输入框 + hide() / show() / requestFocus+hide 三个按钮
 - [x] 7.2 通过 `@Page("223399")` 注解自动注册 Demo 页面入口
 
 ## 8. 平台测试（iOS / Android / OHOS 三端均已验证）
@@ -68,23 +68,23 @@
 > 测试页面：`HideKeyboardTestDemo`（Page ID: 223399）
 > 测试方法：手动点击输入框获焦（键盘弹起），再依次点击按钮，观察键盘显隐和焦点状态
 
-### 链路 1：手动获焦 → hide
+### 链路 1：手动获焦 → hide（收键盘保焦点）
 
-- [x] 8.1 iOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点丢失
-- [x] 8.2 Android — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点丢失
-- [x] 8.3 OHOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点丢失
+- [x] 8.1 iOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点保持
+- [x] 8.2 Android — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点保持
+- [x] 8.3 OHOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()` → 验证键盘收起且焦点保持
 
-### 链路 2：手动获焦 → hideKeepFocus → focus
+### 链路 2：手动获焦 → hide → show（恢复键盘）
 
-- [x] 8.4 iOS — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
-- [x] 8.5 Android — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
-- [x] 8.6 OHOS — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
+- [x] 8.4 iOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
+- [x] 8.5 Android — 点击输入框获焦（键盘弹起）→ 点击 `hide()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
+- [x] 8.6 OHOS — 点击输入框获焦（键盘弹起）→ 点击 `hide()`（键盘收起、光标保留）→ 点击 `show()` 或点击输入框 → 验证键盘重新弹起
 
-### 链路 3：手动获焦 → hideKeepFocus → hide
+### 链路 3：无焦点 → requestFocus + hide（获焦且不弹键盘）
 
-- [x] 8.7 iOS — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `hide()` → 验证焦点丢失
-- [x] 8.8 Android — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `hide()` → 验证焦点丢失
-- [x] 8.9 OHOS — 点击输入框获焦（键盘弹起）→ 点击 `hideKeepFocus()`（键盘收起、光标保留）→ 点击 `hide()` → 验证焦点丢失
+- [x] 8.7 iOS — 调用 `focusRequester.requestFocus()` + `hide()` → 验证焦点到达且键盘全程不出现
+- [x] 8.8 Android — 调用 `focusRequester.requestFocus()` + `hide()` → 验证焦点到达且键盘全程不出现
+- [x] 8.9 OHOS — 调用 `focusRequester.requestFocus()` + `hide()` → 验证焦点到达且键盘全程不出现
 
 ## 9. 清理与收尾
 

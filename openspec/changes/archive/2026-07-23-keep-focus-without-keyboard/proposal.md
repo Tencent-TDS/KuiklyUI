@@ -8,7 +8,7 @@
 - **iOS 端**：通过 dummy inputView (tag=99999) 抑制系统键盘，`becomeFirstResponder` 获焦；新增 `kr_originalInputView` 备份/还原业务自定义 inputView；手势委托在 dummy 在场时恢复键盘；键盘通知在 dummy 在场时过滤防死循环
 - **Android 端**：`requestFocus()` + `hideSoftInputFromWindow()`，不调用 `showSoftInput`
 - **OHOS 端**：利用 `NODE_TEXT_INPUT_ENABLE_KEYBOARD_ON_FOCUS` 属性 + blur→refocus 状态机绕过「获焦即弹键盘」限制
-- **Compose DSL 层**：`SoftwareKeyboardController` 新增 `hideKeepFocus()` 接口；新增 `FOCUS_NO_KEYBOARD` 命令和 `pendingFocusNoKeyboard` 标记处理无焦点异步场景
+- **Compose DSL 层**：`SoftwareKeyboardController.hide()` 语义变更——从「失焦+收键盘」改为「保持焦点+收键盘」，与官方 Compose `hide()` 对齐；内部通过 `focusWithoutKeyboard()` 实现；新增 `pendingFocusNoKeyboard` 标记处理无焦点异步场景
 - **core 层**：`AutoHeightTextAreaView` 新增 `focusWithoutKeyboard()` 方法，`blur()` 恢复纯失焦语义（移除 keepFocus 参数）
 - **Compose 层**：`CoreTextField` 的 `inputFocus` 回调加 `if(!hasFocus)` 守卫防自激循环，`set(hasFocus)` 移除重复 `focus()` 调用
 - **Demo**：新增 `HideKeyboardTestDemo` 测试页面
@@ -23,7 +23,7 @@
 ## Capabilities
 
 ### New Capabilities
-- `keep-focus-without-keyboard`: 输入框「保持焦点但关闭键盘」能力——新增 `focusWithoutKeyboard` 原生命令及 Compose DSL `hideKeepFocus()` 接口，覆盖 iOS / Android / OHOS 三端
+- `keep-focus-without-keyboard`: 输入框「保持焦点但关闭键盘」能力——新增 `focusWithoutKeyboard` 原生命令，Compose DSL `hide()` 语义对齐官方 Compose（保持焦点+收键盘），覆盖 iOS / Android / OHOS 三端
 
 ### Modified Capabilities
 - `textfield-state-editing`: `blur()` 语义变更——移除 `keepFocus` 参数，恢复纯失焦；`CoreTextField` 的 `inputFocus` 回调增加去重守卫
@@ -34,7 +34,7 @@
 | 模块 | 改动 |
 |------|------|
 | `core` | `AutoHeightTextAreaView.kt` — 新增 `focusWithoutKeyboard()`，`blur()` 移除 keepFocus |
-| `compose` | `SoftwareKeyboardController.kt` — 新增 `hideKeepFocus()` 接口 + `FOCUS_NO_KEYBOARD` 命令；`CoreTextField.kt` — inputFocus 守卫 + 去重 |
+| `compose` | `SoftwareKeyboardController.kt` — `hide()` 语义变更（对齐官方 Compose，保持焦点+收键盘）；`CoreTextField.kt` — inputFocus 守卫 + 去重 |
 | `core-render-ios` | `KRTextFieldView.m` + `KRTextAreaView.m` — dummy inputView 方案、手势委托、键盘通知过滤 |
 | `core-render-android` | `KRTextFieldView.kt` — `setFocusWithoutKeyboard()` + 常量注册 |
 | `core-render-ohos` | `KRTextFieldView.h/.cpp` — blur→refocus 状态机；`KRViewUtil.h/.cpp` — `UpdateInputNodeFocusAndKeyBoardStatus()` |
@@ -43,7 +43,7 @@
 **受影响平台**：iOS / Android / HarmonyOS
 
 **API 变更**：
-- 新增公开 API：`SoftwareKeyboardController.hideKeepFocus()`
+- **BREAKING**：`SoftwareKeyboardController.hide()` 语义变更——从「失焦+收键盘」改为「保持焦点+收键盘」，与官方 Compose `hide()` 对齐；需要失焦的场景使用 `FocusManager.clearFocus()`
 - 新增 core 方法：`AutoHeightTextAreaView.focusWithoutKeyboard()`
 - 新增原生命令：`focusWithoutKeyboard`（三端 render 层）
 - **BREAKING**（内部）：`AutoHeightTextAreaView.blur()` 移除 `keepFocus` 参数（仅框架内部调用，无业务直接调用）

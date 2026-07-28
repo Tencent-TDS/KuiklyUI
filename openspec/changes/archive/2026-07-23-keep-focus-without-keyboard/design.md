@@ -11,7 +11,7 @@ KuiklyUI 框架此前只有两条输入框焦点命令：
 
 本次变更新增一条自包含原生命令 `focusWithoutKeyboard`，三端各自选择最优实现，上层统一语义。
 
-**适用 DSL 模式**：Compose DSL（通过 `SoftwareKeyboardController.hideKeepFocus()`）和自研 DSL（通过 `AutoHeightTextAreaView.focusWithoutKeyboard()`）均可使用，二者通过 `core` 层统一桥接。
+**适用 DSL 模式**：Compose DSL（通过 `SoftwareKeyboardController.hide()`，语义对齐官方 Compose）和自研 DSL（通过 `AutoHeightTextAreaView.focusWithoutKeyboard()`）均可使用，二者通过 `core` 层统一桥接。
 
 **NativeBridge 交互**：上层 → `AutoHeightTextAreaView.focusWithoutKeyboard()` → `renderView.callMethod("focusWithoutKeyboard", "")` → 各端 render 层 `CallMethod` 分发 → 原生实现。命令为自包含语义，不依赖参数，不触发后续 `focus` 命令。
 
@@ -19,7 +19,7 @@ KuiklyUI 框架此前只有两条输入框焦点命令：
 
 **Goals:**
 - 三端（iOS / Android / OHOS）统一提供 `focusWithoutKeyboard` 原生命令，语义为「获焦 + 键盘全程不出现」
-- Compose DSL 提供 `SoftwareKeyboardController.hideKeepFocus()` 公开接口
+- Compose DSL `hide()` 语义对齐官方 Compose——仅控制键盘可见性，不影响焦点；需要失焦时使用 `FocusManager.clearFocus()`
 - 自研 DSL 通过 `AutoHeightTextAreaView.focusWithoutKeyboard()` 可用
 - 无焦点场景（Compose 焦点异步送达）也能正确工作
 - 不产生键盘闪烁、死循环等副作用
@@ -104,11 +104,11 @@ KuiklyUI 框架此前只有两条输入框焦点命令：
 
 **理由**：已聚焦状态下直接 `NODE_FOCUS_STATUS=1` 是 no-op，键盘不会弹起。复用 blur→refocus 流程确保焦点迁移稳定、键盘弹起。
 
-### 决策 9：Compose DSL — `pendingFocusNoKeyboard` 标记处理异步焦点
+### 决策 9：Compose DSL — `hide()` 语义对齐官方 Compose + `pendingFocusNoKeyboard` 标记处理异步焦点
 
-**选择**：`hideKeepFocus()` 在无 `activeView`/`pendingView` 时打 `pendingFocusNoKeyboard` 标记，`startInput` 收到 pendingView 时把默认 `focus()` 替换为 `focusWithoutKeyboard()`。`show()` / `stopInput()` 清理标记。
+**选择**：将 `SoftwareKeyboardController.hide()` 语义从「失焦+收键盘」改为「保持焦点+收键盘」，与官方 Compose `hide()` 行为对齐。`hide()` 内部调用 `focusWithoutKeyboard()` 实现。无 `activeView`/`pendingView` 时打 `pendingFocusNoKeyboard` 标记，`startInput` 收到 pendingView 时把默认 `focus()` 替换为 `focusWithoutKeyboard()`。`show()` / `stopInput()` 清理标记。需要失焦的场景使用 `FocusManager.clearFocus()`（触发 `stopInput()` → `blur()`）。
 
-**理由**：Compose 焦点系统是异步的——`requestFocus()` → `onFocusChanged` 回调 → `startInput()` 之间有延迟。无焦点时 `hideKeepFocus()` 拿不到 view，只能打标记等焦点送达。
+**理由**：官方 Compose 的 `hide()` 只控制键盘可见性，不操作焦点。Kuikly 此前的 `hide()` 会失焦，与官方行为不一致。对齐后业务代码可与官方 Compose 写法保持一致。`hideKeepFocus()` 作为过渡 API 已合并回 `hide()`，不再单独保留。
 
 ### 决策 10：Compose DSL — `inputFocus` 回调加 `if(!hasFocus)` 守卫
 
@@ -133,7 +133,7 @@ KuiklyUI 框架此前只有两条输入框焦点命令：
 - `core/src/commonMain/kotlin/com/tencent/kuikly/core/views/AutoHeightTextAreaView.kt` — 新增 `focusWithoutKeyboard()`，`blur()` 移除 keepFocus 参数
 
 ### compose
-- `compose/src/commonMain/kotlin/com/tencent/kuikly/compose/ui/platform/SoftwareKeyboardController.kt` — 新增 `hideKeepFocus()` 接口 + `FOCUS_NO_KEYBOARD` 枚举 + `pendingFocusNoKeyboard` 标记
+- `compose/src/commonMain/kotlin/com/tencent/kuikly/compose/ui/platform/SoftwareKeyboardController.kt` — `hide()` 语义变更（对齐官方 Compose，保持焦点+收键盘）+ `pendingFocusNoKeyboard` 标记
 - `compose/src/commonMain/kotlin/com/tencent/kuikly/compose/foundation/text/CoreTextField.kt` — `inputFocus` 加 `if(!hasFocus)` 守卫，`set(hasFocus)` 移除重复 `focus()`
 
 ### core-render-ios

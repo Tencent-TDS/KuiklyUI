@@ -64,15 +64,15 @@ iOS 端在 dummy inputView 在场时，SHALL 注册手势委托（`UIGestureReco
 - **WHEN** iOS 输入框不在 dummy inputView 状态，用户点击输入框
 - **THEN** 自定义 tap 手势 SHALL 不参与识别，完全由 UITextField / UITextView 内部手势处理获焦和光标定位
 
-### Requirement: Compose DSL hideKeepFocus 接口
-Compose DSL SHALL 在 `SoftwareKeyboardController` 接口上提供 `hideKeepFocus()` 方法，语义为「收起软键盘但保留/获取焦点」。
+### Requirement: Compose DSL hide 接口语义
+Compose DSL 的 `SoftwareKeyboardController.hide()` SHALL 语义为「收起软键盘但保留/获取焦点」，与官方 Compose `hide()` 行为对齐——仅控制键盘可见性，不影响焦点。`hide()` 内部通过 `focusWithoutKeyboard()` 实现：已有焦点时收起键盘保持焦点；无焦点时先获取焦点再收起键盘，键盘全程不出现。需要失焦的场景 SHALL 使用 `FocusManager.clearFocus()`。
 
-#### Scenario: Compose — 已有焦点时调用 hideKeepFocus
-- **WHEN** 输入框已获焦（`activeView` 存在），业务调用 `keyboardController.hideKeepFocus()`
-- **THEN** 系统 SHALL 向该 view 下发 `FOCUS_NO_KEYBOARD` 命令，调用 `focusWithoutKeyboard()`，键盘收起且焦点保持
+#### Scenario: Compose — 已有焦点时调用 hide
+- **WHEN** 输入框已获焦（`activeView` 存在），业务调用 `keyboardController.hide()`
+- **THEN** 系统 SHALL 调用 `focusWithoutKeyboard()`，键盘收起且焦点保持
 
-#### Scenario: Compose — 无焦点时调用 hideKeepFocus
-- **WHEN** 输入框未获焦（`activeView` 和 `pendingView` 均为 null），业务先调用 `focusRequester.requestFocus()` 再调用 `hideKeepFocus()`
+#### Scenario: Compose — 无焦点时调用 hide
+- **WHEN** 输入框未获焦（`activeView` 和 `pendingView` 均为 null），业务先调用 `focusRequester.requestFocus()` 再调用 `hide()`
 - **THEN** 系统 SHALL 设置 `pendingFocusNoKeyboard` 标记；当焦点异步送达触发 `startInput` 时，SHALL 把默认 `focus()` 替换为 `focusWithoutKeyboard()`，键盘全程不出现
 
 #### Scenario: Compose — show 清除 pendingFocusNoKeyboard 标记

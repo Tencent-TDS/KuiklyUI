@@ -38,8 +38,8 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
 
     private fun registerVsync(callback: KuiklyRenderCallback?) {
         if (vsyncFrameCallback == null) {
-            vsyncFrameCallback = Choreographer.FrameCallback {
-                callback?.invoke(null)
+            vsyncFrameCallback = Choreographer.FrameCallback { frameTimeNanos ->
+                callback?.invoke(mapOf(PARAM_TIMESTAMP to frameTimeNanos))
                 Choreographer.getInstance().postFrameCallback(vsyncFrameCallback);
             }
             Choreographer.getInstance().postFrameCallback(vsyncFrameCallback);
@@ -64,6 +64,7 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
         const val MODULE_NAME = "KRVsyncModule"
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
+        private const val PARAM_TIMESTAMP = "timestamp"
 
     }
 }

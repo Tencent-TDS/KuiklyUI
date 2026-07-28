@@ -515,6 +515,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }
 
@@ -649,7 +650,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     }
     // 视觉坐标（对 RTL / ligature 更稳）：按“该字符映射出的完整 glyphRange”枚举 enclosing rect，
     // 再做 union，而不是只取 glyphIndex 的第一个 rect。阿拉伯文连写下一个字符可能映射到多个 glyph / rect，
-    // 只取第一个会丢失真实视觉宽度，导致 scene7 虚线过短或偏移。
+    // 只取第一个会丢失真实视觉宽度，导致虚线过短或偏移。
     __block CGRect visualRect = CGRectNull;
     [layoutManager enumerateEnclosingRectsForGlyphRange:glyphRange
                         withinSelectedGlyphRange:NSMakeRange(NSNotFound, 0)

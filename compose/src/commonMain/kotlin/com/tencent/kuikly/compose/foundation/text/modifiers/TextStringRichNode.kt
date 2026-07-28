@@ -475,11 +475,7 @@ internal class TextStringRichNode(
         withTextView { attr ->
             attr.applyStyleColor(style.spanStyle)
             attr.applyShadow(style.shadow)
-            // 当使用 AnnotatedString 时，textDecoration 由各 span 自行下发，
-            // 这里跳过整段下发，避免覆盖 span 级别的 dashed 装饰。
-            if (annotatedText == null) {
-                attr.applyTextDecoration(style.textDecoration)
-            }
+            attr.applyTextDecoration(style.textDecoration)
         }
     }
 }

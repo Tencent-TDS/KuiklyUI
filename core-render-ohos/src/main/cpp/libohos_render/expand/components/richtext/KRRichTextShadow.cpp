@@ -146,7 +146,7 @@ std::string KRRichTextShadow::LineMetrics() {
         result += " " + std::to_string(top);
         result += " " + std::to_string(bottom);
         result += " " + std::to_string(lineMetrics.startIndex);
-        result += " " + std::to_string(lineMetrics.endIndex + 1);
+        result += " " + std::to_string(lineMetrics.endIndex);
     }
     return result;
 }
@@ -173,7 +173,9 @@ std::string KRRichTextShadow::BoundingBox(int offset) {
     for (size_t i = 0; i < lineCount; ++i) {
         OH_Drawing_LineMetrics lm;
         OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lm);
-        int end = static_cast<int>(lm.endIndex) + 1;  // endIndex 与 LineMetrics 保持 inclusive 语义
+        // endIndex 为 exclusive，与 KRRichTextView::GetSelectionRectsAll / GetParagraphInfo
+        // 一致，也与 Android getLineEnd / iOS NSMaxRange 对齐。
+        int end = static_cast<int>(lm.endIndex);
         if (end > textLen) {
             textLen = end;
         }
@@ -195,15 +197,15 @@ std::string KRRichTextShadow::BoundingBox(int offset) {
         OH_Drawing_LineMetrics lineMetrics;
         OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lineMetrics);
         if (safeOffset >= static_cast<int>(lineMetrics.startIndex) &&
-            safeOffset <= static_cast<int>(lineMetrics.endIndex)) {
+            safeOffset < static_cast<int>(lineMetrics.endIndex)) {
             lineTop = lineMetrics.y / dpi;
             lineBottom = (lineMetrics.y + lineMetrics.height) / dpi;
             foundLine = true;
             break;
         }
     }
-    // 取字符水平范围。这里改用 TIGHT/TIGHT 的逐字符盒，避免 MAX/MAX 在行末 offset+1 跨到下一行时
-    // 返回跨行膨胀的大盒（scene6 根因）。若仍出现多个 box，只选当前行重叠的那个。
+    // 取字符水平范围。这里改用 TIGHT/TIGHT 的逐字符盒，避免 MAX/MAX 在行末 offset+1
+    // 跨到下一行时返回跨行膨胀的大盒。若仍出现多个 box，只选当前行重叠的那个。
     float left = 0;
     float right = 0;
     bool selectedBox = false;
@@ -465,7 +467,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         spans.push_back(KRRenderValue::Make(props_));
     }
 
-    // ===== Phase 2: PostProcessor 拆段 =====
+    // ===== PostProcessor 拆段 =====
     // 仅对"纯文本 span"（没有 placeholderWidth 且无内置 image src 标记）调用一次
     // RunTextPostProcessor(processor_name, text, segs)：
     //   * processor_name 取自 props_["textPostProcessor"]（与 iOS / Android 跨端语义对齐：

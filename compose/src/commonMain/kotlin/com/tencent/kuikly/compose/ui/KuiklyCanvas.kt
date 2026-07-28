@@ -45,6 +45,8 @@ import kotlin.math.PI
 internal class KuiklyCanvas : Canvas {
 
     private fun CanvasContext.fillOrStroke(paint: Paint) {
+        // 清空上一笔 drawLine 残留的虚线状态，避免同 lambda 内后续描边图形继承虚线
+        setLineDash(emptyList())
         val linearGradient = paint.toKuiklyLinearGradient(densityValue)
         if (paint.style == PaintingStyle.Fill) {
             if (linearGradient != null) {
@@ -166,7 +168,7 @@ internal class KuiklyCanvas : Canvas {
             val effect = paint.pathEffect
             if (effect is DashPathEffect) {
                 val intervals = effect.intervals
-                // D2/D3 兜底：空数组或全零区间属非法输入，降级画实线而非透传未定义行为
+                // 非法输入兜底：intervals 为空或全零时降级画实线，避免透传未定义行为
                 if (intervals.isEmpty() || intervals.all { it == 0f }) {
                     setLineDash(emptyList())
                 } else {

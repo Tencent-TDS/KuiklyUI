@@ -16,6 +16,10 @@ sealed interface PathEffect {
 /**
  * 虚线特效：[intervals] 为 dash/gap 长度对（px 语义，与官方 Jetpack Compose 一致），
  * 在 KuiklyCanvas.drawLine 里会除以 densityValue 换算为 dp/pt 后透传给 CanvasContext.setLineDash。
+ *
+ * 注意：[phase] 当前不生效——跨端 CanvasContext.setLineDash 协议未开放 phase 参数，
+ * iOS 桥内 CGContextSetLineDash 的 phase 硬编码为 0。设置 phase 不会报错也不会有视觉差异，
+ * 与传 0 等效。若后续启用需三端同步扩展 setLineDash 协议。
  */
 internal data class DashPathEffect(
     val intervals: FloatArray,

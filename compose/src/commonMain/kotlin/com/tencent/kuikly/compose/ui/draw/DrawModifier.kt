@@ -123,9 +123,12 @@ internal class DrawBackgroundModifier(
 ) : Modifier.Node(), DrawModifierNode, OwnerScope {
 
     /**
-     * Phase 2 背景绘制层：当宿主不是 CanvasView（如 Text/RichTextView）时，
-     * 惰性挂一个绝对定位的背景 CanvasView 作为绘制目标，叠在宿主下方。
-     * 仅非 CanvasView 宿主会创建；CanvasView 宿主走原路径，互不影响。
+     * drawBehind 用的背景绘制层。
+     * 文字等组件要画背景时，挂一个独立的背景视图到父容器最底层来实现。
+     *
+     * 注意：这条背景是挂在父容器里的（不是画在文字内部）。
+     * 正常从上往下、从左往右排布不受影响；
+     * 以后想完全对齐官方做法，需要把背景画进宿主自己内部。
      */
     private var bgCanvasView: CanvasView? = null
 
@@ -144,12 +147,12 @@ internal class DrawBackgroundModifier(
                 onDraw()
             }
         } else if (view != null) {
-            // 非 CanvasView 宿主：走背景 CanvasView 通道（Phase 2 Step 1 spike）
+            // 非 CanvasView 宿主：走背景 CanvasView 通道
             ensureBackgroundCanvasView(view)
             // 用 DrawScope.size（= 宿主完整布局尺寸，含多行）而非 renderView.currentFrame
             //（后者对 RichTextView 只返一行高）
             // 与 CanvasView 分支一致，用 observeReads 包裹，使 draw 闭包内读取的
-            // snapshot state 变化时能触发重绘（否则仅依赖重组，E3 完备性不足）
+            // snapshot state 变化时能触发重绘（否则仅依赖重组会漏掉部分场景）
             requireOwner().snapshotObserver.observeReads(
                 this@DrawBackgroundModifier,
                 DrawModifierNode::invalidateDraw
@@ -169,28 +172,36 @@ internal class DrawBackgroundModifier(
      */
     private fun ensureBackgroundCanvasView(hostView: DeclarativeBaseView<*, *>) {
         if (bgCanvasView != null) return
+        val parent = hostView.parent as? ViewContainer<*, *> ?: run {
+            KLog.e("Kuikly.Compose", "drawBehind bgCanvas: host has no ViewContainer parent")
+            return
+        }
+        // RichTextView 等自测量组件的 flexNode.layoutFrame 为 0，真位置在 renderView.currentFrame
+        val frame = hostView.renderView?.currentFrame ?: return
+        val bg = CanvasView()
+        var addedToParent = false
         try {
-            val parent = hostView.parent as? ViewContainer<*, *> ?: run {
-                KLog.e("Kuikly.Compose", "drawBehind bgCanvas: host has no ViewContainer parent")
-                return
-            }
-            // RichTextView 等自测量组件的 flexNode.layoutFrame 为 0，真位置在 renderView.currentFrame
-            val frame = hostView.renderView?.currentFrame ?: return
-            val bg = CanvasView()
             parent.addChild(bg, {
                 // absolutePosition 设 positionType=ABSOLUTE + 初始 top/left；
-                // 尺寸/z-order 不在此设（flex 不分 frame；z-order 由 drawInto 的 4dp padding 视觉处理）
+                // 尺寸不在此设（flex 不分 frame）
                 getViewAttr().absolutePosition(top = frame.y, left = frame.x)
             }, 0)
+            addedToParent = true
             parent.insertDomSubView(bg, 0)
             bgCanvasView = bg
         } catch (e: Throwable) {
             KLog.e("Kuikly.Compose", "drawBehind bgCanvas: ensure failed: ${e.message}")
+            // 半挂状态回滚：addChild 成功但后续步骤失败时，onDetach 无法通过 bgCanvasView
+            // 触达 bg，会造成 view 泄漏；这里显式清掉已挂的 bg。
+            if (addedToParent) {
+                runCatching { parent.removeDomSubView(bg) }
+                runCatching { parent.removeChild(bg) }
+            }
         }
     }
 
     /**
-     * 把背景 CanvasView 定位到宿主同帧（含 4dp 底部 padding），并用 KuiklyCanvas +
+     * 把背景 CanvasView 定位到宿主同帧（无额外 padding，与官方语义对齐），并用 KuiklyCanvas +
      * CanvasDrawScope 把 onDraw 跑进 bg。绕过 CanvasView.draw() 的
      * flexNode.layoutFrame.isDefaultValue() 检查（flex 不给注入子分 frame，该检查恒 true）。
      */
@@ -210,9 +221,8 @@ internal class DrawBackgroundModifier(
             // 尺寸，无任何偏移补丁。下划线"不穿字"由调用方在 lambda 内自行决定
             // 绘制 y 坐标（如画在 size.height），框架不替宿主加底部 padding。
             val density = requireDensity().density
-            val bottomPadDp = 0f
             val bgWidthDp = scopeSize.width / density
-            val bgHeightDp = scopeSize.height / density + bottomPadDp
+            val bgHeightDp = scopeSize.height / density
             bgRender.setFrame(posFrame.x, posFrame.y, bgWidthDp, bgHeightDp)
             val bgCanvas = KuiklyCanvas()
             bgCanvas.view = bg
@@ -221,7 +231,7 @@ internal class DrawBackgroundModifier(
                 requireDensity(),
                 requireLayoutDirection(),
                 bgCanvas,
-                Size(scopeSize.width, scopeSize.height + bottomPadDp * density)
+                Size(scopeSize.width, scopeSize.height)
             ) {
                 drawBlock()
             }

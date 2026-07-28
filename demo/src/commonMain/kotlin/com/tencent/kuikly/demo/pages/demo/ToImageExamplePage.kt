@@ -21,6 +21,7 @@ import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.Image
@@ -79,6 +80,8 @@ internal class ToImageExamplePage : BasePager() {
                         ctx.viewRef?.view?.toImage(ImageType.CACHE_KEY, 1){
                             val success = it?.optInt("code") == 0
                             val src = it?.optString("data")
+                            val message = it?.optString("message")
+                            KLog.d(TAG, "toImage, success: $success, src: $src, message: $message")
                             if (src != null) {
                                 ctx.src = src
                             }

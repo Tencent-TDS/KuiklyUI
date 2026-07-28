@@ -194,8 +194,17 @@ export class KRNativeRenderController {
       params.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
       this.doUpdateSafeArea();
     } else if (params.type == window.AvoidAreaType.TYPE_KEYBOARD) {
-      // 键盘高度变化时，上报页面级 IME insets
-      const keyboardHeight = px2vp(params.area.bottomRect.height);
+      // 键盘高度变化时，上报页面级 IME insets。
+      // bottomRect.height 以屏幕底为基准；若页面 view 未延伸到屏幕底（如停在导航条上方的
+      // 安全区内），需按页面实际底边动态扣减差值，否则滚动/避让会多出一段空隙。
+      // 不固定减去导航条高度：沉浸式页面（view 底 == 屏幕底）时 gap 为 0，上报完整高度。
+      const keyboardAreaPx = params.area.bottomRect.height;
+      const windowH = this.windowClass?.getWindowProperties().windowRect.height ?? 0;
+      const density = this.getWindowActiveDensity();
+      const pageBottomPx = ((this.viewRect?.y ?? 0) + (this.viewRect?.height ?? 0)) * density;
+      const pageBottomGap = this.viewRect != null ? Math.max(0, windowH - pageBottomPx) : 0;
+      const occludedPx = Math.max(0, keyboardAreaPx - pageBottomGap);
+      const keyboardHeight = px2vp(occludedPx);
       this.notifyImeInsetsChanged(keyboardHeight);
     }
   };

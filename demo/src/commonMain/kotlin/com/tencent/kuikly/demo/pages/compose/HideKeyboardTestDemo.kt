@@ -39,7 +39,7 @@ import com.tencent.kuikly.core.log.KLog
 
 private const val TAG = "HideKeyboardTest"
 
-@Page("223399")
+@Page("HideKeyboardTestDemo")
 internal class HideKeyboardTestDemo : ComposeContainer() {
 
     override fun willInit() {
@@ -120,34 +120,13 @@ internal fun HideKeyboardTestContent() {
                 .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
                 .clickable {
                     keyboardController?.hide()
-                    statusText1 = "状态：hide()（收键盘+失焦）"
-                    statusText2 = "状态：hide()（收键盘+失焦）"
+                    statusText1 = "状态：hide()（收键盘 + 不失焦）"
+                    statusText2 = "状态：hide()（收键盘 + 不失焦）"
                 },
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "hide()（收键盘+失焦）",
-                style = TextStyle(fontSize = 14.sp, color = Color.White)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // hide() — 与 Compose 默认效果保持一致，收键盘不失焦
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .background(Color(0xFFFF9800), RoundedCornerShape(8.dp))
-                .clickable {
-                    keyboardController?.hideKeepFocus()
-                    statusText1 = "状态：hide(keepFocus=true)（收键盘保光标）"
-                    statusText2 = "状态：hide(keepFocus=true)（收键盘保光标）"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "hide(keepFocus=true)（收键盘保光标）",
+                text = "hide()（收键盘 + 不失焦）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }
@@ -186,14 +165,14 @@ internal fun HideKeyboardTestContent() {
                 .background(Color(0xFF9C27B0), RoundedCornerShape(8.dp))
                 .clickable {
                     focusRequester.requestFocus()
-                    keyboardController?.hideKeepFocus()
-                    statusText1 = "状态：requestFocus + hideKeepFocus（无焦点异步）"
-                    statusText2 = "状态：requestFocus + hideKeepFocus（无焦点异步）"
+                    keyboardController?.hide()
+                    statusText1 = "状态：requestFocus + hide（获焦且不显示键盘）"
+                    statusText2 = "状态：requestFocus + hide（获焦且不显示键盘）"
                 },
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "requestFocus + hideKeepFocus（无焦点异步）",
+                text = "requestFocus + hide（获焦且不显示键盘）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }

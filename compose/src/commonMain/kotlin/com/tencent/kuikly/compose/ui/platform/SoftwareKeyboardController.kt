@@ -61,29 +61,11 @@ interface SoftwareKeyboardController {
      * @sample androidx.compose.ui.samples.SoftwareKeyboardControllerSample
      */
     fun hide()
-
-    /**
-     * 收起软键盘，但保留/获取焦点。
-     *
-     * 与 [hide] 的区别在于：本方法在"当前没有焦点"时也能生效。
-     * - 当前已有焦点：直接收起键盘，不失焦（与 [hide] 保留焦点的效果一致）。
-     * - 当前没有焦点：让目标输入框先获取焦点，同时收起键盘。由于获取焦点与收起
-     *   键盘两个动作是先后执行的，为避免看到键盘"先弹起又消失"的闪烁，原生侧
-     *   以自包含命令统一处理为「获焦 + 无键盘」（如 iOS dummy inputView、
-     *   Android requestFocus + hideSoftInput），键盘始终不显示。
-     *
-     * 无焦点场景下，业务需先通过 `focusRequester.requestFocus()` 指定目标输入框，
-     * 再调用本方法（二者在同一次事件中先后调用即可）。
-     *
-     * Calling this function is considered a side-effect and should not be called directly from
-     * recomposition.
-     */
-    fun hideKeepFocus()
 }
 
 internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
     private enum class PendingAction {
-        NONE, START_INPUT, STOP_INPUT, SHOW_KEYBOARD, HIDE_KEYBOARD, FOCUS_NO_KEYBOARD
+        NONE, START_INPUT, STOP_INPUT, SHOW_KEYBOARD, HIDE_KEYBOARD
     }
     private var activeView: AutoHeightTextAreaView? = null
     private var pendingView: AutoHeightTextAreaView? = null
@@ -100,16 +82,11 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
     }
 
     override fun hide() {
-        activeView?.also { sendInputCommand(it, PendingAction.HIDE_KEYBOARD) }
-    }
-
-    override fun hideKeepFocus() {
-        // 焦点不是 keyboardController 给的，而是走 Compose 焦点系统：
-        // requestFocus() → onFocusChanged 回调 → startInput()，且该回调是异步派发的。
+        // 现在hide的作用全面和当前的hideKeepFocus的作用对齐
         val target = activeView ?: pendingView
         if (target != null) {
             // 已有目标 view（已获焦，或 requestFocus 已同步生效）：直接下发自包含命令。
-            sendInputCommand(target, PendingAction.FOCUS_NO_KEYBOARD)
+            sendInputCommand(target, PendingAction.HIDE_KEYBOARD)
         } else {
             // 无焦点：此刻 requestFocus 触发的 startInput 尚未到达，拿不到 view。
             // 打标记，等 startInput 送来 pendingView 时把默认 focus() 替换为 focusWithoutKeyboard()，
@@ -117,6 +94,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
             pendingFocusNoKeyboard = true
         }
     }
+
 
     internal fun startInput(view: AutoHeightTextAreaView) {
         sendInputCommand(view, PendingAction.START_INPUT)
@@ -157,9 +135,6 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur()
-                    }
-                    PendingAction.FOCUS_NO_KEYBOARD -> {
                         // 单条自包含命令，获焦但键盘全程不出现。
                         // 该命令自身完成获焦，后续不再单独下发 focus()，因此不会触发键盘弹起。
                         val targetView = activeView ?: pendingView

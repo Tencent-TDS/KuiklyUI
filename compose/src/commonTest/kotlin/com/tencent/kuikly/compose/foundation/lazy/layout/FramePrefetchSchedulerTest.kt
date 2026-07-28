@@ -27,7 +27,6 @@ class FramePrefetchSchedulerTest {
         assertFalse(scheduler.hasPendingWork())
         assertFalse(
             scheduler.processRequests(
-                frameIntervalMillis = 1_000.0 / 60.0,
                 frameDeadlineMillis = 1_000.0 / 60.0,
                 isFrameIdle = false,
             ).scheduleForNextFrame,

@@ -132,6 +132,8 @@ class ComposeSceneMediator(
             frameIntervalMillis = frameIntervalMillis
         )
         scene.vsyncTickConditions.onDisplayLinkTick {
+            // Keep Compose animations on the local monotonic clock. Native frame timing is only
+            // used for idle detection and prefetch deadlines.
             scene.render(null, timestampNanos)
         }
     }

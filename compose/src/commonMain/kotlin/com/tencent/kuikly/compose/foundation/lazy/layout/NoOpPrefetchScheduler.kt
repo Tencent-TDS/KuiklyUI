@@ -21,7 +21,6 @@ internal object NoOpPrefetchScheduler : FramePrefetchScheduler, PriorityPrefetch
     override fun hasPendingWork(): Boolean = false
 
     override fun processRequests(
-        frameIntervalMillis: Double,
         frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
     ): PrefetchProcessResult = PrefetchProcessResult(

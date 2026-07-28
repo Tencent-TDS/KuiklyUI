@@ -22,7 +22,6 @@ internal interface FramePrefetchScheduler : PrefetchScheduler {
     fun hasPendingWork(): Boolean
 
     fun processRequests(
-        frameIntervalMillis: Double,
         frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
     ): PrefetchProcessResult
@@ -71,7 +70,6 @@ internal class KuiklyPrefetchScheduler :
      *   official `scheduleForNextFrame` (Choreographer post) when work remains or budget is 0.
      */
     override fun processRequests(
-        frameIntervalMillis: Double,
         frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
     ): PrefetchProcessResult {
@@ -81,7 +79,7 @@ internal class KuiklyPrefetchScheduler :
         scope.frameDeadlineMillis = frameDeadlineMillis
 
         LazyListPrefetchTrace.log(
-            "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size} frameIntervalMillis=$frameIntervalMillis",
+            "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size}",
         )
 
         val startTime = DateTime.nanoTime()

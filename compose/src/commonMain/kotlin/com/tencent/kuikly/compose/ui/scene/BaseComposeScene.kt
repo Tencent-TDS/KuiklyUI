@@ -228,7 +228,6 @@ internal abstract class BaseComposeScene(
             val framePrefetchScheduler = prefetchScheduler as? FramePrefetchScheduler
             val prefetchResult =
                 framePrefetchScheduler?.processRequests(
-                    frameIntervalMillis = frameIntervalMillis,
                     frameDeadlineMillis = vsyncTickConditions.frameDeadlineMillis,
                     isFrameIdle = isFrameIdle,
                 )

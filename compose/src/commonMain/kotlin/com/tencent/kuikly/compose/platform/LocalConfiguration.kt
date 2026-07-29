@@ -117,9 +117,9 @@ class Configuration(private val pager: IPager) {
     // 当前页面的软件键盘占位高度（dp）
     val imeBottomDp: Float by _imeBottomDp
     // 当前页面的软件键盘动画时长（毫秒，phase1 仅内部预留）
-    val imeAnimationDuration: Float by _imeAnimationDuration
+    internal val imeAnimationDuration: Float by _imeAnimationDuration
     // 当前页面的软件键盘动画曲线（内部标准化值，phase1 仅内部预留）
-    val imeAnimationCurve: Int by _imeAnimationCurve
+    internal val imeAnimationCurve: Int by _imeAnimationCurve
 
     fun onRootViewSizeChanged(width: Double, height: Double) {
         _pageViewWidth.value = width.toFloat()

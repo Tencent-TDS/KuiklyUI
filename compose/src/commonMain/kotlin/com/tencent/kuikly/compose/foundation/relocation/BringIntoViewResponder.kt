@@ -131,6 +131,14 @@ internal abstract class BringIntoViewResponderNode(
     }
 
     protected open fun viewportRect(containerCoordinates: LayoutCoordinates): Rect =
+        // 使用 root 坐标，与 target bounds 的 localBoundingBoxOf 链路保持一致。
+        // 官方语义应为 window 坐标（boundsInWindow），但 Kuikly 的
+        // localToWindow/windowToLocal 底层链路（NodeCoordinator → Owner → render 层）
+        // 尚未实现，boundsInWindow() 调用即抛异常；补全该链路需三端 render 桥接、
+        // root 无 rotation/scale 的平移模型假设以及 offset 推送时序保障，
+        // 评估建设风险后暂不实现，保留 root 坐标。
+        // 正确性前提：imeBottomPx 已由 render 层按页面真实底边补偿（三端均已实现），
+        // 此前提下 root 坐标链自洽；若未来键盘上报口径变更需重新评估。
         containerCoordinates.boundsInRoot()
 
     protected open fun mapScrollDelta(delta: Float): Float = delta
@@ -174,8 +182,11 @@ internal abstract class BringIntoViewResponderNode(
      */
     private fun effectiveVisibleHeight(container: LayoutCoordinates): Float {
         val containerRect = viewportRect(container)
-        val windowBottom = container.findRootCoordinates().boundsInRoot().bottom
-        val visibleBottom = minOf(containerRect.bottom, windowBottom - imeBottomPx.coerceAtLeast(0f))
+        // root 坐标系下的可见底边基准：root 底边即 root 高度（window 坐标链路未实现，
+        // 见 viewportRect 注释）。imeBottomPx 是 render 层上报的「键盘对页面的实际
+        // 遮挡量」，二者同基准，相减即页面内可见底边。
+        val rootBottom = container.findRootCoordinates().size.height.toFloat()
+        val visibleBottom = minOf(containerRect.bottom, rootBottom - imeBottomPx.coerceAtLeast(0f))
         return (visibleBottom - containerRect.top).coerceAtLeast(0f)
     }
 
@@ -290,11 +301,12 @@ internal abstract class BringIntoViewResponderNode(
         if (targetRect == Rect.Zero || containerRect == Rect.Zero) {
             return null
         }
-        val windowBottom = containerCoordinates.findRootCoordinates().boundsInRoot().bottom
+        // root 坐标系下的可见底边基准（同 effectiveVisibleHeight，见 viewportRect 注释）。
+        val rootBottom = containerCoordinates.findRootCoordinates().size.height.toFloat()
         val delta = calculateBringIntoViewDelta(
             targetRect = targetRect,
             containerRect = containerRect,
-            windowBottom = windowBottom,
+            windowBottom = rootBottom,
             imeBottomPx = imeBottomPx,
         )
         return delta

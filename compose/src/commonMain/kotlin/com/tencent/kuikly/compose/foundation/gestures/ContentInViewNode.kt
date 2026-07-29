@@ -41,6 +41,12 @@ internal const val MinScrollThreshold = 0.5f
  * previousFocusedChildBounds.isMaxVisible(oldSize) && !focusedChild.isMaxVisible(size)
  * ```
  *
+ * Note: unlike the official implementation which compares the PREVIOUS focused child bounds
+ * against the old viewport (and the current bounds against the new viewport), this MVP
+ * approximation uses the CURRENT bounds for both checks. If the viewport shrink and the child
+ * relayout happen in the same frame, this may misjudge; acceptable since the focused child
+ * typically has not moved when the keyboard appears.
+ *
  * @param focusedChildRect The current bounds of the focused child, in container-local coordinates.
  * @param oldViewport      The viewport rect before the resize.
  * @param newViewport      The viewport rect after the resize.

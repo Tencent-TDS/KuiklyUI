@@ -173,6 +173,11 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             "must call on ui thread"
         }
         val kuiklyContext = renderViewWeakRef?.get()?.kuiklyRenderContext
+
+        // 对需要保留“原始尺寸”的 View（当前主要是 KRRichTextView）记录原始frame
+        // 供文本重排、截断等逻辑使用；否则在精度抖动时可能把 1px 的对齐误差带进文本布局判断里
+        getRenderViewHandler(tag)?.viewExport?.recordOriginalFrame(frame)
+
         // 注意 RectF 此处是 bridge 复用的容器，其字段语义实际上是 (x, y, width, height)，
         // 而非字段名所暗示的 (left, top, right, bottom)。下游 View.frame setter 也是把
         // Rect.right / Rect.bottom 当 width / height 写进 LayoutParams.width/height 的。

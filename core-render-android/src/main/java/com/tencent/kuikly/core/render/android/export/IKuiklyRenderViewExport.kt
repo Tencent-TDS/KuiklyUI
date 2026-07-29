@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.render.android.export
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
 import android.os.Handler
 import android.os.Looper
@@ -215,6 +216,17 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
             (view() as? ViewGroup)?.clipChildren = true
         }
     }
+
+    /**
+     * 在 setFrame 时记录一份当前 View 的原始尺寸（像素对齐前的原始 frame）。
+     *
+     * 外层在设置新 frame 时会先调用此方法，将旧 frame 传入，供组件内部的测量/布局
+     * 逻辑使用（例如富文本根据旧 width 判断是否需要重排文本）。
+     * 默认空实现，只有确实依赖旧尺寸做判断的组件才需要覆写。
+     *
+     * @param frame 当前 View 的旧 frame，语义为 (x, y, width, height)
+     */
+    fun recordOriginalFrame(frame: RectF) {}
 
     /**
      * View截图能力，对齐iOS/鸿蒙侧实现

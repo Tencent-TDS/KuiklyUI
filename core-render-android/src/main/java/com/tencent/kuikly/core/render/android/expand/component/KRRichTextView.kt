@@ -64,6 +64,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
     private var isRichTextMode = false
     private var parentTextSelector: KRTextSelector? = null
     private var activeLongPressSpanIndex: Int = -1
+    private var originalFrame: RectF? = null
 
     override fun onDetachedFromWindow() {
         if (hasSelection()) {
@@ -120,6 +121,10 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         drawText(canvas)
+    }
+
+    override fun recordOriginalFrame(frame: RectF) {
+        this.originalFrame = frame
     }
 
     private fun drawText(canvas: Canvas) {
@@ -254,7 +259,10 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         if (textLayout == null || layoutParamsNotHasSize(layoutParams)) {
             return false
         }
-        return layoutParams.width != textLayout.width
+        // 使用originalFrame作为参考 避免因为做像素对齐的误差而导致重新计算
+        val frame = originalFrame ?: return false
+        val width = kuiklyRenderContext.toPxI(frame.right)
+        return width != textLayout.width
     }
 
     private fun layoutParamsNotHasSize(params: ViewGroup.LayoutParams): Boolean =

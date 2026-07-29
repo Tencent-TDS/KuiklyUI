@@ -109,6 +109,16 @@ kotlin {
         }
 
         // Wire all compilation targets to runtimeLegacyMain
+        // Keep the default Native/Apple hierarchy in the runtimeLegacy branch so
+        // ios targets compile the actuals from nativeMain and appleMain.
+        val nativeMain by creating {
+            dependsOn(runtimeLegacyMain)
+        }
+
+        val appleMain by creating {
+            dependsOn(nativeMain)
+        }
+
         val androidMain by getting {
             dependsOn(runtimeLegacyMain)
             dependencies {
@@ -122,12 +132,12 @@ kotlin {
             dependsOn(runtimeLegacyMain)
         }
 
-        // Wire each native/Apple target source set individually.
+        // Wire Apple targets through appleMain so nativeMain actuals are included.
         listOf(
             "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
             "macosX64Main", "macosArm64Main",
         ).forEach { ssName ->
-            findByName(ssName)?.dependsOn(runtimeLegacyMain)
+            findByName(ssName)?.dependsOn(appleMain)
         }
     }
 }

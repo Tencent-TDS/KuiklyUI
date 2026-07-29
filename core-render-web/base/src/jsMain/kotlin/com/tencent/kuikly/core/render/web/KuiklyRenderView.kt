@@ -28,6 +28,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.MutationObserver
 import org.w3c.dom.MutationObserverInit
+import org.w3c.dom.events.Event
 
 /**
  * Kuikly rendering logic entry point, called by actual business APP
@@ -153,6 +154,7 @@ class KuiklyRenderView(
     }
 
     override fun pause() {
+        kuiklyWindow.dispatchEvent(Event(VIEW_PAUSE_RESET_POINTER_EVENT))
         sendEvent(VIEW_DID_DISAPPEAR, mapOf(VIEW_DID_DISAPPEAR to VIEW_DID_DISAPPEAR_VALUE))
         dispatchLifecycleStateChanged(STATE_PAUSE)
     }
@@ -435,6 +437,8 @@ class KuiklyRenderView(
 
         private const val VIEW_DID_APPEAR = "viewDidAppear"
         private const val VIEW_DID_APPEAR_VALUE = "1"
+
+        const val VIEW_PAUSE_RESET_POINTER_EVENT = "viewPauseResetPointer"
 
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
 

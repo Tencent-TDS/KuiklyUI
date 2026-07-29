@@ -9,22 +9,28 @@ import com.tencent.kuikly.core.render.web.const.KREventConst
 import com.tencent.kuikly.core.render.web.const.KRParamConst
 import com.tencent.kuikly.core.render.web.const.KRStateConst
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
+import com.tencent.kuikly.core.render.web.expand.components.KRImageView.Companion.BASE64_IMAGE_PREFIX
+import com.tencent.kuikly.core.render.web.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
+import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.processor.state
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.DeviceType
 import com.tencent.kuikly.core.render.web.utils.DeviceUtils
+import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLDivElement
+import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.Touch
 import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.json
+import kotlin.math.max
 
 /**
  * Convert Touch parameters to specified format
@@ -145,9 +151,110 @@ open class KRView : IKuiklyRenderViewExport {
                 }
                 null
             }
+
+            TO_IMAGE -> {
+                toImage(params, callback)
+                null
+            }
             else -> super.call(method, params, callback)
         }
     }
+
+    private fun toImage(params: String?, callback: KuiklyRenderCallback?) {
+        val json = JSONObject(params ?: "{}")
+        val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
+        val sampleSize = max(1, json.optInt(TO_IMAGE_PARAM_SAMPLE_SIZE, 1))
+
+        if (type == TO_IMAGE_TYPE_FILE) {
+            callback?.invoke(toImageError("FILE is not supported on H5"))
+            return
+        }
+
+        // Use SVG foreignObject to rasterize current DOM subtree in browser.
+        // Note: cross-origin resources may taint canvas and fail toDataURL.
+        val rect = ele.getBoundingClientRect()
+        val width = max(1, rect.width.toInt())
+        val height = max(1, rect.height.toInt())
+        val scale = max(1.0 / sampleSize.toDouble(), 0.01)
+        val outputWidth = max(1, (width * scale).toInt())
+        val outputHeight = max(1, (height * scale).toInt())
+
+        val cloned = ele.cloneNode(true).unsafeCast<HTMLDivElement>()
+        // Ensure cloned root keeps explicit size and has transparent background by default.
+        // Also normalize position-related styles to avoid double-applying frame offsets
+        // inside SVG foreignObject (which would shift content right/down and clip edges).
+        cloned.style.margin = "0"
+        cloned.style.width = "${width}px"
+        cloned.style.height = "${height}px"
+        cloned.style.setProperty("overflow", "hidden")
+        cloned.style.setProperty("position", "relative")
+        cloned.style.setProperty("left", "0px")
+        cloned.style.setProperty("top", "0px")
+        cloned.style.setProperty("right", "auto")
+        cloned.style.setProperty("bottom", "auto")
+        cloned.style.setProperty("transform", "none")
+        cloned.style.setProperty("transform-origin", "0 0")
+
+        val serializer: dynamic = js("new XMLSerializer()")
+        val xhtml = serializer.serializeToString(cloned)
+        val svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height">
+                <foreignObject width="100%" height="100%">$xhtml</foreignObject>
+            </svg>
+        """.trimIndent()
+        val encodedSvg = kuiklyWindow.asDynamic().encodeURIComponent(svg).unsafeCast<String>()
+        val svgDataUrl = "data:image/svg+xml;charset=utf-8,$encodedSvg"
+
+        val image = kuiklyDocument.createElement(ElementType.IMAGE).unsafeCast<HTMLImageElement>()
+        image.addEventListener("load", { _: Event ->
+            try {
+                val canvas = kuiklyDocument.createElement(ElementType.CANVAS).unsafeCast<HTMLCanvasElement>()
+                canvas.width = outputWidth
+                canvas.height = outputHeight
+                val ctx = canvas.getContext("2d")
+                if (ctx == null) {
+                    callback?.invoke(toImageError("failed to get 2d context"))
+                } else {
+                    val ctx2d: dynamic = ctx
+                    ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
+                    val dataUri = canvas.toDataURL("image/png")
+                    if (type == TO_IMAGE_TYPE_CACHE_KEY) {
+                        val cacheKey = buildImageCacheKey()
+                        kuiklyRenderContext
+                            ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+                            ?.set(cacheKey, dataUri)
+                        callback?.invoke(toImageSuccess(cacheKey))
+                    } else {
+                        callback?.invoke(toImageSuccess(dataUri))
+                    }
+                }
+            } catch (t: Throwable) {
+                callback?.invoke(toImageError(t.message ?: "toImage render failed"))
+            }
+        })
+        image.addEventListener("error", { _: Event ->
+            callback?.invoke(toImageError("toImage load svg failed"))
+        })
+        image.src = svgDataUrl
+    }
+
+    private fun buildImageCacheKey(): String {
+        val timestamp = js("Date.now()").unsafeCast<Double>().toLong()
+        val random = js("Math.floor(Math.random() * 1000000)").unsafeCast<Double>().toInt() + 1_000_000
+        return "${BASE64_IMAGE_PREFIX}_Md5_snapshot_${timestamp}_${random}"
+    }
+
+    private fun toImageSuccess(data: String): Map<String, Any> = mapOf(
+        TO_IMAGE_CODE to 0,
+        TO_IMAGE_DATA to data,
+        TO_IMAGE_MESSAGE to ""
+    )
+
+    private fun toImageError(message: String): Map<String, Any> = mapOf(
+        TO_IMAGE_CODE to -1,
+        TO_IMAGE_DATA to "",
+        TO_IMAGE_MESSAGE to message
+    )
 
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
@@ -546,6 +653,18 @@ open class KRView : IKuiklyRenderViewExport {
         private const val EVENT_SCREEN_FRAME = "screenFrame"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
         private const val BRING_TO_FRONT = "bringToFront"
+        private const val TO_IMAGE = "toImage"
+
+        private const val TO_IMAGE_PARAM_TYPE = "type"
+        private const val TO_IMAGE_PARAM_SAMPLE_SIZE = "sampleSize"
+
+        private const val TO_IMAGE_TYPE_CACHE_KEY = "cacheKey"
+        private const val TO_IMAGE_TYPE_DATA_URI = "dataUri"
+        private const val TO_IMAGE_TYPE_FILE = "file"
+
+        private const val TO_IMAGE_CODE = "code"
+        private const val TO_IMAGE_DATA = "data"
+        private const val TO_IMAGE_MESSAGE = "message"
         // Refresh rate interval, 16ms (approximately 60fps)
         private const val SCREEN_FRAME_REFRESH_TIME = 16
         // Border size ratio threshold

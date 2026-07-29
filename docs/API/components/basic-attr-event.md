@@ -1291,6 +1291,10 @@ internal class PanEventPage : BasePager() {
 ``EXCLUSIVE_GROUP``手势组内，组内先识别成功者胜出、其余判失败，本就是互斥的。
 Android 与 iOS 的处理比鸿蒙更宽松：仅在捏合实际发生时才让``pan``让位，
 不会出现``pinch``被``pan``抢死而完全不触发的情况。
+:::
+
+:::warning macOS 暂不支持
+macOS 无对应的捏合手势识别器实现，注册``pinch``不会报错，但回调不会触发。
 
 **需要「缩放同时平移」时**，不必依赖双指``pan``：``pinch``每次回调都带焦点坐标
 （``x``/``y``与``pageX``/``pageY``），用焦点相对手势起点的位移即可得到平移量。

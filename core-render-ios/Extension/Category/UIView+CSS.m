@@ -90,6 +90,9 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong) UITapGestureRecognizer *css_doubleTapGR;
 @property (nonatomic, strong) UILongPressGestureRecognizer *css_longPressGR;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
+@property (nonatomic, strong) UIPinchGestureRecognizer *css_pinchGR;
+/// 捏合期间被临时禁止滚动的祖先ScrollView，手势结束后恢复
+@property (nonatomic, weak) UIScrollView *css_pinchLockedScrollView;
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 
 @end
@@ -899,6 +902,22 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     objc_setAssociatedObject(self, @selector(css_panGR), css_panGR, OBJC_ASSOCIATION_RETAIN);
 }
 
+- (UIPinchGestureRecognizer *)css_pinchGR {
+    return objc_getAssociatedObject(self, @selector(css_pinchGR));
+}
+
+- (void)setCss_pinchGR:(UIPinchGestureRecognizer *)css_pinchGR {
+    objc_setAssociatedObject(self, @selector(css_pinchGR), css_pinchGR, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (UIScrollView *)css_pinchLockedScrollView {
+    return objc_getAssociatedObject(self, @selector(css_pinchLockedScrollView));
+}
+
+- (void)setCss_pinchLockedScrollView:(UIScrollView *)css_pinchLockedScrollView {
+    objc_setAssociatedObject(self, @selector(css_pinchLockedScrollView), css_pinchLockedScrollView, OBJC_ASSOCIATION_ASSIGN);
+}
+
 - (KuiklyRenderCallback)css_click {
     return objc_getAssociatedObject(self, @selector(css_click));
 }
@@ -1005,7 +1024,51 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
                 self.userInteractionEnabled = YES;
             }
         }
+        [self css_syncPanPinchExclusion];
     }
+}
+
+- (KuiklyRenderCallback)css_pinch {
+    return objc_getAssociatedObject(self, @selector(css_pinch));
+}
+
+- (void)setCss_pinch:(KuiklyRenderCallback)css_pinch {
+    if (self.css_pinch != css_pinch) {
+        objc_setAssociatedObject(self, @selector(css_pinch), css_pinch, OBJC_ASSOCIATION_RETAIN);
+        if (self.css_pinchGR) {
+            // 若手势正处于锁定状态被移除，需恢复ScrollView，否则其将永久无法滚动
+            [self css_unlockAncestorScrollViewForPinch];
+            [self removeGestureRecognizer:self.css_pinchGR];
+            self.css_pinchGR = nil;
+        }
+        if (css_pinch != nil) {
+            self.css_pinchGR = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(css_onPinchWithSender:)];
+            [self addGestureRecognizer:self.css_pinchGR];
+            if (!self.css_touchEnable) {
+                self.userInteractionEnabled = YES;
+            }
+        }
+        [self css_syncPanPinchExclusion];
+    }
+}
+
+/// 同时注册pan与pinch时，将pan限制为单指，划清「单指pan、双指pinch」的职责边界。
+///
+/// pan与pinch在语义上并不冲突(UIKit 开启同时识别即可并行，如系统相册的缩放兼平移)，
+/// 此处限制为单指是出于两点考虑:
+/// 1. UIPanGestureRecognizer 默认不限制手指数，双指移动同样被识别为pan；
+///    而未开启同时识别时 UIKit 只让先识别者生效，pan阈值更低会抢先，导致pinch永不触发。
+/// 2. 双指平移能力并未丢失: pinch每帧都带焦点坐标，业务可由焦点位移派生平移量。
+///
+/// 该边界仅在同时存在 css_pinchGR 时生效，只注册pan的存量组件行为不变。
+/// 与Android侧「pinch进行中不派发pan」的处理保持一致。
+- (void)css_syncPanPinchExclusion {
+#if !TARGET_OS_OSX // [macOS] NSPanGestureRecognizer 无 maximumNumberOfTouches
+    if (!self.css_panGR) {
+        return;
+    }
+    self.css_panGR.maximumNumberOfTouches = self.css_pinchGR ? 1 : NSUIntegerMax;
+#endif
 }
 
 - (KuiklyRenderCallback)css_animationCompletion {
@@ -1127,6 +1190,74 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     };
     if (self.css_pan) {
         self.css_pan(param);
+    }
+}
+
+- (void)css_onPinchWithSender:(UIPinchGestureRecognizer *)sender {
+    NSDictionary *config = @{
+        @(UIGestureRecognizerStateBegan): @"start",
+        @(UIGestureRecognizerStateChanged): @"move",
+    };
+
+    // 捏合期间临时禁止祖先ScrollView滚动。
+    //
+    // UIScrollView 的 touchesShouldCancelInContentView: 对非UIControl子视图默认返回YES，
+    // 一旦其开始滚动便会取消本视图上的触摸，导致捏合手势中断。
+    // 此处与 Android 侧 requestDisallowInterceptTouchEvent(true) 的意图一致。
+    if (sender.state == UIGestureRecognizerStateBegan) {
+        [self css_lockAncestorScrollViewForPinch];
+    } else if (sender.state == UIGestureRecognizerStateEnded ||
+               sender.state == UIGestureRecognizerStateCancelled ||
+               sender.state == UIGestureRecognizerStateFailed) {
+        [self css_unlockAncestorScrollViewForPinch];
+    }
+
+    // 捏合中心点。手势少于2指时locationInView语义不明确，此处仍取其提供的中心点，与系统行为保持一致
+    CGPoint location = [sender locationInView:self];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
+    NSDictionary *param = @{
+        @"state": config[@(sender.state)] ? : @"end",
+        @"x": @(location.x),
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
+        // UIPinchGestureRecognizer.scale本身即为相对手势开始时的累计倍数，与PinchGestureParams.scale语义一致
+        @"scale": @(sender.scale),
+    };
+    if (self.css_pinch) {
+        self.css_pinch(param);
+    }
+}
+
+/// 向上查找最近的祖先ScrollView并禁止其滚动，避免其取消本视图触摸而中断捏合
+- (void)css_lockAncestorScrollViewForPinch {
+    if (self.css_pinchLockedScrollView) { // 已锁定，避免重复处理
+        return;
+    }
+    UIView *superView = self.superview;
+    while (superView) {
+        if ([superView isKindOfClass:[UIScrollView class]]) {
+            UIScrollView *scrollView = (UIScrollView *)superView;
+            if (scrollView.isScrollEnabled) {
+                scrollView.scrollEnabled = NO;
+                self.css_pinchLockedScrollView = scrollView;
+            }
+            return;
+        }
+        superView = superView.superview;
+    }
+}
+
+/// 恢复此前被禁止滚动的祖先ScrollView
+- (void)css_unlockAncestorScrollViewForPinch {
+    UIScrollView *scrollView = self.css_pinchLockedScrollView;
+    if (scrollView) {
+        scrollView.scrollEnabled = YES;
+        self.css_pinchLockedScrollView = nil;
     }
 }
 

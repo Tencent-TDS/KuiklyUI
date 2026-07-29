@@ -162,6 +162,10 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             addEventListener(KRCSSGestureListener.TYPE_PAN, value as KuiklyRenderCallback)
             true
         }
+        KRCssConst.PINCH -> {
+            addEventListener(KRCSSGestureListener.TYPE_PINCH, value as KuiklyRenderCallback)
+            true
+        }
         KRCssConst.ANIMATION_COMPLETION_BLOCK -> {
             animationCompletionBlock = value as KuiklyRenderCallback
             true
@@ -300,6 +304,9 @@ fun View.resetCommonProp(propKey: String): Boolean {
             return true
         }
         KRCssConst.PAN -> {
+            resetEventListener()
+        }
+        KRCssConst.PINCH -> {
             resetEventListener()
         }
         KRCssConst.ANIMATION -> {

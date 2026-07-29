@@ -123,6 +123,42 @@ fun PreloadStaggeredGridSample(items: List<String>) {
 }
 ```
 
+### 获焦滚入可视区：`BringIntoViewRequester`
+
+`LazyColumn` 内置 bring-into-view 响应能力：其中的 `TextField` 获焦且被键盘遮挡时，列表会自动滚动到键盘上方（详见[核心组件 - TextField](core-components.md)）。
+
+如需对**任意节点**手动触发「滚入可视区」，使用公开的 `BringIntoViewRequester`：
+
+```kotlin
+@Composable
+fun ManualBringIntoViewSample() {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+
+    LazyColumn {
+        item {
+            TextField(
+                value = "",
+                onValueChange = { },
+                modifier = Modifier.bringIntoViewRequester(requester)
+            )
+        }
+    }
+
+    // 需要时手动触发（suspend 函数，需在协程中调用）：
+    scope.launch { requester.bringIntoView() }
+}
+```
+
+**相关 API**：
+- `BringIntoViewRequester.bringIntoView()` / `bringIntoView(rect: Rect?)` - 请求将节点（或节点内指定区域）滚入可视区
+- `Modifier.bringIntoViewRequester(requester)` - 将 requester 绑定到目标节点
+
+**说明**：
+- 请求会向上找到最近的 `LazyColumn` 容器执行滚动；无支持的容器祖先时安全返回
+- 目标已完全可见时不滚动（no-op）
+- 当前仅 `LazyColumn` 支持响应该请求
+
 ### 下拉刷新：`pullToRefreshItem`
 
 ```kotlin

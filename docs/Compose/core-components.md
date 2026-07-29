@@ -381,6 +381,29 @@ fun FormPage() {
 - [`ImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImeInsetDemo.kt)：`imePadding()` 显式用法
 - [`ScaffoldImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ScaffoldImeInsetDemo.kt)：`Scaffold` 默认 IME 避让用法
 
+#### 获焦自动滚入可视区（bring-into-view）
+
+`TextField` 位于 `LazyColumn` 中时，获焦且被键盘遮挡会**自动滚动到键盘上方**，业务无需监听键盘高度手动计算滚动偏移，Android / iOS / HarmonyOS 三端行为一致。
+
+```kotlin
+LazyColumn {
+    items(fields) { field ->
+        TextField(value = field, onValueChange = { })  // 零接入，自动生效
+    }
+}
+```
+
+**行为说明**：
+- 仅保证输入组件**整体完整可见**（部分露出的输入框获焦时也会先滚到完全露出）
+- 已完全可见的输入框获焦**不会**触发滚动
+- 键盘弹起过程中切换焦点，会持续自动滚动
+- 当前仅支持 `LazyColumn` 纵向容器；`ScrollState`/`verticalScroll` 容器暂未覆盖
+- 打字时的光标级跟随滚动（caret 级）暂未实现
+
+如需对任意节点手动触发滚动，可使用公开 API `BringIntoViewRequester`，详见[列表与滚动](list-and-scroll.md)章节。
+
+**与 `imePadding()` 的关系**：`imePadding()` 是页面级布局避让（为内容腾出键盘空间）；bring-into-view 负责在此之上保证**获焦输入框本身**真正滚入可视区，两者自动协同，业务无需手动组合。
+
 #### 占位符设置：`Modifier.placeHolder` / `Modifier.placeholderColor`
 
 用于设置输入框的占位符文本和颜色。

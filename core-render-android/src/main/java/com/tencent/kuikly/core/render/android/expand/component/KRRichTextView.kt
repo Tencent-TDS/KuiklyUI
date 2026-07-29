@@ -97,6 +97,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         richTextShadow = null
         textDrawer = null
         isRichTextMode = false
+        originalFrame = null
         clearActiveLongPressSpanIndex()
         putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, "")
     }
@@ -249,7 +250,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
      * 是否需要重新计算文本布局
      * @param layoutParams HRRichTextView的布局参数
      * @param textShadow 文本测量类
-     * @return 是否需要重新计算文本。只有当layoutParams.width != textLayout.width才会重新计算
+     * @return 是否需要重新计算文本。originalFrame.right != textLayout.width才会重新计算
      */
     private fun needReMeasureTextLayout(
         layoutParams: ViewGroup.LayoutParams,

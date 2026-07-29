@@ -224,7 +224,7 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
      * 逻辑使用（例如富文本根据旧 width 判断是否需要重排文本）。
      * 默认空实现，只有确实依赖旧尺寸做判断的组件才需要覆写。
      *
-     * @param frame 当前 View 的旧 frame，语义为 (x, y, width, height)
+     * @param frame 当前 View 的原始 frame
      */
     fun recordOriginalFrame(frame: RectF) {}
 

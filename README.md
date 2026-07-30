@@ -48,7 +48,7 @@ KuiklyTableUI/
 ├── androidApp/                  # Android 宿主（可直接运行）
 │   ├── build.gradle.kts
 │   └── src/main/...             # KuiklyRenderActivity + 5 个必需适配器 + 布局
-└── iosApp/                      # iOS 宿主（macOS 验证用，见 iosApp/README.md）
+└── iosApp/                      # iOS 宿主（macOS 验证用，详见「运行与验证」一节）
 ```
 
 ## 快速开始
@@ -236,7 +236,7 @@ Table {
 4. 页面路由表由 `KRApplication.onCreate()` 中的 `KuiklyCoreEntry.triggerRegisterPages()` 注册（编译期 KSP 自动生成，无需手写）。
 
 ### iOS（需要 macOS；你只有 Windows，走 CI 验证）
-- 本地验证步骤见 `iosApp/README.md`：在 macOS 上 `cd iosApp && pod install && open iosApp.xcworkspace`，模拟器运行即可。
+- 本地验证（macOS）：`cd iosApp && pod install && open iosApp.xcworkspace`，模拟器运行即可。
 - 由于你只有一台 Windows 电脑，**iOS 端编译验证交由 GitHub Actions 的 macOS runner 完成**（见下方"持续集成"）。每次 push / PR 都会自动在 Mac 上构建 `shared` 的 Kotlin/Native 框架并编译 Xcode 宿主，等价于"在 Mac 上跑通"。
 
 ### 单元测试

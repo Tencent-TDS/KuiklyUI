@@ -56,6 +56,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # 海外 macOS runner 访问腾讯云镜像不稳定（曾 Connection reset 导致 Gradle 分发下载失败），
+      # 将 Gradle 分发源临时替换为官方源，保证 CI 能下载 Gradle 8.4。本地仍走腾讯云镜像（快）。
+      - name: Use official Gradle distribution (CI)
+        run: python3 -c "p='gradle/wrapper/gradle-wrapper.properties';s=open(p,encoding='utf-8').read();s=s.replace('mirrors.cloud.tencent.com/gradle','services.gradle.org/distributions');open(p,'w',encoding='utf-8').write(s)"
+
       # podInstall 会生成 shared.podspec、执行 pod install，并通过 syncFramework 构建 shared.framework
       - name: Build shared iOS framework & install pods
         run: ./gradlew :shared:podInstall --stacktrace

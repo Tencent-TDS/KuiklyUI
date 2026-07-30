@@ -26,8 +26,7 @@ Thumbs.db
 
 # Misc
 *.log
-log/
-!log/README.md
+/log/
 *.logcat
 
 # 内部工作文档（非开源内容：开发过程记录与调试日志，仅本地保留）

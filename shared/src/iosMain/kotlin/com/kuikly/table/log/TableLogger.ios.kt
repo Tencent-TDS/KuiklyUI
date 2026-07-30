@@ -191,12 +191,12 @@ actual object PlatformLogWriter {
                     crashLogFilePath, NSUTF8StringEncoding, null
                 ) ?: return
                 val keepSize = (config.maxFileSize / 2).toInt()
-                val trimmed: String = if (existingContent.length > keepSize.toULong()) {
-                    existingContent.substringFromIndex(existingContent.length - keepSize.toULong())
+                val trimmedNs: NSString = if (existingContent.length > keepSize.toULong()) {
+                    existingContent.substringFromIndex(existingContent.length - keepSize.toULong()) as NSString
                 } else {
-                    existingContent.toString()
+                    existingContent
                 }
-                (trimmed as NSString).writeToFile(crashLogFilePath, true, NSUTF8StringEncoding, null)
+                trimmedNs.writeToFile(crashLogFilePath, true, NSUTF8StringEncoding, null)
             }
 
             val line = formatted + "\n"

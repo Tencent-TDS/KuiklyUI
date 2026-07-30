@@ -465,6 +465,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     NSArray<NSString *> *points = [params componentsSeparatedByString:@" "];
     BOOL animated = [points count] > 4 ? [points[4] boolValue] : NO;
     UIEdgeInsets contentInset = UIEdgeInsetsMake([points[0] doubleValue], [points[1] doubleValue], [points[2] doubleValue], [points[3] doubleValue]);
+    // Skip if inset unchanged — avoids spurious animated setContentOffset that conflicts
+    // with a subsequent inset change (e.g. PullToRefresh REFRESHING→IDLE within same frame)
+    if (UIEdgeInsetsEqualToEdgeInsets(self.contentInset, contentInset)) {
+        return;
+    }
     if (animated) {
         CGPoint maxContentOffset = [self p_maxContentOffsetInContentInset:contentInset];
         if (!CGPointEqualToPoint(self.contentOffset, maxContentOffset)) {

@@ -39,7 +39,7 @@
 		FF6B714229A2A173009349F1 /* HRBridgeModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HRBridgeModule.h; sourceTree = "<group>"; };
 		FF6B714329A2A174009349F1 /* KuiklyRenderViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KuiklyRenderViewController.h; sourceTree = "<group>"; };
 		FF6B714629A2A315009349F1 /* KuiklyRenderViewPage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KuiklyRenderViewPage.swift; sourceTree = "<group>"; };
-		FF6B714C29A2A45D009349F1 /* iosApp-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosApp-Bridging-Header.h"; sourceTree = "<group>"; };
+		FF6B714C29A2A45D009349F1 /* iosApp-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosApp/iosApp-Bridging-Header.h"; sourceTree = "<group>"; };
 		FF6B714E29A2A6FF009349F1 /* KuiklyRenderComponentExpandHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KuiklyRenderComponentExpandHandler.h; sourceTree = "<group>"; };
 		FF6B714F29A2A6FF009349F1 /* KuiklyRenderComponentExpandHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KuiklyRenderComponentExpandHandler.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -440,7 +440,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuikly.table.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "iosApp-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -461,7 +461,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuikly.table.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = "iosApp-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

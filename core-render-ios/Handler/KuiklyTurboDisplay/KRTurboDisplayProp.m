@@ -70,7 +70,7 @@
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeInteger:self.propType forKey:PROP_TYPE];
     [coder encodeObject:self.propKey forKey:PROP_KEY];
-    if ([self.propValue conformsToProtocol:@protocol(NSCoding)]) {
+    if (self.propType != KRTurboDisplayPropTypeEvent && [self.propValue conformsToProtocol:@protocol(NSCoding)]) {
         [coder encodeObject:self.propValue forKey:PROP_VALUE];
     }
     

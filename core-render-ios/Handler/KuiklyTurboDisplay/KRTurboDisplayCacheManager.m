@@ -21,6 +21,14 @@
 
 static NSString * const kTurboDisplayCacheKeyPrefix = @"kuikly_turbo_display_9";
 
+/// Dummy 类：用于替换反序列化时遇到的 block 类，initWithCoder 返回 nil 使 propValue 为空
+@interface KRTurboDisplayDummyBlock : NSObject <NSCoding>
+@end
+@implementation KRTurboDisplayDummyBlock
+- (instancetype)initWithCoder:(NSCoder *)coder { return nil; }
+- (void)encodeWithCoder:(NSCoder *)coder {}
+@end
+
 @implementation KRTurboDisplayCacheData
 @end
 
@@ -282,6 +290,12 @@ static NSString * const kTurboDisplayCacheKeyPrefix = @"kuikly_turbo_display_9";
             
             if (unarchiver) {
                 unarchiver.requiresSecureCoding = NO;
+                // 将 block 类名映射到 dummy 类，initWithCoder 返回 nil 使 propValue 为空
+                Class dummyCls = [KRTurboDisplayDummyBlock class];
+                [unarchiver setClass:dummyCls forClassName:@"__NSMallocBlock__"];
+                [unarchiver setClass:dummyCls forClassName:@"__NSStackBlock__"];
+                [unarchiver setClass:dummyCls forClassName:@"__NSGlobalBlock__"];
+                [unarchiver setClass:dummyCls forClassName:@"NSBlock"];
                 cacheData.turboDisplayNode = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
                 [unarchiver finishDecoding];
             }

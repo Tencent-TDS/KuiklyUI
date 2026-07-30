@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ── Android：在 Ubuntu 上编译 Android App 并跑 shared 单元测试 ──
+  android:
+    name: Android Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Android App (debug)
+        run: ./gradlew :androidApp:assembleDebug --stacktrace
+
+      - name: Run shared unit tests (JVM)
+        run: ./gradlew :shared:testDebugUnitTest --stacktrace
+
+  # ── iOS：在 macOS 上构建 shared Kotlin/Native 框架并编译 Xcode 宿主（模拟器）──
+  # 说明：你只有一台 Windows 电脑，无法本地构建 iOS。
+  #       本 Job 借助 GitHub 的 macOS  runner 完成 iOS 端编译验证，
+  #       等价于"在 Mac 上 pod install + Xcode 跑通"。
+  ios:
+    name: iOS Framework Build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # podInstall 会生成 shared.podspec、执行 pod install，并通过 syncFramework 构建 shared.framework
+      - name: Build shared iOS framework & install pods
+        run: ./gradlew :shared:podInstall --stacktrace
+
+      # 在模拟器架构下编译宿主 App，验证 OpenKuiklyIOSRender 接入与页面渲染链路可编译
+      - name: Build iOS App (simulator)
+        run: |
+          cd iosApp
+          xcodebuild -workspace iosApp.xcworkspace \
+                     -scheme iosApp \
+                     -sdk iphonesimulator \
+                     -configuration Debug \
+                     build CODE_SIGNING_ALLOWED=NO

@@ -1,0 +1,36 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+local.properties
+
+# WorkBuddy 工作记忆（本地助手上下文，非工程内容）
+.workbuddy/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kuikly
+.externalNativeBuild/
+.cxx/
+
+# Kotlin 编译缓存
+.kotlin/
+
+# Misc
+*.log
+log/
+!log/README.md
+*.logcat
+
+# 内部工作文档（非开源内容：开发过程记录与调试日志，仅本地保留）
+问题总结.md
+docs/问题描述.md
+docs/全套工作实现方案.md

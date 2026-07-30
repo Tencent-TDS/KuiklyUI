@@ -189,7 +189,7 @@ actual object PlatformLogWriter {
             if (crashSize > config.maxFileSize * 2) {
                 val existingContent = NSString.stringWithContentsOfFile(
                     crashLogFilePath, NSUTF8StringEncoding, null
-                ) ?: return
+                ) as NSString? ?: return
                 val keepSize = (config.maxFileSize / 2).toInt()
                 val trimmedNs: NSString = if (existingContent.length > keepSize.toULong()) {
                     existingContent.substringFromIndex(existingContent.length - keepSize.toULong()) as NSString

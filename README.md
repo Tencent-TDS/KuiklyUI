@@ -14,6 +14,170 @@
 - 事件系统：单元格点击 / 行点击 / 表头点击 / 滚动
 - 跨平台支持（Android / iOS，共用同一份 `commonMain` 代码）
 
+## API 文档
+
+组件以 Kuikly DSL 形式提供，核心入口为 `Table { }`，可在任意 `ViewContainer` 中直接使用。所有 API 位于 `com.kuikly.table` 包及其子包（`dsl` / `model`）。
+
+### 1. 快速开始
+
+```kotlin
+Table {
+    column("name", "姓名", 120f)
+    column("age", "年龄", 80f)
+    column("city", "城市", 100f)
+
+    row("张三", "28", "北京")
+    row("李四", "32", "上海")
+}
+```
+
+### 2. 表格构建器 `TableBuilder`
+
+`Table { }` 的接收者为 `TableBuilder`，可用方法如下：
+
+| 方法 | 说明 |
+|------|------|
+| `column(key, title, width = 100f, block = {})` | 定义一列；`block` 为 `ColumnBuilder` 作用域，可进一步配置对齐 / 固定 / 自定义渲染等 |
+| `columns(vararg cols: ColumnDef)` | 批量添加已构建的列定义 |
+| `row(vararg values: String)` | 添加一行数据（按列顺序） |
+| `rows(data: List<List<String>>)` | 一次性设置全部行数据 |
+| `data(tableData: TableData)` | 绑定 `TableData` 模型（同时设置列、行、表头可见性、固定列数） |
+| `theme(theme: TableTheme)` | 套用预设主题（`DEFAULT` / `DARK` / `COMPACT` / `BLUE`） |
+| `theme(block: ThemeBuilder.() -> Unit)` | 内联自定义主题 |
+| `headerVisible(visible: Boolean)` | 是否显示表头，默认 `true` |
+| `fixedColumns(count: Int)` | 冻结列数量（左冻结），默认 `0`；超过总列数时自动钳位 |
+| `maxHeight(height: Float)` | 设置最大高度；超出后启用内部纵向滚动，不设置则按内容自然撑开 |
+| `scrollEnabled(enabled: Boolean)` | 是否启用横纵滚动，默认 `true` |
+
+**事件回调**
+
+| 方法 | 回调签名 | 说明 |
+|------|----------|------|
+| `onCellClick { }` | `(rowIndex: Int, colIndex: Int, value: String) -> Unit` | 单元格点击 |
+| `onRowClick { }` | `(rowIndex: Int) -> Unit` | 整行点击 |
+| `onHeaderClick { }` | `(colIndex: Int, columnKey: String) -> Unit` | 表头点击 |
+| `onScroll { }` | `(offsetX: Float, offsetY: Float) -> Unit` | 滚动（不打印日志，避免高频刷屏） |
+
+> 注：`onCellClick` / `onRowClick` / `onHeaderClick` 由 `TableEvent` 实现，内部会自动打印交互日志（`TableLog.interaction`），再分发到你的 handler。
+
+### 3. 列定义 `ColumnBuilder` 与 `ColumnDef`
+
+`column(...)` 内部通过 `ColumnBuilder` 配置，最终生成 `ColumnDef` 数据类：
+
+```kotlin
+data class ColumnDef(
+    val key: String,
+    val title: String,
+    val width: Float = 100f,
+    val minWidth: Float = 50f,
+    val align: TextAlign = TextAlign.LEFT,
+    val headerAlign: TextAlign = TextAlign.CENTER,
+    val fixed: Boolean = false,
+    val customRenderer: CellRendererScope? = null
+)
+```
+
+`ColumnBuilder` 可用配置：
+
+| 方法 | 说明 |
+|------|------|
+| `width(w: Float)` | 列宽 |
+| `minWidth(w: Float)` | 最小列宽，默认 `50f` |
+| `align(a: TextAlign)` | 单元格内容对齐，默认 `LEFT` |
+| `headerAlign(a: TextAlign)` | 表头对齐，默认 `CENTER` |
+| `fixed(f: Boolean)` | 是否冻结该列 |
+| `customRenderer(renderer)` | 自定义单元格渲染器（见第 5 节） |
+
+### 4. 主题 `TableTheme`
+
+内置四套预设：
+
+```kotlin
+TableTheme.DEFAULT   // 默认浅色
+TableTheme.DARK      // 深色
+TableTheme.COMPACT   // 紧凑（更小的行高 / 字号）
+TableTheme.BLUE      // 蓝色表头
+```
+
+自定义主题通过 `ThemeBuilder` 配置（所有字段均可选，带默认值）：
+
+| 字段 | 默认值 | 说明 |
+|------|--------|------|
+| `headerBackgroundColor` | `0xFFF5F5F5` | 表头背景色 |
+| `headerTextColor` | `0xFF333333` | 表头文字色 |
+| `headerFontSize` | `14f` | 表头字号 |
+| `headerFontBold` | `true` | 表头是否加粗 |
+| `headerHeight` | `44f` | 表头高度 |
+| `rowHeight` | `40f` | 行高 |
+| `rowBackgroundColor` | `0xFFFFFFFF` | 奇数行背景 |
+| `rowAlternateColor` | `0xFFFAFAFA` | 偶数行背景（斑马纹） |
+| `cellTextColor` | `0xFF666666` | 单元格文字色 |
+| `cellFontSize` | `13f` | 单元格字号 |
+| `cellPaddingHorizontal` | `8f` | 单元格水平内边距 |
+| `cellPaddingVertical` | `4f` | 单元格垂直内边距 |
+| `borderColor` | `0xFFE0E0E0` | 边框颜色 |
+| `borderWidth` | `0.5f` | 边框线宽 |
+| `showRowBorder` | `true` | 显示行底边框 |
+| `showColumnBorder` | `true` | 显示列右边框 |
+| `showOuterBorder` | `true` | 显示外边框 |
+| `stripedRows` | `true` | 斑马纹（奇偶行交替底色） |
+
+### 5. 自定义单元格渲染 `CellRendererScope`
+
+`customRenderer` 接收一个扩展函数，可在单元格内嵌入任意 Kuikly 组件（`View{}` / `Text{}` 等）：
+
+```kotlin
+typealias CellRendererScope =
+    ViewContainer<*, *>.(cellData: CellData, rowIndex: Int, colIndex: Int) -> Unit
+```
+
+示例（状态标签 + 星级评分来自 `DemoTables.kt`）：
+
+```kotlin
+Table {
+    column("name", "姓名", 100f)
+    column("status", "状态", 100f) {
+        align(TextAlign.CENTER)
+        customRenderer { cellData, _, _ ->
+            // cellData: CellData(rowIndex, colIndex, value, columnKey, extra)
+            View {
+                attr {
+                    backgroundColor(if (cellData.value == "在线") 0xFF4CAF50 else 0xFFF44336)
+                    borderRadius(12f)
+                    padding(8f, 2f, 8f, 2f)
+                }
+                Text { attr { text(cellData.value); color(0xFFFFFFFF); fontSize(12f) } }
+            }
+        }
+    }
+    row("张三", "在线")
+    row("李四", "离线")
+}
+```
+
+`CellData` 结构：`data class CellData(val rowIndex: Int, val colIndex: Int, val value: String, val columnKey: String = "", val extra: Map<String, Any>? = null)`
+
+### 6. 数据模型（可选）
+
+若不写死 `row(...)`，可构造 `TableData` 后通过 `data(tableData)` 绑定：
+
+```kotlin
+data class TableData(
+    val columns: List<ColumnDef>,
+    val rows: List<List<String>>,
+    val headerVisible: Boolean = true,
+    val fixedColumns: Int = 0
+)
+```
+
+`TableData` 额外提供 `getCellData(rowIndex, colIndex): CellData` 以及 `totalWidth` / `fixedWidth` / `scrollableWidth` 宽度计算属性；`TableAttr` 同样提供 `totalWidth` / `fixedWidth` / `scrollableWidth`。
+
+### 7. 对齐枚举 `TextAlign`
+
+```kotlin
+enum class TextAlign { LEFT, CENTER, RIGHT }
+```
+
 ## 每个文件的功能
 
 ### 工程配置

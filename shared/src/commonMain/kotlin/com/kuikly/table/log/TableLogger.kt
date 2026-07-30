@@ -116,7 +116,6 @@ object TableLog {
     private var config: LogConfig = LogConfig()
     private var initialized: Boolean = false
     private val logBuffer = mutableListOf<LogEntry>()
-    private val bufferLock = object {}
 
     /**
      * 初始化日志系统。应用启动时调用一次。
@@ -232,7 +231,7 @@ object TableLog {
             }
         } else {
             // 未初始化时缓存日志
-            synchronized(bufferLock) {
+            withLogLock {
                 logBuffer.add(entry)
                 if (logBuffer.size > 500) {
                     logBuffer.removeAt(0)
@@ -248,7 +247,7 @@ object TableLog {
         if (initialized) {
             try {
                 // 写入缓存的日志
-                synchronized(bufferLock) {
+                withLogLock {
                     logBuffer.forEach { entry ->
                         try {
                             PlatformLogWriter.writeLog(entry)
@@ -288,6 +287,12 @@ object TableLog {
      */
     fun isInitialized(): Boolean = initialized
 }
+
+/**
+ * 跨平台加锁（Kotlin/Native 无 synchronized，故用 expect/actual 封装）。
+ * 仅用于保护 TableLog.logBuffer，避免并发访问。
+ */
+internal expect fun <R> withLogLock(block: () -> R): R
 
 /**
  * 获取当前时间戳（毫秒）

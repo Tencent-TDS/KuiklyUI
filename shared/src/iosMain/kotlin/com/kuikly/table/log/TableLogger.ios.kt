@@ -21,7 +21,8 @@ actual object PlatformLogWriter {
 
     actual fun init(config: LogConfig) {
         this.config = config
-        synchronized(writeLock) {
+        writeLock.lock()
+        try {
             try {
                 logDirPath = if (config.logDir.isNotEmpty()) {
                     config.logDir
@@ -60,7 +61,7 @@ actual object PlatformLogWriter {
                 }
 
                 fileHandle = NSFileHandle.fileHandleForUpdatingAtPath(logFilePath)
-                fileHandle?.truncateFileAtOffset(0)  // 从头开始写
+                fileHandle?.truncateFileAtOffset(0uL)  // 从头开始写
                 fileHandle?.seekToEndOfFile()
 
                 // 获取当前文件大小
@@ -69,11 +70,14 @@ actual object PlatformLogWriter {
             } catch (e: Exception) {
                 println("[TableLog] PlatformLogWriter init failed: ${e.message}")
             }
+        } finally {
+            writeLock.unlock()
         }
     }
 
     actual fun writeLog(entry: LogEntry) {
-        synchronized(writeLock) {
+        writeLock.lock()
+        try {
             try {
                 val formatted = formatEntry(entry)
                 val line = formatted + "\n"
@@ -98,14 +102,19 @@ actual object PlatformLogWriter {
             } catch (e: Exception) {
                 println("[TableLog] writeLog failed: ${e.message}")
             }
+        } finally {
+            writeLock.unlock()
         }
     }
 
     actual fun flush() {
-        synchronized(writeLock) {
+        writeLock.lock()
+        try {
             try {
                 fileHandle?.synchronizeFile()
             } catch (_: Exception) { }
+        } finally {
+            writeLock.unlock()
         }
     }
 
@@ -172,17 +181,14 @@ actual object PlatformLogWriter {
             if (crashSize > config.maxFileSize * 2) {
                 val existingContent = NSString.stringWithContentsOfFile(
                     crashLogFilePath, NSUTF8StringEncoding, null
-                ) ?: ""
+                ) ?: return
                 val keepSize = (config.maxFileSize / 2).toInt()
-                val trimmed = if (existingContent.length > keepSize) {
-                    existingContent.substringFromIndex(
-                        (existingContent.length - keepSize).toLong()
-                    )
+                val trimmed: NSString = if (existingContent.length > keepSize.toULong()) {
+                    existingContent.substringFromIndex(existingContent.length - keepSize.toULong())
                 } else {
                     existingContent
                 }
-                (trimmed as NSString).writeToFile(crashLogFilePath,
-                    true, NSUTF8StringEncoding, null)
+                trimmed.writeToFile(crashLogFilePath, true, NSUTF8StringEncoding, null)
             }
 
             val line = formatted + "\n"
@@ -210,6 +216,20 @@ actual object PlatformLogWriter {
             sb.append("\n${it.stackTraceToString()}")
         }
         return sb.toString()
+    }
+}
+
+/**
+ * iOS 跨平台加锁实现（Kotlin/Native 无 synchronized，使用 NSLock）
+ */
+private val logLock = NSLock()
+
+internal actual fun <R> withLogLock(block: () -> R): R {
+    logLock.lock()
+    try {
+        return block()
+    } finally {
+        logLock.unlock()
     }
 }
 

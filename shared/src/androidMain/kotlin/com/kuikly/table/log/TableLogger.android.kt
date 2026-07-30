@@ -188,6 +188,13 @@ actual object PlatformLogWriter {
 }
 
 /**
+ * Android 跨平台加锁实现（JVM 支持 synchronized）
+ */
+private val androidLogLock = Any()
+
+internal actual fun <R> withLogLock(block: () -> R): R = synchronized(androidLogLock) { block() }
+
+/**
  * Android 时间戳实现
  */
 internal actual fun currentTimeMillis(): Long = System.currentTimeMillis()

@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "comp": "../../comp",
+    "custom-wrapper": "../../custom-wrapper"
+  }
+}

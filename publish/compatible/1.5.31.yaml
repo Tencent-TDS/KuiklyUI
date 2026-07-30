@@ -1,0 +1,18 @@
+files:
+  # Gradle Wrapper 版本切换
+  - path: gradle/wrapper/gradle-wrapper.properties
+    replacements:
+      - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
+        to: distributionUrl=https://services.gradle.org/distributions/gradle-7.5.1-bin.zip
+
+  # ConvertUtil 语法兼容
+  - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/utils/ConvertUtil.kt
+    replacements:
+      - from: lowercase
+        to: toLowerCase
+
+  # PagerManager 语法兼容
+  - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/manager/PagerManager.kt
+    replacements:
+      - from: lowercase
+        to: toLowerCase

@@ -1,0 +1,435 @@
+/*
+ * Copyright 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.tencent.kuikly.compose.foundation.text.modifiers
+
+import com.tencent.kuikly.compose.foundation.text.DefaultMinLines
+import com.tencent.kuikly.compose.foundation.text.InlineTextContent
+import com.tencent.kuikly.compose.foundation.text.applyAnnotatedString
+import com.tencent.kuikly.compose.foundation.text.applyMaxLines
+import com.tencent.kuikly.compose.foundation.text.applyOverflow
+import com.tencent.kuikly.compose.foundation.text.applyShadow
+import com.tencent.kuikly.compose.foundation.text.applySoftWrap
+import com.tencent.kuikly.compose.foundation.text.applyStyleColor
+import com.tencent.kuikly.compose.foundation.text.applyTextDecoration
+import com.tencent.kuikly.compose.foundation.text.applyTextStyle
+import com.tencent.kuikly.compose.material3.EmptyInlineContent
+import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.geometry.Offset
+import com.tencent.kuikly.compose.ui.geometry.Rect
+import com.tencent.kuikly.compose.ui.geometry.Size
+import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.graphics.ColorProducer
+import com.tencent.kuikly.compose.ui.graphics.isSpecified
+import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasurable
+import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasureScope
+import com.tencent.kuikly.compose.ui.layout.Measurable
+import com.tencent.kuikly.compose.ui.layout.MeasureResult
+import com.tencent.kuikly.compose.ui.layout.MeasureScope
+import com.tencent.kuikly.compose.ui.node.KNode
+import com.tencent.kuikly.compose.ui.node.LayoutModifierNode
+import com.tencent.kuikly.compose.ui.node.SemanticsModifierNode
+import com.tencent.kuikly.compose.ui.node.invalidateMeasurement
+import com.tencent.kuikly.compose.ui.node.invalidateSemantics
+import com.tencent.kuikly.compose.ui.node.requireDensity
+import com.tencent.kuikly.compose.ui.node.requireLayoutNode
+import com.tencent.kuikly.compose.ui.semantics.SemanticsPropertyReceiver
+import com.tencent.kuikly.compose.ui.semantics.text
+import com.tencent.kuikly.compose.ui.text.AnnotatedString
+import com.tencent.kuikly.compose.ui.text.MultiParagraph
+import com.tencent.kuikly.compose.ui.text.TextLayoutInput
+import com.tencent.kuikly.compose.ui.text.TextLayoutResult
+import com.tencent.kuikly.compose.ui.text.TextStyle
+import com.tencent.kuikly.compose.ui.text.style.TextOverflow
+import com.tencent.kuikly.compose.ui.unit.Constraints
+import com.tencent.kuikly.compose.ui.unit.Constraints.Companion.fitPrioritizingWidth
+import com.tencent.kuikly.compose.ui.unit.Density
+import com.tencent.kuikly.compose.ui.unit.IntSize
+import com.tencent.kuikly.compose.ui.unit.constrain
+import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.manager.BridgeManager
+import com.tencent.kuikly.core.views.PlaceholderSpan
+import com.tencent.kuikly.core.views.RichTextAttr
+import com.tencent.kuikly.core.views.RichTextView
+import com.tencent.kuikly.core.views.TextConst
+import com.tencent.kuikly.core.views.TextEvent
+import kotlin.math.ceil
+
+/**
+ * Node that implements Text for [String].
+ *
+ * It has reduced functionality, and as a result gains in performance.
+ *
+ * Note that this Node never calculates [TextLayoutResult] unless needed by semantics.
+ */
+internal class TextStringRichNode(
+    private var plainText: String?,
+    private var annotatedText: AnnotatedString?,
+    private var style: TextStyle,
+    private var density: Density,
+//    private var fontFamilyResolver: FontFamily.Resolver,
+    private var onTextLayout: ((TextLayoutResult) -> Unit)? = null,
+    private var overflow: TextOverflow = TextOverflow.Clip,
+    private var softWrap: Boolean = true,
+    private var maxLines: Int = Int.MAX_VALUE,
+    private var minLines: Int = DefaultMinLines,
+    private var inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
+    private var fontSizeScale: Float = 1.0f,
+    private var fontWeightScale: Float = 1.0f
+) : Modifier.Node(), LayoutModifierNode, SemanticsModifierNode {
+
+    private var cacheResult: TextLayoutResult? = null
+
+    /**
+     * Element has text params to update
+     */
+    fun updateText(text: String?, annotatedText: AnnotatedString?): Boolean {
+        var changed = false
+        if (this.plainText != text) {
+            this.plainText = text
+            changed = true
+        }
+        if (this.annotatedText != annotatedText) {
+            this.annotatedText = annotatedText
+            changed = true
+        }
+        return changed
+    }
+
+    /**
+     * Element has layout related params to update
+     */
+    fun updateLayoutRelatedArgs(
+        style: TextStyle,
+        minLines: Int,
+        maxLines: Int,
+        softWrap: Boolean,
+        fontSizeScale: Float,
+        fontWeightScale: Float,
+        density: Density,
+//        fontFamilyResolver: FontFamily.Resolver,
+        overflow: TextOverflow,
+        inlineContent: Map<String, InlineTextContent>,
+    ): Boolean {
+        var changed: Boolean
+
+        changed = !this.style.hasSameLayoutAffectingAttributes(style)
+        this.style = style
+
+        if (this.minLines != minLines) {
+            this.minLines = minLines
+            changed = true
+        }
+
+        if (this.maxLines != maxLines) {
+            this.maxLines = maxLines
+            changed = true
+        }
+
+        if (this.softWrap != softWrap) {
+            this.softWrap = softWrap
+            changed = true
+        }
+
+        if (this.inlineContent != inlineContent) {
+            this.inlineContent = inlineContent
+            changed = true
+        }
+
+        if (this.density != density) {
+            this.density = density
+            changed = true
+        }
+
+        if (this.fontWeightScale != fontWeightScale) {
+            this.fontWeightScale = fontWeightScale
+            changed = true
+        }
+
+        if (this.fontSizeScale != fontSizeScale) {
+            this.fontSizeScale = fontSizeScale
+            changed = true
+        }
+
+//        if (this.fontFamilyResolver != fontFamilyResolver) {
+//            this.fontFamilyResolver = fontFamilyResolver
+//            changed = true
+//        }
+
+        if (this.overflow != overflow) {
+            this.overflow = overflow
+            changed = true
+        }
+
+        return changed
+    }
+
+    /**
+     * Element has callback parameters to update
+     */
+    fun updateCallbacks(
+        onTextLayout: ((TextLayoutResult) -> Unit)?,
+    ): Boolean {
+        var changed = false
+
+        if (this.onTextLayout != onTextLayout) {
+            this.onTextLayout = onTextLayout
+            changed = true
+        }
+        return changed
+    }
+
+    /**
+     * request invalidate based on the results of [updateText] and [updateLayoutRelatedArgs]
+     */
+    fun doInvalidations(
+//        drawChanged: Boolean,
+        textChanged: Boolean,
+        layoutChanged: Boolean,
+        callbacksChanged: Boolean,
+    ) {
+
+        if (!isAttached) {
+            return
+        }
+
+        if (textChanged || layoutChanged || callbacksChanged) {
+            // 更新布局属性
+            updateLayoutProperties()
+            invalidateMeasurement()
+            invalidateSemantics()
+        }
+        updateNoLayoutProperties()
+    }
+
+    override fun onAttach() {
+        super.onAttach()
+        updateLayoutProperties()
+        updateNoLayoutProperties()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+    }
+
+    fun genTextLayoutResult(size: IntSize): TextLayoutResult {
+        // 存储所有占位符的矩形区域
+        val placeholderRects = mutableListOf<Rect>()
+
+        val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
+        val pageDensity = textView!!.getPager().pagerDensity()
+        // 遍历所有文本片段,处理占位符
+        textView?.getViewAttr()?.getSpans()?.forEachIndexed { index, span ->
+            if (span !is PlaceholderSpan) return@forEachIndexed
+
+            // 获取占位符的位置和大小信息
+            val rectStr = textView.shadow?.callMethod("spanRect", index.toString())
+            if (rectStr.isNullOrEmpty()) return@forEachIndexed
+
+            // 解析位置和大小信息
+            val rectComponents = rectStr.split(" ")
+            if (rectComponents.size < 4) return@forEachIndexed
+
+            // 提取坐标和尺寸
+            val (x, y, width, height) = rectComponents.take(4).map {
+                it.toFloatOrNull() ?: 0f
+            }
+
+            // 更新占位符的frame并添加到矩形列表
+            span.spanFrame = Frame(x, y, width, height)
+            placeholderRects.add(
+                Rect(
+                    offset = Offset(x * pageDensity, y * pageDensity),
+                    size = Size(width * pageDensity, height * pageDensity)
+                )
+            )
+        }
+
+        val effectiveAnnotated = annotatedText ?: AnnotatedString(plainText ?: "")
+        return TextLayoutResult(
+            TextLayoutInput(
+                effectiveAnnotated,
+                style,
+//                placeholders.orEmpty(),
+                maxLines,
+                softWrap,
+                overflow,
+//                density!!,
+//                layoutDirection,
+//                fontFamilyResolver,
+//                finalConstraints
+            ),
+            MultiParagraph(placeholderRects = placeholderRects),
+            size
+        )
+    }
+
+    private fun measureTextView(maxWidth: Int, maxHeight: Int): IntSize {
+        val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
+
+        textView?.apply {
+            val value = buildValuesPropValue()
+            if (value == "[]" && shadow?.lastValues == null) {
+                // Skip, keep native default
+            } else {
+                shadow?.setValuesProp(value)
+            }
+        }
+
+        val density = textView?.getPager()?.pagerDensity() ?: 3f
+        
+        val size = textView?.shadow?.calculateRenderViewSize(
+            maxWidth.toFloat() / density,
+            maxHeight.toFloat() / density
+        )
+        textView?.updateShadow()
+
+        // Compose layout runs outside Kuikly's Flex layout loop,
+        // so we need to manually fire the line break margin event.
+        if (textView?.getViewAttr()?.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
+            val isLineBreakMargin =
+                textView.shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+            if (isLineBreakMargin) {
+                textView.onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+            }
+        }
+
+        var intSize = IntSize(1000, 1000)
+        size?.also {
+            intSize = IntSize(
+                ceil(it.width * density).toInt(),
+                ceil(it.height * density).toInt()
+            )
+        }
+        return intSize
+    }
+
+    /**
+     * Text layout happens here
+     */
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints
+    ): MeasureResult {
+
+        val intSize = measureTextView(constraints.maxWidth, constraints.maxHeight)
+        val layoutSize = constraints.constrain(
+            intSize
+        )
+
+        val result = genTextLayoutResult(layoutSize)
+
+        // 布局变化了
+        if (cacheResult != result) {
+            onTextLayout?.invoke(result)
+            cacheResult = result
+        }
+
+        // then allow children to measure _inside_ our final box, with the above placeholders
+        val placeable = measurable.measure(
+            fitPrioritizingWidth(
+                minWidth = layoutSize.width,
+                maxWidth = layoutSize.width,
+                minHeight = layoutSize.height,
+                maxHeight = layoutSize.height
+            )
+        )
+
+        return layout(
+            layoutSize.width,
+            layoutSize.height,
+//            baselineCache!!
+        ) {
+            placeable.place(0, 0)
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int
+    ): Int {
+        val intSize = measureTextView(Constraints.Infinity, height)
+        return intSize.width
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int
+    ): Int {
+        val intSize = measureTextView(width, Constraints.Infinity)
+        return intSize.height
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int
+    ): Int {
+        val intSize = measureTextView(Constraints.Infinity, height)
+        return intSize.width
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int
+    ): Int {
+        val intSize = measureTextView(width, Constraints.Infinity)
+        return intSize.height
+    }
+
+    override fun SemanticsPropertyReceiver.applySemantics() {
+        text = this@TextStringRichNode.annotatedText ?: AnnotatedString(this@TextStringRichNode.plainText ?: "")
+    }
+
+    private inline fun withTextView(action: (RichTextAttr) -> Unit) {
+        val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
+        textView?.getViewAttr()?.let { attr ->
+            action(attr)
+        }
+    }
+
+    /**
+     * update RichTextView layout properties
+     */
+    private fun updateLayoutProperties() {
+
+        withTextView { attr ->
+            if (annotatedText != null) {
+                attr.applyAnnotatedString(annotatedText!!, inlineContent, density)
+            } else {
+                attr.setProp(TextConst.VALUE, plainText ?: "")
+            }
+
+            // 应用文本样式
+            attr.applyTextStyle(style, density)
+
+            // 应用布局属性
+            attr.applyOverflow(overflow)
+            attr.applyMaxLines(maxLines)
+            attr.applySoftWrap(softWrap)
+        }
+    }
+
+    /**
+     * update RichTextView layout properties
+     */
+    private fun updateNoLayoutProperties() {
+        withTextView { attr ->
+            attr.applyStyleColor(style.spanStyle)
+            attr.applyShadow(style.shadow)
+            attr.applyTextDecoration(style.textDecoration)
+        }
+    }
+}

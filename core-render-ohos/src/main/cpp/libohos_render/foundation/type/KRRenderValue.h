@@ -1,0 +1,885 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef CORE_RENDER_OHOS_KRRENDERVALUE_H
+#define CORE_RENDER_OHOS_KRRENDERVALUE_H
+
+#include <ark_runtime/jsvm.h>
+#include <ark_runtime/jsvm_types.h>
+#include <charconv>
+#include <js_native_api.h>
+#include <js_native_api_types.h>
+#include <cmath>
+#include <cstdint>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
+#include "KRRenderCValue.h"
+#include "libohos_render/foundation/ark_ts.h"
+#include "libohos_render/foundation/type/KRRenderCValue.h"
+#include "libohos_render/utils/KRJsUtil.h"
+#include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/utils/NAPIUtil.h"
+#include "thirdparty/cJSON/cJSON.h"
+
+// Test cases : 1.0, 100000.0, 9999999900.0, 0.01, 0.020, 0.01234560, 12345670.0123456
+static std::string DoubleToString(double value) {
+    std::string ret(16, 0);
+    for(;;){
+        std::to_chars_result result = std::to_chars((char*)ret.c_str(), (char*)ret.c_str() + ret.length(), value, std::chars_format::fixed);
+        if(result.ec == std::errc()){
+            int sz = result.ptr - ret.c_str();
+            ret.resize(sz, 0);
+            return ret;
+        }
+        if(result.ec == std::errc::value_too_large){
+            if(ret.size() > 100){
+                break;
+            }
+            ret.resize(ret.size() * 2);
+        }
+    }
+    return "";
+}
+
+struct NapiValue {
+    NapiValue(napi_env e, napi_value v) : env(e), value(v) {}
+    napi_env env;
+    napi_value value;
+};
+
+/**
+ * kotlin 侧与 Render 侧数据通信类型转换类
+ * 设计上是一个 AnyValue to AnyValue 类的思想
+ * 通过使用 toXX api, 可把值转换为对应的 value
+ * 
+ * 创建实例：
+ * - 使用 KRRenderValue::Make() 或 KRRenderValue::Make(value)
+ * - 或使用宏 KREmptyValue() 和 NewKRRenderValue(value)
+ * 
+ * 线程安全说明：
+ * - toString(), toMap(), toArray() 返回值类型（线程安全，无共享状态）
+ * - toCValue() 使用双重检查锁定优化（初始化后无锁访问）
+ * - 禁止拷贝和移动以防止意外的数据共享
+ */
+class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
+ private:
+    // Forward declaration - defined after class is complete
+    struct Accessor;
+    friend struct Accessor;
+
+ public:
+    using Map = std::unordered_map<std::string, std::shared_ptr<KRRenderValue>>;
+    using Array = std::vector<std::shared_ptr<KRRenderValue>>;
+    using ByteArray = std::shared_ptr<std::vector<uint8_t>>;
+    
+    KRRenderValue(const KRRenderValue&) = delete;
+    KRRenderValue& operator=(const KRRenderValue&) = delete;
+    KRRenderValue(KRRenderValue&&) = delete;
+    KRRenderValue& operator=(KRRenderValue&&) = delete;
+
+    /**
+     * 统一的工厂方法，确保所有实例都通过 shared_ptr 管理
+     * 用法: KRRenderValue::Make(), KRRenderValue::Make(42), KRRenderValue::Make("hello")
+     * 
+     * 特殊优化：Make() 和 Make("") 返回复用的静态单例对象，避免重复创建和析构
+     */
+    template<typename... Args>
+    static std::shared_ptr<KRRenderValue> Make(Args&&... args);
+
+    /**
+     * 特化版本：返回复用的空值(null)单例对象
+     */
+    static std::shared_ptr<KRRenderValue> MakeNull();
+
+    /**
+     * 特化版本：返回复用的空字符串单例对象
+     */
+    static std::shared_ptr<KRRenderValue> MakeEmptyString();
+
+ protected:
+    KRRenderValue() {
+        value_ = std::monostate();
+        c_value_.type = KRRenderCValue::Type::NULL_VALUE;
+    }
+
+    explicit KRRenderValue(std::nullptr_t) : KRRenderValue() {}
+
+    explicit KRRenderValue(bool value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(int32_t value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(int64_t value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(float value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(double value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(const std::string &value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(const char *value) : KRRenderValue() {
+        value_ = std::string(value);
+    }
+
+    explicit KRRenderValue(const Map &value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(const Array &value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(const ByteArray &value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    explicit KRRenderValue(const KRRenderCValue &cValue) : KRRenderValue() {
+        if (cValue.type == KRRenderCValue::Type::BOOL) {
+            value_ = cValue.value.boolValue != 0;
+        } else if (cValue.type == KRRenderCValue::Type::INT) {
+            value_ = cValue.value.intValue;
+        } else if (cValue.type == KRRenderCValue::Type::LONG) {
+            value_ = cValue.value.longValue;
+        } else if (cValue.type == KRRenderCValue::Type::FLOAT) {
+            value_ = cValue.value.floatValue;
+        } else if (cValue.type == KRRenderCValue::Type::DOUBLE) {
+            value_ = cValue.value.doubleValue;
+        } else if (cValue.type == KRRenderCValue::Type::STRING) {
+            value_ = std::string(cValue.value.stringValue);
+        } else if (cValue.type == KRRenderCValue::Type::BYTES) {
+            auto length = cValue.size;
+            auto start_address = cValue.value.bytesValue;
+            auto bytes = std::make_shared<std::vector<uint8_t>>();
+            for (int i = 0; i < length; i++) {
+                bytes->push_back(*(reinterpret_cast<uint8_t *>(start_address + i)));
+            }
+            value_ = bytes;
+        } else if (cValue.type == KRRenderCValue::Type::ARRAY) {
+            auto array_size = cValue.size;
+            Array array;
+            for (int i = 0; i < array_size; i++) {
+                array.push_back(Make(cValue.value.arrayValue[i]));
+            }
+            value_ = array;
+        } else {
+            value_ = std::monostate();
+        }
+    }
+
+    explicit KRRenderValue(const NapiValue &value) : KRRenderValue() {
+        value_ = value;
+    }
+
+    KRRenderValue(const napi_env &napi_env, const napi_value &nvalue) : KRRenderValue() {
+        napi_valuetype napi_value_type;
+        napi_typeof(napi_env, nvalue, &napi_value_type);
+        if (napi_value_type == napi_boolean) {
+            auto r = false;
+            napi_get_value_bool(napi_env, nvalue, &r);
+            value_ = r;
+        } else if (napi_value_type == napi_number) {
+            auto r = 0.0;
+            napi_get_value_double(napi_env, nvalue, &r);
+            value_ = r;
+        } else if (napi_value_type == napi_string) {
+            std::string str;
+            kuikly::util::GetNApiArgsStdString(napi_env, nvalue, str);
+            value_ = std::move(str);
+        } else if (napi_value_type == napi_object) {
+            // napi_object 支持识别 Array, ArrayBuffer, TypedArray, Array, Object(Record) 类型; 需要依次判断具体类型
+            // 1. 检查是否是 ArrayBuffer
+            bool is_byte_array = false;
+            napi_is_arraybuffer(napi_env, nvalue, &is_byte_array);
+            if (is_byte_array) {
+                void *byte_array = nullptr;
+                size_t byte_length;
+                napi_get_arraybuffer_info(napi_env, nvalue, &byte_array, &byte_length);
+                auto bytes = std::make_shared<std::vector<uint8_t>>();
+                auto byte_buffer = reinterpret_cast<uint8_t *>(byte_array);
+                for (size_t i = 0; i < byte_length; i++) {
+                    bytes->push_back(*(byte_buffer + i));
+                }
+                value_ = bytes;
+                return;
+            }
+
+            // 2. 检查是否是 TypedArray
+            ArkTS arkTs(napi_env);
+            if (arkTs.IsTypedArray(nvalue)) {
+                napi_typedarray_type typedArrayType;
+                size_t typedArrayLength;
+                void *typedArrayData;
+                napi_value arraybuffer;
+                size_t byteOffset = 0;
+                napi_status status = napi_get_typedarray_info(napi_env, nvalue, &typedArrayType, &typedArrayLength,
+                                                              &typedArrayData, &arraybuffer, &byteOffset);
+                if (status == napi_ok && typedArrayType == napi_int8_array) {
+                    if (typedArrayData != nullptr) {
+                        value_ = std::make_shared<std::vector<uint8_t>>(byteOffset + (const char *)typedArrayData,
+                                                                        typedArrayLength + byteOffset +
+                                                                            (const char *)typedArrayData);
+                    } else {
+                        value_ = std::make_shared<std::vector<uint8_t>>();
+                    }
+                    return;
+                }
+            }
+
+            // 3. 检查是否是 Array
+            bool is_array = false;
+            napi_is_array(napi_env, nvalue, &is_array);
+            if (is_array) {
+                uint32_t array_length;
+                napi_get_array_length(napi_env, nvalue, &array_length);
+                Array array;
+                for (uint32_t i = 0; i < array_length; i++) {
+                    napi_value value;
+                    napi_get_element(napi_env, nvalue, i, &value);
+                    array.push_back(Make(napi_env, value));
+                }
+                value_ = array;
+                return;
+            }
+
+            // 4. 普通 Object (Record)，转为 Map
+            napi_value property_names;
+            napi_status status = napi_get_property_names(napi_env, nvalue, &property_names);
+            if (status == napi_ok) {
+                uint32_t property_count = 0;   
+                napi_get_array_length(napi_env, property_names, &property_count);
+
+                Map map;
+                for (uint32_t i = 0; i < property_count; i++) {
+                    napi_value key_value;
+                    napi_get_element(napi_env, property_names, i, &key_value);
+                    std::string key;
+                    kuikly::util::GetNApiArgsStdString(napi_env, key_value, key);
+
+                    napi_value prop_value;
+                    napi_get_property(napi_env, nvalue, key_value, &prop_value);
+
+                    // 递归构造 KRRenderValue
+                    map[key] = Make(napi_env, prop_value);
+                }
+                value_ = map;
+            }
+        } else {
+            // 不支持的类型: napi_undefined, napi_null, napi_symbol, napi_function, napi_external, napi_bigint
+            value_ = std::monostate();
+        }
+    }
+
+    KRRenderValue(const JSVM_Env &js_env, const JSVM_Value &js_value) : KRRenderValue() {
+        JSVM_ValueType js_value_type;
+        OH_JSVM_Typeof(js_env, js_value, &js_value_type);
+        if (js_value_type == JSVM_BOOLEAN) {
+            auto r = false;
+            OH_JSVM_GetValueBool(js_env, js_value, &r);
+            value_ = r;
+        } else if (js_value_type == JSVM_NUMBER) {
+            auto r = 0.0;
+            OH_JSVM_GetValueDouble(js_env, js_value, &r);
+            value_ = r;
+        } else if (js_value_type == JSVM_STRING) {
+            std::string str;
+            kuikly::util::get_str_from_js_str(js_env, js_value, str);
+            value_ = std::move(str);
+        } else {
+            bool is_byte_array = false;
+            OH_JSVM_IsArraybuffer(js_env, js_value, &is_byte_array);
+            if (is_byte_array) {
+                void *byte_array = nullptr;
+                size_t byte_length;
+                OH_JSVM_GetArraybufferInfo(js_env, js_value, &byte_array, &byte_length);
+                auto bytes = std::make_shared<std::vector<uint8_t>>();
+                auto byte_buffer = reinterpret_cast<uint8_t *>(byte_array);
+                for (int i = 0; i < byte_length; i++) {
+                    bytes->push_back(*(byte_buffer + i));
+                }
+                value_ = bytes;
+                return;
+            }
+            bool is_type_array;
+            OH_JSVM_IsTypedarray(js_env, js_value, &is_type_array);
+            if (is_type_array) {
+                JSVM_TypedarrayType type;
+                size_t length = 0;
+                void *data = nullptr;
+                JSVM_Value retArrayBuffer;
+                size_t byteOffset = -1;
+                OH_JSVM_GetTypedarrayInfo(js_env, js_value, &type, &length, &data, &retArrayBuffer, &byteOffset);
+                auto bytes = std::make_shared<std::vector<uint8_t>>();
+                auto byte_buffer = reinterpret_cast<uint8_t *>(data);
+                for (int i = 0; i < length; i++) {
+                    bytes->push_back(*(byte_buffer + i));
+                }
+                value_ = bytes;
+                return;
+            }
+
+            bool is_array = false;
+            OH_JSVM_IsArray(js_env, js_value, &is_array);
+            if (is_array) {
+                uint32_t array_length;
+                OH_JSVM_GetArrayLength(js_env, js_value, &array_length);
+                Array array;
+                for (int i = 0; i < array_length; i++) {
+                    JSVM_Value value;
+                    OH_JSVM_GetElement(js_env, js_value, i, &value);
+                    array.push_back(Make(js_env, value));
+                }
+                value_ = array;
+                return;
+            }
+            value_ = std::monostate();
+        }
+    }
+
+ public:
+    bool isNull() const {
+        return std::holds_alternative<std::monostate>(value_);
+    }
+
+    bool isBool() const {
+        return std::holds_alternative<bool>(value_);
+    }
+
+    bool isInt() const {
+        return std::holds_alternative<int32_t>(value_);
+    }
+
+    bool isLong() const {
+        return std::holds_alternative<int64_t>(value_);
+    }
+
+    bool isFloat() const {
+        return std::holds_alternative<float>(value_);
+    }
+
+    bool isDouble() const {
+        return std::holds_alternative<double>(value_);
+    }
+
+    bool isString() const {
+        return std::holds_alternative<std::string>(value_);
+    }
+
+    bool isMap() const {
+        return std::holds_alternative<Map>(value_);
+    }
+
+    bool isArray() const {
+        return std::holds_alternative<Array>(value_);
+    }
+
+    bool isByteArray() const {
+        return std::holds_alternative<ByteArray>(value_);
+    }
+
+    bool isNapiValue() const {
+        return std::holds_alternative<NapiValue>(value_);
+    }
+
+    struct NapiValue toNapiValue() const {
+        if (isNapiValue()) {
+            return std::get<NapiValue>(value_);
+        }
+        return NapiValue(nullptr, nullptr);
+    }
+
+    bool toBool() const {
+        if (isBool()) {
+            return std::get<bool>(value_);
+        }
+        return toDouble() != 0.0;
+    }
+
+    int32_t toInt() const {
+        if (isInt()) {
+            return std::get<int32_t>(value_);
+        }
+        return static_cast<int32_t>(toDouble());
+    }
+
+    int64_t toLong() const {
+        if (isLong()) {
+            return std::get<int64_t>(value_);
+        }
+        return static_cast<int64_t>(toDouble());
+    }
+
+    float toFloat() const {
+        float value = 0;
+        if (isFloat()) {
+            value = std::get<float>(value_);
+        } else {
+            value = static_cast<float>(toDouble());
+        }
+        if (std::isnan(value)) {
+            value = 0;
+        }
+        return value;
+    }
+
+    double toDouble() const {
+        if (isDouble()) {
+            return std::get<double>(value_);
+        } else if (isLong()) {
+            return static_cast<double>(std::get<int64_t>(value_));
+        } else if (isFloat()) {
+            return static_cast<double>(std::get<float>(value_));
+        } else if (isInt()) {
+            return static_cast<double>(std::get<int32_t>(value_));
+        } else if (isBool()) {
+            return static_cast<double>(std::get<bool>(value_));
+        } else if (isString()) {
+            try {
+                auto string = toString();
+                if (string.length() == 0) {
+                    return 0;
+                }
+                return std::stod(string);
+            } catch (...) {
+                return 0;
+            }
+        } else {
+            return 0.0;
+        }
+    }
+
+    std::string toString() const {
+        if (isString()) {
+            return std::get<std::string>(value_);
+        }
+        if (isBool() || isInt() || isDouble() || isFloat() || isLong()) {  // number to string
+            auto numberString = DoubleToString(toDouble());
+            if (numberString == "0") {
+                return std::string("");
+            }
+            return numberString;
+        }
+        if (isMap() || isArray()) {  // map or array to string
+            cJSON* cjson = toJson(this);
+            std::string result;
+            if(char* p = cJSON_Print(cjson)){
+                result = p;
+                cJSON_free(p);
+            }
+            cJSON_Delete(cjson);
+            return result;
+        }
+        return std::string("");
+    }
+
+    Map toMap() const {
+        if (isMap()) {
+            return std::get<Map>(value_);
+        } else if (isString()) {
+            std::string str = toString();
+            cJSON *cjson = cJSON_Parse(str.c_str());
+            if(cjson == nullptr){
+                return Map();
+            }
+            Map map;
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                map[item->string] = fromJsonValue(item);
+            }
+            cJSON_Delete(cjson);
+            return map;
+        } else {
+            return Map();
+        }
+    }
+
+    Array toArray() const {
+        if (isArray()) {
+            return std::get<Array>(value_);
+        } else if (isString()) {
+            std::string str = toString();
+            cJSON *cjson = cJSON_Parse(str.c_str());
+            if(cjson == nullptr){
+                return Array();
+            }
+            Array json_vec;
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                json_vec.push_back(fromJsonValue(item));
+            }
+            cJSON_Delete(cjson);
+            return json_vec;
+        } else {
+            return Array();
+        }
+    }
+
+    const ByteArray toByteArray() const {
+        if (isByteArray()) {
+            return std::get<ByteArray>(value_);
+        } else {
+            return std::make_shared<std::vector<uint8_t>>();
+        }
+    }
+
+    const KRRenderCValue &toCValue() const {
+        std::call_once(c_value_once_flag_, [this]() {
+            if (isBool()) {
+                c_value_.type = KRRenderCValue::Type::BOOL;
+                c_value_.value.boolValue = toBool() ? 1 : 0;
+            } else if (isInt()) {
+                c_value_.type = KRRenderCValue::Type::INT;
+                c_value_.value.intValue = toInt();
+            } else if (isLong()) {
+                c_value_.type = KRRenderCValue::Type::LONG;
+                c_value_.value.longValue = toLong();
+            } else if (isFloat()) {
+                c_value_.type = KRRenderCValue::Type::FLOAT;
+                c_value_.value.floatValue = toFloat();
+            } else if (isDouble()) {
+                c_value_.type = KRRenderCValue::Type::DOUBLE;
+                c_value_.value.doubleValue = toDouble();
+            } else if (isString()) {
+                c_value_.type = KRRenderCValue::Type::STRING;
+                cached_string_for_c_value_ = std::get<std::string>(value_);
+                c_value_.value.stringValue = const_cast<char *>(cached_string_for_c_value_.c_str());
+            } else if (isByteArray()) {
+                c_value_.type = KRRenderCValue::Type::BYTES;
+                auto byte_array = std::get<ByteArray>(value_).get();
+                c_value_.size = byte_array->size();
+                c_value_.value.bytesValue = reinterpret_cast<char *>(byte_array->data());
+            } else if (isMap()) {
+                ToJsonMapOrArrayLocked();
+            } else if (isArray()) {
+                auto array = toArray();
+                if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
+                    c_value_.type = KRRenderCValue::Type::ARRAY;
+                    c_value_.size = array.size();
+                    if (array_ptr_ != nullptr) {
+                        delete[] array_ptr_;
+                    }
+                    array_ptr_ = new KRRenderCValue[c_value_.size];
+                    for (size_t i = 0; i < c_value_.size; i++) {
+                        const auto &item = array[i];
+                        array_ptr_[i] = item->toCValue();
+                    }
+                    c_value_.value.arrayValue = array_ptr_;
+                } else {
+                    ToJsonMapOrArrayLocked();
+                }
+            } else {
+                c_value_.type = KRRenderCValue::Type::NULL_VALUE;
+            }
+        });
+        return c_value_;
+    }
+
+    void ToJsVmValue(JSVM_Env js_env, JSVM_Value *js_value, JSVM_Status &js_status) const {
+        if (isBool()) {
+            js_status = OH_JSVM_GetBoolean(js_env, toBool(), js_value);
+        } else if (isInt()) {
+            js_status = OH_JSVM_CreateInt32(js_env, toInt(), js_value);
+        } else if (isLong()) {
+            js_status = OH_JSVM_CreateInt64(js_env, toLong(), js_value);
+        } else if (isFloat() || isDouble()) {
+            js_status = OH_JSVM_CreateDouble(js_env, toDouble(), js_value);
+        } else if (isString()) {
+            auto str = toString();
+            js_status = OH_JSVM_CreateStringUtf8(js_env, str.c_str(), str.size(), js_value);
+        } else if (isByteArray()) {
+            auto &data = toByteArray();
+            auto size = data->size();
+            void *buffer = nullptr;
+            JSVM_Value array_buffer_value = nullptr;
+            js_status = OH_JSVM_CreateArraybuffer(js_env, size, &buffer, &array_buffer_value);
+            if (js_status == JSVM_OK) {
+                auto byte_buffer = reinterpret_cast<uint8_t *>(buffer);
+                auto origin_buffer = data.get()->data();
+                for (int i = 0; i < size; i++) {
+                    byte_buffer[i] = origin_buffer[i];
+                }
+            }
+            OH_JSVM_CreateTypedarray(js_env, JSVM_TypedarrayType::JSVM_INT8_ARRAY, size, array_buffer_value, 0,
+                                     js_value);
+        } else if (isMap()) {
+            js_status = ToJsonMapOrArray(js_env, js_value);
+        } else if (isArray()) {
+            auto array = toArray();
+            if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
+                auto size = array.size();
+                js_status = OH_JSVM_CreateArrayWithLength(js_env, size, js_value);
+                if (js_status == JSVM_Status::JSVM_OK) {
+                    for (size_t i = 0; i < size; i++) {
+                        JSVM_Status status;
+                        JSVM_Value value;
+                        array[i]->ToJsVmValue(js_env, &value, status);
+                        OH_JSVM_SetElement(js_env, *js_value, i, value);
+                    }
+                }
+            } else {
+                js_status = ToJsonMapOrArray(js_env, js_value);
+            }
+        } else {
+            js_status = OH_JSVM_GetNull(js_env, js_value);
+        }
+    }
+
+    void ToNapiValue(const napi_env &env, napi_value *nvalue, napi_status &nstatus) const {
+        if (isBool()) {
+            nstatus = napi_get_boolean(env, toBool(), nvalue);
+        } else if (isInt()) {
+            nstatus = napi_create_int32(env, toInt(), nvalue);
+        } else if (isLong()) {
+            nstatus = napi_create_int64(env, toLong(), nvalue);
+        } else if (isFloat() || isDouble()) {
+            nstatus = napi_create_double(env, toDouble(), nvalue);
+        } else if (isString()) {
+            auto str = toString();
+            nstatus = napi_create_string_utf8(env, str.c_str(), str.size(), nvalue);
+        } else if (isByteArray()) {
+            auto &data = toByteArray();
+            auto size = data->size();
+            void *buffer = nullptr;
+            napi_value arrayBuffer;
+            nstatus = napi_create_arraybuffer(env, size, &buffer, &arrayBuffer);
+            if (nstatus == napi_ok) {
+                auto byte_buffer = reinterpret_cast<uint8_t *>(buffer);
+                auto origin_buffer = data.get()->data();
+                for (int i = 0; i < size; i++) {
+                    byte_buffer[i] = origin_buffer[i];
+                }
+                nstatus = napi_create_typedarray(env, napi_int8_array, size, arrayBuffer, 0, nvalue);
+            }
+        } else if (isMap()) {
+            nstatus = ToJsonMapOrArray(env, nvalue);
+        } else if (isArray()) {
+            auto array = toArray();
+#if 0
+            if (HadByteArrayElement(array)) {
+#endif
+            auto size = array.size();
+            nstatus = napi_create_array_with_length(env, size, nvalue);
+            if (nstatus == napi_ok) {
+                for (size_t i = 0; i < size; i++) {
+                    napi_status status;
+                    napi_value napi_value;
+                    array[i]->ToNapiValue(env, &napi_value, status);
+                    napi_set_element(env, *nvalue, i, napi_value);
+                }
+            }
+#if 0
+            } else {
+                nstatus = ToJsonMapOrArray(env, nvalue);
+            }
+#endif
+        } else {
+            nstatus = napi_get_null(env, nvalue);
+        }
+    }
+
+    ~KRRenderValue() {
+        if (array_ptr_) {
+            delete[] array_ptr_;
+            array_ptr_ = nullptr;
+        }
+    }
+
+ private:
+    std::variant<std::monostate, bool, int32_t, int64_t, float, double, std::string, Map, Array, void *, ByteArray,
+                 NapiValue>
+        value_;
+    
+    mutable std::once_flag c_value_once_flag_;
+    mutable std::string map_or_array_json_value_;  // 缓存经过序列化的 map或者 array, 用于缓存经过序列化的std::string
+    mutable std::string cached_string_for_c_value_;
+    mutable KRRenderCValue c_value_;
+    mutable KRRenderCValue *array_ptr_ = nullptr;  // 指向数组的指针, 用于防止数组元素copy
+
+    // 用于 toCValue() 内部调用，调用时已持有锁
+    void ToJsonMapOrArrayLocked() const {
+        cJSON* cjson = toJson(this);
+        char* p = cJSON_PrintUnformatted(cjson);
+        map_or_array_json_value_ = p;
+        c_value_.type = KRRenderCValue::Type::STRING;
+        c_value_.value.stringValue = const_cast<char *>(map_or_array_json_value_.c_str());
+        cJSON_free(p);
+        cJSON_Delete(cjson);
+    }
+
+    JSVM_Status ToJsonMapOrArray(JSVM_Env js_env, JSVM_Value *js_value) const {
+        cJSON* cjson = toJson(this);
+        std::string json_str;
+        if(char* p = cJSON_PrintUnformatted(cjson)){
+            json_str = p;
+            cJSON_free(p);
+        }
+        cJSON_Delete(cjson);
+        return OH_JSVM_CreateStringUtf8(js_env, json_str.c_str(), json_str.length(), js_value);
+    }
+
+    napi_status ToJsonMapOrArray(const napi_env &env, napi_value *nvalue) const {
+        cJSON* cjson = toJson(this);
+        std::string json_str;
+        if(char* p = cJSON_PrintUnformatted(cjson)){
+            json_str = p;
+            cJSON_free(p);
+        }
+        cJSON_Delete(cjson);
+        return napi_create_string_utf8(env, json_str.c_str(), json_str.length(), nvalue);
+    }
+
+    static bool HadByteArrayElement(const Array &array) {
+        for (const auto &item : array) {
+            if (item->isByteArray()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // 使用原始指针避免 shared_from_this() 的线程安全问题
+    static cJSON *toJson(const KRRenderValue *value) {
+        if (value->isMap()) {
+            cJSON* obj = cJSON_CreateObject();
+            auto map = value->toMap();
+            for (const auto &entry : map) {
+                cJSON* child = toJson(entry.second.get());
+                cJSON_AddItemToObject(obj, entry.first.c_str(), child);
+            }
+            return obj;
+        } else if (value->isArray()) {
+            cJSON* arr = cJSON_CreateArray();
+            auto array = value->toArray();
+            for (const auto &element : array) {
+                cJSON* child = toJson(element.get());
+                cJSON_AddItemToArray(arr, child);
+            }
+            return arr;
+        } else if (value->isBool()) {
+            return cJSON_CreateBool(value->toBool());
+        } else if (value->isInt()) {
+            return cJSON_CreateNumber(static_cast<double>(value->toInt()));
+        } else if (value->isLong()) {
+            return cJSON_CreateNumber(static_cast<double>(value->toLong()));
+        } else if (value->isFloat()) {
+            return cJSON_CreateNumber(static_cast<double>(value->toFloat()));
+        } else if (value->isDouble()) {
+            return cJSON_CreateNumber(value->toDouble());
+        } else if (value->isString()) {
+            return cJSON_CreateString(value->toString().c_str());
+        } else {
+            return cJSON_CreateNull();
+        }
+    }
+
+    static std::shared_ptr<KRRenderValue> fromJsonValue(const cJSON *cjson) {
+        if(cjson == nullptr){
+            return MakeNull();
+        }
+        if (cJSON_IsBool(cjson)) {
+            return Make(cJSON_IsTrue(cjson));
+        } else if (cJSON_IsNumber(cjson)) {
+            return Make(cJSON_GetNumberValue(cjson));
+        } else if (cJSON_IsString(cjson)) {
+            return Make(cJSON_GetStringValue(cjson));
+        } else if (cJSON_IsObject(cjson)) {
+            Map map_obj;
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                map_obj[item->string] = fromJsonValue(item);
+            }
+            return Make(map_obj);
+        } else if (cJSON_IsArray(cjson)) {
+            Array vec_obj;
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                vec_obj.push_back(fromJsonValue(item));
+            }
+            return Make(vec_obj);
+        } else {
+            return MakeNull();  // Null JSValue
+        }
+    }
+};
+
+struct KRRenderValue::Accessor : KRRenderValue {
+    template<typename... Args>
+    explicit Accessor(Args&&... args) : KRRenderValue(std::forward<Args>(args)...) {}
+};
+
+template<typename... Args>
+std::shared_ptr<KRRenderValue> KRRenderValue::Make(Args&&... args) {
+    if constexpr (sizeof...(args) == 0) {
+        return MakeNull();
+    } else {
+        return std::make_shared<Accessor>(std::forward<Args>(args)...);
+    }
+}
+
+inline std::shared_ptr<KRRenderValue> KRRenderValue::MakeNull() {
+    static std::shared_ptr<KRRenderValue> sNullValue = std::make_shared<Accessor>();
+    return sNullValue;
+}
+
+inline std::shared_ptr<KRRenderValue> KRRenderValue::MakeEmptyString() {
+    static std::shared_ptr<KRRenderValue> sEmptyStringValue = std::make_shared<Accessor>(std::string(""));
+    return sEmptyStringValue;
+}
+
+// Make(const char*) 特化：空字符串返回复用的单例对象
+// 注：签名 const char*&& 是主模板 Make(Args&&... args) 在 Args = const char* 时的
+//     实例化形式。C++ 模板特化必须精确匹配主模板签名，不能改为 const char*，
+//     否则该特化不会被主模板匹配到，Make("") 的空字符串单例复用优化将失效。
+template<>
+inline std::shared_ptr<KRRenderValue> KRRenderValue::Make(const char* &&value) {
+    if (value == nullptr || value[0] == '\0') {
+        return MakeEmptyString();
+    }
+    return std::make_shared<Accessor>(std::forward<const char*>(value));
+}
+
+// Make(KRRenderCValue) 特化：对 NULL 和常用小整数返回复用的单例对象，减少堆分配
+template<>
+inline std::shared_ptr<KRRenderValue> KRRenderValue::Make(const KRRenderCValue &value) {
+    if (value.type == KRRenderCValue::NULL_VALUE) {
+        return MakeNull();
+    }
+    // 缓存常用小整数 0-3（覆盖 syncCall 的 0/1/2/3 常用值）
+    if (value.type == KRRenderCValue::INT && value.value.intValue >= 0 && value.value.intValue <= 3) {
+        static std::shared_ptr<KRRenderValue> sCachedInts[4] = {
+            std::make_shared<Accessor>(int32_t(0)),
+            std::make_shared<Accessor>(int32_t(1)),
+            std::make_shared<Accessor>(int32_t(2)),
+            std::make_shared<Accessor>(int32_t(3)),
+        };
+        return sCachedInts[value.value.intValue];
+    }
+    return std::make_shared<Accessor>(value);
+}
+
+#endif  // CORE_RENDER_OHOS_KRRENDERVALUE_H

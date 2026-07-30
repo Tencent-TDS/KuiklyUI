@@ -1,0 +1,92 @@
+# 微信小程序平台开发方式
+
+``Kuikly``在微信小程序平台上，可以编译成**js**产物运行在微信上。
+
+## 快速开始
+
+```shell
+#  构建 shared 项目 Debug 版
+./gradlew :shared:packLocalJsBundleDebug
+```
+
+然后构建 miniApp 项目
+```shell
+#  运行 miniApp 服务器 Debug 版
+./gradlew :miniApp:jsMiniAppDevelopmentWebpack
+```
+
+构建 release 版本
+```shell
+# 首先构建业务 Bundle
+./gradlew :demo:packLocalJSBundleRelease
+
+# 然后构建 miniApp
+./gradlew :miniApp:jsMiniAppProductionWebpack
+```
+
+
+使用微信小程序开发者工具打开miniApp下的dist目录，根据你的实际页面，修改app.json里面的pages数组和在pages里新建对应的页面
+```javascript
+// 例如demo里存在router的Page, 就需要在app.json的pages数组里添加 "pages/router/index", 同时在pages的目录里新建router目录补充和pages/index目录一样的内容
+
+// pages/index/index.js内容
+var render = require('../../lib/miniApp.js')
+render.renderView({
+    // 这里的pageName是最高优先级，如果没配置，会去拿微信小程序启动参数里的page_name，如果都没有会报错
+    // 建议微信小程序的第一个页面必须配置pageName
+    // pageName: "router",
+    statusBarHeight: 0 // 如果要全屏，需要把状态栏高度设置为0
+})
+```
+
+## 本地静态资源
+
+demo里面的src/commonMain/assets下的文件，需要复制到dist/assets目录
+```shell
+// 复制业务的assets文件到微信小程序目录
+./gradlew :miniApp:copyAssets
+```
+
+## 页面配置
+
+微信小程序的壳工程中, 每个页面里都会调用render.renderView, 支持传递两个参数
+1. pageName页面名称, 这里如果配置了会忽略微信小程序启动的时候传递的page_name参数
+2. statusBarHeight状态栏高度, 默认会使用系统的状态了高度, 设置为0可以全屏   
+
+在微信小程序开发者工具，可以配置启动参数，指定启动的页面和其他配置
+
+例如配置 page_name=SafeAreaExamplePage&testParam=123
+
+## 项目说明
+
+项目入口在 Main.kt 的 main 方法中，其中 KuiklyRenderViewDelegator 用于注册外部自定义 View 和 Module 及 PropHandler， 
+宿主侧可以在此实现自定义的View，Module并注册到KuiklyRenderViewDelegator中。
+
+## 微信小程序内置组件
+
+在微信小程序平台，很多能力（如 ``<button open-type>`` 开放能力、``<camera>``/``<map>``/``<video>``/``<web-view>``
+ 等宿主组件）只能通过微信小程序**原生组件**实现。Kuikly 已内置了这些组件的封装，同时也支持业务侧自行扩展。
+
+详细说明、完整组件清单、Demo 位置，以及如何自行扩展 / 使用 AI 辅助生成，请参考：
+
+- [微信小程序内置组件接入](miniapp-wx-components.md)
+
+## 微信小程序 API
+
+除了组件封装外，Kuikly 还提供了对微信小程序常用 API（如 ``wx.login`` / ``wx.showToast`` / ``wx.setStorage`` / ``wx.scanCode`` / ``wx.getLocation`` 等）的**强类型 DSL 封装**，并提供**兜底通用桥**让业务一行代码调用任意 ``wx.xxx``。
+
+详细清单、使用示例、自行扩展指南与 AI Prompt 模板，请参考：
+
+- [微信小程序 API 接入](miniapp-wx-apis.md)
+
+## 自定义字体
+
+在微信小程序中使用自定义字体时，需要通过特定方式加载字体文件并通知 Kuikly 重新测量文本。支持本地加载（base64）和远程加载（CDN）两种方式。
+
+详细接入步骤请参考：
+
+- [微信小程序自定义字体使用指引](miniapp-custom-font.md)
+
+## 常见问题
+
+接入或开发过程中如遇到问题，请参考[微信小程序接入常见问题](../QA/miniapp-qa.md)

@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+<<<<<<< HEAD
+=======
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
@@ -20,11 +25,28 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+<<<<<<< HEAD
+=======
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Satisfy-Regular.ttf</string>
+	</array>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+<<<<<<< HEAD
+=======
+	<key>UILaunchScreen</key>
+	<dict/>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
@@ -42,7 +64,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+<<<<<<< HEAD
 	<key>UILaunchScreen</key>
 	<dict/>
+=======
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 </dict>
 </plist>

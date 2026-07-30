@@ -1,0 +1,23 @@
+{
+  "easyGoVersion": "1.0",
+  "client": "com.tencent.kuikly.android.demo",
+  "logicEntities": [
+    {
+      "head": {
+        "function": "magicwindow",
+        "required": "true"
+      },
+      "body": {
+        "mode": "1",
+        "activityPairs": [
+          {
+            "from": "com.tencent.kuikly.android.demo.KuiklyRenderActivity",
+            "to": "*"
+          }
+        ],
+        "transActivities": [
+        ]
+      }
+    }
+  ]
+}

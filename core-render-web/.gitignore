@@ -1,0 +1,5 @@
+!*.js
+/build
+/base/build
+/h5/build
+/miniapp/build

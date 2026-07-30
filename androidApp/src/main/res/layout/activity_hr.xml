@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+<<<<<<< HEAD
     android:layout_height="match_parent"
     android:background="@android:color/white">
+=======
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/backgroundBtn"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <Button
+            android:id="@+id/nativeBtn"
+            android:layout_marginTop="100.dp"
+            android:onClick="onClick"
+            android:visibility="gone"
+            android:text="我是Native按钮，请试试能否点击"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+        </Button>
+
+        <TextView
+            android:id="@+id/nativeTouchView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="150dp"
+            android:background="#6200EE"
+            android:textColor="#FFFFFF"
+            android:text="我是Native触摸区域，请试试能否触摸"
+            android:padding="10dp"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 
     <FrameLayout
         android:id="@+id/hr_container"
         android:layout_width="match_parent"
+<<<<<<< HEAD
         android:layout_height="match_parent" />
 
     <View
@@ -20,3 +55,20 @@
         android:layout_height="match_parent" />
 
 </FrameLayout>
+=======
+        android:layout_height="match_parent"/>
+
+    <View
+        android:id="@+id/hr_loading"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <View
+        android:id="@+id/hr_error"
+        android:visibility="gone"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</FrameLayout>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67

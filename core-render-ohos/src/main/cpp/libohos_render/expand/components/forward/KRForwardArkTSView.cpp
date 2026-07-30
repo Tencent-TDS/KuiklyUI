@@ -1,0 +1,130 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
+#include "libohos_render/manager/KRArkTSManager.h"
+
+void KRForwardArkTSView::DidInit() {
+    KRArkTSManager::GetInstance().CallArkTSMethod(
+        GetInstanceId(), KRNativeCallArkTSMethod::CreateView, KRRenderValue::Make(GetViewTag()),
+        KRRenderValue::Make(GetViewName()), nullptr, nullptr, nullptr, nullptr);
+    // 设置 ARKUI_HIT_TEST_MODE_TRANSPARENT, ForwardArkTSView 不会遮挡同层级事件
+    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
+}
+
+void KRForwardArkTSView::OnDestroy() {
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::RemoveView,
+                                                  KRRenderValue::Make(GetViewTag()), nullptr, nullptr,
+                                                  nullptr, nullptr, nullptr);
+    if (ark_node_ != nullptr) {
+        kuikly::util::GetNodeApi()->disposeNode(ark_node_);
+    }
+    ark_node_ = nullptr;
+}
+
+bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyValue &prop_value,
+                                       const KRRenderCallback event_call_back) {
+    bool handled = IKRRenderViewExport::ToSetBaseProp(prop_key, prop_value, event_call_back);
+    if (handled) {
+        if (prop_key == kBackgroundColor || prop_key == kBackgroundImage) {
+            KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
+                                                          KRRenderValue::Make(GetViewTag()),
+                                                          KRRenderValue::Make(prop_key), prop_value,
+                                                          nullptr, nullptr, nullptr);
+        }
+    }
+    return handled;
+}
+
+bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
+                                 const KRRenderCallback event_call_back) {
+    if (event_call_back) {  // is event
+        event_registry_[prop_key] = event_call_back;
+        // 设置事件
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,
+                                                      KRRenderValue::Make(GetViewTag()),
+                                                      KRRenderValue::Make(prop_key), nullptr, nullptr,
+                                                      nullptr, nullptr);
+    } else {  // is prop
+        // 设置属性
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
+                                                      KRRenderValue::Make(GetViewTag()),
+                                                      KRRenderValue::Make(prop_key), prop_value, nullptr,
+                                                      nullptr, nullptr);
+    }
+    return true;
+}
+
+void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {
+    KRArkTSManager::GetInstance().CallArkTSMethod(
+        GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
+        KRRenderValue::Make(GetViewTag()), KRRenderValue::Make(frame.width),
+        KRRenderValue::Make(frame.height), nullptr, nullptr, nullptr);
+}
+
+/**
+ * view添加到父节点中后调用
+ */
+void KRForwardArkTSView::DidMoveToParentView() {
+    // If ark_node_ already exists, this is a re-parent (movableContent move).
+    // Skip re-creating ComponentContent — the existing one moved with the STACK node.
+    if (ark_node_ != nullptr) {
+        // Still notify ArkTS side so it can resume state (e.g. video playback)
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(),
+                                                      KRNativeCallArkTSMethod::DidMoveToParentView,
+                                                      KRRenderValue::Make(GetViewTag()), nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr);
+        return;
+    }
+    if (auto rootView = GetRootView().lock()) {
+        auto uiContext = rootView->GetUIContextHandle();
+        if (!uiContext) {
+            return;
+        }
+        napi_handle_scope scope;
+        napi_env g_env = KRArkTSManager::GetInstance().GetEnv();
+        napi_open_handle_scope(g_env, &scope);
+        ArkUI_NodeHandle node = nullptr;
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CreateArkUINode,
+                                                      KRRenderValue::Make(GetViewTag()),
+                                                      KRRenderValue::Make(GetNodeId()),
+                                                      nullptr, nullptr, nullptr, nullptr, false, &node);
+        if (node == nullptr) {
+            return;
+        }
+        ark_node_ = node;
+        kuikly::util::GetNodeApi()->registerNodeCreatedFromArkTS(node);
+        kuikly::util::GetNodeApi()->addChild(GetNode(), node);
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(),
+                                                      KRNativeCallArkTSMethod::DidMoveToParentView,
+                                                      KRRenderValue::Make(GetViewTag()), nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr, false, &node);
+    }
+}
+
+void KRForwardArkTSView::FireViewEventFromArkTS(std::string eventKey, KRAnyValue data) {
+    auto callback = event_registry_[eventKey];
+    if (callback != nullptr) {
+        callback(data);
+    }
+}
+
+void KRForwardArkTSView::CallMethod(const std::string &method, const KRAnyValue &params,
+                                    const KRRenderCallback &callback) {
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
+                                                  KRRenderValue::Make(GetViewTag()),
+                                                  KRRenderValue::Make(method), params, nullptr, nullptr,
+                                                  callback);
+}

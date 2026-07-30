@@ -3,6 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
+<<<<<<< HEAD
 	objectVersion = 51;
 	objects = {
 
@@ -50,12 +51,94 @@
 			buildActionMask = 2147483647;
 			files = (
 				3FDCFB96518F86B53D4E5ADD /* Pods_iosApp.framework in Frameworks */,
+=======
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
+		058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
+		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
+		3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
+		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
+		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
+		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
+		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
+		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
+		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
+		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
+		FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
+		FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */; };
+		FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */; };
+		FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C64029C851A500C5E02A /* KRBridgeModule.m */; };
+		FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */; };
+		FF151BB82A23A7E800D2BBED /* KRVideoViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */; };
+		FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */ = {isa = PBXBuildFile; fileRef = FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */; };
+		FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */; };
+		FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */; };
+		FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */; };
+		FFEDDC7B2AA6F0980000420F /* NativeAppWaterfallViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		058557BA273AAA24004C7B11 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-iosApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3A622B972AB052B0002410B8 /* TDFTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TDFTestModule.h; sourceTree = "<group>"; };
+		3A622B982AB052B0002410B8 /* TDFTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TDFTestModule.m; sourceTree = "<group>"; };
+		3A622B992AB052B0002410B8 /* KRNewTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRNewTestModule.m; sourceTree = "<group>"; };
+		3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRNewTestModule.h; sourceTree = "<group>"; };
+		3AF526702A9309C300A93682 /* RootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootViewController.h; sourceTree = "<group>"; };
+		3AF526712A9309C300A93682 /* RootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
+		7126B4442E1E708100B6B1D9 /* KRTabbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRTabbarView.h; sourceTree = "<group>"; };
+		7126B4452E1E709000B6B1D9 /* KRTabbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRTabbarView.m; sourceTree = "<group>"; };
+		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		7555FF8C242A565B00829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
+		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
+		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
+		C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
+		F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
+		FF047755288C4842008D3F39 /* NSObject+RIJCategory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+RIJCategory.h"; sourceTree = "<group>"; };
+		FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+RIJCategory.m"; sourceTree = "<group>"; };
+		FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KuiklyRenderViewController.m; sourceTree = "<group>"; };
+		FF05C63B29C84FFF00C5E02A /* KuiklyRenderViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KuiklyRenderViewController.h; sourceTree = "<group>"; };
+		FF05C63D29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KuiklyRenderComponentExpandHandler.h; sourceTree = "<group>"; };
+		FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KuiklyRenderComponentExpandHandler.m; sourceTree = "<group>"; };
+		FF05C64029C851A500C5E02A /* KRBridgeModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRBridgeModule.m; sourceTree = "<group>"; };
+		FF05C64129C851A500C5E02A /* KRBridgeModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRBridgeModule.h; sourceTree = "<group>"; };
+		FF0DD45129EC211B0024F7FF /* KRRouterHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRRouterHandler.h; sourceTree = "<group>"; };
+		FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRRouterHandler.m; sourceTree = "<group>"; };
+		FF151BB62A23A7E800D2BBED /* KRVideoViewHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRVideoViewHandler.h; sourceTree = "<group>"; };
+		FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRVideoViewHandler.m; sourceTree = "<group>"; };
+		FF5BF16E2B6EC62D001C5632 /* KRFontHanlder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRFontHanlder.h; sourceTree = "<group>"; };
+		FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRFontHanlder.m; sourceTree = "<group>"; };
+		FFBD31B629015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationController+FDFullscreenPopGesture.h"; sourceTree = "<group>"; };
+		FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationController+FDFullscreenPopGesture.m"; sourceTree = "<group>"; };
+		FFDEA03D288BEF1F008534B5 /* iosApp-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosApp-Bridging-Header.h"; sourceTree = "<group>"; };
+		FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KuiklyRenderViewPage.swift; sourceTree = "<group>"; };
+		FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NativeMixKuiklyViewDemoViewController.h; sourceTree = "<group>"; };
+		FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NativeMixKuiklyViewDemoViewController.m; sourceTree = "<group>"; };
+		FFEDDC7C2AA6F0980000420F /* NativeAppWaterfallViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NativeAppWaterfallViewController.h; sourceTree = "<group>"; };
+		FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NativeAppWaterfallViewController.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		83A38DD41A3EE4289A4363A5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+<<<<<<< HEAD
 		0474A3EF29F6A3FE00F43E31 /* Vendor */ = {
 			isa = PBXGroup;
 			children = (
@@ -73,6 +156,8 @@
 			path = FDFullscreenPopGesture;
 			sourceTree = "<group>";
 		};
+=======
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 		058557D7273AAEEB004C7B11 /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
@@ -81,14 +166,22 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+<<<<<<< HEAD
 		254BBAA1096EC0C0491EF8C3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				28A2BBF98AD622240C0C6069 /* Pods_iosApp.framework */,
+=======
+		20C14EE155EAD6E18AEF6034 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+<<<<<<< HEAD
 		7555FF72242A565900829871 = {
 			isa = PBXGroup;
 			children = (
@@ -97,6 +190,33 @@
 				7555FF7C242A565900829871 /* Products */,
 				FDF972C7159D4191183C9089 /* Pods */,
 				254BBAA1096EC0C0491EF8C3 /* Frameworks */,
+=======
+		4D5AF2F73867F5563F1F911C /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */,
+				C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		71F799552E702FBA00EA8A8F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
+				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		7555FF72242A565900829871 = {
+			isa = PBXGroup;
+			children = (
+				7555FF7D242A565900829871 /* iosApp */,
+				7555FF7C242A565900829871 /* Products */,
+				4D5AF2F73867F5563F1F911C /* Pods */,
+				20C14EE155EAD6E18AEF6034 /* Frameworks */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			sourceTree = "<group>";
 		};
@@ -111,18 +231,30 @@
 		7555FF7D242A565900829871 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+<<<<<<< HEAD
 				0474A3EF29F6A3FE00F43E31 /* Vendor */,
 				FF6B714629A2A315009349F1 /* KuiklyRenderViewPage.swift */,
 				FF6B713E29A2A10E009349F1 /* KuiklyExpand */,
+=======
+				AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */,
+				FFE6EA88289A65D400AAAA3A /* KuiklyRenderExpand */,
+				FF047745288C47A7008D3F39 /* Vendor */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				058557BA273AAA24004C7B11 /* Assets.xcassets */,
 				7555FF82242A565900829871 /* ContentView.swift */,
 				7555FF8C242A565B00829871 /* Info.plist */,
 				2152FB032600AC8F00CF470E /* iOSApp.swift */,
 				058557D7273AAEEB004C7B11 /* Preview Content */,
+<<<<<<< HEAD
+=======
+				FFDEA03D288BEF1F008534B5 /* iosApp-Bridging-Header.h */,
+				FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			path = iosApp;
 			sourceTree = "<group>";
 		};
+<<<<<<< HEAD
 		FDF972C7159D4191183C9089 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
@@ -148,10 +280,92 @@
 			children = (
 				FF6B714129A2A173009349F1 /* HRBridgeModule.m */,
 				FF6B714229A2A173009349F1 /* HRBridgeModule.h */,
+=======
+		FF047745288C47A7008D3F39 /* Vendor */ = {
+			isa = PBXGroup;
+			children = (
+				FFBD31B529015A0100D555DE /* FDFullscreenPopGesture */,
+				FF047754288C4842008D3F39 /* RIJCategory */,
+			);
+			path = Vendor;
+			sourceTree = "<group>";
+		};
+		FF047754288C4842008D3F39 /* RIJCategory */ = {
+			isa = PBXGroup;
+			children = (
+				FF047755288C4842008D3F39 /* NSObject+RIJCategory.h */,
+				FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */,
+			);
+			path = RIJCategory;
+			sourceTree = "<group>";
+		};
+		FF05C63829C84FE800C5E02A /* Handlers */ = {
+			isa = PBXGroup;
+			children = (
+				C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */,
+				C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */,
+				FF05C63D29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.h */,
+				FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */,
+				FF0DD45129EC211B0024F7FF /* KRRouterHandler.h */,
+				FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */,
+				FF151BB62A23A7E800D2BBED /* KRVideoViewHandler.h */,
+				FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */,
+				FF5BF16E2B6EC62D001C5632 /* KRFontHanlder.h */,
+				FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */,
+			);
+			path = Handlers;
+			sourceTree = "<group>";
+		};
+		FF05C63929C84FF500C5E02A /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				FF05C63B29C84FFF00C5E02A /* KuiklyRenderViewController.h */,
+				FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */,
+				3AF526702A9309C300A93682 /* RootViewController.h */,
+				3AF526712A9309C300A93682 /* RootViewController.m */,
+				FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */,
+				FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */,
+				FFEDDC7C2AA6F0980000420F /* NativeAppWaterfallViewController.h */,
+				FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		FFBD31B529015A0100D555DE /* FDFullscreenPopGesture */ = {
+			isa = PBXGroup;
+			children = (
+				FFBD31B629015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.h */,
+				FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */,
+			);
+			path = FDFullscreenPopGesture;
+			sourceTree = "<group>";
+		};
+		FFE6EA88289A65D400AAAA3A /* KuiklyRenderExpand */ = {
+			isa = PBXGroup;
+			children = (
+				FF05C63929C84FF500C5E02A /* Controller */,
+				FF05C63829C84FE800C5E02A /* Handlers */,
+				FFE6EAA2289A65D400AAAA3A /* Modules */,
+				71F799552E702FBA00EA8A8F /* Views */,
+			);
+			path = KuiklyRenderExpand;
+			sourceTree = "<group>";
+		};
+		FFE6EAA2289A65D400AAAA3A /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				FF05C64129C851A500C5E02A /* KRBridgeModule.h */,
+				FF05C64029C851A500C5E02A /* KRBridgeModule.m */,
+				3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */,
+				3A622B992AB052B0002410B8 /* KRNewTestModule.m */,
+				3A622B972AB052B0002410B8 /* TDFTestModule.h */,
+				3A622B982AB052B0002410B8 /* TDFTestModule.m */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			path = Modules;
 			sourceTree = "<group>";
 		};
+<<<<<<< HEAD
 		FF6B714D29A2A6BA009349F1 /* Handler */ = {
 			isa = PBXGroup;
 			children = (
@@ -163,6 +377,8 @@
 			path = Handler;
 			sourceTree = "<group>";
 		};
+=======
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -170,12 +386,21 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7555FFA5242A565B00829871 /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
+<<<<<<< HEAD
 				972A582C11CA0A94A4C34E98 /* [CP] Check Pods Manifest.lock */,
 				7555FF77242A565900829871 /* Sources */,
 				7555FF79242A565900829871 /* Resources */,
 				412082966DD7AFE0B53032CB /* Frameworks */,
 				6715C2D1184DF4DA5556ABE1 /* [CP] Embed Pods Frameworks */,
 				BC22C436071F4D3499FAD430 /* [CP] Copy Pods Resources */,
+=======
+				C03A1EE622482765386525D0 /* [CP] Check Pods Manifest.lock */,
+				7555FF77242A565900829871 /* Sources */,
+				7555FF79242A565900829871 /* Resources */,
+				83A38DD41A3EE4289A4363A5 /* Frameworks */,
+				F44C2254D940F595F3003641 /* [CP] Copy Pods Resources */,
+				933D71A4A92D36640C8F8840 /* [CP] Embed Pods Frameworks */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			buildRules = (
 			);
@@ -194,10 +419,18 @@
 			attributes = {
 				LastSwiftUpdateCheck = 1130;
 				LastUpgradeCheck = 1130;
+<<<<<<< HEAD
 				ORGANIZATIONNAME = orgName;
 				TargetAttributes = {
 					7555FF7A242A565900829871 = {
 						CreatedOnToolsVersion = 11.3.1;
+=======
+				ORGANIZATIONNAME = Tencent;
+				TargetAttributes = {
+					7555FF7A242A565900829871 = {
+						CreatedOnToolsVersion = 11.3.1;
+						LastSwiftMigration = 1320;
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 					};
 				};
 			};
@@ -224,6 +457,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+<<<<<<< HEAD
+=======
+				AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */,
 				058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */,
 			);
@@ -232,7 +469,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+<<<<<<< HEAD
 		6715C2D1184DF4DA5556ABE1 /* [CP] Embed Pods Frameworks */ = {
+=======
+		933D71A4A92D36640C8F8840 /* [CP] Embed Pods Frameworks */ = {
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -244,12 +485,21 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
+<<<<<<< HEAD
+=======
+			outputPaths = (
+			);
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+<<<<<<< HEAD
 		972A582C11CA0A94A4C34E98 /* [CP] Check Pods Manifest.lock */ = {
+=======
+		C03A1EE622482765386525D0 /* [CP] Check Pods Manifest.lock */ = {
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -271,7 +521,11 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+<<<<<<< HEAD
 		BC22C436071F4D3499FAD430 /* [CP] Copy Pods Resources */ = {
+=======
+		F44C2254D940F595F3003641 /* [CP] Copy Pods Resources */ = {
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -283,6 +537,11 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
+<<<<<<< HEAD
+=======
+			outputPaths = (
+			);
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources.sh\"\n";
@@ -295,6 +554,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+<<<<<<< HEAD
 				FF6B714429A2A174009349F1 /* KuiklyRenderViewController.m in Sources */,
 				04E32B3E29F01975000A6BC5 /* KRRouterHandler.m in Sources */,
 				0474A3F329F6A41000F43E31 /* UINavigationController+FDFullscreenPopGesture.m in Sources */,
@@ -303,6 +563,26 @@
 				FF6B714729A2A315009349F1 /* KuiklyRenderViewPage.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
 				FF6B715029A2A6FF009349F1 /* KuiklyRenderComponentExpandHandler.m in Sources */,
+=======
+				FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */,
+				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
+				FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */,
+				FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */,
+				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,
+				7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */,
+				FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */,
+				7555FF83242A565900829871 /* ContentView.swift in Sources */,
+				FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */,
+				FF151BB82A23A7E800D2BBED /* KRVideoViewHandler.m in Sources */,
+				3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */,
+				3AF526722A9309C300A93682 /* RootViewController.m in Sources */,
+				FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */,
+				FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */,
+				FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */,
+				FFEDDC7B2AA6F0980000420F /* NativeAppWaterfallViewController.m in Sources */,
+				3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */,
+				FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */,
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -427,6 +707,7 @@
 		};
 		7555FFA6242A565B00829871 /* Debug */ = {
 			isa = XCBuildConfiguration;
+<<<<<<< HEAD
 			baseConfigurationReference = 312F0DBEF95A91A72E5FCBFA /* Pods-iosApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -434,13 +715,38 @@
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+=======
+			baseConfigurationReference = F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = 6AMQ8K4YG8;
+				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				INFOPLIST_FILE = iosApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+<<<<<<< HEAD
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuikly.table.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
+=======
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.luoyibu;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -448,6 +754,7 @@
 		};
 		7555FFA7242A565B00829871 /* Release */ = {
 			isa = XCBuildConfiguration;
+<<<<<<< HEAD
 			baseConfigurationReference = EAD586BEDBD0772EDC4E4B96 /* Pods-iosApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -455,12 +762,36 @@
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
+=======
+			baseConfigurationReference = C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Tencent Technology (Shenzhen) Co., Ltd";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = HKB8WPFBR9;
+				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				INFOPLIST_FILE = iosApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+<<<<<<< HEAD
 				PRODUCT_BUNDLE_IDENTIFIER = com.kuikly.table.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+=======
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "com.tencent.kuiklycore.demo.db InHouse";
+				SDKROOT = iphoneos;
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

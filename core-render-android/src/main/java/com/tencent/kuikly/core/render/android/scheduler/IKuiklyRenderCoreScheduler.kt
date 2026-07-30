@@ -1,0 +1,41 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.tencent.kuikly.core.render.android.scheduler
+
+/**
+ * KTV页面任务执行调度器
+ */
+interface IKuiklyRenderCoreScheduler {
+
+    @Deprecated("Deprecated", level = DeprecationLevel.HIDDEN)
+    fun scheduleTask(delayMs: Long = 0, task: () -> Unit) = scheduleTask(delayMs) { task() }
+
+    /**
+     * 调度任务, 不管当前是否与目标线程在同一个线程，都会post到下一个runLoop执行
+     * @param delayMs 延迟时间，单位: ms
+     * @param task 待调度的任务
+     */
+    fun scheduleTask(delayMs: Long = 0, task: Runnable)
+
+    /**
+     * 销毁释放资源
+     */
+    fun destroy()
+
+}
+
+typealias KuiklyRenderCoreTask = () -> Unit
+typealias PreRunKuiklyRenderCoreTask = () -> Unit

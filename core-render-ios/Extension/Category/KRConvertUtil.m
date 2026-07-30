@@ -1,0 +1,1178 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#import "KRConvertUtil.h"
+#import <JavaScriptCore/JavaScriptCore.h>
+#import <CoreText/CoreText.h>
+#import <CommonCrypto/CommonDigest.h>
+
+/// 选中高亮色 alpha 上限（0x66/255 ≈ 40%），避免高亮完全覆盖文字，多端统一
+const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
+#import "NSObject+KR.h"
+#import <CommonCrypto/CommonCrypto.h>
+#import "KRLogModule.h"
+#import "KuiklyRenderBridge.h"
+
+#define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
+
+const NSString *lineargradientPrefix = @"linear-gradient(";
+
+@implementation KRConvertUtil
+
+
++ (UIFont *)UIFont:(id)json {
+    NSString *fontFamily = json[@"fontFamily"];
+    CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
+    KuiklyContextParam* contextParam = json[@"contextParam"];
+    
+    if (fontFamily && fontFamily.length) {
+        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
+        if (font) {
+            return font;
+        }
+        
+        // 未静态注册，则调用业务方hr_loadCustomFont
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
+            if (font) {
+                return font;
+            }
+        } else {
+            // 动态加载字体失败，返回系统默认字体
+            return [UIFont systemFontOfSize:fontSize];
+        }
+    }
+    
+    // 执行默认字体加载，所覆盖的场景有：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
+    static dispatch_once_t onceToken;
+    static NSDictionary *gFontWeightMap = nil;
+    dispatch_once(&onceToken, ^{
+        gFontWeightMap =  @{
+            @"normal": @(UIFontWeightRegular),
+            @"bold": @(UIFontWeightBold),
+            @"100": @(UIFontWeightUltraLight),
+            @"200": @(UIFontWeightThin),
+            @"300": @(UIFontWeightLight),
+            @"400": @(UIFontWeightRegular),
+            @"500": @(UIFontWeightMedium),
+            @"600": @(UIFontWeightSemibold),
+            @"700": @(UIFontWeightBold),
+            @"800": @(UIFontWeightHeavy),
+            @"900": @(UIFontWeightBlack),
+        };
+    });
+    UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
+    
+    if (fontFamily.length) {
+        UIFont *font = nil;
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
+        }
+        if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
+        }
+        if (font == nil) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+        }
+        if (font) {
+            return font;
+        }
+    }
+    
+    if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
+        return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
+    }
+    
+    return [UIFont systemFontOfSize:fontSize weight:fontWeight];
+}
+
++ (UIFont *)italicFontWithSize:(CGFloat)fontSize
+                             bold:(BOOL)bold itatic:(BOOL)italic weight:(UIFontWeight)weight  {
+
+    UIFont *font = [UIFont systemFontOfSize:fontSize weight:weight];
+    UIFontDescriptorSymbolicTraits symbolicTraits = 0;
+    if (italic) {
+        symbolicTraits |= UIFontDescriptorTraitItalic;
+    }
+    if (bold) {
+        symbolicTraits |= UIFontDescriptorTraitBold;
+    }
+    UIFont *specialFont = [UIFont fontWithDescriptor:[[font fontDescriptor] fontDescriptorWithSymbolicTraits:symbolicTraits] size:font.pointSize];
+    return specialFont;
+}
+
++ (CGFloat)CGFloat:(id)value {
+    if ([value isKindOfClass:[NSNumber class] ]) {
+        return [((NSNumber *)value) doubleValue];
+    } else if([value isKindOfClass:[NSString class]]) {
+        return [((NSString *)value) doubleValue];
+    } else if( [value respondsToSelector:@selector(doubleValue)]) {
+        return [value doubleValue];
+    }
+    return 0;
+}
+
++ (NSUInteger)NSUInteger:(id)value {
+    if ([value isKindOfClass:[NSNumber class] ]) {
+        return [((NSNumber *)value) unsignedIntegerValue];
+    } else if([value isKindOfClass:[NSString class]]) {
+        return [((NSString *)value) longLongValue];
+    } else if( [value respondsToSelector:@selector(integerValue)]) {
+        return [value integerValue];
+    }
+    return 0;
+}
+
++ (NSInteger)NSInteger:(id)value {
+    if ([value isKindOfClass:[NSNumber class] ]) {
+        return [((NSNumber *)value) integerValue];
+    } else if([value isKindOfClass:[NSString class]]) {
+        return [((NSString *)value) integerValue];
+    } else if( [value respondsToSelector:@selector(integerValue)]) {
+        return [value integerValue];
+    }
+    return 0;
+}
+
++ (UIColor *)UIColor : (id)json {
+    if (!json) {
+        return nil;
+    }
+    if ([json isKindOfClass:[NSNumber class]] || [json isKindOfClass:[NSString class]]) {
+        NSUInteger argb = [self NSUInteger:json];
+        CGFloat a = ((argb >> 24) & 0xFF) / 255.0;
+        CGFloat r = ((argb >> 16) & 0xFF) / 255.0;
+        CGFloat g = ((argb >> 8) & 0xFF) / 255.0;
+        CGFloat b = (argb & 0xFF) / 255.0;
+        return [UIColor colorWithRed:r green:g blue:b alpha:a];
+    } else {
+#if DEBUG
+        assert(0); //a UIColor. Did you forget to call processColor() on the JS side
+#endif
+        return nil;
+    }
+}
+
++ (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0)) {
+    if ([[UIView css_string:style] isEqualToString:@"dark"]) {
+        return UIUserInterfaceStyleDark;
+    }
+    if ([[UIView css_string:style] isEqualToString:@"light"]) {
+        return UIUserInterfaceStyleLight;
+    }
+    return UIUserInterfaceStyleUnspecified;
+}
+
+// [macOS] Unified implementation using UIGlassEffectStyle (mapped to NSGlassEffectViewStyle on macOS via KRUIKit.h)
+#if (__IPHONE_OS_VERSION_MAX_ALLOWED >= 260000) || (__MAC_OS_X_VERSION_MAX_ALLOWED >= 260000)
++ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0), macos(26.0)) {
+    if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
+        return UIGlassEffectStyleRegular;
+    }
+    if ([[UIView css_string:style] isEqualToString:@"clear"]) {
+        return UIGlassEffectStyleClear;
+    }
+    return UIGlassEffectStyleRegular;
+}
+#endif
+
++ (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {
+    if ([stringValue isEqualToString:@"solid"]) {
+        return KRBorderStyleSolid;
+    }
+    if ([stringValue isEqualToString:@"dotted"]) {
+        return KRBorderStyleDotted;
+    }
+    if ([stringValue isEqualToString:@"dashed"]) {
+        return KRBorderStyleDashed;
+    }
+    return KRBorderStyleSolid;
+}
+
++ (NSTextAlignment)NSTextAlignment:(NSString *)stringValue {
+    if ([stringValue isEqualToString:@"auto"]) {
+        return NSTextAlignmentNatural;
+    }
+    if ([stringValue isEqualToString:@"left"]) {
+        return NSTextAlignmentLeft;
+    }
+    if ([stringValue isEqualToString:@"center"]) {
+        return NSTextAlignmentCenter;
+    }
+    if ([stringValue isEqualToString:@"right"]) {
+        return NSTextAlignmentRight;
+    }
+    if ([stringValue isEqualToString:@"justify"]) {
+        return NSTextAlignmentJustified;
+    }
+    return NSTextAlignmentNatural;
+}
+
+
++ (KRTextDecorationLineType)KRTextDecorationLineType:(NSString *)stringValue {
+    if ([stringValue isEqualToString:@"none"]) {
+        return KRTextDecorationLineTypeNone;
+    }
+    if ([stringValue isEqualToString:@"underline"]) {
+        return KRTextDecorationLineTypeUnderline;
+    }
+    if ([stringValue isEqualToString:@"line-through"]) {
+        return KRTextDecorationLineTypeStrikethrough;
+    }
+    if ([stringValue isEqualToString:@"underline line-through"]) {
+        return KRTextDecorationLineTypeUnderlineStrikethrough;
+    }
+   
+    return KRTextDecorationLineTypeNone;
+}
+
++ (NSLineBreakMode)NSLineBreakMode:(NSString *)stringValue {
+    if ([stringValue isEqualToString:@"clip"]) {
+        return NSLineBreakByClipping;
+    }
+    if ([stringValue isEqualToString:@"head"]) {
+        return NSLineBreakByTruncatingHead;
+    }
+    if ([stringValue isEqualToString:@"tail"]) {
+        return NSLineBreakByTruncatingTail;
+    }
+    if ([stringValue isEqualToString:@"middle"]) {
+        return NSLineBreakByTruncatingMiddle;
+    }
+    if ([stringValue isEqualToString:@"wordWrapping"]) {
+        return NSLineBreakByWordWrapping;
+    }
+    return NSLineBreakByTruncatingTail;
+}
+
+
++ (UIViewContentMode)UIViewContentMode:(NSString *)stringValue {
+    static dispatch_once_t onceToken;
+    static NSDictionary *gConfigMode = nil;
+    dispatch_once(&onceToken, ^{
+        gConfigMode =  @{
+            @"scale-to-fill": @(UIViewContentModeScaleToFill),
+            @"scale-aspect-fit": @(UIViewContentModeScaleAspectFit),
+            @"scale-aspect-fill": @(UIViewContentModeScaleAspectFill),
+            @"redraw": @(UIViewContentModeRedraw),
+            @"center": @(UIViewContentModeCenter),
+            @"top": @(UIViewContentModeTop),
+            @"bottom": @(UIViewContentModeBottom),
+            @"left": @(UIViewContentModeLeft),
+            @"right": @(UIViewContentModeRight),
+            @"top-left": @(UIViewContentModeTopLeft),
+            @"top-right": @(UIViewContentModeTopRight),
+            @"bottom-left": @(UIViewContentModeBottomLeft),
+            @"bottom-right": @(UIViewContentModeBottomRight),
+            // Cross-platform values
+            @"cover": @(UIViewContentModeScaleAspectFill),
+            @"contain": @(UIViewContentModeScaleAspectFit),
+            @"stretch": @(UIViewContentModeScaleToFill),
+        };
+    });
+    NSNumber *value = gConfigMode[stringValue];
+    if (value) {
+        return (UIViewContentMode)[value integerValue];
+    }
+    return UIViewContentModeScaleAspectFill;
+}
+
+
+
+
++ (void)hr_setStartPointAndEndPointWithLayer:(CAGradientLayer *)layer direction:(CSSGradientDirection)direction {
+    CGSize size = layer.bounds.size;
+    if (size.width == 0 || size.height == 0) {
+        return ;
+    }
+    CGFloat deg = 0;
+    NSInteger tanDeg = (atan((size.width / size.height)) / (M_PI * 2)) * 360; // 对角线角度 (正方形是45度)
+    switch (direction) {
+        case CSSGradientDirectionToBottom:
+            deg = 180;
+            break;
+        case CSSGradientDirectionToLeft:
+            deg = 270;
+            break;
+        case CSSGradientDirectionToRight:
+            deg = 90;
+            break;
+        case CSSGradientDirectionToTopRight:
+            deg = tanDeg;
+            break;
+        case CSSGradientDirectionToTopLeft:
+            deg = (360 - tanDeg);
+            break;
+        case CSSGradientDirectionToBottomLeft:
+            deg = (180 + tanDeg);
+            break;
+        case CSSGradientDirectionToBottomRight:
+            deg = (180 - tanDeg);
+            break;
+        default:
+            break;
+    }
+    NSInteger rotateDeg = deg;
+    CGPoint startPoint = CGPointZero;
+    CGPoint endPoint = CGPointZero;
+    if (rotateDeg >= (360 - tanDeg) || rotateDeg <= tanDeg) { // top bottom
+        if (rotateDeg >= (360 - tanDeg)) {
+            CGFloat x = (size.width / 2 - hr_tan(360 - rotateDeg) * (size.height / 2))   /  size.width;
+            endPoint = CGPointMake(x, 0);
+            startPoint = CGPointMake(1 - x, 1);
+        }else {
+            CGFloat x = (size.width / 2 + hr_tan(rotateDeg) * (size.height / 2))   /  size.width;
+            endPoint = CGPointMake(x, 0);
+            startPoint = CGPointMake(1 - x, 1);
+        }
+    }else if (rotateDeg >= tanDeg && rotateDeg <= (180 - tanDeg)) { // right left
+        if (rotateDeg <= 90) {
+            CGFloat y = (size.height / 2 - hr_tan(90 - rotateDeg) * (size.width / 2))   /  size.height;
+            endPoint = CGPointMake(1, y);
+            startPoint = CGPointMake(0, 1 - y);
+        }else {
+            CGFloat y = (size.height / 2 + hr_tan(rotateDeg - 90) * (size.width / 2))   /  size.height;
+            endPoint = CGPointMake(1, y);
+            startPoint = CGPointMake(0, 1 - y);
+        }
+    }else if (rotateDeg >= (180 - tanDeg) && rotateDeg <= (180 + tanDeg)) { // bottom top
+        rotateDeg -= 180;
+        rotateDeg = (rotateDeg + 360) % 360;
+        if (rotateDeg >= (360 - tanDeg)) {
+            CGFloat x = (size.width / 2 - hr_tan(360 - rotateDeg) * (size.height / 2))   /  size.width;
+            startPoint = CGPointMake(x, 0);
+            endPoint = CGPointMake(1 - x, 1);
+        }else {
+            CGFloat x = (size.width / 2 + hr_tan(rotateDeg) * (size.height / 2))   /  size.width;
+            startPoint = CGPointMake(x, 0);
+            endPoint = CGPointMake(1 - x, 1);
+        }
+    }else if (rotateDeg >= (180 + tanDeg) && rotateDeg <= (360 - tanDeg)) { // left right
+        rotateDeg -= 180;
+        if (rotateDeg <= 90) {
+            CGFloat y = (size.height / 2 - hr_tan(90 - rotateDeg) * (size.width / 2))   /  size.height;
+            startPoint = CGPointMake(1, y);
+            endPoint = CGPointMake(0, 1 - y);
+        }else {
+            CGFloat y = (size.height / 2 + hr_tan(rotateDeg - 90) * (size.width / 2))   /  size.height;
+            startPoint = CGPointMake(1, y);
+            endPoint = CGPointMake(0, 1 - y);
+        }
+    }
+    if (!CGPointEqualToPoint(layer.startPoint, startPoint)) {
+        layer.startPoint = startPoint;
+    }
+    if (!CGPointEqualToPoint(layer.endPoint, endPoint)) {
+        layer.endPoint = endPoint;
+    }
+}
+
+
+// 采用 CSS corner-overlap 算法（W3C CSS Backgrounds Level 3 §5.5）等比缩放圆角半径，替代旧的 MIN(radius, min(w,h)/2) 独立 clamp，以保持四角比例关系并与 Android 侧行为对齐
++ (UIBezierPath *)hr_bezierPathWithRoundedRect:(CGRect)rect
+                           topLeftCornerRadius:(CGFloat)topLeftCornerRadius
+                           topRightCornerRadius:(CGFloat)topRightCornerRadius
+                           bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
+                       bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
+    CGSize size = rect.size;
+
+    // CSS corner-overlap 算法（W3C CSS Backgrounds Level 3 §5.5）
+    // 当相邻两角半径之和超过对应边长时，按比例等比缩小所有角的半径
+    // 参考：https://www.w3.org/TR/css-backgrounds-3/#corner-overlap
+    CGFloat f = 1.0;
+    if (size.width > 0) {
+        // 上边：topLeft + topRight <= width
+        CGFloat topSum = topLeftCornerRadius + topRightCornerRadius;
+        if (topSum > 0) {
+            f = MIN(f, size.width / topSum);
+        }
+        // 下边：bottomLeft + bottomRight <= width
+        CGFloat bottomSum = bottomLeftCornerRadius + bottomRightCornerRadius;
+        if (bottomSum > 0) {
+            f = MIN(f, size.width / bottomSum);
+        }
+    }
+    if (size.height > 0) {
+        // 左边：topLeft + bottomLeft <= height
+        CGFloat leftSum = topLeftCornerRadius + bottomLeftCornerRadius;
+        if (leftSum > 0) {
+            f = MIN(f, size.height / leftSum);
+        }
+        // 右边：topRight + bottomRight <= height
+        CGFloat rightSum = topRightCornerRadius + bottomRightCornerRadius;
+        if (rightSum > 0) {
+            f = MIN(f, size.height / rightSum);
+        }
+    }
+    // f = min(1, ...)，不放大
+    f = MIN(f, 1.0);
+    topLeftCornerRadius *= f;
+    topRightCornerRadius *= f;
+    bottomLeftCornerRadius *= f;
+    bottomRightCornerRadius *= f;
+
+    // 绘制四个方向的线和圆弧
+    UIBezierPath *path = [UIBezierPath bezierPath];
+    CGFloat radius = topLeftCornerRadius;
+    [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
+    radius = topRightCornerRadius;
+    [path addLineToPoint:CGPointMake(size.width - radius, 0)];
+    [path addArcWithCenter:CGPointMake(size.width - radius, radius) radius:radius startAngle:M_PI * (3/2.0f) endAngle:2 * M_PI clockwise:true];
+    radius = bottomRightCornerRadius;
+    [path addLineToPoint:CGPointMake(size.width, size.height - radius)];
+    [path addArcWithCenter:CGPointMake(size.width - radius, size.height - radius) radius:radius startAngle:2 * M_PI endAngle:M_PI_2 clockwise:YES];
+    radius = bottomLeftCornerRadius;
+    [path addLineToPoint:CGPointMake(radius, size.height)];
+    [path addArcWithCenter:CGPointMake(radius, size.height - radius) radius:radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
+    [path closePath];
+    return path;
+}
+
+
+
++ (NSArray *)hr_arrayWithJSONString:(NSString *)JSONString {
+    if ([JSONString isKindOfClass:[NSArray class]]) {
+        return (NSArray *)JSONString;
+    }
+    if (JSONString == nil || [JSONString isKindOfClass:[NSNull class]] || JSONString.length == 0) {
+        return nil;
+    }
+    
+    NSData *JSONData = [JSONString dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *err;
+    NSArray *array;
+    @try{
+        array = [NSJSONSerialization JSONObjectWithData:JSONData
+                                                       options:NSJSONReadingMutableContainers
+                                                         error:&err];
+    }
+    @catch(NSException * e){
+        NSString *errorMessage = [NSString stringWithFormat:@"%s_exception:%@",__FUNCTION__, e];
+        [KRLogModule logError:errorMessage];
+        NSAssert(false, errorMessage);
+    }
+   
+    if(err) {
+        return nil;
+    }
+    if ([array isKindOfClass:[NSArray class]]) {
+        return array;
+    }
+    return array;
+}
+
+/// Convert timing function to UIViewAnimationOptions. rawCurve is only used when value=4 (Keyboard).
++ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
+        return UIViewAnimationOptionCurveEaseIn;
+    }
+    if (v == 2) {
+        return UIViewAnimationOptionCurveEaseOut;
+    }
+    if (v == 3) {
+        return UIViewAnimationOptionCurveEaseInOut;
+    }
+    if (v == 4) {
+        // Keyboard: shift left 16 bits to convert to UIViewAnimationOptions format
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationOptions)(rawCurveValue << 16);
+    }
+    return UIViewAnimationOptionCurveLinear;
+}
+
+/// Convert timing function to UIViewAnimationCurve. rawCurve is only used when value=4 (Keyboard).
++ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
+        return UIViewAnimationCurveEaseIn;
+    }
+    if (v == 2) {
+        return UIViewAnimationCurveEaseOut;
+    }
+    if (v == 3) {
+        return UIViewAnimationCurveEaseInOut;
+    }
+    if (v == 4) {
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationCurve)rawCurveValue;
+    }
+    return UIViewAnimationCurveLinear;
+}
+
+
++ (UIKeyboardType)hr_keyBoardType:(id)value {
+    NSString *keyboardType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)keyboardType; // 未使用
+    return UIKeyboardTypeDefault;
+    #else
+    if ([keyboardType isEqualToString:@"password"]) {
+        return UIKeyboardTypeAlphabet;
+    }
+    if ([keyboardType isEqualToString:@"number"]) {
+        return UIKeyboardTypeNumberPad;
+    }
+    if ([keyboardType isEqualToString:@"email"]) {
+        return UIKeyboardTypeEmailAddress;
+    }
+    return UIKeyboardTypeDefault;
+    #endif // [macOS]
+}
+
++ (NSString *)hr_toString:(id)value {
+    if ([value isKindOfClass:[NSString class]]) {
+        return value;
+    } else if([value respondsToSelector:@selector(stringValue)]) {
+        return  [value performSelector:@selector(string)];
+    }
+    return nil;
+}
+
++ (UIReturnKeyType)hr_toReturnKeyType:(id)value {
+    NSString *returnKeyType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)returnKeyType;
+    return UIReturnKeyDefault;
+    #else
+    if ([returnKeyType isEqualToString:@"default"]) {
+        return UIReturnKeyDefault;
+    } else if ([returnKeyType isEqualToString:@"search"]) {
+        return UIReturnKeySearch;
+    } else if ([returnKeyType isEqualToString:@"send"]) {
+        return UIReturnKeySend;
+    } else if ([returnKeyType isEqualToString:@"go"]) {
+        return UIReturnKeyGo;
+    } else if ([returnKeyType isEqualToString:@"done"]) {
+        return UIReturnKeyDone;
+    } else if ([returnKeyType isEqualToString:@"next"]) {
+        return UIReturnKeyNext;
+    } else if ([returnKeyType isEqualToString:@"join"]) {
+        return UIReturnKeyJoin;
+    } else if ([returnKeyType isEqualToString:@"google"]) {
+        return UIReturnKeyGoogle;
+    } else if ([returnKeyType isEqualToString:@"yahoo"]) {
+        return UIReturnKeyYahoo;
+    } else if ([returnKeyType isEqualToString:@"route"]) {
+        return UIReturnKeyRoute;
+    } else if ([returnKeyType isEqualToString:@"continue"]) {
+        return UIReturnKeyContinue;
+    } else if ([returnKeyType isEqualToString:@"emergencyCall"]) {
+        return UIReturnKeyEmergencyCall;
+    }
+    return UIReturnKeyDefault;
+    #endif // [macOS]
+}
+
++ (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
+    NSString *returnKeyType = [self hr_toString:value];
+    if ([returnKeyType isEqualToString:@"button"]) {
+        return UIAccessibilityTraitButton;
+    } else if ([returnKeyType isEqualToString:@"text"]) {
+        return UIAccessibilityTraitStaticText;
+    } else if ([returnKeyType isEqualToString:@"image"]) {
+        return UIAccessibilityTraitImage;
+    } else if ([returnKeyType isEqualToString:@"search"]) {
+        return UIAccessibilityTraitSearchField;
+    } else if ([returnKeyType isEqualToString:@"checkbox"]) {
+        return UIAccessibilityTraitButton | UIAccessibilityTraitSelected;
+    }
+    return UIAccessibilityTraitNone;
+}
+
++ (NSString *)hr_base64Decode:(NSString *)string {
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:string options:0];
+    return [[NSString alloc]initWithData:data encoding: NSUTF8StringEncoding];
+}
+
++ (CGRect)hr_rectInset:(CGRect)rect insets:(UIEdgeInsets)insets {
+    if (!UIEdgeInsetsEqualToEdgeInsets(insets, UIEdgeInsetsZero)) {
+        CGRect newRect = CGRectMake(rect.origin.x - insets.left,
+                                     rect.origin.y - insets.top,
+                                     rect.size.width + insets.left + insets.right, rect.size.height + insets.top + insets.bottom);
+        return newRect;;
+    }
+    return rect;
+}
+
++ (NSString *)hr_dictionaryToJSON:(NSDictionary *)dict {
+    NSError *parseError = nil;
+    NSString *jsonString = nil;
+    @try {
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dict
+                                                           options:NSJSONWritingFragmentsAllowed
+                                                             error:&parseError];
+        jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    } @catch (NSException *exception) {
+        // 捕获并打印异常信息
+        NSString *assertReason = [NSString stringWithFormat:@"%s exception:%@ reason:%@ userinfo:%@", __FUNCTION__, exception.name, exception.reason,exception.userInfo];
+        [KRLogModule logError:assertReason];
+        NSAssert(false, assertReason);
+    }
+    return jsonString;
+}
+
++ (BOOL)hr_isJsonArray:(id)value {
+    if ([value isKindOfClass:[NSArray class]]) {
+        NSArray *array = (NSArray *)value;
+        for (NSObject *ele in array) {
+            if ([ele isKindOfClass:[NSData class]]) {
+                return NO;
+            }
+        }
+        return YES;
+    }
+    return NO;
+}
+
++ (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if ([UIApplication isAppExtension]) {
+            return;
+        }
+#if TARGET_OS_OSX // [macOS]
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = title ?: @"";
+        alert.informativeText = message ?: @"";
+        [alert addButtonWithTitle:@"确定"];
+        [alert runModal];
+#else // [macOS]
+        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
+                                                                                 message:message
+                                                                          preferredStyle:UIAlertControllerStyleAlert];
+        UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
+        [alertController addAction:action];
+        UIWindow *keyWindow = [self keyWindow];
+        if (keyWindow && keyWindow.rootViewController) {
+            [keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+        }
+#endif // [macOS]
+    });
+}
+
++ (NSString *)hr_md5StringWithString:(NSString *)string {
+    const char *cstr = [string UTF8String];
+    unsigned char result[16];
+    CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
+    
+    return [NSString stringWithFormat:@"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+            result[0], result[1], result[2], result[3],
+            result[4], result[5], result[6], result[7],
+            result[8], result[9], result[10], result[11],
+            result[12], result[13], result[14], result[15]
+            ];
+}
+
++ (CGFloat)statusBarHeight {
+#if TARGET_OS_OSX // [macOS]
+    return 0;
+#else
+    CGFloat statusBarHeight = 0;
+    if(![UIApplication isAppExtension]){
+        if (@available(iOS 13.0, *)) {
+            UIWindowScene *windowScene = (UIWindowScene *)(UIApplication.sharedApplication.connectedScenes.anyObject);
+            if (windowScene && [windowScene isKindOfClass:UIWindowScene.class]) {
+                statusBarHeight = windowScene.statusBarManager.statusBarFrame.size.height;
+            }
+        }
+        if (!statusBarHeight) {
+            statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
+        }
+    }
+    if (@available(iOS 16.0, *)) {
+        BOOL needAdjust = (statusBarHeight == 44);
+        if (needAdjust) {
+            UIWindow* mainWindow = [self keyWindow];
+            if (mainWindow && mainWindow.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
+                statusBarHeight = 54;
+            }
+            // 如果没有找到当前交互scene的Keywindow，则statusBarHeight = 0，后续将返回 [self defaultStatusBarHeight]
+        }
+    }
+    return statusBarHeight ?: [self defaultStatusBarHeight];
+    #endif
+}
+
++ (CGFloat)defaultStatusBarHeight {
+    CGFloat statusBarHeight = 20;
+#if !TARGET_OS_OSX // [macOS]
+    if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone) {
+        CGSize screenSize = UIScreen.mainScreen.bounds.size;
+        if (MAX(screenSize.width, screenSize.height) / MIN(screenSize.width, screenSize.height) >= 2.0) {
+            statusBarHeight = 44;
+        }
+    }
+#endif
+    return statusBarHeight;
+}
+
++ (NSString *)stringWithInsets:(UIEdgeInsets)insets {
+    return [NSString stringWithFormat:@"%.2lf %.2lf %.2lf %.2lf", insets.top, insets.left, insets.bottom, insets.right];
+}
+
+
++ (UIEdgeInsets)currentSafeAreaInsets {
+#if TARGET_OS_OSX // [macOS]
+    return UIEdgeInsetsZero;
+#else
+    if([UIApplication isAppExtension]){
+        return UIEdgeInsetsZero;
+    }
+    if (@available(iOS 11, *)) {
+        UIWindow *window = [self keyWindow];
+        if (window) {
+            return window.safeAreaInsets;
+        } else {
+            return UIEdgeInsetsZero;
+        }
+    } else {
+        return UIEdgeInsetsZero;
+    }
+    #endif
+}
+
++ (CGFloat)toSafeFloat:(CGFloat)value {
+    if (isnan(value) || isinf(value)) {
+        [KRLogModule logError:[NSString stringWithFormat:@"has [nan inf] value when safe float"]];
+        return 0;
+    }
+    return value;
+}
+
++ (CGRect)toSafeRect:(CGRect)rect {
+    return CGRectMake([self toSafeFloat:rect.origin.x],
+                      [self toSafeFloat:rect.origin.y],
+                      [self toSafeFloat:rect.size.width],
+                      [self toSafeFloat:rect.size.height]);
+}
+
++ (NSString *)sizeStrWithSize:(CGSize)size {
+    return [NSString stringWithFormat:@"%.2lf|%.2lf", size.width, size.height];
+}
+
++ (id)nativeObjectToKotlinObject:(id)ocObject {
+    if ([ocObject isKindOfClass:[NSDictionary class]] || [KRConvertUtil hr_isJsonArray:ocObject] ) {
+        return  [KRConvertUtil hr_dictionaryToJSON:ocObject];
+    }
+    return ocObject;
+}
+
+
+/**
+ * 获取当前 KeyWindow
+ * 兼容 iOS 13+ 的 Scene 架构，替代废弃的 UIApplication.sharedApplication.keyWindow
+ */
++ (UIWindow *)keyWindow {
+#if TARGET_OS_OSX
+    // macOS: 获取当前激活的窗口, 并由调用方判断是否为nil作处理
+    return NSApplication.sharedApplication.mainWindow;
+#else
+    if ([UIApplication isAppExtension]) {
+        return nil;
+    }
+
+    UIWindow *keyWindow = nil;
+    // 判断当前应用是否和用户交互过，避免vc初始化时UISceneActivationStateForegroundInactive导致拿到的safeAreaInsets是全零
+    UIApplicationState appState = UIApplication.sharedApplication.applicationState;
+
+    if (@available(iOS 13.0, *)) {
+        // 方式1：优先找用户当前正在交互的 foregroundActive 的 scene 中的 keyWindow
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            BOOL isForegroundActive = (scene.activationState == UISceneActivationStateForegroundActive);
+            BOOL isForegroundInactive = (scene.activationState == UISceneActivationStateForegroundInactive);
+            BOOL isValidState = isForegroundActive || (appState != UIApplicationStateActive && isForegroundInactive);
+
+            if (isValidState && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                keyWindow = [self keyWindowFromWindowScene:windowScene];
+                if (keyWindow) {
+                    return keyWindow;
+                }
+            }
+        }
+
+    } else {
+        // iOS 13 以下使用旧的 API
+        keyWindow = UIApplication.sharedApplication.keyWindow;
+    }
+    // 未获取到交互scene 或者 未找到Keywindow，则直接返回nil，准备使用全零的safeAreaInsets
+    return keyWindow;
+#endif
+}
+
+/**
+ * 从 WindowScene 中获取 KeyWindow
+ */
+#if !TARGET_OS_OSX
++ (UIWindow *)keyWindowFromWindowScene:(UIWindowScene *)windowScene  API_AVAILABLE(ios(13.0)){
+    if (!windowScene) {
+        return nil;
+    }
+
+    // 找 isKeyWindow 的 window
+    for (UIWindow *window in windowScene.windows) {
+        if (window.isKeyWindow) {
+            return window;
+        }
+    }
+
+    return nil;
+}
+#endif
+
+
++ (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density {
+
+    // 1. 参数校验：pathData 为空时直接返回 nil
+    if (!pathData || pathData.length == 0) {
+        return nil;
+    }
+
+    // 2. 创建空的贝塞尔路径对象
+    UIBezierPath *path = [UIBezierPath bezierPath];
+
+    // 3. 将路径字符串按空格分割成数组
+    //    例如 "M 0 40 L 40 0 Z" -> ["M", "0", "40", "L", "40", "0", "Z"]
+    NSArray *values = [pathData componentsSeparatedByString:@" "];
+    NSInteger index = 0;
+    NSInteger commandCount = 0;
+
+    @try {
+        // 4. 遍历解析每个命令
+        while (index < values.count) {
+            NSString *command = values[index];
+
+            if ([command isEqualToString:@"M"]) {
+                // M (MoveTo): 移动画笔到指定点，不绘制任何线条
+                // 格式：M x y
+                // 参数检查：需要 2 个参数
+                if (index + 2 >= values.count) {
+                    break;
+                }
+                CGFloat x = [values[index + 1] floatValue];
+                CGFloat y = [values[index + 2] floatValue];
+                [path moveToPoint:CGPointMake(x, y)];
+                index += 3;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"L"]) {
+                // L (LineTo): 从当前点画直线到指定点
+                // 格式：L x y
+                if (index + 2 >= values.count) break;
+                CGFloat x = [values[index + 1] floatValue];
+                CGFloat y = [values[index + 2] floatValue];
+                [path addLineToPoint:CGPointMake(x, y)];
+                index += 3;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"R"]) {
+                // R (aRc): 画圆弧
+                // 格式：R centerX centerY radius startAngle endAngle counterclockwise
+                // 参数说明：
+                //   - centerX, centerY: 圆心坐标
+                //   - radius: 半径
+                //   - startAngle, endAngle: 起始和结束角度（弧度制）
+                //   - counterclockwise: 是否逆时针绘制（1=逆时针，0=顺时针）
+                if (index + 6 >= values.count) break;
+                CGFloat cx = [values[index + 1] floatValue];
+                CGFloat cy = [values[index + 2] floatValue];
+                CGFloat radius = [values[index + 3] floatValue];
+                CGFloat startAngle = [values[index + 4] floatValue];
+                CGFloat endAngle = [values[index + 5] floatValue];
+                BOOL counterclockwise = [values[index + 6] isEqualToString:@"1"];
+                // iOS 的 clockwise 参数与标准定义相反，所以取反
+                [path addArcWithCenter:CGPointMake(cx, cy)
+                                radius:radius
+                            startAngle:startAngle
+                              endAngle:endAngle
+                             clockwise:!counterclockwise];
+                index += 7;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"Z"]) {
+                // Z (closePath): 闭合路径，从当前点画直线回到起点
+                [path closePath];
+                index += 1;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"Q"]) {
+                // Q (Quadratic): 二次贝塞尔曲线
+                // 格式：Q controlX controlY endX endY
+                // 曲线从当前点开始，经过控制点弯曲，到达终点
+                if (index + 4 >= values.count) break;
+                CGFloat cx = [values[index + 1] floatValue];
+                CGFloat cy = [values[index + 2] floatValue];
+                CGFloat x = [values[index + 3] floatValue];
+                CGFloat y = [values[index + 4] floatValue];
+#if TARGET_OS_OSX
+                // macOS NSBezierPath 没有 addQuadCurveToPoint:controlPoint: 方法
+                // 需要将二次贝塞尔曲线转换为三次贝塞尔曲线
+                // 公式：CP1 = P0 + 2/3 * (CP - P0), CP2 = P + 2/3 * (CP - P)
+                CGPoint currentPoint = path.currentPoint;
+                CGPoint cp1 = CGPointMake(currentPoint.x + 2.0/3.0 * (cx - currentPoint.x),
+                                          currentPoint.y + 2.0/3.0 * (cy - currentPoint.y));
+                CGPoint cp2 = CGPointMake(x + 2.0/3.0 * (cx - x),
+                                          y + 2.0/3.0 * (cy - y));
+                [path curveToPoint:CGPointMake(x, y) controlPoint1:cp1 controlPoint2:cp2];
+#else
+                [path addQuadCurveToPoint:CGPointMake(x, y) controlPoint:CGPointMake(cx, cy)];
+#endif
+                index += 5;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"C"]) {
+                // C (Cubic): 三次贝塞尔曲线
+                // 格式：C control1X control1Y control2X control2Y endX endY
+                // 曲线从当前点开始，经过两个控制点弯曲，到达终点
+                if (index + 6 >= values.count) break;
+                CGFloat cx1 = [values[index + 1] floatValue];
+                CGFloat cy1 = [values[index + 2] floatValue];
+                CGFloat cx2 = [values[index + 3] floatValue];
+                CGFloat cy2 = [values[index + 4] floatValue];
+                CGFloat x = [values[index + 5] floatValue];
+                CGFloat y = [values[index + 6] floatValue];
+#if TARGET_OS_OSX
+                // macOS 使用 curveToPoint:controlPoint1:controlPoint2:
+                [path curveToPoint:CGPointMake(x, y)
+                     controlPoint1:CGPointMake(cx1, cy1)
+                     controlPoint2:CGPointMake(cx2, cy2)];
+#else
+                [path addCurveToPoint:CGPointMake(x, y)
+                        controlPoint1:CGPointMake(cx1, cy1)
+                        controlPoint2:CGPointMake(cx2, cy2)];
+#endif
+                index += 7;
+                commandCount++;
+
+            } else {
+                // 未知命令，跳过
+                index += 1;
+            }
+        }
+    } @catch (NSException *exception) {
+        // 解析异常时返回 nil，避免崩溃
+        return nil;
+    }
+
+    return path;
+}
+
+
+#if TARGET_OS_OSX
+/**
+ * 将 NSBezierPath 转换为 CGPath
+ * 兼容 macOS 14.0 以下版本
+ */
++ (CGPathRef)hr_convertNSBezierPathToCGPath:(NSBezierPath *)bezierPath {
+    if (!bezierPath) {
+        return NULL;
+    }
+
+    // macOS 14.0+ 可以直接使用 CGPath 属性
+    if (@available(macOS 14.0, *)) {
+        CGPathRef cgPath = [bezierPath CGPath];
+        if (cgPath) {
+            CGPathRetain(cgPath); // 调用者需要 release
+        }
+        return cgPath;
+    }
+
+    // macOS 14.0 以下：手动转换
+    CGMutablePathRef cgPath = CGPathCreateMutable();
+    NSInteger elementCount = [bezierPath elementCount];
+
+    for (NSInteger i = 0; i < elementCount; i++) {
+        NSPoint points[3];
+        NSBezierPathElement element = [bezierPath elementAtIndex:i associatedPoints:points];
+
+        switch (element) {
+            case NSBezierPathElementMoveTo:
+                CGPathMoveToPoint(cgPath, NULL, points[0].x, points[0].y);
+                break;
+
+            case NSBezierPathElementLineTo:
+                CGPathAddLineToPoint(cgPath, NULL, points[0].x, points[0].y);
+                break;
+
+            case NSBezierPathElementCurveTo:
+                CGPathAddCurveToPoint(cgPath, NULL,
+                                      points[0].x, points[0].y,  // control point 1
+                                      points[1].x, points[1].y,  // control point 2
+                                      points[2].x, points[2].y); // end point
+                break;
+
+            case NSBezierPathElementClosePath:
+                CGPathCloseSubpath(cgPath);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    return cgPath;
+}
+
+
+/// 在 CGContext 中绘制线性渐变
+/// @param ctx 目标绘制上下文
+/// @param gradientStr 渐变字符串（如 "linear-gradient(180,#ffffff00 0,#ffffffff 1)"）
+/// @param size 绘制区域大小（point 单位）
++ (void)hr_calculateGradientStartPoint:(CGPoint *)startPoint
+                              endPoint:(CGPoint *)endPoint
+                             direction:(CSSGradientDirection)direction
+                                  size:(CGSize)size {
+    if (size.width == 0 || size.height == 0) {
+        *startPoint = CGPointMake(0.5, 1);
+        *endPoint = CGPointMake(0.5, 0);
+        return;
+    }
+
+    CGFloat deg = 0;
+    CGFloat tanDeg = (atan((size.width / size.height)) / (M_PI * 2)) * 360;
+
+    switch (direction) {
+        case CSSGradientDirectionToTop:
+            deg = 0;
+            break;
+        case CSSGradientDirectionToBottom:
+            deg = 180;
+            break;
+        case CSSGradientDirectionToLeft:
+            deg = 270;
+            break;
+        case CSSGradientDirectionToRight:
+            deg = 90;
+            break;
+        case CSSGradientDirectionToTopRight:
+            deg = tanDeg;
+            break;
+        case CSSGradientDirectionToTopLeft:
+            deg = (360 - tanDeg);
+            break;
+        case CSSGradientDirectionToBottomLeft:
+            deg = (180 + tanDeg);
+            break;
+        case CSSGradientDirectionToBottomRight:
+            deg = (180 - tanDeg);
+            break;
+        default:
+            deg = 180;
+            break;
+    }
+
+    CGFloat radians = deg * M_PI / 180.0;
+    CGFloat centerX = 0.5;
+    CGFloat centerY = 0.5;
+    CGFloat dx = sin(radians);
+    CGFloat dy = -cos(radians);
+    CGFloat diagonalFactor = sqrt(2.0) / 2.0;
+
+    *startPoint = CGPointMake(centerX - dx * diagonalFactor, centerY - dy * diagonalFactor);
+    *endPoint = CGPointMake(centerX + dx * diagonalFactor, centerY + dy * diagonalFactor);
+}
+
+/// 计算渐变的起点和终点（归一化坐标 0-1）
+/// @param startPoint 输出参数，渐变起点
+/// @param endPoint 输出参数，渐变终点
+/// @param direction 渐变方向
+/// @param size 绘制区域大小
++ (void)hr_drawLinearGradientInContext:(CGContextRef)ctx
+                       withGradientStr:(NSString *)gradientStr
+                                  size:(CGSize)size {
+    // 这里暂时不考虑合并UIVIew+CSS中解析渐变色的方法p_tryToParseWithLinearGradient，原因在于p_tryToParseWithLinearGradient 内部调用UIView+CSS 的css_color方法，会出现循环依赖问题。如果调整css_color设置在KRConvertUtil中，会修改非常的多的地方，成本太大。
+    // 1. 解析渐变字符串
+    NSString *lineargradientPrefix = @"linear-gradient(";
+    if (![gradientStr hasPrefix:lineargradientPrefix]) {
+        return;
+    }
+
+    NSString *content = [gradientStr substringWithRange:NSMakeRange(lineargradientPrefix.length,
+                                                                    gradientStr.length - lineargradientPrefix.length - 1)];
+    NSArray<NSString *> *splits = [content componentsSeparatedByString:@","];
+    if (splits.count < 2) {
+        return;
+    }
+
+    CSSGradientDirection direction = [splits.firstObject intValue];
+
+    // 2. 解析颜色和位置
+    NSMutableArray *colors = [NSMutableArray array];
+    NSMutableArray *locations = [NSMutableArray array];
+
+    for (NSInteger i = 1; i < splits.count; i++) {
+        NSString *colorStopStr = splits[i];
+        NSArray<NSString *> *colorAndStop = [colorStopStr componentsSeparatedByString:@" "];
+        if (colorAndStop.count >= 2) {
+            UIColor *color = [UIView css_color:colorAndStop.firstObject];
+            if (color) {
+                [colors addObject:(__bridge id)color.CGColor];
+                [locations addObject:@([colorAndStop.lastObject floatValue])];
+            }
+        }
+    }
+
+    if (colors.count == 0) {
+        return;
+    }
+
+    // 3. 计算渐变起点和终点
+    CGPoint startPoint = CGPointZero;
+    CGPoint endPoint = CGPointZero;
+    [self hr_calculateGradientStartPoint:&startPoint
+                                endPoint:&endPoint
+                               direction:direction
+                                    size:size];
+
+    // 4. 创建 CGGradient
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGFloat *locationValues = malloc(sizeof(CGFloat) * locations.count);
+    for (NSInteger i = 0; i < locations.count; i++) {
+        locationValues[i] = [locations[i] floatValue];
+    }
+
+    CGGradientRef gradient = CGGradientCreateWithColors(colorSpace,
+                                                         (__bridge CFArrayRef)colors,
+                                                         locationValues);
+    free(locationValues);
+    CGColorSpaceRelease(colorSpace);
+
+    if (!gradient) {
+        return;
+    }
+
+    // 5. 绘制渐变
+    CGContextDrawLinearGradient(ctx,
+                                 gradient,
+                                 CGPointMake(startPoint.x * size.width, startPoint.y * size.height),
+                                 CGPointMake(endPoint.x * size.width, endPoint.y * size.height),
+                                 kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+
+    CGGradientRelease(gradient);
+}
+
+#endif
+
++ (UIColor *)clampSelectionColorAlpha:(UIColor *)color {
+    if (!color) return nil;
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    [color getRed:&r green:&g blue:&b alpha:&a];
+    if (a > KRSelectionColorMaxAlpha) {
+        return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
+    }
+    return color;
+}
+
+@end

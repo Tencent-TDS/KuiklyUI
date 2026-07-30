@@ -1,0 +1,88 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id("maven-publish")
+    id("signing")
+}
+
+group = MavenConfig.GROUP
+version = Version.INSTANCE.getCoreVersion()
+
+afterEvaluate {
+    publishing {
+        repositories {
+            String username = MavenConfig.INSTANCE.getUsername(project)
+            String password = MavenConfig.INSTANCE.getPassword(project)
+            if (!username.isEmpty() && !password.isEmpty()) {
+                maven {
+                    credentials {
+                        setUsername(username)
+                        setPassword(password)
+                    }
+                    url = uri(MavenConfig.INSTANCE.getRepoUrl(version as String))
+                }
+            } else {
+                mavenLocal()
+            }
+        }
+
+        publications {
+            release(MavenPublication) {
+                groupId MavenConfig.GROUP
+                artifactId "core-annotations"
+                version Version.INSTANCE.getCoreVersion()
+                artifact(tasks.getByName("bundleReleaseAar"))
+//                artifact("$buildDir/outputs/aar/core-annotations-compat-release.aar")
+            }
+//            tasks.getByName("publish") {
+//                dependsOn("bundleReleaseAar")
+//
+//            }
+//            pom.configureMavenCentralMetadata()
+//            signPublicationIfKeyPresent(project)
+        }
+    }
+
+
+//    tasks.named("publishReleasePublicationToMavenRepository").configure {
+//        dependsOn("bundleReleaseAar")
+//    }
+}
+
+
+android {
+    compileSdkVersion(30)
+
+    defaultConfig {
+        minSdkVersion(21)
+        targetSdkVersion(30)
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+//    kotlinOptions {
+//        jvmTarget = '1.8'
+//    }
+
+    sourceSets {
+        main.java.srcDirs(
+                project.rootDir.absolutePath + "/core-annotations/src/commonMain/kotlin",
+        )
+        main.manifest.srcFile("src/androidMain/AndroidManifest.xml")
+    }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions.freeCompilerArgs += ["-module-name", "${project.group}.${project.name}"]
+    }
+}

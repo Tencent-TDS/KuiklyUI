@@ -1,0 +1,245 @@
+# Scroller(滚动容器)
+
+用于展示不确定高度的内容，可以将一系列不确定高度的子组件装到一个确定高度的容器中，使用者可通过上下或左右滚动操作查看组件宽高之外的内容。
+
+[组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/ScrollViewExamplePage.kt)
+
+## 属性
+
+除了支持所有[基础属性](basic-attr-event.md#基础属性)，还支持以下属性：
+
+### scrollEnable
+
+是否允许滑动内容
+
+| 参数           | 描述                                                         | 类型          |
+|--------------| ------------------------------------------------------------ | ------------- |
+| scrollEnable | 是否允许滑动内容，默认`true`                                 | Boolean       |
+
+### bouncesEnable <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
+
+是否开启回弹效果
+
+| 参数                | 描述                                                         | 类型          | 默认值 |
+| --------------------- | ------------------------------------------------------------ | ------------- | ------ |
+| bouncesEnable         | 是否开启回弹效果                                             | Boolean       | `true` |
+| limitHeaderBounces    | 是否禁止顶部回弹效果（当 `bouncesEnable` 为 `false` 时该参数无效） | Boolean       | `false` |
+
+### showScrollerIndicator
+
+是否显示滚动条
+
+| 参数                | 描述                                                         | 类型          |
+| --------------------- | ------------------------------------------------------------ | ------------- |
+| showScrollerIndicator | 是否显示滚动条，默认 `true`                                  | Boolean       |
+
+### flexDirection
+
+指定排版方向
+
+| 参数                | 描述                                                         | 类型          |
+| --------------------- | ------------------------------------------------------------ | ------------- |
+| flexDirection         | 指定排版方向，`FlexDirection.COLUMN`为垂直方向，`FlexDirection.Row`为水平方向，默认为垂直方向 | FlexDirection |
+
+### pagingEnable
+
+是否开启分页
+
+| 参数                | 描述 | 类型          |
+| --------------------- |--| ------------- |
+| pagingEnable         | 是否开启分页 | Boolean |
+
+### flingEnable
+
+是否允许惯性滚动（fling）。设置为 `false` 时，用户松手后列表立即停止滚动，不会有惯性滑动效果。
+
+| 参数                | 描述                                                         | 类型          |
+| --------------------- | ------------------------------------------------------------ | ------------- |
+| flingEnable         | 是否允许惯性滚动，默认 `true`                                | Boolean       |
+
+### nestedScroll
+
+设置子滚动容器的嵌套滚动模式，用于控制父子滚动容器之间的滚动行为
+
+| 参数                | 描述                                                         | 类型          |
+| --------------------- | ------------------------------------------------------------ | ------------- |
+| forward | 向前滚动（向上/向左）时的嵌套滚动模式 | KRNestedScrollMode |
+| backward | 向后滚动（向下/向右）时的嵌套滚动模式 | KRNestedScrollMode |
+
+**KRNestedScrollMode 枚举值：**
+
+| 值 | 描述 |
+|----|------|
+| SELF_ONLY | 仅当前控件处理滚动，不传递给父控件 |
+| SELF_FIRST | 当前控件优先处理滚动，未消费完的滚动量传递给父控件 |
+| PARENT_FIRST | 父控件优先处理滚动，未消费完的滚动量传递给当前控件 |
+用法参考：[竖向列表嵌套滚动用法示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestBounceFalse.kt)、
+[横向列表嵌套滚动示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestRow.kt)
+
+:::tip 注意
+ - Android 侧默认支持嵌套滚动，iOS 与 鸿蒙 侧需手动设置 nestedScroll 才会生效。
+ - 若 Android 侧嵌套滚动正常，而 iOS/HarmonyOS 侧异常，请检查 Scroller 是否已显式配置 nestedScroll 属性。
+:::
+
+### visibleAreaIgnoreTopMargin
+
+设置计算子组件可见性面积时忽略的顶部距离。用于配合 `willAppear`、`didAppear`、`willDisappear`、`didDisappear`、`appearPercentage` 等可见性事件使用。
+
+| 参数   | 描述                                     | 类型  |
+|--------|------------------------------------------|-------|
+| margin | 计算可见性时忽略的顶部距离，单位为 dp | Float |
+
+### visibleAreaIgnoreBottomMargin
+
+设置计算子组件可见性面积时忽略的底部距离。用于配合 `willAppear`、`didAppear`、`willDisappear`、`didDisappear`、`appearPercentage` 等可见性事件使用。
+
+| 参数   | 描述                                     | 类型  |
+|--------|------------------------------------------|-------|
+| margin | 计算可见性时忽略的底部距离，单位为 dp | Float |
+
+:::tip 使用场景
+当滚动容器顶部或底部有固定的遮挡区域（如悬浮导航栏、底部工具栏等）时，可以使用这两个属性来调整可见性计算的有效区域，确保子组件的可见性事件触发更加准确。
+:::
+
+[visibleAreaIgnoreMargin 使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/VisibleAreaIgnoreMarginExamplePage.kt)
+
+## 事件
+
+除了支持所有[基础事件](basic-attr-event.md#基础事件)，还支持以下事件：
+
+### scroll
+
+监听滚动事件，该方法接收一个闭包回调, 回调中的参数为 ``ScrollParams``
+
+**ScrollParams**
+
+| 参数     | 描述        | 类型      |
+|--------|-----------|---------|
+| offsetX | 列表当前横轴偏移量 | Float   |
+| offsetY | 列表当前纵轴偏移量 | Float   |
+| contentWidth | 列表当前内容总宽度 | Float   |
+| contentHeight | 列表当前内容总高度 | Float   |
+| viewWidth | 列表View宽度 | Float   |
+| viewHeight | 列表View高度 | Float   |
+| isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
+
+### scrollEnd
+
+滚动结束时事件, 该方法接收一个闭包回调, 回调中的参数为 ``ScrollParams``
+
+**ScrollParams**
+
+| 参数     | 描述        | 类型      |
+|--------|-----------|---------|
+| offsetX | 列表当前横轴偏移量 | Float   |
+| offsetY | 列表当前纵轴偏移量 | Float   |
+| contentWidth | 列表当前内容总宽度 | Float   |
+| contentHeight | 列表当前内容总高度 | Float   |
+| viewWidth | 列表View宽度 | Float   |
+| viewHeight | 列表View高度 | Float   |
+| isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
+
+### dragBegin
+
+用户开始拖拽事件, 该方法接收一个闭包回调, 回调中的参数为 ``ScrollParams``
+
+**ScrollParams**
+
+| 参数     | 描述        | 类型      |
+|--------|-----------|---------|
+| offsetX | 列表当前横轴偏移量 | Float   |
+| offsetY | 列表当前纵轴偏移量 | Float   |
+| contentWidth | 列表当前内容总宽度 | Float   |
+| contentHeight | 列表当前内容总高度 | Float   |
+| viewWidth | 列表View宽度 | Float   |
+| viewHeight | 列表View高度 | Float   |
+| isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
+
+### dragEnd
+
+用户停止拖拽事件, 该方法接收一个闭包回调, 回调中的参数为 ``ScrollParams``
+
+**ScrollParams**
+
+| 参数     | 描述        | 类型      |
+|--------|-----------|---------|
+| offsetX | 列表当前横轴偏移量 | Float   |
+| offsetY | 列表当前纵轴偏移量 | Float   |
+| contentWidth | 列表当前内容总宽度 | Float   |
+| contentHeight | 列表当前内容总高度 | Float   |
+| viewWidth | 列表View宽度 | Float   |
+| viewHeight | 列表View高度 | Float   |
+| isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
+
+### scrollToTop
+
+监听系统触发的"回到顶部"事件。iOS和Android部分厂商，点击状态栏时会触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
+
+| 参数 | 描述 | 类型 |
+|----|----|----|
+| _无_ | 回调无参数 | - |
+
+### contentSizeChanged
+
+组件 Size 发生变化事件, 该方法接收一个闭包回调, 回调中的参数如下
+
+| 参数     | 描述   | 类型      |
+|--------|------|---------|
+| width | 组件宽度 | Float   |
+| height | 组件高度 | Float   |
+
+## 方法
+
+### setContentOffset
+
+### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="2.14.0" type="warn"/>
+
+设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置，本方法支持线性动画曲线。
+
+| 参数              | 描述                      | 类型                         |
+|-----------------|-------------------------|----------------------------|
+| offsetX         | 滚动到x轴的偏移量               | Float                      |
+| offsetY         | 滚动到y轴的偏移量               | Float                      |
+| animation       | 动画参数。                   | SetContentOffsetAnimation？ |
+
+
+设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置。
+
+| 参数      | 描述                      | 类型   |
+|---------|-------------------------| ---------- |
+| offsetX | 滚动到x轴的偏移量               | Float|
+| offsetY | 滚动到y轴的偏移量               | Float|
+| animated | 滚动到y轴的偏移量, 默认为false     | Boolean|
+| springAnimation | 是否使用spring动画滚动, 默认为null | SpringAnimation|
+
+
+### setContentInset
+
+设置`Scroller`内容边距
+
+| 参数      | 描述                  | 类型      |
+|---------|---------------------|---------|
+| top | 上边距                 | Float   |
+| left | 左边距                 | Float   |
+| bottom | 下边距                 | Float   |
+| right | 右边距                 | Float   |
+| animated | 滑动过程是否使用动画, 默认false | Boolean |
+
+### setContentInsetWhenEndDrag
+
+设置 OverScroll 时停留的内容边距
+
+| 参数      | 描述                  | 类型      |
+|---------|---------------------|---------|
+| top | 上边距                 | Float   |
+| left | 左边距                 | Float   |
+| bottom | 下边距                 | Float   |
+| right | 右边距                 | Float   |
+
+### abortContentOffsetAnimate
+
+立即停止当前正在进行的滚动动画（包括 `setContentOffset` 触发的动画、惯性滚动、Spring 弹性动画等）。调用后滚动会立即停止在当前位置。
+
+| 参数 | 描述 | 类型 |
+|------|------|------|
+| _无_ | 无参数 | - |

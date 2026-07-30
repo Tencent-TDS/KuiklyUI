@@ -1,0 +1,230 @@
+/*
+ * Copyright 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.tencent.kuikly.compose.foundation.pager
+
+import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.foundation.gestures.Orientation
+import com.tencent.kuikly.compose.foundation.gestures.snapping.calculateDistanceToDesiredSnapPosition
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutNearestRangeState
+import com.tencent.kuikly.compose.foundation.lazy.layout.findIndexByKey
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import kotlin.math.roundToLong
+import com.tencent.kuikly.compose.ui.unit.Density
+import com.tencent.kuikly.compose.ui.util.fastMaxBy
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
+
+/**
+ * Contains the current scroll position represented by the first visible page  and the first
+ * visible page scroll offset.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+internal class PagerScrollPosition(
+    currentPage: Int = 0,
+    currentPageOffsetFraction: Float = 0.0f,
+    val state: PagerState
+) {
+    var currentPage by mutableIntStateOf(currentPage)
+        private set
+
+    var currentPageOffsetFraction by mutableFloatStateOf(currentPageOffsetFraction)
+        private set
+
+    private var hadFirstNotEmptyLayout = false
+
+    /** The last know key of the page at [currentPage] position. */
+    private var lastKnownCurrentPageKey: Any? = null
+
+    private var snapAnchorPageDuringDrag: Int? = null
+    private var snapAnchorKeyDuringDrag: Any? = null
+
+    internal fun anchorKey(): Any? = lastKnownCurrentPageKey
+
+    internal fun snapAnchorPageDuringDrag(): Int? = snapAnchorPageDuringDrag
+
+    internal fun snapAnchorKeyDuringDrag(): Any? = snapAnchorKeyDuringDrag
+
+    internal fun clearSnapAnchorPageDuringDrag() {
+        snapAnchorPageDuringDrag = null
+        snapAnchorKeyDuringDrag = null
+    }
+
+    val nearestRangeState = LazyLayoutNearestRangeState(
+        currentPage,
+        NearestItemsSlidingWindowSize,
+        NearestItemsExtraItemCount
+    )
+
+    /**
+     * Updates the current scroll position based on the results of the last measurement.
+     */
+    fun updateFromMeasureResult(measureResult: PagerMeasureResult) {
+        val oldPage = currentPage
+        val oldOffsetFraction = currentPageOffsetFraction
+        val oldKey = lastKnownCurrentPageKey
+        val measuredPage = measureResult.currentPage
+        if (state.isSnapAnimating || oldPage != measuredPage?.index || oldKey != measuredPage?.key) {
+            pagerSnapDebugLog {
+                "scrollPositionUpdateFromMeasure: stateId=${state.debugPagerStateId} " +
+                    "oldPage=$oldPage oldOffsetFraction=$oldOffsetFraction oldKey=$oldKey " +
+                    "measuredPage=${measuredPage?.index} measuredKey=${measuredPage?.key} " +
+                    "measuredOffsetFraction=${measureResult.currentPageOffsetFraction} " +
+                    "visibleCount=${measureResult.visiblePagesInfo.size} " +
+                    "hadFirstNotEmptyLayout=$hadFirstNotEmptyLayout " +
+                    "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+            }
+        }
+        val measuredPageIndex = measuredPage?.index
+        val shouldPreserveSnapAnchor = state.isScrollInProgress &&
+            state.canPreserveSnapAnchorDuringDrag() &&
+            measuredPageIndex != null &&
+            measuredPageIndex < oldPage &&
+            lastKnownCurrentPageKey != null
+        if (shouldPreserveSnapAnchor) {
+            snapAnchorPageDuringDrag = oldPage
+            snapAnchorKeyDuringDrag = lastKnownCurrentPageKey
+        }
+        lastKnownCurrentPageKey = measureResult.currentPage?.key
+        if (!state.isScrollInProgress) {
+            clearSnapAnchorPageDuringDrag()
+        }
+        // we ignore the index and offset from measureResult until we get at least one
+        // measurement with real pages. otherwise the initial index and scroll passed to the
+        // state would be lost and overridden with zeros.
+        if (hadFirstNotEmptyLayout || measureResult.visiblePagesInfo.isNotEmpty()) {
+            hadFirstNotEmptyLayout = true
+
+            update(
+                measureResult.currentPage?.index ?: 0,
+                measureResult.currentPageOffsetFraction
+            )
+        }
+    }
+
+    /**
+     * Updates the scroll position - the passed values will be used as a start position for
+     * composing the pages during the next measure pass and will be updated by the real
+     * position calculated during the measurement. This means that there is no guarantee that
+     * exactly this index and offset will be applied as it is possible that:
+     * a) there will be no page at this index in reality
+     * b) page at this index will be smaller than the asked scrollOffset, which means we would
+     * switch to the next page
+     * c) there will be not enough pages to fill the viewport after the requested index, so we
+     * would have to compose few elements before the asked index, changing the first visible page.
+     */
+    fun requestPositionAndForgetLastKnownKey(index: Int, offsetFraction: Float) {
+        pagerSnapDebugLog {
+            "scrollPositionForgetKey: stateId=${state.debugPagerStateId} " +
+                "fromPage=$currentPage fromOffsetFraction=$currentPageOffsetFraction " +
+                "fromKey=$lastKnownCurrentPageKey requestPage=$index " +
+                "requestOffsetFraction=$offsetFraction isSnapAnimating=${state.isSnapAnimating} " +
+                "pageCount=${state.pageCount}"
+        }
+        update(index, offsetFraction)
+        // clear the stored key as we have a direct request to scroll to [index] position and the
+        // next [checkIfFirstVisibleItemWasMoved] shouldn't override this.
+        lastKnownCurrentPageKey = null
+    }
+
+    fun requestPositionAndKeepKnownKey(index: Int, offsetFraction: Float, key: Any?) {
+        pagerSnapDebugLog {
+            "scrollPositionKeepKey: stateId=${state.debugPagerStateId} " +
+                "fromPage=$currentPage fromOffsetFraction=$currentPageOffsetFraction " +
+                "fromKey=$lastKnownCurrentPageKey requestPage=$index " +
+                "requestOffsetFraction=$offsetFraction keepKey=$key " +
+                "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+        }
+        update(index, offsetFraction)
+        lastKnownCurrentPageKey = key
+    }
+
+    fun matchPageWithKey(
+        itemProvider: PagerLazyLayoutItemProvider,
+        index: Int
+    ): Int {
+        val key = lastKnownCurrentPageKey
+        val indexKey = if (index in 0 until itemProvider.itemCount) itemProvider.getKey(index) else null
+        val newIndex = itemProvider.findIndexByKey(key, index)
+        if (state.isSnapAnimating || index != newIndex || key != indexKey) {
+            pagerSnapDebugLog {
+                "scrollPositionMatchKey: stateId=${state.debugPagerStateId} " +
+                    "lastKnownKey=$key oldIndex=$index oldIndexKey=$indexKey " +
+                    "newIndex=$newIndex itemCount=${itemProvider.itemCount} " +
+                    "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+            }
+        }
+        if (index != newIndex) {
+            currentPage = newIndex
+            nearestRangeState.update(index)
+        }
+        val anchorKey = snapAnchorKeyDuringDrag
+        val anchorPage = snapAnchorPageDuringDrag
+        if (anchorKey != null && anchorPage != null) {
+            val newAnchorPage = itemProvider.findIndexByKey(anchorKey, anchorPage)
+            if (newAnchorPage != anchorPage) {
+                snapAnchorPageDuringDrag = newAnchorPage
+            }
+        }
+        return newIndex
+    }
+
+    private fun update(page: Int, offsetFraction: Float) {
+        currentPage = page
+        nearestRangeState.update(page)
+        currentPageOffsetFraction = offsetFraction
+    }
+
+    fun updateCurrentPageOffsetFraction(offsetFraction: Float) {
+        currentPageOffsetFraction = offsetFraction
+    }
+
+    fun applyScrollDelta(delta: Int) {
+        debugLog { "Applying Delta=$delta" }
+        val fractionUpdate = if (state.pageSizeWithSpacing == 0) {
+            0.0f
+        } else {
+            delta / state.pageSizeWithSpacing.toFloat()
+        }
+        currentPageOffsetFraction += fractionUpdate
+    }
+}
+
+/**
+ * We use the idea of sliding window as an optimization, so user can scroll up to this number of
+ * items until we have to regenerate the key to index map.
+ */
+internal const val NearestItemsSlidingWindowSize = 30
+
+/**
+ * The minimum amount of items near the current first visible item we want to have mapping for.
+ */
+internal const val NearestItemsExtraItemCount = 100
+
+private inline fun debugLog(generateMsg: () -> String) {
+    if (PagerDebugConfig.ScrollPosition) {
+        println("PagerScrollPosition: ${generateMsg()}")
+    }
+}
+
+internal fun PagerState.currentAbsoluteScrollOffset(): Long {
+    val currentPageOffset = currentPage.toLong() * pageSizeWithSpacing
+    val offsetFraction = (currentPageOffsetFraction * pageSizeWithSpacing).roundToLong()
+    return currentPageOffset + offsetFraction
+}

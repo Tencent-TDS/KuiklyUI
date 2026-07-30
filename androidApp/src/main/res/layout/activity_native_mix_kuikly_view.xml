@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/show_kuikly_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="点我显示一个KuiklyView"
+        android:layout_gravity="center"/>
+
+    <FrameLayout
+        android:visibility="gone"
+        android:id="@+id/bg_mask"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/design_default_color_on_secondary"
+        android:alpha="0.5"/>
+
+</FrameLayout>

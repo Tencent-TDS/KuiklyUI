@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Gradle
 .gradle/
 build/
@@ -33,3 +34,63 @@ Thumbs.db
 问题总结.md
 docs/问题描述.md
 docs/全套工作实现方案.md
+=======
+*.iml
+.gradle
+/local.properties
+.idea
+.DS_Store
+/build
+*/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.so
+*.js
+!demo/webpack.config.d/*.js
+!h5App/webpack.config.d/*.js
+node_modules
+Pods
+Pods/*
+Kotlin-js-store
+gen
+Podfile.lock
+
+## Various settings
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+**/xcuserdata/**
+**/*.xcuserdatad/**
+**/xcshareddata/
+**/IDEWorkspaceChecks.plist
+
+## Other
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.xcbkptlist
+*.pyc
+
+proto/**/*.kt
+/iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/iosApp.xcscheme
+
+.kotlin
+/compose/compose.podspec
+/core/core.podspec
+/core-ksp/bin/
+.build
+
+## Profiler / tool logs
+/logs/
+/iosApp/logs/
+/.claude-internal
+/.cursor/
+.mcp.json
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67

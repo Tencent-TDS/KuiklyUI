@@ -1,0 +1,71 @@
+name: 🐞 错误报告 Bug Report
+description: 反馈新Bug。一般性、咨询类问题请选择“社区支持”入口进行反馈
+type: Bug
+labels: ['s: need triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 🐞 Bug Report
+        在发布一个 Issue 前，请确保：
+        - 在 [官方文档](https://kuikly.tds.qq.com/Introduction/arch.html) 和 [Issue列表](https://github.com/Tencent-TDS/KuiklyUI/issues?q=is%3Aissue) 中搜索过你的问题。（你的问题可能已有人提出，也可能已在最新版本中被修正）
+        - 如果你发现一个已经关闭的旧 Issue 在最新版本中仍然存在，不要在旧 Issue 下面留言，请建一个新的 issue。
+
+  - type: textarea
+    id: expect
+    attributes:
+      label: 期望结果
+      placeholder: 请填写
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      placeholder: 请填写
+    validations:
+      required: true
+      
+  - type: input
+    id: reproduce
+    attributes:
+      label: 重现链接
+      description: 请提供尽可能精简的复现Demo GitHub 仓库的链接，比如Fork仓库的可复现Demo分支。请不要填无关链接，否则你的 Issue 将被关闭。
+      placeholder: https://github.com/<myuser>/<myreproducer>
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduceSteps
+    attributes:
+      label: 重现步骤
+      description: 请清晰的描述重现该 Issue 的步骤，这能帮助我们快速定位问题。没有清晰重现步骤将不会被修复，标有 'need info' 的 Issue 在 15 天内不提供相关步骤，将被关闭。
+      placeholder: |
+        1. 安装 '...'
+        2. 点击 '...'
+        3. 查看 '...' 错误
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduceEnvironment
+    attributes:
+      label: 重现环境
+      description: 请清晰的描述重现该 Issue 的现场环境，如机型、系统及版本、Kuikly SDK版本等信息，这能帮助我们快速定位问题。
+      placeholder: |
+        - Device: [e.g. iPhone12]
+        - OS and Version: [e.g. iOS 13.3.1]
+        - Kuikly SDK version: [e.g. 2.0.0]
+        - Kuikly Android Studio 插件版本
+        - IDE 版本
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: remarks
+    attributes:
+      label: 补充说明
+      description: 可以是遇到这个 bug 的业务场景、崩溃或错误的堆栈或日志等信息。
+      placeholder: 请填写

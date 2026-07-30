@@ -1,0 +1,111 @@
+# SharedPreferencesModule
+
+磁盘键值对缓存模块, 适用于数据量小的键值对缓存
+
+## setString方法
+
+缓存字符串类型键值对
+
+<br/>
+
+**参数**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | String |
+
+## setFloat方法
+
+缓存Float类型键值对
+
+<br/>
+
+**参数**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | Float? |
+
+## setInt方法
+
+缓存Int类型键值对
+
+<br/>
+
+**参数**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | Int? |
+
+## setObject方法
+
+缓存**JSONObject**类型键值对
+
+<br/>
+
+**参数**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | JSONObject? |
+
+## getString方法
+
+获取key对应的String类型的缓存值，当key不存在时返回空串
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+## getInt方法
+
+获取key对应的Int?类型的缓存值
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+## getFloat方法
+
+获取key对应的Float?类型缓存值
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+## getObject方法
+
+获取key对应的JSONObject?类型缓存值
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+
+:::tip 注意 
+鸿蒙侧提供了两种 SharedPreferences 缓存实现：
+- KRSharedPreferencesModule：基于 XML 文件读写，兼容所有 API 版本
+- KROhSharedPreferencesModule：基于鸿蒙原生 oh_preferences C API（GSKV 格式），要求 OpenHarmony API 版本 ≥ 13
+- 业务在鸿蒙侧使用构建Preference实例时，`切勿设置fileName为 KROhSharedPreferencesModule`，避免造成缓存路径的冲突
+- 推荐在 API 13 及以上版本使用 KROhSharedPreferencesModule，其性能和数据安全性更优，接入方式参考以下代码： 
+
+```Arkts
+Kuikly({
+    useOhSharedPreferences: true,
+    // ...
+});
+```
+:::

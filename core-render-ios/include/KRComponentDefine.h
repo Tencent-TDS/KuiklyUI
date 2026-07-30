@@ -1,0 +1,1 @@
+../Extension/KRComponentDefine.h

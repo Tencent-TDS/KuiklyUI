@@ -1,0 +1,148 @@
+package com.tencent.kuikly.core.render.web.processor
+
+import com.tencent.kuikly.core.render.web.collection.FastMutableMap
+import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
+import com.tencent.kuikly.core.render.web.ktx.SizeF
+import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONArray
+
+/**
+ * Approximate corresponding values for font size and line height
+ */
+object FontSizeToLineHeightMap {
+    //  Default value when line height is not matched
+    private const val DEFAULT_LINE_HEIGHT = 1.3
+
+    // Actual size mapping table
+    private val mapList = FastMutableMap<String, Int>(
+        js(
+            """
+                {
+                 8: 11, 
+                 9: 13, 
+                 10: 14, 
+                 11: 16, 
+                 12: 17, 
+                 13: 18, 
+                 14: 20, 
+                 15: 21, 
+                 16: 22, 
+                 17: 24, 
+                 18: 25, 
+                 19: 26, 
+                 20: 28, 
+                 21: 29, 
+                 22: 30, 
+                 23: 32, 
+                 24: 33, 
+                 25: 36, 
+                 26: 37, 
+                 27: 38, 
+                 28: 40, 
+                 29: 41, 
+                 30: 42, 
+                 31: 44, 
+                 32: 45, 
+                 33: 46, 
+                 34: 48
+                 }
+            """
+        )
+    )
+
+    /**
+     * Return line height based on input font size
+     */
+    fun getLineHeight(fontSize: Float): Float
+        // If found in the table, use it, otherwise use the estimated ratio
+        = mapList[fontSize.toString()]?.toFloat() ?: (fontSize * DEFAULT_LINE_HEIGHT).toFloat()
+}
+
+/**
+ * Text measurement cache for performance optimization
+ */
+object TextMeasureCache {
+    // Cache size limit to prevent memory overflow
+    private const val MAX_CACHE_SIZE = 500
+    
+    // LRU cache for text measurements
+    private val cache = FastMutableMap<String, SizeF>(js("{}"))
+    private val cacheKeys = mutableListOf<String>()
+    
+    /**
+     * Generate cache key from text and style properties
+     */
+    fun generateKey(
+        text: String,
+        fontSize: String,
+        fontWeight: String,
+        fontFamily: String,
+        fontStyle: String,
+        letterSpacing: String,
+        lineHeight: String,
+        constraintWidth: Float,
+        numberOfLines: Int
+    ): String {
+        // Use a simpler key format for better performance
+        return "$text|$fontSize|$fontWeight|$fontFamily|$fontStyle|$letterSpacing|$lineHeight|$constraintWidth|$numberOfLines"
+    }
+    
+    /**
+     * Get cached measurement result
+     */
+    fun get(key: String): SizeF? {
+        return cache[key]
+    }
+    
+    /**
+     * Store measurement result in cache
+     */
+    fun put(key: String, size: SizeF) {
+        // Implement simple LRU eviction
+        if (cacheKeys.size >= MAX_CACHE_SIZE) {
+            val oldestKey = cacheKeys.removeAt(0)
+            cache.remove(oldestKey)
+        }
+        
+        cache[key] = size
+        cacheKeys.add(key)
+    }
+    
+    /**
+     * Clear cache (useful for memory management)
+     */
+    fun clear() {
+        cache.clear()
+        cacheKeys.clear()
+    }
+}
+
+/**
+ * rich text process interface, include text measure, rich text process, etc.
+ */
+interface IRichTextProcessor {
+    /**
+     * measure text size
+     */
+    fun measureTextSize(constraintSize: SizeF, view: KRRichTextView, renderText: String): SizeF
+
+    /**
+     * set rich text values
+     */
+    fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView)
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String = ""
+
+    /**
+     * Apply the `lineBreakMargin` visual reserved-blank for a plain-text
+     * (non-rich) view. Platforms that cannot rely on DOM `insertBefore`
+     * (e.g. mini-app) should override this to inject the two floating spans
+     * via their own node-serialization path and return `true`. Platforms
+     * that can handle it with real DOM (e.g. H5) should keep the default
+     * `false` so the caller falls back to the DOM-based logic.
+     */
+    fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean = false
+}

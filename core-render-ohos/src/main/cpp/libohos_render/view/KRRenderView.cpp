@@ -1,0 +1,387 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "libohos_render/view/KRRenderView.h"
+
+#include <functional>
+#include "libohos_render/context/IKRRenderNativeContextHandler.h"
+#include "libohos_render/manager/KRRenderManager.h"
+#include "libohos_render/scheduler/IKRScheduler.h"
+#include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/scheduler/KRUIScheduler.h"
+#include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/utils/KRViewUtil.h"
+
+static constexpr char PAGER_EVENT_FIRST_FRAME_PAINT[] = "pageFirstFramePaint";
+static constexpr char KR_PERFORMANCE_MODULE[] = "KRPerformanceModule";
+static constexpr char NOTIFY_INIT_STATE[] = "notifyInitState";
+
+const unsigned int LOG_PRINT_DOMAIN = 0xFF01;
+static std::string GetIncreaseCallbackId() {
+    static int gCallbackId = 0;
+    gCallbackId++;
+    return NewKRRenderValue(gCallbackId)->toString();
+}
+
+KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_id) : IKRRenderView(), node_content_handle_((handle)) {
+    unsigned long long id_value = std::atoi(instance_id.c_str());
+    OH_ArkUI_NodeContent_SetUserData(handle, (void*)id_value);
+    auto cb = [](ArkUI_NodeContentEvent* event){
+        auto event_type = OH_ArkUI_NodeContentEvent_GetEventType(event);
+        auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
+        void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
+        unsigned long long id_value = (unsigned long long)user_data;
+        std::string instance_id = std::to_string(id_value);
+        if(event_type == NODE_CONTENT_EVENT_ON_DETACH_FROM_WINDOW){
+            if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
+                std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
+                if(render_view){
+                    render_view->OnDetachFromWindow();
+                }
+            }
+        } else if(event_type == NODE_CONTENT_EVENT_ON_ATTACH_TO_WINDOW){
+            if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
+                std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
+                if(render_view){
+                    render_view->OnAttachToWindow(handle);
+                }
+            }
+        }
+    };
+    OH_ArkUI_NodeContent_RegisterCallback(handle, cb);
+}
+
+KRRenderView::~KRRenderView() {
+    RemoveRootViewFromContentHandle(false);
+    if(root_node_ != nullptr){
+        ArkUI_NodeHandle root_node = root_node_;
+        if (kuikly::util::isMainThread()){
+            kuikly::util::GetNodeApi()->disposeNode(root_node);
+        } else {
+            KRMainThread::RunOnMainThread([root_node] {
+                kuikly::util::GetNodeApi()->disposeNode(root_node);
+            });
+        }
+        root_node_ = nullptr;
+    }
+    node_content_handle_ = nullptr;
+    native_resources_manager_ = nullptr;
+    method_arg_callback_map_.clear();
+}
+
+void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
+    if(node_content_handle_ && root_node_){
+        ArkUI_NodeContentHandle content_handle = node_content_handle_;
+        ArkUI_NodeHandle root_node = root_node_;
+        
+        if(immediate || kuikly::util::isMainThread()){
+            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
+        }else{
+            KRMainThread::RunOnMainThread([content_handle, root_node] {
+                OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
+            });
+        }
+        
+        node_content_handle_ = nullptr;
+    }
+}
+
+void KRRenderView::OnDetachFromWindow(){
+    if (is_detached_) {
+        return;
+    }
+    is_detached_ = true;
+    RemoveRootViewFromContentHandle(true);
+}
+
+void KRRenderView::OnAttachToWindow(ArkUI_NodeContentHandle handle){
+    if(is_detached_ && root_node_ != nullptr){
+        is_detached_ = false;
+        node_content_handle_ = handle;
+        OH_ArkUI_NodeContent_AddNode(node_content_handle_, root_node_);
+    }
+}
+
+void KRRenderView::WillDestroy(const std::string &instanceId) {
+    DispatchInitState(KRInitState::kStateDestroy);
+    core_->WillDealloc(instanceId);
+    // send event to call
+    // delay destroy for core
+    KR_LOG_INFO_WITH_TAG("RemoveRootView")<<"KTRenderView WillDestroy";
+    RemoveRootViewFromContentHandle(true);
+}
+
+/**
+ * 发送页面事件到kotlin侧
+ * @param event_name 事件名
+ * @param json_data json数据字符串）
+ */
+void KRRenderView::SendEvent(std::string event_name, const std::string &json_data) {
+    bool need_sync = syncSendEvent(event_name);
+    SendEvent(std::move(event_name), json_data, need_sync);
+}
+
+void KRRenderView::SendEvent(std::string event_name, const std::string &json_data, bool sync) {
+    if (core_) {
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
+        return core_->SendEvent(event_name, json_data, sync);
+    }
+}
+
+bool KRRenderView::syncSendEvent(const std::string &event_name) {
+    // 与 ETS 侧常量保持一致：'onBackPressed'
+    if (event_name == "onBackPressed") {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * 获取渲染节点视图（要求在主线程调用）
+ * @param tag 所在tag
+ * @return 对应节点view
+ */
+std::shared_ptr<IKRRenderViewExport> KRRenderView::GetView(int tag) {
+    if (core_) {
+        return core_->GetView(tag);
+    }
+    return nullptr;
+}
+
+std::shared_ptr<IKRRenderViewExport> KRRenderView::GetView(ArkUI_NodeHandle handle) {
+    if (core_) {
+        return core_->GetView(handle);
+    }
+    return nullptr;
+}
+
+/**
+ * 获取渲染节点视图（要求在主线程调用）
+ * @param tag 所在tag
+ * @return 对应节点view
+ */
+std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModule(const std::string &module_name) {
+    if (core_) {
+        return core_->GetModule(module_name);
+    }
+    return nullptr;
+}
+
+std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModuleOrCreate(const std::string &module_name) {
+    if (core_) {
+        return core_->GetModuleOrCreate(module_name);
+    }
+    return nullptr;
+}
+
+void KRRenderView::AddContentView(const std::shared_ptr<IKRRenderViewExport> contentView, int index) {
+    if (root_node_ == nullptr) {
+        return;
+    }
+    kuikly::util::GetNodeApi()->addChild(root_node_, contentView->GetNode());
+    if (!is_load_finish) {  //  首帧事件
+        is_load_finish = true;
+        OnFirstFramePaint();
+    }
+}
+
+/**
+ * 添加任务到主线程队列中，注意：调用接口所在线程须是context线程
+ * @param task
+ */
+void KRRenderView::AddTaskToMainQueueWithTask(const KRSchedulerTask &task) {
+    if (core_ != nullptr) {
+        core_->AddTaskToMainQueueWithTask(task);
+    }
+}
+
+void KRRenderView::PerformTaskWhenMainThreadEnd(const KRSchedulerTask &task) {
+    if (core_ != nullptr) {
+        core_->PerformTaskWhenMainThreadEnd(task);
+    }
+}
+
+bool KRRenderView::IsPerformMainTasking() {
+    if (core_ != nullptr) {
+        return core_->IsPerformMainTasking();
+    }
+    return false;
+}
+
+const ArkUI_ContextHandle &KRRenderView::GetUIContextHandle() const {
+    return ui_context_handle_;
+}
+
+KRSnapshotManager *KRRenderView::GetSnapshotManager() {
+    return &snapshot_manager_;
+}
+
+NativeResourceManager *KRRenderView::GetNativeResourceManager() {
+    return native_resources_manager_;
+}
+
+std::shared_ptr<KRPerformanceManager> KRRenderView::GetPerformanceManager() {
+    return performance_manager_;
+}
+
+std::shared_ptr<KRRenderContextParams> KRRenderView::GetContext() {
+    return context_;
+}
+
+void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_ContextHandle &ui_context_handle,
+                        NativeResourceManager *native_resources_manager, float width, float height,
+                        int64_t launch_time) {
+    context_ = context;
+    ui_context_handle_ = ui_context_handle;
+    native_resources_manager_ = native_resources_manager;
+    int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
+    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
+    performance_manager_->SetArkLaunchTime(launch_time);
+    root_view_width_ = width;
+    root_view_height_ = height;
+    InitRender(width, height);
+}
+
+void KRRenderView::OnRenderViewSizeChanged(float width, float height) {
+    KR_LOG_INFO << "KRRenderView CreateRenderNode";
+    if (root_node_ == nullptr) {
+        return;
+    }
+    if (fabs(root_view_width_ - width) >= 0.1 || fabs(root_view_height_ - height) >= 0.1) {
+        root_view_width_ = width;
+        root_view_height_ = height;
+        KR_LOG_INFO << "KRRenderView render view size did changed";
+        kuikly::util::UpdateNodeSize(root_node_, width, height);
+        // 事件发送统一由 ArkTS 层的 notifySizeChange 负责，此处仅更新 root_node_ 尺寸
+    }
+}
+
+void KRRenderView::InitRender(float width, float height) {
+    if (root_node_ != nullptr ||  node_content_handle_ == nullptr ||
+        context_ == nullptr) {
+        return;
+    }
+    DispatchInitState(KRInitState::kStateKRRenderViewInit);
+    auto start = std::chrono::steady_clock::now();
+
+    auto nodeAPI = kuikly::util::GetNodeApi();
+    root_node_ = nodeAPI->createNode(ARKUI_NODE_STACK);
+    kuikly::util::UpdateNodeSize(root_node_, width, height);
+    kuikly::util::UpdateNodeBackgroundColor(root_node_, 0);
+     if (node_content_handle_) {
+        OH_ArkUI_NodeContent_AddNode(node_content_handle_, root_node_);
+    }
+    auto self = shared_from_this();
+    DispatchInitState(KRInitState::kStateInitCoreStart);
+    core_ = std::make_shared<KRRenderCore>(self, context_);
+    core_->DidInit();
+    DispatchInitState(KRInitState::kStateInitCoreFinish);
+
+    // 获取操作完成后的时间点
+    auto end = std::chrono::steady_clock::now();
+    // 计算时间差（以毫秒为单位）
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    KR_LOG_INFO << "cost time first screen: " << duration.count();
+}
+
+/**
+ * 注册参数Callback
+ * @return 该Callback索引ID, 用于GetArgCallback
+ */
+std::string KRRenderView::GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
+                                                bool arg_prefer_raw_napi_value) {
+    auto callback_id = GetIncreaseCallbackId();
+    method_arg_callback_map_[callback_id] =
+        std::make_shared<KRArkTsCallbackWrapper>(callback, callback_keep_alive, arg_prefer_raw_napi_value);
+    return callback_id;
+}
+
+/**
+ * 根据callbackid获取Callback
+ */
+KRRenderCallback KRRenderView::GetArgCallback(std::string callbackId, bool &arg_prefer_raw_napi_value) {
+    if (method_arg_callback_map_.find(callbackId) != method_arg_callback_map_.end()) {
+        auto callback_wrapper = method_arg_callback_map_[callbackId];
+        if (!callback_wrapper->IsKeepAlive()) {
+            method_arg_callback_map_.erase(callbackId);
+        }
+        arg_prefer_raw_napi_value = callback_wrapper->ArgPrefersRawNapiValue();
+        return callback_wrapper->GetCallback();
+    }
+    return nullptr;
+}
+
+void KRRenderView::OnFirstFramePaint() {
+    DispatchInitState(KRInitState::kStateFirstFramePaint);
+    SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
+}
+
+KRPoint KRRenderView::GetRootNodePositionInWindow() const {
+    if (root_node_ == nullptr) {
+        return KRPoint{0.0f, 0.0f};
+    }
+
+    return kuikly::util::GetNodePositionInWindow(root_node_);
+}
+
+void KRRenderView::DispatchInitState(KRInitState state) {
+    switch (state) {
+    case KRInitState::kStateKRRenderViewInit:
+        performance_manager_->OnKRRenderViewInit();
+        break;
+    case KRInitState::kStateInitCoreStart:
+        performance_manager_->OnInitCoreStart();
+        break;
+    case KRInitState::kStateInitCoreFinish:
+        performance_manager_->OnInitCoreFinish();
+        break;
+    case KRInitState::kStateInitContextStart:
+        performance_manager_->OnInitContextStart();
+        break;
+    case KRInitState::kStateInitContextFinish:
+        performance_manager_->OnInitContextFinish();
+        break;
+    case KRInitState::kStateCreateInstanceStart:
+        performance_manager_->OnCreateInstanceStart();
+        break;
+    case KRInitState::kStateCreateInstanceFinish:
+        performance_manager_->OnCreateInstanceFinish();
+        break;
+    case KRInitState::kStateFirstFramePaint:
+       performance_manager_->OnFirstFramePaint();
+    case KRInitState::kStateResume:
+        performance_manager_->OnResume();
+        break;
+    case KRInitState::kStatePause:
+        performance_manager_->OnPause();
+        break;
+    case KRInitState::kStateDestroy:
+        performance_manager_->OnDestroy();
+        break;
+    default:
+        break;
+    }
+    // 通知ArkTS侧
+    std::string instance_id = context_->InstanceId();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, state] {
+        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
+            NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
+            NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
+    });
+}

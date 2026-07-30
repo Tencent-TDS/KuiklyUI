@@ -1,0 +1,11 @@
+/node_modules
+/core-render-ohos/oh_modules
+/.preview
+/build
+/.cxx
+/.test
+/.hvigor
+BuildProfile.ets
+
+# Kotlin/Native LLDB helpers (auto-generated, do not commit)
+/.kuikly/

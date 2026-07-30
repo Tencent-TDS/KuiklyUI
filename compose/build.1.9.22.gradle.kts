@@ -1,0 +1,156 @@
+plugins {
+    kotlin("multiplatform")
+    kotlin("native.cocoapods")
+    id("com.android.library")
+    id("org.jetbrains.compose")
+    id("maven-publish")
+    signing
+}
+
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
+// 配置Maven发布
+publishing {
+    repositories {
+        val username = MavenConfig.getUsername(project)
+        val password = MavenConfig.getPassword(project)
+        if (username.isNotEmpty() && password.isNotEmpty()) {
+            maven {
+                credentials {
+                    setUsername(username)
+                    setPassword(password)
+                }
+                url = uri(MavenConfig.getRepoUrl(version as String))
+            }
+        } else {
+            mavenLocal()
+        }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
+    }
+}
+
+kotlin {
+    androidTarget {
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+                freeCompilerArgs += "-Xjvm-default=all"
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+        publishLibraryVariantsGroupedByFlavor = true
+        publishLibraryVariants("release")
+    }
+
+    js(IR) {
+        browser()
+    }
+
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+    macosX64()
+    macosArm64()
+
+    cocoapods {
+        summary = "Some description for the Shared Module"
+        homepage = "Link to the Shared Module homepage"
+        version = "1.0"
+        ios.deploymentTarget = "16.0"
+        framework {
+            baseName = "compose"
+            isStatic = true
+        }
+    }
+
+    targets.all {
+        compilations.all {
+            kotlinOptions {
+                // 设置部分优化标志
+                freeCompilerArgs += listOf(
+                    "-Xinline-classes",
+                    "-opt-in=kotlin.ExperimentalStdlibApi",
+                    "-opt-in=kotlinx.cinterop.ExperimentalForeignApi",
+                    "-opt-in=kotlin.experimental.ExperimentalNativeApi",
+                    "-opt-in=kotlin.contracts.ExperimentalContracts",
+//                    "-P", "plugin:androidx.compose.compiler.plugins.kotlin:nonSkippingGroupOptimization=true",
+                    "-P", "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
+                    "-Xcontext-receivers"
+                )
+            }
+        }
+    }
+
+    sourceSets {
+        all {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+        }
+        commonMain.dependencies {
+            //put your multiplatform dependencies here
+            api(project(":core"))
+            api(compose.runtime)
+            api(compose.runtimeSaveable)
+            api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+            api("androidx.annotation:annotation:1.9.1")
+            api("org.jetbrains.kotlinx:atomicfu:0.25.0")
+            api("org.jetbrains.compose.collection-internal:collection:1.6.11")
+            implementation(project(":core-annotations"))
+        }
+
+        // runtimeLegacyMain: no-op stubs for PausableComposition / CompositionObserver
+        // (not available in compose plugin 1.7.3 / Kotlin 1.9.22 build line)
+        val runtimeLegacyMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        // Wire all compilation targets to runtimeLegacyMain
+        // Keep the default Native/Apple hierarchy in the runtimeLegacy branch so
+        // ios targets compile the actuals from nativeMain and appleMain.
+        val nativeMain by creating {
+            dependsOn(runtimeLegacyMain)
+        }
+
+        val appleMain by creating {
+            dependsOn(nativeMain)
+        }
+
+        val androidMain by getting {
+            dependsOn(runtimeLegacyMain)
+            dependencies {
+                compileOnly(project(":core-render-android"))
+                implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+                // 保留现有依赖...
+            }
+        }
+
+        val jsMain by getting {
+            dependsOn(runtimeLegacyMain)
+        }
+
+        // Wire Apple targets through appleMain so nativeMain actuals are included.
+        listOf(
+            "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
+            "macosX64Main", "macosArm64Main",
+        ).forEach { ssName ->
+            findByName(ssName)?.dependsOn(appleMain)
+        }
+    }
+}
+
+
+android {
+    namespace = "com.tencent.kuikly.compose"
+    compileSdk = 30
+    defaultConfig {
+        minSdk = 21
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+}

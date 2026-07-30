@@ -1,0 +1,5 @@
+{
+    "navigationBarTitleText":"LazyNest",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+}

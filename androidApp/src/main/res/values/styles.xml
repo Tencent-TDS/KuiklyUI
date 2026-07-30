@@ -1,5 +1,27 @@
+<<<<<<< HEAD
 <resources>
 
     <style name="AppTheme" parent="Theme.AppCompat.NoActionBar" />
 
 </resources>
+=======
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+    </style>
+
+    <!-- 全屏 Dialog 主题：关闭 windowIsFloating，避免默认边距和最小宽度限制 -->
+    <style name="MyDialogFullScreen" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
+</resources>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67

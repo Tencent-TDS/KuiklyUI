@@ -1,0 +1,457 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "libohos_render/api/include/Kuikly/Kuikly.h"
+
+#include <cstdint>
+#include <hilog/log.h>
+#include <mutex>
+#include <unordered_map>
+#include <unordered_set>
+
+#include "KRAnyDataInternal.h"
+#include "KRTextPostProcessor.h"
+#include "libohos_render/expand/components/image/KRImageAdapterManager.h"
+#include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
+#include "libohos_render/export/IKRRenderModuleExport.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct KRRenderModuleCallbackContextData {
+    std::weak_ptr<IKRRenderModuleExport> module_;
+    KRRenderCallback cb_;
+    bool keepCallbackAlive_;
+    KRRenderModuleCallbackContextData(std::weak_ptr<IKRRenderModuleExport> module,
+        KRRenderCallback cb,
+        bool keepCallbackAlive): module_(module), cb_(cb), keepCallbackAlive_(keepCallbackAlive){
+        // blank
+    }
+    ~KRRenderModuleCallbackContextData(){
+        module_.reset();
+        cb_ = nullptr;
+    }
+};
+
+// 不透明 builder 结构体定义。内存所有权细节见 Kuikly.h 头注释。
+// 仅在 KRTextPostProcessorAdapter 回调期间作为栈对象存在，回调返回后立即析构，
+// 自动回收所有 std::string 内存——业务侧无需也无法主动 free。
+struct KRTextProcessedResultBuilder_ {
+    std::vector<kuikly::text::KRTextPostProcessSpan> spans;
+};
+
+#ifdef __cplusplus
+}
+#endif
+
+namespace {
+class KRForwardRenderModule : public IKRRenderModuleExport {
+ public:
+    KRForwardRenderModule(const std::string &moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethod  onCallMethod,
+                            KRRenderModuleCallMethodV2  onCallMethodV2,
+                            void *userData)
+        : moduleName_(moduleName), userData_(userData),
+          onConstruct_(onConstruct), onDestruct_(onDestruct), onCallMethod_(onCallMethod), onCallMethodV2_(onCallMethodV2) {
+        if (onConstruct) {
+            moduleInstance_ = onConstruct(moduleName.c_str());
+        }else{
+            moduleInstance_ = nullptr;
+        }
+    }
+    ~KRForwardRenderModule() {
+        if (onDestruct_) {
+            onDestruct_(moduleInstance_);
+        }
+        std::for_each(module_callbacks_.begin(), module_callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) {
+            RemoveCallbackContext(item);
+            FreeCallbackContext(item); 
+        });
+    }
+
+    KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,
+                          const KRRenderCallback &callback, bool callback_keep_alive) override {
+        if (onCallMethodV2_) {
+            std::string paramStr = params->toString();
+            // create a callback context
+            struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            {
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.insert(cbData);
+            }
+            
+            struct KRAnyDataInternal anyDataInternal;
+            anyDataInternal.anyValue = params;
+            auto val = onCallMethodV2_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
+
+            if (val) {
+                KRAnyDataInternal* internal = static_cast<KRAnyDataInternal*>(val);
+                std::shared_ptr<KRRenderValue> v = internal->anyValue;
+                KRAnyDataDestroy(val);
+                return v;
+            }
+
+            return KRRenderValue::Make();
+        } else if (onCallMethod_) {
+            std::string paramStr = params->toString();
+            // create a callback context
+            struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            {
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.insert(cbData);
+            }
+            
+            struct KRAnyDataInternal anyDataInternal;
+            anyDataInternal.anyValue = params;
+            auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
+            
+            if(val.res){
+                auto value = KRRenderValue::Make(val.res);
+                if(val.free){
+                    val.free((void*)val.res);
+                }
+                
+                return value;
+            }
+            return KRRenderValue::Make();
+        }
+        return nullptr;
+    }
+
+    void DoCallback(KRRenderModuleCallbackContext context, const char *data) {
+        // Note: avoid dangling pointer by look up through a set instead of directly casting context to KRRenderModuleCallbackContextData
+        KRRenderModuleCallbackContextData *callbackContextData = FindCallbackContext(context);
+        if (callbackContextData && callbackContextData->cb_) {
+            callbackContextData->cb_(NewKRRenderValue(data));
+            if(!callbackContextData->keepCallbackAlive_){
+                callbackContextData->cb_ = nullptr;
+                RemoveCallbackContext(context);
+                FreeCallbackContext(callbackContextData);
+                // erase from instance
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.erase(context);
+            }
+        }
+    }
+
+    static std::shared_ptr<KRForwardRenderModule> GetModuleWithCallbackContext(KRRenderModuleCallbackContext context) {
+        if (context == nullptr) {
+            return nullptr;
+        }
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
+            if(auto module = (*it)->module_.lock()){
+                return std::dynamic_pointer_cast<KRForwardRenderModule>(module);
+            }
+        }
+        return nullptr;
+    }
+ private:
+    static struct KRRenderModuleCallbackContextData *AllocCallbackContext(std::weak_ptr<IKRRenderModuleExport> module,
+                                                                   const KRRenderCallback &callback,
+        bool keepCallbackAlive) {
+        struct KRRenderModuleCallbackContextData *cbData = new KRRenderModuleCallbackContextData(module, callback, keepCallbackAlive);
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        g_callbacks_.insert(cbData);
+        return cbData;
+    }
+    static struct KRRenderModuleCallbackContextData *FindCallbackContext(KRRenderModuleCallbackContext context) {
+        if (context == nullptr) {
+            return nullptr;
+        }
+        KRRenderModuleCallbackContextData *result = nullptr;
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
+            result = *it;
+        }
+        return result;
+    }
+    static struct KRRenderModuleCallbackContextData *RemoveCallbackContext(KRRenderModuleCallbackContext context) {
+        if (context == nullptr) {
+            return nullptr;
+        }
+        KRRenderModuleCallbackContextData *result = nullptr;
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
+            result = *it;
+            g_callbacks_.erase(it);
+        }
+        return result;
+    }
+    
+    static void FreeCallbackContext(struct KRRenderModuleCallbackContextData *context) {
+        if (context == nullptr) {
+            return;
+        }
+        delete context;
+    }
+
+    std::string moduleName_;
+    KRRenderModuleOnConstruct onConstruct_;
+    KRRenderModuleOnDestruct onDestruct_;
+    KRRenderModuleCallMethod onCallMethod_;
+    KRRenderModuleCallMethodV2 onCallMethodV2_;
+    void *userData_;
+    void *moduleInstance_;
+    std::unordered_set<struct KRRenderModuleCallbackContextData *> module_callbacks_;
+    std::mutex module_callback_mutex_;
+    
+    static std::unordered_set<struct KRRenderModuleCallbackContextData *> g_callbacks_;
+    static std::mutex g_callback_mutex_;
+};
+
+std::unordered_set<struct KRRenderModuleCallbackContextData *> KRForwardRenderModule::g_callbacks_;
+std::mutex KRForwardRenderModule::g_callback_mutex_;
+
+class BridgeLogAdapter : public IKRLogAdapter {
+ public:
+    explicit BridgeLogAdapter(KRLogAdapter adapter) : adapter_(adapter) {
+        // blank
+    }
+    void LogInfo(const std::string &tag, const std::string &msg) {
+        if (adapter_) {
+            adapter_(KRLogLevelInfo, tag.c_str(), msg.c_str());
+        }
+    }
+    void LogDebug(const std::string &tag, const std::string &msg) {
+        if (adapter_) {
+            adapter_(KRLogLevelDebug, tag.c_str(), msg.c_str());
+        }
+    }
+    void LogError(const std::string &tag, const std::string &msg) {
+        if (adapter_) {
+            adapter_(KRLogLevelError, tag.c_str(), msg.c_str());
+        }
+    }
+
+ private:
+    KRLogAdapter adapter_;
+};
+
+}  // namespace
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char *data) {
+    if (!context) {
+        return;
+    }
+    if (auto forwardRenderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
+        forwardRenderModule->DoCallback(context, data);
+    }
+}
+
+ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag) {
+    if (!context) {
+        return nullptr;
+    }
+    if (auto renderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
+        if (auto rootView = renderModule->GetRootView().lock()) {
+            if (std::shared_ptr<IKRRenderViewExport> view = rootView->GetView(tag)) {
+                return view->GetNode();
+            }
+        }
+    }
+    return nullptr;
+}
+
+const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context) {
+    if (!context) {
+        return nullptr;
+    }
+    if (auto forwardRenderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
+        return forwardRenderModule->GetInstanceId().c_str();
+    }
+    return nullptr;
+}
+
+void KRRenderModuleRegister(const char *moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethod  onCallMethod,
+                            void *userData) {
+    std::string name = moduleName;
+    IKRRenderModuleExport::RegisterModuleCreator(moduleName, [onConstruct, onDestruct, onCallMethod, userData, name]() {
+        return std::make_shared<KRForwardRenderModule>(name, onConstruct, onDestruct, onCallMethod, nullptr, userData);
+    });
+}
+
+void KRRenderModuleRegisterV2(const char *moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethodV2  onCallMethod,
+                            void *userData) {
+    std::string name = moduleName;
+    IKRRenderModuleExport::RegisterModuleCreator(moduleName, [onConstruct, onDestruct, onCallMethod, userData, name]() {
+        return std::make_shared<KRForwardRenderModule>(name, onConstruct, onDestruct, nullptr, onCallMethod, userData);
+    });
+}
+
+void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily) {
+    KRFontAdapterManager::GetInstance()->RegisterFontAdapter(adapter, fontFamily);
+}
+
+void KRRegisterImageAdapter(KRImageAdapter adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapter(adapter);
+}
+void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV2(adapter);
+}
+// 新增适配器 ImageAdapterV3
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV3(adapter);
+}
+
+
+int KRLogLevelInfo = LogLevel::LOG_INFO;
+int KRLogLevelDebug = LogLevel::LOG_DEBUG;
+int KRLogLevelError = LogLevel::LOG_ERROR;
+
+void KRRegisterLogAdapter(KRLogAdapter adapter) {
+    auto bridge = std::make_shared<BridgeLogAdapter>(adapter);
+    KRRenderAdapterManager::GetInstance().RegisterLogAdapter(std::dynamic_pointer_cast<IKRLogAdapter>(bridge));
+}
+    
+void KRRegisterColorAdapter(KRColorAdapterParseColor adapter){
+    class BridgedColorParseAdapter : public IKRColorParseAdapter {
+     public:
+        BridgedColorParseAdapter(KRColorAdapterParseColor parser): parser_(parser){
+            // blank
+        }
+        std::int64_t GetHexColor(const std::string &colorStr) override{
+            return parser_ ? parser_(colorStr.c_str()) : 0;
+        }
+    private:
+        KRColorAdapterParseColor parser_;
+    };
+    if(adapter){
+        KRRenderAdapterManager::GetInstance().RegisterColorAdapter(std::make_shared<BridgedColorParseAdapter>(adapter));        
+    }else{
+        KRRenderAdapterManager::GetInstance().RegisterColorAdapter(nullptr);
+    }
+}
+
+// API for troubleshooting view reuse issue
+int g_kuikly_disable_view_reuse = 0;
+void KRDisableViewReuse(){
+    g_kuikly_disable_view_reuse = 1;
+}
+
+// =====================================================================
+// Text Post Processor Adapter implementation
+// =====================================================================
+namespace {
+// 注册表：进程级单 adapter 存储位。
+// 初始化阶段偶发写入 + 运行期高频读取，使用普通 mutex 即可。
+std::mutex &TextPostProcessorMutex() {
+    static std::mutex m;
+    return m;
+}
+KRTextPostProcessorAdapter &TextPostProcessorAdapterSlot() {
+    static KRTextPostProcessorAdapter adapter = nullptr;
+    return adapter;
+}
+}  // namespace
+
+void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter) {
+    std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
+    TextPostProcessorAdapterSlot() = adapter;
+}
+
+void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
+                                         const char *text) {
+    if (!builder || !text) {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kText;
+    span.text_or_src = text;  // std::string 拷贝构造，立即落库
+    builder->spans.push_back(std::move(span));
+}
+
+void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
+                                          const char *src,
+                                          float width,
+                                          float height) {
+    if (!builder || !src || src[0] == '\0') {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kImage;
+    span.text_or_src = src;
+    // raw_literal 留空：调用方未声明 raw 字面量，编辑后差分回写阶段无法精准还原。
+    span.width = width;
+    span.height = height;
+    builder->spans.push_back(std::move(span));
+}
+
+void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder builder,
+                                                 const char *src,
+                                                 const char *raw_literal,
+                                                 float width,
+                                                 float height) {
+    if (!builder || !src || src[0] == '\0') {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kImage;
+    span.text_or_src = src;
+    if (raw_literal && raw_literal[0] != '\0') {
+        // std::string 拷贝，回调返回后业务可任意释放/复用入参缓冲区。
+        span.raw_literal = raw_literal;
+    }
+    span.width = width;
+    span.height = height;
+    builder->spans.push_back(std::move(span));
+}
+#ifdef __cplusplus
+}
+#endif
+
+// SDK 内部派发桥（仅供 core-render-ohos 内部调用，定义在 namespace 内、不在 extern "C" 块）。
+namespace kuikly {
+namespace text {
+bool RunTextPostProcessor(const std::string &name,
+                          const std::string &text,
+                          std::vector<KRTextPostProcessSpan> &out_spans) {
+    KRTextPostProcessorAdapter adapter = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
+        adapter = TextPostProcessorAdapterSlot();
+    }
+    if (!adapter) {
+        return false;
+    }
+    // builder 是栈对象，回调返回即析构；其内部 std::string 自动释放。
+    KRTextProcessedResultBuilder_ builder;
+    const char *processor_name = name.empty() ? nullptr : name.c_str();
+    adapter(processor_name, text.c_str(), /*reserved=*/nullptr, &builder);
+    if (builder.spans.empty()) {
+        return false;
+    }
+    out_spans = std::move(builder.spans);
+    return true;
+}
+}  // namespace text
+}  // namespace kuikly

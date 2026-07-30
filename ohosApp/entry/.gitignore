@@ -1,0 +1,7 @@
+/node_modules
+/oh_modules
+/.preview
+/build
+/.cxx
+/.test
+/src/main/ets/ts-api/provider.ets

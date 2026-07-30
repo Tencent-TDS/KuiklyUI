@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // 检测 CI 环境：GitHub Actions 会设置 GITHUB_ACTIONS / CI 环境变量。
 // 注意：settings.gradle.kts 顶层的 val 在 pluginManagement 块（早期求值）里不可见，
 // 因此这里直接内联 System.getenv(...) 判断，避免 Unresolved reference。
@@ -48,3 +49,53 @@ include(":shared")
 include(":androidApp")
 // iOS 宿主是独立的 Xcode 工程（iosApp/），不纳入 Gradle 构建。
 // 在 macOS 上用 Xcode 打开 iosApp/iosApp.xcodeproj 即可，不需要在此 include。
+=======
+pluginManagement {
+    repositories {
+        google()
+        gradlePluginPortal()
+        mavenCentral()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
+        maven {
+            url = uri("https://mirrors.tencent.com/nexus/repository/gradle-plugins/")
+        }
+    }
+}
+
+val buildFileName = "build.2.1.21.gradle.kts"
+
+include(":androidApp")
+include(":demo")
+
+include(":core-annotations")
+project(":core-annotations").buildFileName = buildFileName
+
+include(":core-ksp")
+project(":core-ksp").buildFileName = buildFileName
+
+include(":core")
+project(":core").buildFileName = buildFileName
+
+include(":core-wx")
+project(":core-wx").buildFileName = buildFileName
+
+include(":core-render-android")
+project(":core-render-android").buildFileName = buildFileName
+
+include(":core-render-web:base")
+include(":core-render-web:h5")
+include(":core-render-web:miniapp")
+
+include(":h5App")
+project(":h5App").buildFileName = buildFileName
+include(":miniApp")
+project(":miniApp").buildFileName = buildFileName
+
+
+include(":compose")
+project(":compose").buildFileName = buildFileName
+
+rootProject.buildFileName = buildFileName
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67

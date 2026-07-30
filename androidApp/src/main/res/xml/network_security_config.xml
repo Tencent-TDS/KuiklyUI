@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<<<<<<< HEAD
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
@@ -6,3 +7,11 @@
         </trust-anchors>
     </base-config>
 </network-security-config>
+=======
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!--demo app enable insecure traffic, for developing only-->
+    <base-config
+        cleartextTrafficPermitted="true"
+        tools:ignore="InsecureBaseConfiguration" />
+</network-security-config>
+>>>>>>> fac3e1bf76900eca384d895d842c13066d9bcd67

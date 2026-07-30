@@ -1,0 +1,1 @@
+../Extension/AdvancedComps/KRGradientRichTextView.h

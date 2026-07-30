@@ -1,0 +1,1 @@
+../Extension/Components/Base/KRWeakObject.h

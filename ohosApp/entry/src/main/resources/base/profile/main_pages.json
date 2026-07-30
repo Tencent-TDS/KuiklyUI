@@ -1,0 +1,8 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/GestureThrough",
+    "pages/KuiklyInList",
+    "pages/NativeAppWaterfall"
+  ]
+}

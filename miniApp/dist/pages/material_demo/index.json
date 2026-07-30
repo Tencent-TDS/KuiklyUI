@@ -1,0 +1,5 @@
+{
+    "navigationBarTitleText":"material_demo",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+}

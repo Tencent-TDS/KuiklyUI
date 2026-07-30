@@ -1,6 +1,14 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.kuikly.table.log
 
 import platform.Foundation.*
+
+/**
+ * NSDate 基准日期（2001-01-01 00:00:00 UTC）相对 1970 epoch 的秒数偏移，
+ * 用于在仅暴露 timeIntervalSinceReferenceDate 构造器的 interop 下构造 epoch 时间。
+ */
+private const val SECONDS_FROM_1970_TO_REFERENCE_DATE = 978307200.0
 
 /**
  * iOS 平台日志写入实现
@@ -202,7 +210,7 @@ actual object PlatformLogWriter {
 
     private fun formatEntry(entry: LogEntry): String {
         val timeStr = try {
-            val date = NSDate(timeIntervalSince1970 = entry.timestamp / 1000.0)
+            val date = NSDate(timeIntervalSinceReferenceDate = entry.timestamp / 1000.0 - SECONDS_FROM_1970_TO_REFERENCE_DATE)
             dateFormatter.stringFromDate(date)
         } catch (_: Exception) {
             entry.timestamp.toString()

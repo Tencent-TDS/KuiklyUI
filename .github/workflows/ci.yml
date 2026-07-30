@@ -23,6 +23,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # 海外 Ubuntu runner 访问腾讯云镜像不稳定，将 Gradle 分发源临时替换为官方源，
+      # 与 iOS job 保持一致，保证 CI 能稳定下载 Gradle 8.4。本地仍走腾讯云镜像（快）。
+      - name: Use official Gradle distribution (CI)
+        run: python3 -c "p='gradle/wrapper/gradle-wrapper.properties';s=open(p,encoding='utf-8').read();s=s.replace('mirrors.cloud.tencent.com/gradle','services.gradle.org/distributions');open(p,'w',encoding='utf-8').write(s)"
+
       - name: Build Android App (debug)
         run: ./gradlew :androidApp:assembleDebug --stacktrace
 

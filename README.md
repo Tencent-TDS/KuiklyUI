@@ -14,6 +14,18 @@
 - 事件系统：单元格点击 / 行点击 / 表头点击 / 滚动
 - 跨平台支持（Android / iOS，共用同一份 `commonMain` 代码）
 
+## 效果预览
+
+运行 `androidApp` 后进入 `tableDemo` 列表页，点击对应条目即可查看 9 个独立演示页。以下为 Android Studio 模拟器（API 37.1 / Android 17）实测截图：
+
+| Demo 列表 | 基础表格 | 蓝色主题 |
+|:---------:|:--------:|:--------:|
+| ![Demo 列表](images/demo-list.png) | ![基础表格](images/demo-basic.png) | ![蓝色主题](images/demo-blue.png) |
+
+| 深色主题 | 大数据量滚动 |
+|:--------:|:------------:|
+| ![深色主题](images/demo-dark.png) | ![大数据量滚动](images/demo-bigdata.png) |
+
 ## 仓库结构
 
 ```

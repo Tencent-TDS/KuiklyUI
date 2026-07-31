@@ -121,10 +121,13 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
 // 返回所有行度量（dp + offset），格式 "N top0 bottom0 start0 end0 ..."，与 Android 对齐。
 // top/bottom 为行顶/行底的绝对 y 坐标；start/end 为字符范围，其中 end 为 exclusive。
 // 数据源与 KRRichTextView::GetParagraphInfo 同源（GetLineInfo）。
-// 注意线程模型：本方法经 Call() 由 Kotlin measure 在 context 线程触发，必须访问
-// context 线程自有的 context_thread_typography_（而非 main 线程自有的
-// main_thread_typography_），否则会与主线程 SetMainThreadTypography 形成跨线程
-// 数据竞争导致 cppcrash。先拷一份强引用再取裸指针，对齐 SpanRect 的惯用法。
+// 注意线程模型：本方法经 Call() 由 Kotlin 侧惰性触发——行度量/字符盒查询是 lazy 闭包，
+// 首次调用可能发生在 measure 阶段，也可能延后到 drawBehind 的 draw 阶段。无论哪个阶段，
+// 该调用都依赖仍运行在 context 线程、且 context_thread_typography_ 仍是当前布局周期建立、
+// 未被 SetContextTypography 重建的那一份。据此必须访问 context 线程自有的
+// context_thread_typography_（而非 main 线程自有的 main_thread_typography_），否则会与
+// 主线程 SetMainThreadTypography 形成跨线程数据竞争导致 cppcrash。先拷一份强引用再取裸指针，
+// 对齐 SpanRect 的惯用法。
 std::string KRRichTextShadow::LineMetrics() {
     KRTypographyHandle typo = context_thread_typography_;
     OH_Drawing_Typography *typo_raw = typo ? typo.get() : nullptr;
@@ -153,8 +156,9 @@ std::string KRRichTextShadow::LineMetrics() {
 
 // 返回 offset 处字符包围盒（dp），格式 "left top right bottom"，与 Android 对齐。
 // left/right 取字符水平范围（GetRectsForRange）；top/bottom 取所在行顶/底（对齐 Android 整行高度语义）。
-// 同 LineMetrics：经 Call() 在 context 线程触发，访问 context 线程自有的
-// context_thread_typography_ 并先拷强引用，避免与 main 线程 typography 跨线程竞争。
+// 同 LineMetrics：经 Call() 由 Kotlin 侧惰性触发，首访可能在 measure 也可能延后到 draw 阶段，
+// 依赖调用仍在 context 线程、且 context_thread_typography_ 为当前布局周期有效那一份；
+// 访问 context 线程自有的 context_thread_typography_ 并先拷强引用，避免与 main 线程 typography 跨线程竞争。
 std::string KRRichTextShadow::BoundingBox(int offset) {
     KRTypographyHandle typo = context_thread_typography_;
     OH_Drawing_Typography *typo_raw = typo ? typo.get() : nullptr;

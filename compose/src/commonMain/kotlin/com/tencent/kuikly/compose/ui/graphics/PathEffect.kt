@@ -19,6 +19,9 @@ package com.tencent.kuikly.compose.ui.graphics
  * Kuikly Compose 的 PathEffect 目前只承载 dash 参数，不映射到底层 Skia 的 SkPathEffect。
  * 内部通过 KuiklyCanvas 直连 CanvasContext.setLineDash。
  *
+ * 注意：当前 pathEffect 仅对 drawLine 生效。drawRect/drawPath/drawCircle/drawRoundRect 等走
+ * fillOrStroke 的绘制 API 会忽略 pathEffect（不报错也不画虚线），需要虚线边框请用 drawLine 拼接。
+ *
  * 预留 cornerPathEffect / chainPathEffect / stampedPathEffect 扩展位，本期只实现 dashPathEffect。
  */
 sealed interface PathEffect {

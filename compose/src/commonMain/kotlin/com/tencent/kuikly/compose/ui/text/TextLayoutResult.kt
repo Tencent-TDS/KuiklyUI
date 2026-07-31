@@ -375,6 +375,9 @@ class TextLayoutResult constructor(
 
     /**
      * Returns the bounding box of the character for given character offset.
+     *
+     * 结果按 offset 缓存于底层 MultiParagraph 实例（无锁 HashMap），必须在 UI 线程调用；
+     * 请勿在非 UI 线程或与重组并发访问同一 TextLayoutResult。
      */
     fun getBoundingBox(offset: Int): Rect = multiParagraph.getBoundingBox(offset)
 

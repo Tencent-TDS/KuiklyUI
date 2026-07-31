@@ -385,7 +385,6 @@ class TextLayoutResult constructor(
 
     /**
      * Returns the end offset of the given line.
-     * 当前 Kuikly 仅回填 logical line end，暂不区分 visibleEnd。
      */
     fun getLineEnd(lineIndex: Int, visibleEnd: Boolean = false): Int =
         multiParagraph.getLineEnd(lineIndex, visibleEnd)

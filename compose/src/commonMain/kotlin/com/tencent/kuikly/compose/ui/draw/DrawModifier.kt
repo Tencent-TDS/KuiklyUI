@@ -139,6 +139,12 @@ internal class DrawBackgroundModifier(
     private val bgDrawScope = CanvasDrawScope()
 
     /**
+     * 复用同一个 KuiklyCanvas 实例，避免每次 draw 都新建对象。
+     * 仅在绑定的背景 view 引用变化时才赋值 [KuiklyCanvas.view]（该 setter 内部会 reset 原生画布）。
+     */
+    private val bgCanvas = KuiklyCanvas()
+
+    /**
      * 记录上一次真正下发给背景 CanvasView 的 frame（dp）。
      * 当本次 frame 与上次完全一致时跳过重复的跨端 setFrame 调用。
      * NaN 表示尚未下发过。
@@ -252,8 +258,11 @@ internal class DrawBackgroundModifier(
                 lastBgW = bgWidthDp
                 lastBgH = bgHeightDp
             }
-            val bgCanvas = KuiklyCanvas()
-            bgCanvas.view = bg
+            val bgCanvas = this.bgCanvas
+            // 仅 bg 引用变化时才走 setter（其内部会 reset 原生画布），避免每帧冗余桥调用
+            if (bgCanvas.view !== bg) {
+                bgCanvas.view = bg
+            }
             val drawBlock = onDraw
             bgDrawScope.draw(
                 requireDensity(),
@@ -276,6 +285,8 @@ internal class DrawBackgroundModifier(
             }
         }
         bgCanvasView = null
+        // 解绑复用 KuiklyCanvas，避免持有已销毁 view 引用；下次 attach 时会重绑。
+        bgCanvas.view = null
         super.onDetach()
     }
 

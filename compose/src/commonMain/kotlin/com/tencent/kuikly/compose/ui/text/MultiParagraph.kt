@@ -90,12 +90,8 @@ class MultiParagraph(
 
     /**
      * Returns the end offset of the given line, exclusive.
-     * 当前 Kuikly 仅回填 logical line end，暂不区分 visibleEnd。
-     *
-     * 当 lineEnds 缺失对应行（旧格式 native 只回填 top/bottom、未带 start/end 的兼容路径）时走
-     * getOrElse fallback：非最后一行用下一行的 start（exclusive 语义下 line[i].end == line[i+1].start）；
-     * 最后一行找不到下一行，只能退化为 getLineStart(lineIndex)，即 end == start（空区间）。
-     * 这是旧格式兼容路径的有意退化，非 bug，请勿改为其它 fallback。
+     * 当前 Kuikly 仅回填 logical line end；lineEnds 缺失时按下一行 start fallback（最后一行退化为
+     * start、空区间），属旧格式兼容的有意退化、非 bug，请勿改为其它 fallback。
      */
     fun getLineEnd(lineIndex: Int, visibleEnd: Boolean = false): Int =
         lineMetrics?.lineEnds?.getOrElse(lineIndex) {

@@ -52,12 +52,19 @@ internal class KuiklyCanvas : Canvas {
     private var dashActive = false
 
     /**
+     * 记录上一次下发的虚线 intervals（已换算成 dp/pt）。intervals 与上次一致时跳过重复的
+     * setLineDash 桥调用；null 表示尚未下发过。原生画布 reset 后须同步置空。
+     */
+    private var lastDashIntervals: List<Float>? = null
+
+    /**
      * 仅在 dashActive 时向原生下发清空虚线指令并复位标记；未激活时零开销。
      */
     private fun CanvasContext.clearLineDashIfActive() {
         if (dashActive) {
             setLineDash(emptyList())
             dashActive = false
+            lastDashIntervals = null
         }
     }
 
@@ -101,6 +108,7 @@ internal class KuiklyCanvas : Canvas {
                     renderView.callMethod("reset", "")
                     strokeCap = StrokeCap.Butt
                     dashActive = false  // 原生画布已 reset，虚线状态同步复位
+                    lastDashIntervals = null
                 } else {
                     context = null
                 }
@@ -190,8 +198,14 @@ internal class KuiklyCanvas : Canvas {
                 if (intervals.isEmpty() || intervals.all { it == 0f }) {
                     clearLineDashIfActive()
                 } else {
-                    setLineDash(intervals.map { it / densityValue }.toList())
-                    dashActive = true
+                    // map 已返回 List，无需再 toList() 复制
+                    val scaled = intervals.map { it / densityValue }
+                    // intervals 与上次一致时跳过重复的 setLineDash 桥调用
+                    if (!dashActive || lastDashIntervals != scaled) {
+                        setLineDash(scaled)
+                        lastDashIntervals = scaled
+                        dashActive = true
+                    }
                 }
             } else {
                 clearLineDashIfActive()  // 仅上一笔真画过虚线时才下发清理，防残留

@@ -208,7 +208,6 @@ internal class TextStringRichNode(
         }
 
         if (textChanged || layoutChanged || callbacksChanged) {
-            // 更新布局属性
             updateLayoutProperties()
             invalidateMeasurement()
             invalidateSemantics()
@@ -227,29 +226,23 @@ internal class TextStringRichNode(
     }
 
     fun genTextLayoutResult(size: IntSize): TextLayoutResult {
-        // 存储所有占位符的矩形区域
         val placeholderRects = mutableListOf<Rect>()
 
         val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
         val pageDensity = textView?.getPager()?.pagerDensity() ?: requireDensity().density
-        // 遍历所有文本片段,处理占位符
         textView?.getViewAttr()?.getSpans()?.forEachIndexed { index, span ->
             if (span !is PlaceholderSpan) return@forEachIndexed
 
-            // 获取占位符的位置和大小信息
             val rectStr = textView.shadow?.callMethod("spanRect", index.toString())
             if (rectStr.isNullOrEmpty()) return@forEachIndexed
 
-            // 解析位置和大小信息
             val rectComponents = rectStr.split(" ")
             if (rectComponents.size < 4) return@forEachIndexed
 
-            // 提取坐标和尺寸
             val (x, y, width, height) = rectComponents.take(4).map {
                 it.toFloatOrNull() ?: 0f
             }
 
-            // 更新占位符的frame并添加到矩形列表
             span.spanFrame = Frame(x, y, width, height)
             placeholderRects.add(
                 Rect(
@@ -261,10 +254,8 @@ internal class TextStringRichNode(
 
         val effectiveAnnotated = annotatedText ?: AnnotatedString(plainText ?: "")
 
-        // 行度量：惰性拉取——不在 measure 热路径同步桥调用，仅 getLineTop/getLineStart
-        // 等首次被读取时才向 native 查询一次并缓存（与 getBoundingBoxFn 同思路）。
-        // 新格式："N top0 bottom0 start0 end0 top1 bottom1 start1 end1 ..."
-        // 为兼容旧实现，若 start/end 缺失则退化为 0。
+        // 行度量惰性拉取：首次读取时才向 native 查询并缓存（与 getBoundingBoxFn 同思路）；
+        // 新格式含 start/end，缺失则退化为 0。
         val lineMetricsFn: (() -> LineMetrics)? = textView?.let { tv ->
             {
                 val metricsStr = tv.shadow?.callMethod("lineMetrics", "") ?: ""
@@ -290,7 +281,7 @@ internal class TextStringRichNode(
                 LineMetrics(lineCount, lineTops, lineBottoms, lineStarts, lineEnds)
             }
         }
-        // getBoundingBox：按需向 native 查询 offset 处字符包围盒（dp），× pageDensity → px
+        // getBoundingBox：offset 处字符包围盒（native 返回 dp，× pageDensity 转 px）
         val getBoundingBoxFn: ((Int) -> Rect)? = textView?.let { tv ->
             { offset ->
                 val s = tv.shadow?.callMethod("getBoundingBox", offset.toString()) ?: ""

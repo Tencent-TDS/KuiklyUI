@@ -1021,14 +1021,25 @@ class Transition<S> internal constructor(
 
     private fun calculateTotalDurationNanos(): Long {
         var maxDurationNanos = 0L
-        _animations.fastForEach {
-            maxDurationNanos = max(maxDurationNanos, it.durationNanos)
-        }
-        _transitions.fastForEach {
-            maxDurationNanos = max(
-                maxDurationNanos,
-                it.calculateTotalDurationNanos()
-            )
+        // Guard against IndexOutOfBoundsException when _animations/_transitions
+        // (mutableStateListOf) is structurally modified during snapshot apply
+        // notifications. fastForEach captures `indices` then calls get(index);
+        // a concurrent snapshot apply can shrink the list mid-iteration
+        // (e.g. index:1, size:1), which surfaces via SnapshotStateObserver
+        // drainChanges -> derivedStateOf(totalDurationNanos).
+        try {
+            _animations.fastForEach {
+                maxDurationNanos = max(maxDurationNanos, it.durationNanos)
+            }
+            _transitions.fastForEach {
+                maxDurationNanos = max(
+                    maxDurationNanos,
+                    it.calculateTotalDurationNanos()
+                )
+            }
+        } catch (_: IndexOutOfBoundsException) {
+            // Concurrent structural modification. derivedStateOf will re-evaluate
+            // on the next consistent snapshot read; partial max is safe.
         }
         return maxDurationNanos
     }

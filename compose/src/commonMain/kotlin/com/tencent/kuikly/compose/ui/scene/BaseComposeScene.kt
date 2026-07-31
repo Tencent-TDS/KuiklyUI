@@ -55,6 +55,7 @@ import com.tencent.kuikly.compose.profiler.RecompositionTracker
 import com.tencent.kuikly.compose.profiler.kuiklySetObserver
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
+import com.tencent.kuikly.core.log.KLog
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.CoroutineContext
 
@@ -208,9 +209,22 @@ internal abstract class BaseComposeScene(
 
             recomposer.performScheduledTasks()
 
-            frameClock.sendFrame(nanoTime) // Recomposition
+            // Transition.totalDurationNanos may throw IndexOutOfBoundsException while
+            // SnapshotStateObserver drains during sendFrame/applyChanges (list shrinks
+            // mid fastForEach). Swallow to keep the frame loop alive; next frame
+            // re-evaluates with a consistent snapshot.
+            try {
+                frameClock.sendFrame(nanoTime) // Recomposition
+            } catch (e: IndexOutOfBoundsException) {
+                KLog.e("Kuikly.Compose", "sendFrame failed: ${e.stackTraceToString()}")
+            }
             doLayout() // Layout
-            recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
+            // Same class of Transition IOOB can also surface in composition effects.
+            try {
+                recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
+            } catch (e: IndexOutOfBoundsException) {
+                KLog.e("Kuikly.Compose", "performScheduledEffects failed: ${e.stackTraceToString()}")
+            }
 
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()

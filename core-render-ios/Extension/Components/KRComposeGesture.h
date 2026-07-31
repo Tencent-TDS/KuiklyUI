@@ -60,6 +60,11 @@ typedef NS_ENUM(NSUInteger, TouchesEventKind) {
 @property (nonatomic, assign) BOOL enableNativeGesture;
 
 /**
+ * 上次检查的 contentOffset，用于判断 ScrollView 是否真的发生了滚动
+ */
+@property (nonatomic, assign) CGPoint lastCheckedContentOffset;
+
+/**
  * 初始化方法
  */
 - (instancetype)initWithContainerView:(UIView *)containerView;

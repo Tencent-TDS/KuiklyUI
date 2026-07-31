@@ -46,6 +46,7 @@ import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.focus.FocusRequester
 import com.tencent.kuikly.compose.ui.focus.focusRequester
+import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.text.TextRange
 import com.tencent.kuikly.compose.ui.text.TextStyle
@@ -133,6 +134,7 @@ class TextFieldEmojiDemo : ComposeContainer() {
     fun CharacterModeCard() {
         val state = rememberTextFieldState()
         val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
         val maxLength = 140
         var currentLength by remember { mutableStateOf(0) }
         var isLimit by remember { mutableStateOf(false) }
@@ -167,11 +169,15 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             EmojiScenarioShortcuts(
                 state = state,
-                focusRequester = focusRequester,
                 middlePreset = EmojiScenarioPreset("1234abcd5678", 4),
                 replacePreset = EmojiScenarioPreset("1234abcd5678", 4, 8),
                 rejectPreset = EmojiScenarioPreset("12345678901234567890", 10),
-                rejectHint = "CHARACTER：先点“超限”，再点任意表情，应该整段拒绝且保留当前 raw 选区。"
+                rejectHint = "CHARACTER：先点“超限”，再点任意表情，应该整段拒绝且保留当前 raw 选区。",
+                onApplyPreset = { preset ->
+                    state.applyScenarioPreset(preset)
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
             )
 
             EmojiGrid(emojiList) { shortCode ->
@@ -184,6 +190,7 @@ class TextFieldEmojiDemo : ComposeContainer() {
     fun ByteModeCard() {
         val state = rememberTextFieldState()
         val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
         val maxBytes = 21
         var currentLength by remember { mutableStateOf(0) }
         var isLimit by remember { mutableStateOf(false) }
@@ -216,11 +223,15 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             EmojiScenarioShortcuts(
                 state = state,
-                focusRequester = focusRequester,
                 middlePreset = EmojiScenarioPreset("hello-world", 5),
                 replacePreset = EmojiScenarioPreset("hello-world", 5, 10),
                 rejectPreset = EmojiScenarioPreset("12345678901234567890", 10),
-                rejectHint = "BYTE：先点“超限”，再点任意表情，应该拒绝整段短码，不出现半个 token。"
+                rejectHint = "BYTE：先点“超限”，再点任意表情，应该拒绝整段短码，不出现半个 token。",
+                onApplyPreset = { preset ->
+                    state.applyScenarioPreset(preset)
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
             )
 
             EmojiGrid(emojiList) { shortCode ->
@@ -233,6 +244,7 @@ class TextFieldEmojiDemo : ComposeContainer() {
     fun VisualWidthModeCard() {
         val state = rememberTextFieldState()
         val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
         val maxVisualWidth = 12
         var currentLength by remember { mutableStateOf(0) }
         var isLimit by remember { mutableStateOf(false) }
@@ -265,11 +277,15 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             EmojiScenarioShortcuts(
                 state = state,
-                focusRequester = focusRequester,
                 middlePreset = EmojiScenarioPreset("ab中文cd", 2),
                 replacePreset = EmojiScenarioPreset("ab中文cd", 2, 4),
                 rejectPreset = EmojiScenarioPreset("中文中文中文", 3),
-                rejectHint = "VISUAL_WIDTH：先点“超限”，再点任意表情，应该按渲染后的视觉宽度整段拒绝。"
+                rejectHint = "VISUAL_WIDTH：先点“超限”，再点任意表情，应该按渲染后的视觉宽度整段拒绝。",
+                onApplyPreset = { preset ->
+                    state.applyScenarioPreset(preset)
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
             )
 
             EmojiGrid(emojiList) { shortCode ->
@@ -282,6 +298,7 @@ class TextFieldEmojiDemo : ComposeContainer() {
     fun SingleLineByteModeCard() {
         val state = rememberTextFieldState()
         val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
         val maxBytes = 21
         var currentLength by remember { mutableStateOf(0) }
         var isLimit by remember { mutableStateOf(false) }
@@ -318,11 +335,15 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             EmojiScenarioShortcuts(
                 state = state,
-                focusRequester = focusRequester,
                 middlePreset = EmojiScenarioPreset("single-line-demo", 6),
                 replacePreset = EmojiScenarioPreset("single-line-demo", 7, 11),
                 rejectPreset = EmojiScenarioPreset("12345678901234567890", 8),
-                rejectHint = "singleLine：先点“超限”，再点任意表情，重点观察 iOS 拒绝后光标是否回到合法 raw 位置。"
+                rejectHint = "singleLine：先点“超限”，再点任意表情，重点观察 iOS 拒绝后光标是否回到合法 raw 位置。",
+                onApplyPreset = { preset ->
+                    state.applyScenarioPreset(preset)
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
             )
 
             EmojiGrid(emojiList) { shortCode ->
@@ -421,11 +442,11 @@ class TextFieldEmojiDemo : ComposeContainer() {
     @Composable
     private fun EmojiScenarioShortcuts(
         state: TextFieldState,
-        focusRequester: FocusRequester? = null,
         middlePreset: EmojiScenarioPreset,
         replacePreset: EmojiScenarioPreset,
         rejectPreset: EmojiScenarioPreset,
         rejectHint: String,
+        onApplyPreset: (EmojiScenarioPreset) -> Unit,
     ) {
         Text(
             text = "快捷预置：先点“中间 / 替换 / 超限”，再点任意表情，验证选区替换和 maxLength 拒绝。",
@@ -437,22 +458,13 @@ class TextFieldEmojiDemo : ComposeContainer() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(onClick = {
-                state.applyScenarioPreset(middlePreset)
-                focusRequester?.requestFocus()
-            }) {
+            Button(onClick = { onApplyPreset(middlePreset) }) {
                 Text("中间", fontSize = 12.sp)
             }
-            Button(onClick = {
-                state.applyScenarioPreset(replacePreset)
-                focusRequester?.requestFocus()
-            }) {
+            Button(onClick = { onApplyPreset(replacePreset) }) {
                 Text("替换", fontSize = 12.sp)
             }
-            Button(onClick = {
-                state.applyScenarioPreset(rejectPreset)
-                focusRequester?.requestFocus()
-            }) {
+            Button(onClick = { onApplyPreset(rejectPreset) }) {
                 Text("超限", fontSize = 12.sp)
             }
         }

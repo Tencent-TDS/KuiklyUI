@@ -237,12 +237,9 @@ internal fun PullToRefreshItem(
     scrollState.kuiklyInfo.pullToRefreshTopInsetPx = with(density) { topInset.roundToPx() }
 
     // Tracks whether the next IDLE was triggered by the failsafe below.
-    // When [0] is true, the IDLE branch skips the inset reset animation to avoid
+    // When true, the IDLE branch skips the inset reset animation to avoid
     // restarting an animation that will soon be re-triggered by the real
     // REFRESHING -> IDLE transition.
-    // Use a plain array (not Compose state) to avoid triggering recomposition,
-    // which could cause Compose to batch the failsafe IDLE away and leave the
-    // flag unconsumed — incorrectly suppressing the real endRefresh inset reset.
     var suppressIdleInsetReset by remember { mutableStateOf(false) }
 
     // Monitor scroll state changes inspired by RefreshView logic
@@ -293,7 +290,7 @@ internal fun PullToRefreshItem(
                     if (!state.isRefreshing) {
                         withFrameNanos { }
                     }
-                    if (!state.isRefreshing) {
+                    if (!state.isRefreshing && state.pullState == PullState.REFRESHING) {
                         suppressIdleInsetReset = true
                         state.updatePullState(PullState.IDLE)
                         state.updateProgress(0f)

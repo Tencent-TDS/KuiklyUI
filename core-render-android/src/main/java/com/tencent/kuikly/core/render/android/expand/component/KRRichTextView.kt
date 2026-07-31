@@ -257,9 +257,12 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         return layoutParams.width != textLayout.width
     }
 
+    /**
+     * In Android LayoutParams, MATCH_PARENT (-1) and WRAP_CONTENT (-2) are both <= 0.
+     * A value of 0 also indicates that a fixed size has not yet been determined.
+     */
     private fun layoutParamsNotHasSize(params: ViewGroup.LayoutParams): Boolean =
-        params.width == ViewGroup.LayoutParams.MATCH_PARENT || params.width == ViewGroup.LayoutParams.WRAP_CONTENT
-                || params.width == 0
+        params.width <= 0
 
     private fun clearActiveLongPressSpanIndex() {
         activeLongPressSpanIndex = -1

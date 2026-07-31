@@ -322,8 +322,14 @@ class KuiklyRenderCore : IKuiklyRenderCore {
             SizeF(args.thirdArg().unsafeCast<Float>(), args.fourthArg().unsafeCast<Float>()),
         )
         // Data compatibility processing, exception takes 0
-        val width = size?.width?.asDynamic().toFixed(2) ?: "0.00"
-        val height = size?.height?.asDynamic().toFixed(2) ?: "0.00"
+        if (size == null) {
+            return "0.00|0.00"
+        }
+        // toFixed(2) 会四舍五入，第三位小数 <5 时会被舍去（如 10.999 -> 10.99），
+        // 导致回传尺寸比真实值偏小，可能引发布局截断。这里给宽高各加 0.005 再格式化，
+        // 确保回传尺寸不小于真实尺寸（向上截取保留 2 位小数）。
+        val width = (size.width + 0.005f).asDynamic().toFixed(2)
+        val height = (size.height + 0.005f).asDynamic().toFixed(2)
         // Return size information
         return "$width|$height"
     }

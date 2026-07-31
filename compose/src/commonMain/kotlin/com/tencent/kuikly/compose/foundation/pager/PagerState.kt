@@ -1320,8 +1320,12 @@ abstract class PagerState internal constructor(
 //    }
 
     internal fun snapToItem(page: Int, offsetFraction: Float, forceRemeasure: Boolean) {
-        val distance = animatedScrollScope.calculateDistanceTo(page) + offsetFraction * pageSizeWithSpacing
-        dispatchRawDelta(distance)
+        scrollPosition.requestPositionAndForgetLastKnownKey(page, offsetFraction)
+        if (forceRemeasure) {
+            remeasurement?.forceRemeasure()
+        } else {
+            measurementScopeInvalidator.invalidateScope()
+        }
     }
 
     internal val measurementScopeInvalidator = ObservableScopeInvalidator()

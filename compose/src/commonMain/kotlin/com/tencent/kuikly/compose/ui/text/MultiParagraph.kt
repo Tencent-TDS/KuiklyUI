@@ -62,6 +62,12 @@ class MultiParagraph(
     }
 
     /**
+     * 字符包围盒缓存：offset → Rect。生命周期与本实例一致，文本或布局变化会重建实例、
+     * 缓存随之失效。仅在 UI 线程 draw 阶段访问（`drawBehind` 内按字符定位画线），单线程读写不加锁。
+     */
+    private val boundingBoxCache = HashMap<Int, Rect>()
+
+    /**
      * 文本行数。提供 [lineMetricsFn] 时取自 native 回填值，否则取构造传入值
      *（如 CoreTextField 等无行度量场景）。
      */
@@ -98,8 +104,12 @@ class MultiParagraph(
 
     /**
      * Returns the bounding box of the character for given character offset.
-     * 通过 [getBoundingBoxFn] 向 native 端查询（Android / iOS / OHOS 原生文本布局）。
+     * 通过 [getBoundingBoxFn] 向 native 端查询（Android / iOS / OHOS 原生文本布局），
+     * 同 offset 首次查询后写入 [boundingBoxCache]，之后命中缓存。
+     * [getBoundingBoxFn] 为 null（如 CoreTextField）时返回零矩形，不写缓存。
      */
-    fun getBoundingBox(offset: Int): Rect =
-        getBoundingBoxFn?.invoke(offset) ?: Rect(0f, 0f, 0f, 0f)
+    fun getBoundingBox(offset: Int): Rect {
+        val fn = getBoundingBoxFn ?: return Rect(0f, 0f, 0f, 0f)
+        return boundingBoxCache.getOrPut(offset) { fn(offset) }
+    }
 }

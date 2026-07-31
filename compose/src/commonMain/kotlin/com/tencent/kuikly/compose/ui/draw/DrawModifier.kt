@@ -138,6 +138,16 @@ internal class DrawBackgroundModifier(
      */
     private val bgDrawScope = CanvasDrawScope()
 
+    /**
+     * 记录上一次真正下发给背景 CanvasView 的 frame（dp）。
+     * 当本次 frame 与上次完全一致时跳过重复的跨端 setFrame 调用。
+     * NaN 表示尚未下发过。
+     */
+    private var lastBgX: Float = Float.NaN
+    private var lastBgY: Float = Float.NaN
+    private var lastBgW: Float = Float.NaN
+    private var lastBgH: Float = Float.NaN
+
     override fun ContentDrawScope.draw(view: DeclarativeBaseView<*, *>?) {
         if (view is CanvasView) {
             requireOwner().snapshotObserver.observeReads(
@@ -178,6 +188,7 @@ internal class DrawBackgroundModifier(
         }
         // RichTextView 等自测量组件的 flexNode.layoutFrame 为 0，真位置在 renderView.currentFrame
         val frame = hostView.renderView?.currentFrame ?: return
+
         val bg = CanvasView()
         var addedToParent = false
         try {
@@ -189,6 +200,7 @@ internal class DrawBackgroundModifier(
             addedToParent = true
             parent.insertDomSubView(bg, 0)
             bgCanvasView = bg
+            resetDebounceState()
         } catch (e: Throwable) {
             KLog.e("Kuikly.Compose", "drawBehind bgCanvas: ensure failed: ${e.message}")
             // 半挂状态回滚：addChild 成功但后续步骤失败时，onDetach 无法通过 bgCanvasView
@@ -198,6 +210,13 @@ internal class DrawBackgroundModifier(
                 runCatching { parent.removeChild(bg) }
             }
         }
+    }
+
+    private fun resetDebounceState() {
+        lastBgX = Float.NaN
+        lastBgY = Float.NaN
+        lastBgW = Float.NaN
+        lastBgH = Float.NaN
     }
 
     /**
@@ -223,7 +242,16 @@ internal class DrawBackgroundModifier(
             val density = requireDensity().density
             val bgWidthDp = scopeSize.width / density
             val bgHeightDp = scopeSize.height / density
-            bgRender.setFrame(posFrame.x, posFrame.y, bgWidthDp, bgHeightDp)
+            // frame 与上次完全一致时跳过 setFrame；重复下发不会改变视觉结果。
+            val frameUnchanged = bgWidthDp == lastBgW && bgHeightDp == lastBgH &&
+                posFrame.x == lastBgX && posFrame.y == lastBgY
+            if (!frameUnchanged) {
+                bgRender.setFrame(posFrame.x, posFrame.y, bgWidthDp, bgHeightDp)
+                lastBgX = posFrame.x
+                lastBgY = posFrame.y
+                lastBgW = bgWidthDp
+                lastBgH = bgHeightDp
+            }
             val bgCanvas = KuiklyCanvas()
             bgCanvas.view = bg
             val drawBlock = onDraw

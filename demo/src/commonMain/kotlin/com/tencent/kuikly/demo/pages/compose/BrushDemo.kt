@@ -15,10 +15,12 @@
 
 package com.tencent.kuikly.demo.pages.compose
 
+import androidx.compose.runtime.Composable
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.border
 import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
@@ -26,6 +28,7 @@ import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.layout.wrapContentWidth
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
@@ -35,6 +38,7 @@ import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.painter.BrushPainter
 import com.tencent.kuikly.compose.ui.layout.ContentScale
+import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
@@ -49,6 +53,11 @@ internal class BrushDemo : ComposeContainer() {
         setContent {
             ComposeNavigationBar {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item {
+                        Text("0、渐变色边框")
+                        GradientBorderWithBox()
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
                     item {
                         Text("1、垂直渐变色 - 透明到半透明黑")
                         Box(
@@ -174,6 +183,33 @@ internal class BrushDemo : ComposeContainer() {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun GradientBorderWithBox(
+    modifier: Modifier = Modifier,
+    borderWidth: Dp = 2.dp,
+    cornerRadius: Dp = 6.dp,
+    gradient: Brush = Brush.linearGradient(
+        listOf(Color(0xFF326F67), Color(0xFFA5477F), Color(0xFFE18084))
+    )
+) {
+    // 1. 边框层：比内容大一圈，画渐变背景
+    Box(
+        modifier = modifier
+            .background(gradient, RoundedCornerShape(cornerRadius))
+            .padding(borderWidth)   // 关键：露出“边框”区域
+    ) {
+        // 2. 内容层：纯色盖住中间，只留四周渐变环
+        Box(
+            modifier = Modifier
+                .background(Color.White, RoundedCornerShape(cornerRadius))
+                .padding(16.dp),   // 内容内边距
+            contentAlignment = Alignment.Center
+        ) {
+            Text("渐变色边框")
         }
     }
 }

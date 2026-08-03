@@ -55,7 +55,6 @@ import com.tencent.kuikly.compose.profiler.RecompositionTracker
 import com.tencent.kuikly.compose.profiler.kuiklySetObserver
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
-import com.tencent.kuikly.core.log.KLog
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.CoroutineContext
 
@@ -211,14 +210,7 @@ internal abstract class BaseComposeScene(
 
             frameClock.sendFrame(nanoTime) // Recomposition
             doLayout() // Layout
-            // Swallow IndexOutOfBoundsException from any effect task (not only Transition)
-            // to keep the frame loop alive. FlushCoroutineDispatcher drops remaining tasks
-            // in the batch on throw; animation/recomposition effects reschedule next frame.
-            try {
-                recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
-            } catch (e: IndexOutOfBoundsException) {
-                KLog.e("Kuikly.Compose", "performScheduledEffects failed: ${e.stackTraceToString()}")
-            }
+            recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
 
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()

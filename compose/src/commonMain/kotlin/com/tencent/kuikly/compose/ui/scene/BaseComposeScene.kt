@@ -209,17 +209,11 @@ internal abstract class BaseComposeScene(
 
             recomposer.performScheduledTasks()
 
-            // Transition.totalDurationNanos may throw IndexOutOfBoundsException while
-            // SnapshotStateObserver drains during sendFrame/applyChanges (list shrinks
-            // mid fastForEach). Swallow to keep the frame loop alive; next frame
-            // re-evaluates with a consistent snapshot.
-            try {
-                frameClock.sendFrame(nanoTime) // Recomposition
-            } catch (e: IndexOutOfBoundsException) {
-                KLog.e("Kuikly.Compose", "sendFrame failed: ${e.stackTraceToString()}")
-            }
+            frameClock.sendFrame(nanoTime) // Recomposition
             doLayout() // Layout
-            // Same class of Transition IOOB can also surface in composition effects.
+            // Swallow IndexOutOfBoundsException from any effect task (not only Transition)
+            // to keep the frame loop alive. FlushCoroutineDispatcher drops remaining tasks
+            // in the batch on throw; animation/recomposition effects reschedule next frame.
             try {
                 recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
             } catch (e: IndexOutOfBoundsException) {

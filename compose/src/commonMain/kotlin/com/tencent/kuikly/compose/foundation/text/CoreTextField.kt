@@ -453,7 +453,9 @@ internal fun CoreTextField(
                         this.modifier = propsAndEvents
                     }
                     set(hasFocus) {
-                        // startInput 在 onFocusChanged 回调中已负责调用 view.focus()，
+                        // 保留空的 set(hasFocus) 以将 hasFocus 注册为本 Compose 节点的重组依赖：
+                        // focus 状态变化时需要触发该 update 块重新执行（复用属性追踪语义）。
+                        // 实际焦点获取由 startInput（onFocusChanged 回调中）调用 view.focus() 完成，
                         // 此处不再重复调用，避免同一次焦点事件触发两次原生 focus。
                     }
                     set(editable) {

@@ -820,8 +820,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     }
 }
 
-// CHARACTER 模式：将 NSTextAttachment 算作 1 个字符，与 Android ReplacementSpan 行为一致
-// 用于 textDidChange 回调，基于当前 attributedText 计算
+// TODO: 预留方法，当前未启用（全仓库无调用方）。
+// 意图：在 shouldChangeCharactersInRange / textDidChange 等「新文本尚未生成 attributedText」的场景，
+// 用 [xxx] placeholder 正则估算 emoji 数量来预估 CHARACTER 长度（每个占位算 1 字符，对齐 Android ReplacementSpan）。
+// 当前 length 统一走 p_calculateLengthForText: → p_calculateCharacterLengthForAttributedText:
+// （枚举真实 NSAttachment，结果更准）。本方法保留供后续「输入前限长预校验」切换使用；
+// 请勿误以为 length 已走此分支。
 - (NSUInteger)p_calculateCharacterLength {
     return [self p_calculateCharacterLengthForText:self.text];
 }

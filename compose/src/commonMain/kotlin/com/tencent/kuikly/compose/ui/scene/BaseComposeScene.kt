@@ -213,12 +213,16 @@ internal abstract class BaseComposeScene(
             // synchronously drain official Jetpack Compose SnapshotStateObservers. If main-thread
             // official UI (e.g. androidx.compose.animation.Transition) is updated concurrently,
             // IndexOutOfBoundsException may surface here — not fixable in official Compose.
+            // Only swallow IOOB from that path; rethrow other IOOB so real bugs still crash.
             try {
                 frameClock.sendFrame(nanoTime) // Recomposition
             } catch (e: IndexOutOfBoundsException) {
+                if (!e.isOfficialTransitionTotalDurationIoob()) {
+                    throw e
+                }
                 KLog.e(
                     "Kuikly.Compose",
-                    "sendFrame IndexOutOfBoundsException (often official Compose on shared Snapshot): ${e.stackTraceToString()}",
+                    "sendFrame IndexOutOfBoundsException (official Compose Transition on shared Snapshot): ${e.stackTraceToString()}",
                 )
                 if (frameSampled) {
                     tracker?.onFrameEnd(0)
@@ -268,6 +272,19 @@ internal abstract class BaseComposeScene(
         // notifyOverlayIfNeeded 可能写了 Compose State，需要再次检查是否需要调度新帧
         invalidateIfNeeded()
     }
+
+    /**
+     * Whether this IOOB is thrown while recomputing official Jetpack Compose
+     * [androidx.compose.animation.core.Transition.totalDurationNanos] (e.g. when Kuikly's
+     * sendFrame drains shared snapshot observers on HRContextQueueHandlerThread).
+     *
+     * Note: matches observed stack frames; may miss if obfuscation/merge strips names.
+     */
+    private fun IndexOutOfBoundsException.isOfficialTransitionTotalDurationIoob(): Boolean =
+        stackTrace.any {
+            it.className == "androidx.compose.animation.core.Transition" &&
+                it.methodName == "calculateTotalDurationNanos"
+        }
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun sendPointerEvent(

@@ -254,7 +254,7 @@ class MyComposePage : ComposeContainer() {
 
 `enableConsumeSnapshot` 仅关闭 Kuikly `GlobalSnapshotManager` 对全局 write observer 的主动消费，**不影响** Recomposer 自身的 snapshot apply 路径。
 
-**框架侧处理**（Kuikly 2.x+）：`BaseComposeScene.render` 在 `sendFrame` 捕获上述 `IndexOutOfBoundsException`，跳过本帧 layout/draw 并调度下一帧，避免整页崩溃。日志 tag 为 `Kuikly.Compose`。
+**框架侧处理**（Kuikly 2.x+）：`BaseComposeScene.render` 在 `sendFrame` 捕获 **仅当异常栈命中官方** `androidx.compose.animation.core.Transition.calculateTotalDurationNanos` 的 `IndexOutOfBoundsException`，跳过本帧 layout/draw 并调度下一帧，避免整页崩溃；其它 IOOB 仍会 crash，便于发现真实 bug。日志 tag 为 `Kuikly.Compose`。
 
 **业务侧建议**：
 

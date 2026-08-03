@@ -19,16 +19,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.animation.core.tween
 import com.tencent.kuikly.compose.foundation.background
+import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.PaddingValues
+import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxHeight
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
@@ -42,6 +49,9 @@ import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.extension.bouncesEnable
 import com.tencent.kuikly.core.annotations.Page
+import kotlinx.coroutines.launch
+import kotlin.math.max
+import kotlin.math.min
 
 @Page("HorizontalPagerDemo3")
 class HorizontalPagerDemo3 : ComposeContainer() {
@@ -68,6 +78,119 @@ class HorizontalPagerDemo3 : ComposeContainer() {
                         initialPage = 0,
                         initialPageOffsetFraction = 0f,
                     ) { 10 }
+                val scope = rememberCoroutineScope()
+
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Blue)
+                                    .clickable {
+                                        scope.launch {
+                                            pagerState.scrollToPage(max(0, pagerState.currentPage - 2))
+                                        }
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("scrollToPage -2", color = Color.White)
+                        }
+
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Blue)
+                                    .clickable {
+                                        scope.launch {
+                                            pagerState.scrollToPage(min(9, pagerState.currentPage + 2))
+                                        }
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("scrollToPage +2", color = Color.White)
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Green)
+                                    .clickable {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(
+                                                max(0, pagerState.currentPage - 3),
+                                                animationSpec = tween(4_000),
+                                            )
+                                        }
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("动画滚动 -3", color = Color.White)
+                        }
+
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Green)
+                                    .clickable {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(min(9, pagerState.currentPage + 3))
+                                        }
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("动画滚动 +3", color = Color.White)
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Yellow)
+                                    .clickable {
+                                        pagerState.requestScrollToPage(max(0, pagerState.currentPage - 4))
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("requestScrollToPage -4", color = Color.Black)
+                        }
+
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(140.dp, 40.dp)
+                                    .background(Color.Yellow)
+                                    .clickable {
+                                        pagerState.requestScrollToPage(min(9, pagerState.currentPage + 4))
+                                    },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("requestScrollToPage +4", color = Color.Black)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
 
                 // 测试用的 Pager
                 HorizontalPager(

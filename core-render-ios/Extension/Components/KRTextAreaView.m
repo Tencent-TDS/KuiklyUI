@@ -27,7 +27,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
  */
-@interface KRTextAreaView()<UITextViewDelegate>
+@interface KRTextAreaView()<UITextViewDelegate, UIGestureRecognizerDelegate>
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
 /** attr is lineHeight */
@@ -381,16 +381,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
             self.css_textLengthBeyondLimit(@{});
         }
         if (self.css_textInputStateChange) {
-            NSString *outputText = [self p_outputText];
-            NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-            self.css_textInputStateChange(@{
-                @"text": outputText ?: @"",
-                @"selectionStart": @(outputSelectionRange.location),
-                @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-                @"compositionStart": @(-1),
-                @"compositionEnd": @(-1),
-                @"length": @([self p_calculateLengthForText:outputText])
-            });
+            self.css_textInputStateChange([self p_currentTextInputStatePayload]);
         }
         return;
     }
@@ -409,6 +400,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [self becomeFirstResponder];
     }
     _ignoreTextDidChanged = YES;
+    // Emoji 表情输入时文字候选区闪烁
+    // 关键：程序化改文本/设选区期间，临时摘掉 inputDelegate。否则 UITextView 会在 textStorage 变更、selectedTextRange 赋值时，
+    // 自动向 inputDelegate（键盘）发 selection/text WillChange/DidChange，键盘据此重算 QuickType 预测 → 候选条闪烁。摘掉后系统内部通知发不出去。
+    // macOS 的 NSTextView 无 inputDelegate / UITextInputDelegate 机制，也不存在 QuickType 候选条，跳过即可。
+#if !TARGET_OS_OSX
+    id<UITextInputDelegate> savedInputDelegate = self.inputDelegate;
+    self.inputDelegate = nil;
+#endif
+
     NSString *currentRawText = [self p_outputText];
     BOOL textChanged = ![currentRawText isEqualToString:rawText];
     BOOL needsPostProcessor = textChanged || [self p_shouldReapplyTextPostProcessorForIncomingRawText:rawText];
@@ -436,36 +436,23 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (startPos && endPos) {
         self.selectedTextRange = [self textRangeFromPosition:startPos toPosition:endPos];
     }
+    // 还原 inputDelegate，恢复后续正常键盘输入的通知链路
+    // 这里是界限的终点
+#if !TARGET_OS_OSX
+    self.inputDelegate = savedInputDelegate;
+#endif
     _ignoreTextDidChanged = NO;
 
     // 触发 textInputStateChange 回调，通知长度变化
     if (self.css_textInputStateChange) {
-        NSString *outputText = [self p_outputText];
-        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-        self.css_textInputStateChange(@{
-            @"text": outputText ?: @"",
-            @"selectionStart": @(outputSelectionRange.location),
-            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-            @"compositionStart": @(-1),
-            @"compositionEnd": @(-1),
-            @"length": @([self p_calculateLengthForText:outputText])
-        });
+        self.css_textInputStateChange([self p_currentTextInputStatePayload]);
     }
 }
 
 - (void)css_getTextInputState:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
-        NSString *rawText = [self p_outputText];
-        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-        callback(@{
-            @"text": rawText ?: @"",
-            @"selectionStart": @(outputSelectionRange.location),
-            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-            @"compositionStart": @(-1),
-            @"compositionEnd": @(-1),
-            @"length": @([self p_calculateLengthForText:rawText])
-        });
+        callback([self p_currentTextInputStatePayload]);
     }
 }
 
@@ -703,16 +690,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 
     if (self.css_textInputStateChange) {
-        NSString *rawText = [self p_outputText];
-        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-        self.css_textInputStateChange(@{
-            @"text": rawText ?: @"",
-            @"selectionStart": @(outputSelectionRange.location),
-            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-            @"compositionStart": @(-1),
-            @"compositionEnd": @(-1),
-            @"length": @([self p_calculateLengthForText:rawText])
-        });
+        self.css_textInputStateChange([self p_currentTextInputStatePayload]);
     }
 }
 
@@ -723,15 +701,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (!self.css_selectionChange) {
         return;
     }
-    NSString *rawText = [self p_outputText];
-    NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-    self.css_selectionChange(@{
-        @"text": rawText ?: @"",
-        @"selectionStart": @(outputSelectionRange.location),
-        @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-        @"compositionStart": @(-1),
-        @"compositionEnd": @(-1)
-    });
+    self.css_selectionChange([self p_currentTextInputStatePayload]);
 }
 
 - (void)copy:(id)sender {
@@ -816,15 +786,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
         self.css_textDidChange(@{@"text": newRawText, @"length": @([self p_calculateLengthForText:newRawText])});
     }
     if (self.css_textInputStateChange) {
-        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
-        self.css_textInputStateChange(@{
-            @"text": newRawText,
-            @"selectionStart": @(outputSelectionRange.location),
-            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
-            @"compositionStart": @(-1),
-            @"compositionEnd": @(-1),
-            @"length": @([self p_calculateLengthForText:newRawText])
-        });
+        self.css_textInputStateChange([self p_currentTextInputStatePayload]);
     }
     [self scrollRangeToVisible:self.selectedRange];
 }
@@ -1395,6 +1357,45 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
     NSAttributedString *processedAttributedText = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:rawAttributedText textPostProcessor:processor];
     return processedAttributedText ?: rawAttributedText;
+}
+
+- (NSRange)p_currentMarkedInputRange {
+    UITextRange *markedRange = self.markedTextRange;
+    if (!markedRange) {
+        return NSMakeRange(NSNotFound, 0);
+    }
+    NSInteger compositionStart = [self offsetFromPosition:self.beginningOfDocument toPosition:markedRange.start];
+    NSInteger compositionEnd = [self offsetFromPosition:self.beginningOfDocument toPosition:markedRange.end];
+    if (compositionStart < 0 || compositionEnd < 0) {
+        return NSMakeRange(NSNotFound, 0);
+    }
+    NSUInteger start = (NSUInteger)MIN(compositionStart, compositionEnd);
+    NSUInteger end = (NSUInteger)MAX(compositionStart, compositionEnd);
+    return NSMakeRange(start, end - start);
+}
+
+- (NSDictionary *)p_textInputStatePayloadWithRawText:(NSString *)rawText selectionRange:(NSRange)selectionRange compositionRange:(NSRange)compositionRange {
+    NSString *resolvedText = rawText ?: @"";
+    NSInteger compositionStart = compositionRange.location == NSNotFound ? -1 : (NSInteger)compositionRange.location;
+    NSInteger compositionEnd = compositionRange.location == NSNotFound ? -1 : (NSInteger)NSMaxRange(compositionRange);
+    return @{
+        @"text": resolvedText,
+        @"selectionStart": @(selectionRange.location),
+        @"selectionEnd": @(NSMaxRange(selectionRange)),
+        @"compositionStart": @(compositionStart),
+        @"compositionEnd": @(compositionEnd),
+        @"length": @([self p_calculateLengthForText:resolvedText])
+    };
+}
+
+- (NSDictionary *)p_currentTextInputStatePayload {
+    NSString *rawText = [self p_outputText];
+    NSRange outputSelectionRange = [self p_getOutputSelectionRange];
+    NSRange markedInputRange = [self p_currentMarkedInputRange];
+    NSRange outputCompositionRange = markedInputRange.location == NSNotFound ? NSMakeRange(NSNotFound, 0) : [self p_getOutputRangeWithInputRange:markedInputRange];
+    return [self p_textInputStatePayloadWithRawText:rawText
+                                     selectionRange:outputSelectionRange
+                                   compositionRange:outputCompositionRange];
 }
 
 - (NSUInteger)p_getOutputCursorIndex {

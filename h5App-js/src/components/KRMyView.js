@@ -21,6 +21,24 @@ export class KRMyView {
   }
 
   /**
+   * Called when view is added to parent.
+   * Keep this method for runtime interface compatibility.
+   * @param {HTMLElement} parent
+   */
+  onAddToParent(parent) {
+    // no-op
+  }
+
+  /**
+   * Called when view is removed from parent.
+   * Keep this method for runtime interface compatibility.
+   * @param {HTMLElement} parent
+   */
+  onRemoveFromParent(parent) {
+    // no-op
+  }
+
+  /**
    * Set property
    * @param {string} propKey - Property key
    * @param {*} propValue - Property value
@@ -32,7 +50,33 @@ export class KRMyView {
         this.ele.innerHTML = propValue;
         return true;
       default:
-        return false;
+        return this._setCommonProp(propKey, propValue);
+    }
+  }
+
+  /**
+   * Fallback to common property processor exported from Kotlin runtime.
+   * This mirrors Kotlin KRMyView's `else -> super.setProp(...)` behavior.
+   *
+   * @param {string} propKey
+   * @param {*} propValue
+   * @returns {boolean}
+   * @private
+   */
+  _setCommonProp(propKey, propValue) {
+    const renderWebModule = window?.com?.tencent?.kuikly?.core?.render?.web;
+    const commonPropBridge =
+      renderWebModule?.runtime?.web?.expand?.setCommonProp
+      || renderWebModule?.runtime?.expand?.setCommonProp;
+
+    if (typeof commonPropBridge !== 'function') {
+      return false;
+    }
+
+    try {
+      return !!commonPropBridge(this.ele, propKey, propValue);
+    } catch (_) {
+      return false;
     }
   }
 

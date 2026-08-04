@@ -6,6 +6,8 @@ import kotlin.js.JsExport
 import kotlin.js.JsName
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
 import com.tencent.kuikly.core.render.web.ktx.SizeI
+import com.tencent.kuikly.core.render.web.ktx.setCommonProp
+import org.w3c.dom.Element
 
 /**
  * JS Interop Helper Functions
@@ -36,4 +38,13 @@ fun emptyListForJs(): List<Any> = emptyList()
 fun jsObjectToMap(jsObject: dynamic, keys: Array<String>): MutableMap<String, Any> {
     val map = FastMutableMap<String, Any>(jsObject)
     return map
+}
+
+/**
+ * Stable JS bridge for common prop handling.
+ */
+@JsExport
+@JsName("setCommonProp")
+fun setCommonPropForJs(element: Element, key: String, value: Any): Boolean {
+    return element.setCommonProp(key, value)
 }

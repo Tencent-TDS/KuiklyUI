@@ -171,6 +171,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),
             DemoItem("iOS键盘InputTextField", "业务侧 InputTextField iOS 键盘复现", "IosKeyboardInputTextFieldDemo"),
+            DemoItem("DrawBehind", "drawBehind + pathEffect 虚线能力验证：不同宿主组件（含 LazyColumn 本体）", "DrawBehindDemo"),
         )
 
     @Composable

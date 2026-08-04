@@ -56,3 +56,7 @@ proto/**/*.kt
 /.claude-internal
 /.cursor/
 .mcp.json
+
+## Local IDE / tool noise
+.vscode/
+.hvigor/

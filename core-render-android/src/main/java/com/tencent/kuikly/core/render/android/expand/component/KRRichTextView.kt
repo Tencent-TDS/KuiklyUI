@@ -609,8 +609,101 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             METHOD_IS_LINE_BREAK_MARGIN -> {
                 return if (textProps.isLineBreakMargin) "1" else "0"
             }
+            METHOD_GET_LINE_METRICS -> {
+                return getLineMetrics()
+            }
+            METHOD_GET_BOUNDING_BOX -> {
+                val offset = params.toIntOrNull() ?: 0
+                val r = getCharBoundingBox(offset)
+                return "${r.left} ${r.top} ${r.right} ${r.bottom}"
+            }
         }
         return null
+    }
+
+    /**
+     * 返回所有行的度量信息（dp + offset），格式："N top0 bottom0 start0 end0 ..."
+     * 供 Compose 层 TextLayoutResult.lineCount / getLineTop / getLineBottom /
+     * getLineStart / getLineEnd 使用；其中 end 为 exclusive。
+     * 仅在 measure（calculateRenderViewSize）之后调用，textDrawer.textLayout 已就绪。
+     */
+    private fun getLineMetrics(): String {
+        val layout = textDrawer?.textLayout ?: return "0"
+        val n = layout.lineCount
+        val sb = StringBuilder()
+        sb.append(n)
+        for (i in 0 until n) {
+            // 用 toDpF（浮点 dp）而非 toDpI（取整整数 dp），与 iOS %.2f / OHOS std::to_string
+            // 的浮点精度对齐，避免虚线定位最大偏差 0.5dp
+            sb.append(' ').append(kuiklyRenderContext.toDpF(layout.getLineTop(i).toFloat()))
+            sb.append(' ').append(kuiklyRenderContext.toDpF(layout.getLineBottom(i).toFloat()))
+            sb.append(' ').append(layout.getLineStart(i))
+            sb.append(' ').append(layout.getLineEnd(i))
+        }
+        return sb.toString()
+    }
+
+    /**
+     * 返回指定 offset 处字符的包围盒（dp），格式：left top right bottom。
+     * 优先用 Layout.getSelectionPath 取得字符在视觉顺序上的水平范围，
+     * 再配合 getLineTop/Bottom 统一成整行高度语义，与 iOS/OHOS 保持一致。
+     * 这样 LTR/RTL/bidi 都能得到稳定的 left/right。
+     */
+    private fun getCharBoundingBox(offset: Int): RectF {
+        val rect = RectF(0f, 0f, 0f, 0f)
+        val layout = textDrawer?.textLayout ?: return rect
+        val textLen = layout.text.length
+        if (textLen <= 0) {
+            return rect
+        }
+        val safeOffset = offset.coerceIn(0, textLen - 1)
+        val line = layout.getLineForOffset(safeOffset)
+        val nextOffset = (safeOffset + 1).coerceAtMost(textLen)
+        val sameLine = nextOffset <= textLen &&
+            (nextOffset == textLen || layout.getLineForOffset(nextOffset) == line)
+
+        val startHorizontal = layout.getPrimaryHorizontal(safeOffset)
+        val fallbackEndHorizontal = if (sameLine && nextOffset < textLen) {
+            layout.getPrimaryHorizontal(nextOffset)
+        } else if (layout.isRtlCharAt(safeOffset)) {
+            layout.getLineLeft(line)
+        } else {
+            layout.getLineRight(line)
+        }
+
+        // 仅当 [safeOffset, nextOffset) 位于同一行时才用 getSelectionPath 取视觉边界；
+        // 若 nextOffset 已跨到下一行，Layout.getSelectionPath 会把第一行选区扩展到行末，
+        // 导致 bounds 为整行盒（left=0、right=lineRight），跨行字符包围盒退化为整行，
+        // 直接偏移出错。因此跨行时回退到 primaryHorizontal + 行边界方案。
+        val useSelectionPath = sameLine
+        val selectionBounds = if (useSelectionPath) {
+            val selectionPath = Path()
+            val bounds = RectF()
+            layout.getSelectionPath(safeOffset, nextOffset, selectionPath)
+            selectionPath.computeBounds(bounds, false)
+            bounds
+        } else {
+            null
+        }
+
+        val left = if (selectionBounds == null || selectionBounds.isEmpty) {
+            minOf(startHorizontal, fallbackEndHorizontal)
+        } else {
+            selectionBounds.left
+        }
+        val right = if (selectionBounds == null || selectionBounds.isEmpty) {
+            maxOf(startHorizontal, fallbackEndHorizontal)
+        } else {
+            selectionBounds.right
+        }
+        val top = layout.getLineTop(line)
+        val bottom = layout.getLineBottom(line)
+        // 同 getLineMetrics：toDpF 浮点精度，与 iOS/OHOS 对齐
+        rect.left = kuiklyRenderContext.toDpF(left)
+        rect.top = kuiklyRenderContext.toDpF(top.toFloat())
+        rect.right = kuiklyRenderContext.toDpF(right)
+        rect.bottom = kuiklyRenderContext.toDpF(bottom.toFloat())
+        return rect
     }
 
     /**
@@ -928,6 +1021,8 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     companion object {
         private const val METHOD_GET_PLACEHOLDER_SPAN_RECT = "spanRect"
         private const val METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
+        private const val METHOD_GET_LINE_METRICS = "lineMetrics"
+        private const val METHOD_GET_BOUNDING_BOX = "getBoundingBox"
     }
 }
 

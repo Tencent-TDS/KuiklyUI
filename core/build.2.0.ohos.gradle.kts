@@ -53,6 +53,7 @@ kotlin {
         val ohos by main.cinterops.creating {
             defFile = file("src/ohosArm64Main/ohosInterop/cinterop/ohos.def")
             includeDirs(file("src/ohosArm64Main/ohosInterop/include"))
+            includeDirs(file("../core-render-ohos/src/main/cpp/libohos_render"))
 
             // Add HarmonyOS SDK include paths (Windows only)
             if (System.getProperty("os.name").lowercase().contains("windows")) {

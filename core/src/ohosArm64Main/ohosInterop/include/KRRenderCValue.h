@@ -13,35 +13,6 @@
  * limitations under the License.
  */
 
-#ifndef MYAPPLICATION_KRRENDERCVALUE_H
-#define MYAPPLICATION_KRRENDERCVALUE_H
-#include <bits/alltypes.h>
-#include <stdint.h>
-
-typedef struct KRRenderCValue {
-    // 定义一个枚举类型来表示值的类型
-    enum Type { NULL, INT, LONG, FLOAT, DOUBLE, BOOL, STRING, BYTES, ARRAY } type;
-
-    // 定义一个联合体来存储不同类型的值
-    union Value {
-        int32_t intValue;
-        int64_t longValue;
-        float floatValue;
-        double doubleValue;
-        int boolValue;
-        char *stringValue;
-        char *bytesValue;
-        struct KRRenderCValue *arrayValue;
-    } value;
-
-    int32_t size;
-    
-} KRRenderCValue;
-
-//extern "C" { // kotlin interop tool does not recognize extern "C" syntax, commenting it out.
-typedef void (*CallKotlin)(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
-extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
-extern void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1, const KRRenderCValue *arg2,
-                                                          const KRRenderCValue *arg3, const KRRenderCValue *arg4, const KRRenderCValue *arg5, KRRenderCValue *result);
-//}
-#endif //MYAPPLICATION_KRRENDERCVALUE_H
+// Redirect to the canonical version in core-render-ohos.
+// Do not duplicate content here; all typedefs and structs live there.
+#include "foundation/type/KRRenderCValue.h"

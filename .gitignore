@@ -56,3 +56,6 @@ proto/**/*.kt
 /.claude-internal
 /.cursor/
 .mcp.json
+# local build logs
+build_2.0.log
+ohos_build.log

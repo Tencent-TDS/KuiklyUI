@@ -37,7 +37,7 @@ import platform.posix.int32_t
 fun Any?.toKRRenderCValue(memScope: MemScope, renderCValue: KRRenderCValue): KRRenderCValue {
     // 优化：null 提前返回，避免走 8 次 instanceof 检查
     if (this == null) {
-        renderCValue.type = Type.NULL
+        renderCValue.type = Type.NULL_VALUE
         renderCValue.value.intValue = 0
         return renderCValue
     }
@@ -86,7 +86,7 @@ fun Any?.toKRRenderCValue(memScope: MemScope, renderCValue: KRRenderCValue): KRR
             renderCValue.value.arrayValue = cArray
         }
         else -> {
-            renderCValue.type = Type.NULL
+            renderCValue.type = Type.NULL_VALUE
             renderCValue.value.intValue = 0
         }
     }

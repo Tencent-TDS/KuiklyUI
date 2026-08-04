@@ -4,6 +4,8 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
@@ -41,6 +43,21 @@ internal class PageDataTestPage : BasePager() {
         sb.appendLine("safeAreaInsets: ${pageData.safeAreaInsets}")
         sb.appendLine("androidBottomBavBarHeight: ${pageData.androidBottomBavBarHeight}")
         allPageDataInfo = sb.toString()
+    }
+
+    override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
+        super.onReceivePagerEvent(pagerEvent, eventData)
+        if (pagerEvent == "rootViewSizeDidChanged") {
+            val w = pageData.pageViewWidth
+            val h = pageData.pageViewHeight
+            KLog.d(
+                "PageDataTestPage",
+                "rootViewSizeDidChanged pageData: pageView=${w}x${h}, " +
+                    "activity=${pageData.activityWidth}x${pageData.activityHeight}, " +
+                    "device=${pageData.deviceWidth}x${pageData.deviceHeight}, " +
+                    "safeArea=${pageData.safeAreaInsets}, density=${pageData.density}, params=${pageData.params}"
+            )
+        }
     }
 
     override fun body(): ViewBuilder {

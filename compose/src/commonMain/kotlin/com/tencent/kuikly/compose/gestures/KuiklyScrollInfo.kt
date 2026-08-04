@@ -146,6 +146,13 @@ class KuiklyScrollInfo {
     var pullToRefreshTopInsetPx: Int = 0
 
     /**
+     * 控制 ignoreScrollOffset 的清除策略：
+     * - false（默认）：仅在 matched 时清除 ignoreScrollOffset，所有 ignore 期间的 scroll 事件都跳过
+     * - true：无论是否 matched 都立即清除 ignoreScrollOffset，仅在 matched 时跳过 scroll 事件
+     */
+    var forceClearIgnoreOffset: Boolean = false
+
+    /**
      * Cached total number of items, used to detect changes in item count
      */
     var cachedTotalItems: Int = 0

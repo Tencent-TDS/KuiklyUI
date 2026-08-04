@@ -235,6 +235,15 @@ ro.observe(container)
 
 > 说明：
 > - `updateRootViewSize` 内部会向 Kuikly Pager 派发 `rootViewSizeDidChanged` 事件，同步更新 `PageData.pageViewWidth / pageViewHeight`（以及 `deviceWidth / deviceHeight`），业务代码里基于 `pageData.pageViewWidth` 的百分比 / flex 布局会自动重算。
+
+> - **业务实时获取 size 的方法**：
+>   1. 直接读取 `pageData`（如 `pageData.pageViewWidth / pageData.pageViewHeight`），适合在布局计算时按需取最新值。
+>   2. 监听 `rootViewSizeDidChanged` 事件后读取 `pageData`，适合需要在尺寸变化时执行命令式逻辑。
+
+> - **参考示例位置**：
+>   - 页面示例（打印/展示 `pageData`，含 `onReceivePagerEvent` 监听）：`demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/PageDataTestPage.kt`
+>   - 页面事件用法文档（`onReceivePagerEvent`、`addPagerEventObserver`）：`docs/DevGuide/pager-event.md`
+
 > - `?.` 是有意为之：若首帧极早时 renderView 尚未就绪，`getKuiklyRenderContext()` 可能返回 `null`，此时安全跳过；等 renderView 就绪后，后续 resize 都会被正常派发。
 > - 方式 A 与方式 B 可以共存（内部会去重同尺寸事件），但通常**二选一**即可，避免维护负担。
 

@@ -110,8 +110,144 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
         return SpanRect(NewKRRenderValue(params)->toInt());
     } else if(method_name == "isLineBreakMargin"){
         return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
+    } else if (method_name == "lineMetrics") {
+        return NewKRRenderValue(LineMetrics());
+    } else if (method_name == "getBoundingBox") {
+        return NewKRRenderValue(BoundingBox(NewKRRenderValue(params)->toInt()));
     }
     return KRRenderValue::Make(nullptr);
+}
+
+// 返回所有行度量（dp + offset），格式 "N top0 bottom0 start0 end0 ..."，与 Android 对齐。
+// top/bottom 为行顶/行底的绝对 y 坐标；start/end 为字符范围，其中 end 为 exclusive。
+// 数据源与 KRRichTextView::GetParagraphInfo 同源（GetLineInfo）。
+// 注意线程模型：本方法经 Call() 由 Kotlin 侧惰性触发——行度量/字符盒查询是 lazy 闭包，
+// 首次调用可能发生在 measure 阶段，也可能延后到 drawBehind 的 draw 阶段。无论哪个阶段，
+// 该调用都依赖仍运行在 context 线程、且 context_thread_typography_ 仍是当前布局周期建立、
+// 未被 SetContextTypography 重建的那一份。据此必须访问 context 线程自有的
+// context_thread_typography_（而非 main 线程自有的 main_thread_typography_），否则会与
+// 主线程 SetMainThreadTypography 形成跨线程数据竞争导致 cppcrash。先拷一份强引用再取裸指针，
+// 对齐 SpanRect 的惯用法。
+std::string KRRichTextShadow::LineMetrics() {
+    KRTypographyHandle typo = context_thread_typography_;
+    OH_Drawing_Typography *typo_raw = typo ? typo.get() : nullptr;
+    if (typo_raw == nullptr) {
+        return "0";
+    }
+    auto dpi = KRConfig::GetDpi();
+    // dpi 异常时（初始化未完成/配置错误）直接返回空结果，避免除零产生 inf/NaN 传染到上层几何。
+    if (dpi <= 0.f) {
+        return "0";
+    }
+    size_t lineCount = OH_Drawing_TypographyGetLineCount(typo_raw);
+    std::string result = std::to_string(lineCount);
+    for (size_t i = 0; i < lineCount; ++i) {
+        OH_Drawing_LineMetrics lineMetrics;
+        OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lineMetrics);
+        float top = lineMetrics.y / dpi;
+        float bottom = (lineMetrics.y + lineMetrics.height) / dpi;
+        result += " " + std::to_string(top);
+        result += " " + std::to_string(bottom);
+        result += " " + std::to_string(lineMetrics.startIndex);
+        result += " " + std::to_string(lineMetrics.endIndex);
+    }
+    return result;
+}
+
+// 返回 offset 处字符包围盒（dp），格式 "left top right bottom"，与 Android 对齐。
+// left/right 取字符水平范围（GetRectsForRange）；top/bottom 取所在行顶/底（对齐 Android 整行高度语义）。
+// 同 LineMetrics：经 Call() 由 Kotlin 侧惰性触发，首访可能在 measure 也可能延后到 draw 阶段，
+// 依赖调用仍在 context 线程、且 context_thread_typography_ 为当前布局周期有效那一份；
+// 访问 context 线程自有的 context_thread_typography_ 并先拷强引用，避免与 main 线程 typography 跨线程竞争。
+std::string KRRichTextShadow::BoundingBox(int offset) {
+    KRTypographyHandle typo = context_thread_typography_;
+    OH_Drawing_Typography *typo_raw = typo ? typo.get() : nullptr;
+    if (typo_raw == nullptr) {
+        return "0 0 0 0";
+    }
+    auto dpi = KRConfig::GetDpi();
+    // 同 LineMetrics：dpi 异常时直接返回空 Rect，避免除零。
+    if (dpi <= 0.f) {
+        return "0 0 0 0";
+    }
+    // 先扫一遍 lineInfo 得到总长 textLen，并把 offset 钳制到 [0, textLen-1]，与 Android/iOS 对齐。
+    // 越界的 offset 直接喂给 OH_Drawing_TypographyGetRectsForRange 行为未定义（潜在 native crash / 脏数据）。
+    size_t lineCount = OH_Drawing_TypographyGetLineCount(typo_raw);
+    int textLen = 0;
+    for (size_t i = 0; i < lineCount; ++i) {
+        OH_Drawing_LineMetrics lm;
+        OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lm);
+        // endIndex 为 exclusive，与 KRRichTextView::GetSelectionRectsAll / GetParagraphInfo
+        // 一致，也与 Android getLineEnd / iOS NSMaxRange 对齐。
+        int end = static_cast<int>(lm.endIndex);
+        if (end > textLen) {
+            textLen = end;
+        }
+    }
+    if (textLen <= 0) {
+        return "0 0 0 0";
+    }
+    int safeOffset = offset;
+    if (safeOffset < 0) {
+        safeOffset = 0;
+    } else if (safeOffset > textLen - 1) {
+        safeOffset = textLen - 1;
+    }
+    // 定位 safeOffset 所在行，取行顶/行底，并在多 box 时只认这一行的字符盒。
+    float lineTop = 0;
+    float lineBottom = 0;
+    bool foundLine = false;
+    for (size_t i = 0; i < lineCount; ++i) {
+        OH_Drawing_LineMetrics lineMetrics;
+        OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lineMetrics);
+        if (safeOffset >= static_cast<int>(lineMetrics.startIndex) &&
+            safeOffset < static_cast<int>(lineMetrics.endIndex)) {
+            lineTop = lineMetrics.y / dpi;
+            lineBottom = (lineMetrics.y + lineMetrics.height) / dpi;
+            foundLine = true;
+            break;
+        }
+    }
+    // 取字符水平范围。这里改用 TIGHT/TIGHT 的逐字符盒，避免 MAX/MAX 在行末 offset+1
+    // 跨到下一行时返回跨行膨胀的大盒。若仍出现多个 box，只选当前行重叠的那个。
+    float left = 0;
+    float right = 0;
+    bool selectedBox = false;
+    OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(typo_raw, safeOffset, safeOffset + 1,
+                                                                    RECT_HEIGHT_STYLE_TIGHT, RECT_WIDTH_STYLE_TIGHT);
+    if (box != nullptr) {
+        int boxCount = OH_Drawing_GetSizeOfTextBox(box);
+        for (int i = 0; i < boxCount; ++i) {
+            float boxLeft = OH_Drawing_GetLeftFromTextBox(box, i) / dpi;
+            float boxRight = OH_Drawing_GetRightFromTextBox(box, i) / dpi;
+            float boxTop = OH_Drawing_GetTopFromTextBox(box, i) / dpi;
+            float boxBottom = OH_Drawing_GetBottomFromTextBox(box, i) / dpi;
+            bool sameLine = !foundLine || !(boxBottom <= lineTop || boxTop >= lineBottom);
+            if (sameLine) {
+                left = boxLeft;
+                right = boxRight;
+                selectedBox = true;
+                if (!foundLine) {
+                    lineTop = boxTop;
+                    lineBottom = boxBottom;
+                }
+                break;
+            }
+        }
+        if (!selectedBox && boxCount > 0) {
+            left = OH_Drawing_GetLeftFromTextBox(box, 0) / dpi;
+            right = OH_Drawing_GetRightFromTextBox(box, 0) / dpi;
+            if (!foundLine) {
+                lineTop = OH_Drawing_GetTopFromTextBox(box, 0) / dpi;
+                lineBottom = OH_Drawing_GetBottomFromTextBox(box, 0) / dpi;
+            }
+        }
+    }
+    if (box) {
+        OH_Drawing_TypographyDestroyTextBox(box);
+    }
+    return std::to_string(left) + " " + std::to_string(lineTop) + " " +
+           std::to_string(right) + " " + std::to_string(lineBottom);
 }
 
 /**
@@ -335,7 +471,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         spans.push_back(KRRenderValue::Make(props_));
     }
 
-    // ===== Phase 2: PostProcessor 拆段 =====
+    // ===== PostProcessor 拆段 =====
     // 仅对"纯文本 span"（没有 placeholderWidth 且无内置 image src 标记）调用一次
     // RunTextPostProcessor(processor_name, text, segs)：
     //   * processor_name 取自 props_["textPostProcessor"]（与 iOS / Android 跨端语义对齐：

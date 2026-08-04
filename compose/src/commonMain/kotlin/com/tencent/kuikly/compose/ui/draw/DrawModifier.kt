@@ -39,7 +39,10 @@ import com.tencent.kuikly.compose.ui.node.OwnerScope
 import com.tencent.kuikly.compose.ui.node.invalidateDraw
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.node.requireOwner
+import com.tencent.kuikly.compose.ui.KuiklyCanvas
+import com.tencent.kuikly.compose.ui.graphics.drawscope.CanvasDrawScope
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.CanvasView
 
@@ -119,6 +122,32 @@ internal class DrawBackgroundModifier(
     var onDraw: DrawScope.() -> Unit
 ) : Modifier.Node(), DrawModifierNode, OwnerScope {
 
+    /**
+     * drawBehind 用的背景绘制层。
+     * 文字等组件要画背景时，挂一个独立的背景视图到父容器最底层来实现。
+     *
+     * 注意：这条背景是挂在父容器里的（不是画在文字内部）。
+     * 正常从上往下、从左往右排布不受影响；
+     * 以后想完全对齐官方做法，需要把背景画进宿主自己内部。
+     */
+    private var bgCanvasView: CanvasView? = null
+
+    /**
+     * 背景 CanvasView 专用的 DrawScope（canvas 绑到 bgCanvasView）。
+     * 复用同一个 CanvasDrawScope 以复用 Paint 对象，与 LayoutNodeDrawScope 同思路。
+     */
+    private val bgDrawScope = CanvasDrawScope()
+
+    /**
+     * 记录上一次真正下发给背景 CanvasView 的 frame（dp）。
+     * 当本次 frame 与上次完全一致时跳过重复的跨端 setFrame 调用。
+     * NaN 表示尚未下发过。
+     */
+    private var lastBgX: Float = Float.NaN
+    private var lastBgY: Float = Float.NaN
+    private var lastBgW: Float = Float.NaN
+    private var lastBgH: Float = Float.NaN
+
     override fun ContentDrawScope.draw(view: DeclarativeBaseView<*, *>?) {
         if (view is CanvasView) {
             requireOwner().snapshotObserver.observeReads(
@@ -127,10 +156,127 @@ internal class DrawBackgroundModifier(
             ) {
                 onDraw()
             }
+        } else if (view != null) {
+            // 非 CanvasView 宿主：走背景 CanvasView 通道
+            ensureBackgroundCanvasView(view)
+            // 用 DrawScope.size（= 宿主完整布局尺寸，含多行）而非 renderView.currentFrame
+            //（后者对 RichTextView 只返一行高）
+            // 与 CanvasView 分支一致，用 observeReads 包裹，使 draw 闭包内读取的
+            // snapshot state 变化时能触发重绘（否则仅依赖重组会漏掉部分场景）
+            requireOwner().snapshotObserver.observeReads(
+                this@DrawBackgroundModifier,
+                DrawModifierNode::invalidateDraw
+            ) {
+                drawIntoBackgroundCanvasView(view, size)
+            }
         } else {
             KLog.e("Kuikly.Compose", "drawBehind expect CanvasView, but got $view")
         }
         drawContent()
+    }
+
+    /**
+     * 惰性创建背景 CanvasView 并加到宿主的父容器（绝对定位，初始位置=宿主位置）。
+     * 实际尺寸/位置由 [drawIntoBackgroundCanvasView] 每次 draw 手动 setFrame 同步
+     *（flex 不会给 draw 期间注入的 absolute 子 view 分 frame）。
+     */
+    private fun ensureBackgroundCanvasView(hostView: DeclarativeBaseView<*, *>) {
+        if (bgCanvasView != null) return
+        val parent = hostView.parent as? ViewContainer<*, *> ?: run {
+            KLog.e("Kuikly.Compose", "drawBehind bgCanvas: host has no ViewContainer parent")
+            return
+        }
+        // RichTextView 等自测量组件的 flexNode.layoutFrame 为 0，真位置在 renderView.currentFrame
+        val frame = hostView.renderView?.currentFrame ?: return
+
+        val bg = CanvasView()
+        var addedToParent = false
+        try {
+            parent.addChild(bg, {
+                // absolutePosition 设 positionType=ABSOLUTE + 初始 top/left；
+                // 尺寸不在此设（flex 不分 frame）
+                getViewAttr().absolutePosition(top = frame.y, left = frame.x)
+            }, 0)
+            addedToParent = true
+            parent.insertDomSubView(bg, 0)
+            bgCanvasView = bg
+            resetDebounceState()
+        } catch (e: Throwable) {
+            KLog.e("Kuikly.Compose", "drawBehind bgCanvas: ensure failed: ${e.message}")
+            // 半挂状态回滚：addChild 成功但后续步骤失败时，onDetach 无法通过 bgCanvasView
+            // 触达 bg，会造成 view 泄漏；这里显式清掉已挂的 bg。
+            if (addedToParent) {
+                runCatching { parent.removeDomSubView(bg) }
+                runCatching { parent.removeChild(bg) }
+            }
+        }
+    }
+
+    private fun resetDebounceState() {
+        lastBgX = Float.NaN
+        lastBgY = Float.NaN
+        lastBgW = Float.NaN
+        lastBgH = Float.NaN
+    }
+
+    /**
+     * 把背景 CanvasView 定位到宿主同帧（无额外 padding，与官方语义对齐），并用 KuiklyCanvas +
+     * CanvasDrawScope 把 onDraw 跑进 bg。绕过 CanvasView.draw() 的
+     * flexNode.layoutFrame.isDefaultValue() 检查（flex 不给注入子分 frame，该检查恒 true）。
+     */
+    private fun drawIntoBackgroundCanvasView(
+        hostView: DeclarativeBaseView<*, *>,
+        scopeSize: Size
+    ) {
+        val bg = bgCanvasView ?: return
+        val bgRender = bg.renderView ?: return
+        // 位置用 renderView.currentFrame.x/y（宿主在父容器中的坐标，dp）；
+        // 尺寸用 scopeSize（= 宿主完整布局尺寸含多行，px），不再用 currentFrame 的 height
+        //（后者对 RichTextView 只返一行高）。
+        val posFrame = hostView.renderView?.currentFrame ?: return
+        if (scopeSize.width <= 0f || scopeSize.height <= 0f) return
+        try {
+            // 对齐官方语义：drawBehind 的 DrawScope.size 必须严格等于组件自身布局
+            // 尺寸，无任何偏移补丁。下划线"不穿字"由调用方在 lambda 内自行决定
+            // 绘制 y 坐标（如画在 size.height），框架不替宿主加底部 padding。
+            val density = requireDensity().density
+            val bgWidthDp = scopeSize.width / density
+            val bgHeightDp = scopeSize.height / density
+            // frame 与上次完全一致时跳过 setFrame；重复下发不会改变视觉结果。
+            val frameUnchanged = bgWidthDp == lastBgW && bgHeightDp == lastBgH &&
+                posFrame.x == lastBgX && posFrame.y == lastBgY
+            if (!frameUnchanged) {
+                bgRender.setFrame(posFrame.x, posFrame.y, bgWidthDp, bgHeightDp)
+                lastBgX = posFrame.x
+                lastBgY = posFrame.y
+                lastBgW = bgWidthDp
+                lastBgH = bgHeightDp
+            }
+            val bgCanvas = KuiklyCanvas()
+            bgCanvas.view = bg
+            val drawBlock = onDraw
+            bgDrawScope.draw(
+                requireDensity(),
+                requireLayoutDirection(),
+                bgCanvas,
+                Size(scopeSize.width, scopeSize.height)
+            ) {
+                drawBlock()
+            }
+        } catch (e: Throwable) {
+            KLog.e("Kuikly.Compose", "drawBehind bgCanvas draw failed: ${e.message}")
+        }
+    }
+
+    override fun onDetach() {
+        bgCanvasView?.let { bg ->
+            (bg.parent as? ViewContainer<*, *>)?.let { parent ->
+                runCatching { parent.removeDomSubView(bg) }
+                runCatching { parent.removeChild(bg) }
+            }
+        }
+        bgCanvasView = null
+        super.onDetach()
     }
 
     override val isValidOwnerScope: Boolean get() = isAttached

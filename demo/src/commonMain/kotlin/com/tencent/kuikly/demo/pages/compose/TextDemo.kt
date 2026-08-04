@@ -49,9 +49,11 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.alpha
+import com.tencent.kuikly.compose.ui.draw.drawBehind
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.graphics.PathEffect
 import com.tencent.kuikly.compose.ui.graphics.Shadow
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
@@ -60,6 +62,7 @@ import com.tencent.kuikly.compose.ui.text.LinkAnnotation
 import com.tencent.kuikly.compose.ui.text.LinkInteractionListener
 import com.tencent.kuikly.compose.ui.text.Placeholder
 import com.tencent.kuikly.compose.ui.text.SpanStyle
+import com.tencent.kuikly.compose.ui.text.TextLayoutResult
 import com.tencent.kuikly.compose.ui.text.TextLinkStyles
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
@@ -111,6 +114,9 @@ class TextDemo : ComposeContainer() {
                     }
                     item {
                         LineBreakMarginDemo()
+                    }
+                    item {
+                        DashedUnderlineDemo()
                     }
                 }
             }
@@ -1294,4 +1300,110 @@ fun LineBreakMarginDemo() {
             }, text = "点击切换")
         }
     }
+}
+
+@Composable
+fun DashedUnderlineDemo() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Text(
+            text = "文本虚线下划线",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        // 案例 1：单行文本，头、中、尾各两个字画虚线。
+        Text("案例 1：单行 - 头/中/尾各两字虚线", fontSize = 12.sp, color = Color.Gray)
+        DashedUnderlineMultiSpan(
+            full = "这是用于演示头中尾虚线的单行文字",
+            color = Color(0xFFE91E63)
+        ) { result, text ->
+            // 单行整段取头/中/尾
+            headMidTailRangesIn(text, 0, text.length)
+        }
+
+        // 案例 2：五行文本，只在第 1、3、5 行各取头、中、尾两个字画虚线。
+        Text("案例 2：五行 - 第 1/3/5 行头/中/尾各两字虚线", fontSize = 12.sp, color = Color.Gray)
+        DashedUnderlineMultiSpan(
+            full = FIVE_LINE_TEXT,
+            color = Color(0xFF3F51B5)
+        ) { _, text ->
+            // 按 \n 切分每行，累加长度得到每行起始位置
+            val ranges = mutableListOf<IntRange>()
+            var offset = 0
+            text.split("\n").forEachIndexed { lineIndex, lineText ->
+                // 只处理第 1、3、5 行（行号从 0 起，即 0、2、4）。
+                if (lineIndex % 2 == 0 && lineIndex <= 4) {
+                    ranges += headMidTailRangesIn(text, offset, offset + lineText.length)
+                }
+                offset += lineText.length + 1 // +1 跳过该行末尾的 \n
+            }
+            ranges
+        }
+    }
+}
+
+/** 五行示例文本：每行足够长，保证头/中/尾两字互不重叠。 */
+private const val FIVE_LINE_TEXT =
+    "第一行示例文字内容\n" +
+        "第二行示例文字内容\n" +
+        "第三行示例文字内容\n" +
+        "第四行示例文字内容\n" +
+        "第五行示例文字内容"
+
+// 取头两字、正中两字、尾两字的字符区间（越界自动钳制）
+private fun headMidTailRangesIn(text: String, start: Int, end: Int): List<IntRange> {
+    val len = end - start
+    if (len <= 0) return emptyList()
+    val result = linkedSetOf<IntRange>()
+    fun add(from: Int, to: Int) {
+        val f = from.coerceIn(start, end)
+        val t = to.coerceIn(start, end)
+        if (t > f) result += f until t
+    }
+    // 头两字
+    add(start, start + 2)
+    // 正中两字
+    val midFrom = start + (len / 2 - 1)
+    add(midFrom, midFrom + 2)
+    // 尾两字
+    add(end - 2, end)
+    return result.toList()
+}
+
+// 给每个字符区间下方各画一条虚线
+@Composable
+private fun DashedUnderlineMultiSpan(
+    full: String,
+    color: Color,
+    rangesProvider: (result: TextLayoutResult, text: String) -> List<IntRange>
+) {
+    var ranges by remember { mutableStateOf<List<IntRange>>(emptyList()) }
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    Text(
+        text = full,
+        fontSize = 16.sp,
+        onTextLayout = { result ->
+            layout = result
+            ranges = rangesProvider(result, full)
+        },
+        modifier = Modifier.drawBehind {
+            val result = layout ?: return@drawBehind
+            ranges.forEach { range ->
+                if (range.first < 0 || range.last >= full.length) return@forEach
+                val startBox = result.getBoundingBox(range.first)
+                val endBox = result.getBoundingBox(range.last)
+                // 在该行底边画虚线
+                drawLine(
+                    color = color,
+                    start = Offset(startBox.left, startBox.bottom),
+                    end = Offset(endBox.right, startBox.bottom),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f), 0f)
+                )
+            }
+        }
+    )
 }

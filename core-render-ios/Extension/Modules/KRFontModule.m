@@ -48,6 +48,20 @@ static id<KuiklyFontProtocol> gFontHandler;
     return NO;
 }
 
++ (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                    contextParams:(KuiklyContextParam *)contextParam {
+    // 调用业务的加载字体的方法，直接向框架通过字体
+    if (gFontHandler && [gFontHandler respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:contextParams:)]) {
+        return [gFontHandler hr_fontWithFontFamily:fontFamily
+                                          fontSize:fontSize
+                                        fontWeight:fontWeight
+                                     contextParams:contextParam];
+    }
+    
+    return nil;
+}
 
 
 @end

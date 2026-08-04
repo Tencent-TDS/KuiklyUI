@@ -29,6 +29,23 @@ fun main() {
 
     // When using custom fonts, fonts are loaded asynchronously, so a re-layout needs to be 
     // triggered after loading completes to re-measure text with the correct font metrics
+    document.asDynamic().fonts.ready.then({ _ ->
+        delegator.fontLoaded()
+    })
+
+}
+```
+
+或者：
+
+```kotlin
+// h5App/src/jsMain/kotlin/Main.kt
+
+fun main() {
+    // ...
+
+    // When using custom fonts, fonts are loaded asynchronously, so a re-layout needs to be 
+    // triggered after loading completes to re-measure text with the correct font metrics
     document.asDynamic().fonts.load("16px 'Kanit Medium'").then({ _ ->
         delegator.fontLoaded()
     })

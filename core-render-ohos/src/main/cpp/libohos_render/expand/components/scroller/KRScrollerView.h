@@ -138,6 +138,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool SetFlingEnable(bool enable);
     bool SetFlingSpeedLimit(const KRAnyValue &value);
     KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    bool HasEnoughVisibleContentViews();
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;

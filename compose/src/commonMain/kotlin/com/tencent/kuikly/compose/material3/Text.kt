@@ -36,7 +36,6 @@ import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.TextUnit
-import com.tencent.kuikly.compose.ui.unit.sp
 
 /**
  * High level element that displays text and provides semantics / accessibility information.
@@ -104,7 +103,7 @@ fun Text(
     overflow: TextOverflow = TextOverflow.Clip,
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1, // 暂时不支持
+    minLines: Int = 1,
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current
 ) {
@@ -205,7 +204,7 @@ fun Text(
     overflow: TextOverflow = TextOverflow.Clip,
     softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE,
-    minLines: Int = 1, // TODO: jonas
+    minLines: Int = 1,
     inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
     onTextLayout: (TextLayoutResult) -> Unit = {},
     style: TextStyle = LocalTextStyle.current

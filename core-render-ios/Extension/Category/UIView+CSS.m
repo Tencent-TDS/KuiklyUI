@@ -1988,15 +1988,14 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 #pragma mark - Transform Application
 
 - (void)applyTransformToView:(UIView *)view {
+    // Always use CATransform3D so that allowsEdgeAntialiasing takes effect for all rotations
+    view.transform = CGAffineTransformIdentity;
     if (self.is3D) {
-        // Clear 2D transform before applying 3D
-        view.transform = CGAffineTransformIdentity;
         view.layer.transform = self.transform3D;
     } else {
-        // Clear 3D transform before applying 2D
-        view.layer.transform = CATransform3DIdentity;
-        view.transform = self.affineTransform;
+        view.layer.transform = CATransform3DMakeAffineTransform(self.affineTransform);
     }
+    view.layer.allowsEdgeAntialiasing = YES;
 }
 
 @end

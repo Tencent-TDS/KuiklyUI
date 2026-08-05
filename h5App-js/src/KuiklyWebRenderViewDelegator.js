@@ -317,6 +317,29 @@ export class KuiklyWebRenderViewDelegator {
   }
 
   /**
+   * Notify render core that fonts are loaded and layout can be recalculated
+   */
+  fontLoaded() {
+    console.log('[KuiklyWebRenderViewDelegator] Font loaded');
+    if (this.kotlinDelegator && typeof this.kotlinDelegator.onFontLoaded === 'function') {
+      this.kotlinDelegator.onFontLoaded();
+    }
+  }
+
+  /**
+   * Update root view size at runtime
+   * @param {number} width - New root width
+   * @param {number} height - New root height
+   */
+  updateRootViewSize(width, height) {
+    const renderContext = this.getKuiklyRenderContext();
+    const rootView = renderContext && renderContext.kuiklyRenderRootView;
+    if (rootView && typeof rootView.updateRootViewSize === 'function') {
+      rootView.updateRootViewSize(width, height);
+    }
+  }
+
+  /**
    * Send event to page
    * @param {string} event - Event name
    * @param {Object} data - Event data

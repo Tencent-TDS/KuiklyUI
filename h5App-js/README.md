@@ -452,6 +452,14 @@ delegator.resume();  // 页面可见
 delegator.pause();   // 页面不可见
 delegator.detach();  // 页面卸载
 
+// 运行时更新根视图尺寸（手动模式）
+window.addEventListener('resize', () => {
+  delegator.updateRootViewSize(window.innerWidth, window.innerHeight);
+});
+
+// 自定义字体异步加载后，通知渲染层重新测量文本
+document.fonts?.ready?.then?.(() => delegator.fontLoaded());
+
 // 发送事件
 delegator.sendEvent('custom_event', { data: 'value' });
 ```
@@ -493,6 +501,40 @@ h5Expand?.setAutoUpdateRootViewSizeOnResize?.(true);
 2. `setAutoUpdateRootViewSizeOnResize(true)` 在移动端会受到软键盘触发的 `resize` 影响，如需完全可控行为建议保持关闭并通过 `updateRootViewSize` 手动驱动。
 3. 如果运行时报接口不存在，请先执行 `npm run rebuild-kotlin`（或 `npm run rebuild-kotlin:dev`）并确认 `src/libs/KuiklyCore-render-web-h5.d.ts` 已更新。
 
+### 7. 运行时尺寸更新与字体重排（`updateRootViewSize` / `fontLoaded`）
+
+除了 `setAutoUpdateRootViewSizeOnResize(true)` 自动模式，`KuiklyWebRenderViewDelegator` 也提供了命令式接口，便于业务侧精细控制：
+
+| 接口 | 作用 | 典型场景 |
+|------|------|---------|
+| `updateRootViewSize(width, height)` | 手动通知 Kuikly 根视图尺寸变化，触发响应式重排 | 只希望在特定时机响应 resize（例如过滤软键盘触发） |
+| `fontLoaded()` | 自定义字体异步加载完成后，触发文本重新测量和布局 | 页面首屏使用 webfont，避免字体加载后文案截断/错位 |
+
+#### 推荐用法（手动尺寸驱动）
+
+```javascript
+const delegator = new KuiklyWebRenderViewDelegator();
+delegator.init('root', pageName, pageData, { width: window.innerWidth, height: window.innerHeight });
+
+// 例如：仅在横竖屏变化或容器真实尺寸变化后再调用
+window.addEventListener('resize', () => {
+  delegator.updateRootViewSize(window.innerWidth, window.innerHeight);
+});
+```
+
+#### 推荐用法（字体加载后重排）
+
+```javascript
+// 自定义字体加载完成后通知 Kuikly
+if (document.fonts?.ready) {
+  document.fonts.ready
+    .then(() => delegator.fontLoaded())
+    .catch(() => {});
+}
+```
+
+> 提示：如果你已经开启 `setAutoUpdateRootViewSizeOnResize(true)`，通常不需要再全量监听 `window.resize` 去重复调用 `updateRootViewSize`。只有在你需要“更细粒度控制触发时机”时，才建议使用手动模式。
+
 ## 🔄 开发工作流
 
 ### 修改 Kotlin 核心代码后
@@ -508,6 +550,7 @@ npm run rebuild-kotlin
 3. 刷新浏览器
 
 **脚本功能：**
+
 - ✅ 自动编译 h5 模块（已包含 base 模块代码）
 - ✅ 自动复制 JS 文件和 TypeScript 声明文件（`.d.ts`）
 - ✅ 提供编译进度提示
@@ -829,5 +872,6 @@ cd h5App-js
 ```
 
 此脚本包含以下步骤：
+
 1. 编译 `core-render-web:h5` 模块（已包含 base 模块代码）
 2. 复制所有编译产物（包括 `.d.ts` 类型定义文件）

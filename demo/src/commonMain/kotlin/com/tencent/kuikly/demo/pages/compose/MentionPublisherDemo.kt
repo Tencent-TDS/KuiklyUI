@@ -46,6 +46,8 @@ import com.tencent.kuikly.compose.ui.text.TextRange
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
 import com.tencent.kuikly.compose.ui.text.input.TextFieldValue
+import com.tencent.kuikly.compose.ui.semantics.semantics
+import com.tencent.kuikly.compose.ui.semantics.testTag
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
@@ -70,6 +72,9 @@ class MentionPublisherDemo : ComposeContainer() {
             MentionPublisherScreen()
         }
     }
+
+    // 开启调试视图树（debugName + testTag 下发），供自动化测试读取节点
+    override fun debugUIInspector(): Boolean = true
 }
 
 /** @人 高亮色（微博蓝） */
@@ -251,7 +256,7 @@ private fun MentionPublisherScreen() {
             BasicTextField(
                 value = editorValue.copy(annotatedString = displayText),
                 onValueChange = ::handleValueChange,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().semantics { testTag = "mention_input" },
                 textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
                 cursorBrush = SolidColor(Color.Black),
             )
@@ -269,6 +274,7 @@ private fun MentionPublisherScreen() {
                     Text(
                         text = "@$name",
                         modifier = Modifier
+                            .semantics { testTag = "mention_candidate_$name" }
                             .clickable { insertMentionAt(triggerPos, name, uid) }
                             .background(Color(0xFFE6F0FF))
                             .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -285,10 +291,27 @@ private fun MentionPublisherScreen() {
         // 调试区
         Text("调试信息", color = Color.Gray)
         Spacer(Modifier.height(4.dp))
-        Text("text = \"${editorValue.text}\"")
-        Text("selection = [${editorValue.selection.start}, ${editorValue.selection.end}]")
-        Text("mentions = ${mentions.joinToString { "(${it.displayName},[${it.start},${it.end}])" }}")
-        Text("trigger = ${triggerPos?.let { "@$it(q=\"$query\")" } ?: "none"}")
-        Text("deleteState = ${deleteStateLabel(deleteState)}")
+        Text("text = ${editorValue.text}", modifier = Modifier.semantics { testTag = "debug_text" })
+        Text("selection = [${editorValue.selection.start}, ${editorValue.selection.end}]", modifier = Modifier.semantics { testTag = "debug_selection" })
+        Text("mentions = ${mentions.joinToString { "(${it.displayName},[${it.start},${it.end}])" }}", modifier = Modifier.semantics { testTag = "debug_mentions" })
+        Text("trigger = ${triggerPos?.let { "@$it(q=\"$query\")" } ?: "none"}", modifier = Modifier.semantics { testTag = "debug_trigger" })
+        Text("deleteState = ${deleteStateLabel(deleteState)}", modifier = Modifier.semantics { testTag = "debug_delete_state" })
+        // 测试专用：确定性注入“正在输入 @张三”的中间态（绕过输入法），验证“@+名字 过滤候选”路径。
+        // 用部分 query "@张" 而非完整 "@张三"：真实打字输到完整 "@张三" 会被 scanMentions 识别成已完成 mention，
+        // 反而被 detectMentionTrigger 抑制弹窗（这是正确行为）；候选可见的时刻正是“@张”这类部分输入态。
+        // 注意：不调用 scanMentions，避免把 @张 当已完成 mention 而抑制弹窗。
+        Text(
+            text = "注入 @张（测试）",
+            modifier = Modifier
+                .semantics { testTag = "debug_inject_张" }
+                .clickable {
+                    val injected = "@张"
+                    editorValue = TextFieldValue(text = injected, selection = TextRange(injected.length))
+                    mentions = emptyList()
+                    deleteState = DeleteState.Normal
+                }
+                .background(Color(0xFFFFF0C0))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+        )
     }
 }

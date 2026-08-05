@@ -63,6 +63,19 @@ fun Modifier.windowInsetsPadding(insets: WindowInsets): Modifier = composed(
 }
 
 /**
+ * Adds padding to accommodate the [ime][WindowInsets.Companion.ime] insets.
+ */
+@Stable
+fun Modifier.imePadding(): Modifier = composed(
+    debugInspectorInfo {
+        name = "imePadding"
+    }
+) {
+    // imePadding 复用现有 inset 消费语义，避免业务重复处理键盘空间。
+    windowInsetsPadding(WindowInsets.ime)
+}
+
+/**
  * Consume insets that haven't been consumed yet by other insets Modifiers similar to
  * [windowInsetsPadding] without adding any padding.
  *

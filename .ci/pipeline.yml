@@ -1,0 +1,55 @@
+# 工蜂 Stream CI 流水线 —— KuiklyUI 发布器自动化测试
+#
+# 入口：工蜂仓库「配置 CI YAML」→ 实际读取 仓库根 .ci/ 目录下的 YAML（Stream CI 规范）
+# 语法：Stream CI / 蓝盾风格（version + stages + jobs + steps），详见 iWiki 686380000
+#
+# 执行机：
+#   本测试为 Android 真机 E2E（Appium + 仓库内置 e2e-engine），必须在连着真机的 Mac 上跑。
+#   因此 e2e job 使用 self-hosted 私有构建池（pool-name 见下），需先在 Stream CI 网页
+#   创建同名自定义资源池并把本机 Mac 注册进去。
+#   ⚠️ pool-name 必须与你在 Stream CI「构建资源池」里建的池名一致（下方为约定名）。
+#
+# 触发：
+#   - schedules: 每天定时跑 e2e（以默认分支 main 上的本文件为准）
+#   - mr:        提 MR 时跑 build 编译校验
+#   - push:      push 到 main 时跑 build 编译校验
+#   - e2e 在 push 时不自动跑，避免每次提交都占用真机
+
+version: v2.0
+
+name: KuiklyUI-发布器E2E
+
+on:
+  push:
+    branches: [ main ]
+  mr:
+    target-branches: [ main ]
+  schedules:
+    cron: "0 2 * * *"
+    branches: [ main ]
+
+stages:
+  - name: build
+    jobs:
+      build_debug:
+        name: 编译校验
+        runs-on:
+          self-hosted: true
+          pool-name: kuikly-mac-local
+        steps:
+          - checkout: self
+          - run: |
+              source ci/setup-env.sh
+              ./gradlew :androidApp:compileDebugKotlin
+
+  - name: test
+    jobs:
+      e2e_publisher:
+        name: 发布器真机E2E回归
+        runs-on:
+          self-hosted: true
+          pool-name: kuikly-mac-local
+        steps:
+          - checkout: self
+          - run: |
+              bash ci/run-e2e-ci.sh

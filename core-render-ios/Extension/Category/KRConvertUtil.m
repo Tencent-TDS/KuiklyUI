@@ -621,6 +621,10 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         [KRLogModule logError:assertReason];
         NSAssert(false, assertReason);
     }
+    if (!jsonString) {
+        [KRLogModule logError:[NSString stringWithFormat:@"%s JSON 序列化失败, error: %@, dict: %@", __FUNCTION__, parseError, dict]];
+        jsonString = @"{}";
+    }
     return jsonString;
 }
 

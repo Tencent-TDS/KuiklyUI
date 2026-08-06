@@ -11,7 +11,7 @@
 ## Kuikly Compose的核心特点
 1. **更多平台支持**：通过复用 Kuikly 的通用渲染层，Kuikly Compose 能够在支持标准 Compose DSL 语法的同时，无缝覆盖主流平台，包括 Android、iOS、**鸿蒙**、H5，以及国内常见的**微信小程序**平台，极大提升了应用的可达性。
 
-2. **动态化能力（beta）**：在 Kuikly 跨端框架层基础上扩展对 Compose DSL 的支持，使 Kuikly Compose 天然具备了 Kuikly 现有的动态化能力，包括热更新、动态下发等特性。
+2. **动态化能力**：在 Kuikly 跨端框架层基础上扩展对 Compose DSL 的支持，使 Kuikly Compose 具备 Kuikly 现有的动态化能力，包括热更新、动态下发等特性。
 
 3. **原生体验**：不同于官方 Compose 的自渲染方式，Kuikly Compose 保留了 Kuikly 的原生渲染优势，确保在各个平台上实现高性能、原生级的 UI 体验。
 

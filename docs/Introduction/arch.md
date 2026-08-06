@@ -14,7 +14,7 @@
 - Core模块
   - 提供跨端的高级组件、动画、手势、布局等能力
   - API模块:提供统一的API接口
-  - DSL驱动:支持标准Compose DSL (Beta版）和自研DSL
+  - DSL驱动:支持标准Compose DSL和自研DSL
 - Render模块
   - 支持Android、iOS、macOS、HarmonyOS和H5/微信小程序等多个平台
 
@@ -26,8 +26,8 @@
   - 支持KN鸿蒙编译以及鸿蒙调试构建
 
 - 组件生态
-  - 兼容标准的Kotlin Multiplatform组件，可复用业界成熟的KMP组件生态 
-  - 未来会建设KuiklyBase组件市场，进一步扩充`kuikly`组件生态
+  - 兼容标准的Kotlin Multiplatform组件，可复用业界成熟的KMP组件生态
+  - [Kuikly社区组件市场](../Community/component_market.html)已上线，支持组件发现、发布、复用与社区共建，持续扩充`Kuikly`组件生态
 
 
 - 强大的多线程协程能力

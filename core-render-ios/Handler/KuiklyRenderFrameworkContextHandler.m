@@ -101,7 +101,7 @@
     NSMutableArray * arguments = [[NSMutableArray alloc] initWithCapacity:6];
     for (id arg in args) {
         id ele = [KRConvertUtil nativeObjectToKotlinObject:arg];
-        [arguments addObject:ele ?: @""];
+        [arguments addObject:ele ?: [NSNull null]];
     }
     [_coreEntryInstance callKotlinMethodMethodId:(int32_t)method
                                             arg0:KRSafeArrayIndex(arguments, 0)

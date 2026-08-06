@@ -20,8 +20,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "libohos_render/api/include/Kuikly/KuiklyExport.h"
-
 /**
  * 与kotlin侧通信的数据类型
  */
@@ -56,14 +54,16 @@ extern "C" {
 #endif
 typedef void (*CallKotlin)(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2,
                            KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
-// 由 Kotlin/Native 的 libshared.so 直接解析，必须留在 dynsym 中。
-KUIKLY_EXPORT extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
-KUIKLY_EXPORT extern void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
+// 这几个符号由 Kotlin/Native 的 libshared.so 跨 so 解析，在 -fvisibility=hidden 下
+// 必须显式导出，否则加载期符号解析失败直接 SIGSEGV。此处不 include KuiklyExport.h：
+// 本头不在对外分发的 api/include 目录内，保持自包含以免依赖源码树目录层级。
+__attribute__((visibility("default"))) extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
+__attribute__((visibility("default"))) extern void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
                                                           const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
                                                           const KRRenderCValue *arg5, KRRenderCValue *result);
-KUIKLY_EXPORT extern void com_tencent_kuikly_ScheduleContextTask(const char *pagerId,
+__attribute__((visibility("default"))) extern void com_tencent_kuikly_ScheduleContextTask(const char *pagerId,
                                                           void (*onSchedule)(const char *pagerId));
-KUIKLY_EXPORT extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char *pagerId);
+__attribute__((visibility("default"))) extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char *pagerId);
 
 #ifdef __cplusplus
 }

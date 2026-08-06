@@ -91,9 +91,31 @@
                 break;
             }
         }
+        // 修复：对 day 做 clamp，避免超出目标月份的天数上限导致 NSDateFormatter 解析失败返回 nil
+        // 原理：set 操作是逐步串行执行的，每次只修改一个字段。当 set YEAR 或 set MONTH 时，
+        // 原 day 值保持不变，可能超出新 year/month 组合的合法天数范围。
+        // 例如：初始为 7月31日，set MONTH=5（June），此时 day=31 但 6月只有30天，
+        // 拼出 "2004-06-31" 后 NSDateFormatter 解析失败返回 nil，导致 timeInMillis() 返回 0。
+        // 此行为与 Java Calendar 的 lenient 模式对齐：超出天数自动截取为该月最大天数。
+        NSCalendar *gregorianCalendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+        gregorianCalendar.timeZone = [NSTimeZone timeZoneWithName:@"Asia/Shanghai"];
+        NSDateComponents *tempComponents = [[NSDateComponents alloc] init];
+        tempComponents.year = year;
+        tempComponents.month = month;
+        tempComponents.day = 1;
+        NSDate *tempDate = [gregorianCalendar dateFromComponents:tempComponents];
+        if (tempDate) {
+            NSRange dayRange = [gregorianCalendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:tempDate];
+            if (day > (NSInteger)dayRange.length) {
+                day = dayRange.length;
+            }
+        }
         NSString *dateString = [NSString stringWithFormat:@"%04ld-%02ld-%02ld %02ld:%02ld:%02ld.%03ld",
                                 year, month, day, hour, minute, second, millisecond];
-        return [self dateFromString:dateString format:@"YYYY-MM-dd HH:mm:ss.SSS"];
+        // 修复：YYYY 是 ISO week-based year，在年末年初（如 12月31日）可能与 calendar year 不一致
+        // 例如 2024-12-31 的 YYYY 可能解析为 2025（因为该日属于 2025 年第一周），导致日期偏移
+        // 改为 yyyy（calendar year）确保年份始终与实际日历年一致
+        return [self dateFromString:dateString format:@"yyyy-MM-dd HH:mm:ss.SSS"];
     }
     
     if (![opt isEqualToString:@"add"]) {
@@ -161,7 +183,10 @@
         NSInteger maxDayCount = [self.localCalendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:[self dateFromString:[NSString stringWithFormat:@"%04ld-%02ld", year, month] format:@"yyyy-MM"]].length;
         day = MIN(day, maxDayCount);
         NSString *dateString = [NSString stringWithFormat:@"%04ld-%02ld-%02ld %@", year, month, day, [self stringFromDate:originDate format:@"HH:mm:ss.SSS"]];
-        date = [self dateFromString:dateString format:@"YYYY-MM-dd HH:mm:ss.SSS"];
+        // 修复：YYYY 是 ISO week-based year，在年末年初（如 12月31日）可能与 calendar year 不一致
+        // 例如 2024-12-31 的 YYYY 可能解析为 2025（因为该日属于 2025 年第一周），导致日期偏移
+        // 改为 yyyy（calendar year）确保年份始终与实际日历年一致
+        date = [self dateFromString:dateString format:@"yyyy-MM-dd HH:mm:ss.SSS"];
     }
     
     return date;

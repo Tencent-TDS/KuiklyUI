@@ -84,6 +84,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
 /** 业务自定义 inputView 备份：框架挂 dummy 时临时保存，恢复键盘时还原，避免误删业务键盘（如日期选择器/数字面板） */
 @property (nonatomic, strong) UIView *kr_originalInputView;
+/** 框架自挂的 dummy inputView 引用：以指针相等判定当前是否处于「免键盘获焦」态，避免用 magic tag 与业务冲突 */
+@property (nonatomic, strong) UIView *kr_dummyInputView;
 /** event is textInputStateChange raw text/selection/composition state change */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textInputStateChange);
 /** event is selectionChange cursor/selection-only change */
@@ -346,7 +348,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 // 非该状态不做处理，交由系统默认手势定位光标。
 #if !TARGET_OS_OSX // [macOS]
 - (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)tap {
-    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    BOOL hasDummyInputView = (self.inputView == self.kr_dummyInputView);
     if (hasDummyInputView) {
         [self css_focus:nil];   // 内部清除 dummy inputView 并 reloadInputViews 恢复系统键盘
     }
@@ -356,7 +358,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if !TARGET_OS_OSX
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
     // 仅在框架 dummy inputView 在场时识别，普通态完全让 UITextView 自行处理点按获焦。
-    return self.inputView != nil && self.inputView.tag == 99999;
+    return self.inputView == self.kr_dummyInputView;
 }
 #endif
 
@@ -367,15 +369,16 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if TARGET_OS_OSX
         [self becomeFirstResponder];
 #else
-        // 仅当 inputView 确为框架 dummy（tag==99999）才清理，避免误删业务自定义 inputView
+        // 仅当 inputView 确为框架 dummy（指针相等判定）才清理，避免误删业务自定义 inputView
         // 业务的操作路径通常是:
         // focus -> focusWithoutKeyboard -> focus
         // focus -> hide -> focus
         // 因此这里需要对Inputview的状态做判断以及处理
-        BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+        BOOL hasDummyInputView = (self.inputView == self.kr_dummyInputView);
         if (hasDummyInputView) {
             self.inputView = self.kr_originalInputView;      // 还原业务 inputView（可能为 nil）
             self.kr_originalInputView = nil;
+            self.kr_dummyInputView = nil;
             [self reloadInputViews];
         }
         if (!self.isFirstResponder) {
@@ -397,10 +400,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if !TARGET_OS_OSX
         // 预防业务的操作路径是 focus -> focusWithoutKeyboard -> hide
         // 无论是否获焦，先清掉残留的 dummy inputView，还原业务 inputView，避免悬空
-        BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+        BOOL hasDummyInputView = (self.inputView == self.kr_dummyInputView);
         if (hasDummyInputView) {
             self.inputView = self.kr_originalInputView;      // 还原业务 inputView（可能为 nil）
             self.kr_originalInputView = nil;
+            self.kr_dummyInputView = nil;
             [self reloadInputViews];
         }
         // 不是获焦态，不做失焦处理
@@ -422,28 +426,28 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if TARGET_OS_OSX
         [self becomeFirstResponder];
 #else
-        if (!self.isFirstResponder) {
-            UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-            dummyView.tag = 99999;
-            if (self.inputView != nil && self.inputView.tag != 99999) {
-                self.kr_originalInputView = self.inputView;   // 备份业务自定义 inputView
-            }
-            self.inputView = dummyView;
-            [self becomeFirstResponder];                      // 输入框保持焦点
-            [self reloadInputViews];
-        } else {
-            UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-            dummyView.tag = 99999;
-            if (self.inputView != nil && self.inputView.tag != 99999) {
-                self.kr_originalInputView = self.inputView;
-            }
-            self.inputView = dummyView;
-            [self reloadInputViews];
-        }
+        [self p_attachDummyInputView];
         // 不主动补发 height=0：本命令语义即「保持焦点、键盘不出现」，主动上报会被业务误判为
         // 「用户收起键盘」→关 popup→重建→再次 focusWithoutKeyboard→死循环。面板显隐由业务自身驱动。
 #endif
     });
+}
+
+#pragma mark - dummy inputView
+
+/** 挂一个空的 dummy inputView 并（按需）成为 first responder，用于「获焦但不弹系统键盘」场景。
+ *  用指针相等（self.kr_dummyInputView）判定是否处于免键盘态，避免使用 magic tag 与业务冲突。 */
+- (void)p_attachDummyInputView {
+    UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+    if (self.inputView != nil && self.inputView != self.kr_dummyInputView) {
+        self.kr_originalInputView = self.inputView;   // 备份业务自定义 inputView
+    }
+    self.inputView = dummyView;
+    self.kr_dummyInputView = dummyView;
+    if (!self.isFirstResponder) {
+        [self becomeFirstResponder];
+    }
+    [self reloadInputViews];
 }
 
 - (void)css_getCursorIndex:(NSDictionary *)args {
@@ -1043,8 +1047,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
     CGFloat keyboardHeight = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
     NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
-    // dummy inputView（tag==99999）在场 = 免键盘获焦态，系统键盘通知均为 dummy 操作引发的噪声，不转发。
-    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    // dummy inputView（指针相等判定）在场 = 免键盘获焦态，系统键盘通知均为 dummy 操作引发的噪声，不转发。
+    BOOL hasDummyInputView = (self.inputView == self.kr_dummyInputView);
     if (hasDummyInputView) {
         return;
     }
@@ -1059,7 +1063,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     // ★循环根因：focusWithoutKeyboard/blur(keepFocus) 挂 dummy inputView 并 reloadInputViews 时系统会派发 WillHide，
     // 若把 height=0 转发给业务会被误判为「用户收起键盘」而关闭 popup，导致 popup 重建死循环。dummy 在场时必须拦截。
-    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    BOOL hasDummyInputView = (self.inputView == self.kr_dummyInputView);
     if (hasDummyInputView) {
         return;
     }

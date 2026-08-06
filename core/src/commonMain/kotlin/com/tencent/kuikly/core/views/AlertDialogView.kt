@@ -49,13 +49,21 @@ fun ViewContainer<*, *>.AlertDialog(init : AlertDialogView.() -> Unit) {
 }
 
 typealias ActionButtonTitleAttr = TextAttr.() -> Unit
+typealias TextAttrBuilder = TextAttr.() -> Unit
+typealias DialogAttr = Attr.() -> Unit
 
 class AlertDialogAttr : ContainerAttr() {
     internal var showAlert by observable(false)
     internal var contentViewCreator: ViewBuilder? = null
+    internal var msgViewCreator: ViewBuilder? = null
     internal var backgroundViewCreator: ViewBuilder? = null
     internal var title by observable("")
     internal var message by observable("")
+
+    internal var dialogAttr: DialogAttr? by observable(null)
+    internal var titleAttr: TextAttrBuilder? by observable(null)
+    internal var messageAttr: TextAttrBuilder? by observable(null)
+
     internal var actionButtonsAttrs by observableList<ActionButtonTitleAttr>()
     internal var inWindow = false
     /*
@@ -70,6 +78,31 @@ class AlertDialogAttr : ContainerAttr() {
      */
     fun title(title: String) {
         this.title = title
+    }
+    /**
+     * title简单自定义样式支持
+     */
+    fun titleCustomAttr(titleAttr: TextAttrBuilder) {
+        this.titleAttr = titleAttr
+
+    }
+    /**
+     * msg简单自定义样式支持
+     */
+    fun msgCustomAttr(messageAttr: TextAttrBuilder) {
+        this.messageAttr = messageAttr
+    }
+    /**
+     * 默认内容区域自定义样式支持，如果设置了customContentView，则该属性无效
+     */
+    fun dialogAttr(dialogAttr: DialogAttr) {
+        this.dialogAttr = dialogAttr
+    }
+    /**
+     * msg部分自定义UI
+     */
+    fun customMsgView(viewCreator: ViewBuilder) {
+        msgViewCreator = viewCreator
     }
     /*
      *  Alert内容(当标题不为空时为可选设置message)
@@ -125,6 +158,8 @@ class AlertDialogEvent : Event() {
     internal var willDismissHandlerFn: DismissEventHandlerFn? = null
     internal var didClickActionButtonHandlerFn: AlertButtonClickCallback? = null
     internal var clickBackgroundMaskHandlerFn: ((ClickParams) -> Unit)? = null
+    internal var clickMsgHandlerFn: ((ClickParams) -> Unit)? = null
+    internal var clickTitleHandlerFn: ((ClickParams) -> Unit)? = null
     internal var alertDidExitHandlerFn: (() -> Unit)? = null
 
     /*
@@ -144,6 +179,12 @@ class AlertDialogEvent : Event() {
      */
     fun clickBackgroundMask(handler: (ClickParams) -> Unit) {
         clickBackgroundMaskHandlerFn = handler
+    }
+    fun clickTitle(handler: (ClickParams) -> Unit) {
+        clickTitleHandlerFn = handler
+    }
+    fun clickMsg(handler: (ClickParams) -> Unit) {
+        clickMsgHandlerFn = handler
     }
     /*
      * alert弹窗完全退出(不显示&动画结束)回调，业务此时可以关闭页面(若有需要)
@@ -177,18 +218,20 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
         attr.contentViewCreator = {
             View {
                 attr {
-                    borderRadius(14f)
-                    width(270f)
-                    val colorHex: Long
-                    val alpha: Float
-                    if (getPager().isNightMode()) {
-                        colorHex = 0x000000
-                        alpha = if (ctx.useBlur) 0.85f else 1f
+                    if (ctx.attr.dialogAttr != null) {
+                        ctx.attr.dialogAttr!!.invoke(this)
                     } else {
-                        colorHex = 0xFFFFFF
-                        alpha = if (ctx.useBlur) 0.75f else 0.9f
+                        val colorHex: Long
+                        val alpha: Float
+                        if (getPager().isNightMode()) {
+                            colorHex = 0x000000
+                            alpha = if (ctx.useBlur) 0.85f else 1f
+                        } else {
+                            colorHex = 0xFFFFFF
+                            alpha = if (ctx.useBlur) 0.75f else 0.9f
+                        }
+                        backgroundColor(Color(colorHex, alpha))
                     }
-                    backgroundColor(Color(colorHex, alpha))
                 }
                 if (ctx.useBlur) {
                     Blur {
@@ -202,7 +245,7 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                         margin(top = 20f, left = 16f, right = 16f, bottom = 20f)
                         allCenter()
                     }
-                    vif({ctx.attr.title.isNotEmpty()}) {
+                    vif({ ctx.attr.title.isNotEmpty() || ctx.attr.titleAttr != null }) {
                         Text {
                             attr {
                                 fontSize(17f)
@@ -211,10 +254,17 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                                 if (getPager().isNightMode()) { color(Color.WHITE) } else { color(Color.BLACK) }
                                 textAlignCenter()
                                 fontWeightSemiBold()
+                                //自定义覆盖
+                                ctx.attr.titleAttr?.invoke(this)
+                            }
+                            event {
+                                click {
+                                    ctx.event.clickTitleHandlerFn?.invoke(it)
+                                }
                             }
                         }
                     }
-                    vif({ctx.attr.message.isNotEmpty()}) {
+                    vif({ ctx.attr.message.isNotEmpty() || ctx.attr.messageAttr != null }) {
                         Text {
                             attr {
                                 fontSize(13f)
@@ -222,8 +272,18 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                                 text(ctx.attr.message)
                                 if (getPager().isNightMode()) { color(Color.WHITE) } else { color(Color.BLACK) }
                                 textAlignCenter()
+                                //自定义覆盖
+                                ctx.attr.messageAttr?.invoke(this)
+                            }
+                            event {
+                                click {
+                                    ctx.event.clickMsgHandlerFn?.invoke(it)
+                                }
                             }
                         }
+                    }
+                    vif({ ctx.attr.msgViewCreator != null }) {
+                        ctx.attr.msgViewCreator?.invoke(this)
                     }
                 }
                 vif({ctx.attr.actionButtonsAttrs.size == 2}) {

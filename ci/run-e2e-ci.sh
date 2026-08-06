@@ -50,6 +50,7 @@ APPIUM_PID=$!
 # 4) 启动 E2E 引擎
 echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
 # 用本地 tsx 绝对路径启动，避免 agent shell 下 npm run 未注入 node_modules/.bin 到 PATH 导致 tsx: command not found
+( cd "$ENGINE_DIR" && npm install >/tmp/e2e_engine_install.log 2>&1 )
 ( cd "$ENGINE_DIR" && "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher.log 2>&1 ) &
 ENGINE_PID=$!
 

@@ -122,6 +122,32 @@ target_compile_options(kuikly PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:-Wconstexpr-not-const>
         $<$<COMPILE_LANGUAGE:CXX>:-Werror=constexpr>
 )
+
+# Default follows build type: OFF for Debug, ON for Release/RelWithDebInfo/MinSizeRel
+# (i.e. the NDEBUG configurations). Override with -DKUIKLY_OHOS_SIZE_OPTS=ON|OFF.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(_KUIKLY_OHOS_SIZE_OPTS_DEFAULT OFF)
+else()
+    set(_KUIKLY_OHOS_SIZE_OPTS_DEFAULT ON)
+endif()
+option(KUIKLY_OHOS_SIZE_OPTS
+        "Enable OHOS size opts without perf impact (auto: ON unless Debug)"
+        ${_KUIKLY_OHOS_SIZE_OPTS_DEFAULT})
+if(KUIKLY_OHOS_SIZE_OPTS)
+    target_compile_options(kuikly PRIVATE
+            -ffunction-sections
+            -fdata-sections
+            # 跨 .so 被引用的符号必须标 KUIKLY_EXPORT，否则加载期解析失败直接 SIGSEGV。
+            # 消费方：libshared.so(K/N) 用 com_tencent_kuikly_*，libkuikly_entry.so 用 KRAnyData*/KRRegister*Adapter 等。
+            -fvisibility=hidden
+            -fvisibility-inlines-hidden
+    )
+    target_link_options(kuikly PRIVATE
+            -Wl,--gc-sections
+            -Wl,--pack-dyn-relocs=relr
+            -Wl,--hash-style=gnu
+    )
+endif()
 target_include_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/include)
 target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64-linux-ohos)
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}

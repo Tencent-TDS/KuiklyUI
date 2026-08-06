@@ -648,6 +648,23 @@ android {
 
 配置 `adjustNothing` 后，Kuikly 框架可以通过 `keyboardHeightChange` 事件来监听键盘高度变化，并实现更精确的键盘规避逻辑。这种方式比系统自动调整布局更加可控，能够提供更好的用户体验。
 
+### 键盘高度机型适配（可选）
+
+框架内置 `KRDefaultKeyboardHeightAdapter`，会在 `keyboardHeightChange` 回调前自动修正部分 ROM（如三星 One UI）的键盘高度偏差，业务无需额外配置。
+
+若业务需要自定义修正逻辑，可实现 `IKRKeyboardHeightAdapter` 并注册到 `KuiklyRenderAdapterManager`：
+
+```kotlin
+KuiklyRenderAdapterManager.krKeyboardHeightAdapter = object : IKRKeyboardHeightAdapter {
+    override fun adaptKeyboardHeight(context: KRKeyboardHeightContext): Int {
+        // 返回修正后的键盘高度（px）
+        return context.rawHeightPx
+    }
+}
+```
+
+注册后将完全覆盖框架默认实现。
+
 ## 实验性开关
 
 Kuikly提供了一些实验性功能开关，供业务按需开启以体验新功能或优化性能。

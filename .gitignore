@@ -61,3 +61,4 @@ proto/**/*.kt
 /BugFix/
 /wdblogs/
 /demo/logs/
+/demo/golden-baseline/

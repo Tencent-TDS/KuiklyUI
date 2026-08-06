@@ -43,6 +43,8 @@ FAILED_CASES=()
 RUN_ID="$(date +%Y%m%d-%H%M%S)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${LOG_DIR:-$SCRIPT_DIR/logs/$RUN_ID}"
+# golden baseline 目录（先人审 MVP，调研 G4）：CAPTURE_BASELINE=1 时存成功态截图，供失败时人审比对。
+BASELINE_DIR="${BASELINE_DIR:-$SCRIPT_DIR/golden-baseline}"
 # 注意：macOS/BSD 的 mktemp 要求随机后缀 XXXXXX 必须位于模板末尾，
 # 否则不会随机化、会直接创建字面上的 eng_resp.XXXXXX.json（导致 “File exists” 卡死）。
 RESP_FILE="$(mktemp /tmp/eng_resp.XXXXXX)"
@@ -121,11 +123,21 @@ collect_evidence() { # case_name
   echo "   证据已存: $dir"
 }
 
+# golden baseline（先人审 MVP，调研 G4）：CAPTURE_BASELINE=1 时 PASS 用例也存截图作 baseline，
+# 一次性建立基准；平时不开。失败时 collect_evidence 的截图可与 baseline 人审比对
+# （不做自动像素 diff，避免真机/模拟器渲染差异导致的 flaky）。
+capture_baseline() { # case_name
+  [ "${CAPTURE_BASELINE:-0}" = "1" ] || return 0
+  mkdir -p "$BASELINE_DIR" 2>/dev/null || return 0
+  "$ADB" -s "$DEVICE_SERIAL" exec-out screencap -p > "$BASELINE_DIR/$1.png" 2>/dev/null || true
+}
+
 run_case() { # case_name  ->  执行后续命令，记录 PASS/FAIL
   local name="$1"; shift
   echo "── TC: $name"
   if "$@"; then
     PASS=$((PASS+1)); echo "   PASS"
+    capture_baseline "$name"
   else
     FAIL=$((FAIL+1)); FAILED_CASES+=("$name"); echo "   FAIL"
     collect_evidence "$name"

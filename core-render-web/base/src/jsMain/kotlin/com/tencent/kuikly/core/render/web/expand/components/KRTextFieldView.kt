@@ -60,10 +60,20 @@ class KRTextFieldView : IKuiklyRenderViewExport {
     // Suppress selection callback when selection is changed programmatically.
     private var suppressSelectionChange = false
 
+    // Selection tracking listener references for deterministic unbinding on destroy.
+    private var onSelectionRelatedEventListener: ((dynamic) -> Unit)? = null
+    private var onDocumentSelectionChangeListener: ((dynamic) -> Unit)? = null
+
     // Whether a VisualViewport-based keyboard listener has been bound (H5 only).
     private var keyboardTrackingBound = false
     // Last reported keyboard height, used to de-dup resize events.
     private var lastKeyboardHeight: Float = 0f
+    // VisualViewport + listener references for deterministic unbinding on destroy.
+    private var keyboardViewport: dynamic = null
+    private var keyboardTrackingFocused = false
+    private var onKeyboardFocusListener: ((dynamic) -> Unit)? = null
+    private var onKeyboardBlurListener: ((dynamic) -> Unit)? = null
+    private var onKeyboardViewportResizeListener: ((dynamic) -> Unit)? = null
 
     // Track current fontSize for minimum height fallback (default 15px as per Kuikly convention)
     private var currentFontSize: Float = DEFAULT_FONT_SIZE
@@ -394,23 +404,27 @@ class KRTextFieldView : IKuiklyRenderViewExport {
         if (selectionTrackingBound) return
         selectionTrackingBound = true
 
-        val onSelectionRelatedEvent: (dynamic) -> Unit = selectionHandler@{
+        onSelectionRelatedEventListener = selectionHandler@{
             if (suppressSelectionChange) return@selectionHandler
             notifySelectionChangedIfNeeded()
         }
 
-        val onDocumentSelectionChange: (dynamic) -> Unit = selectionHandler@{
+        onDocumentSelectionChangeListener = selectionHandler@{
             if (suppressSelectionChange) return@selectionHandler
             val activeElement = kuiklyDocument.asDynamic().activeElement
             if (activeElement != ele) return@selectionHandler
             notifySelectionChangedIfNeeded()
         }
 
-        ele.addEventListener(EVENT_SELECT, onSelectionRelatedEvent)
-        ele.addEventListener(EVENT_KEYUP, onSelectionRelatedEvent)
-        ele.addEventListener(EVENT_MOUSEUP, onSelectionRelatedEvent)
-        ele.addEventListener(EVENT_TOUCHEND, onSelectionRelatedEvent)
-        kuiklyDocument.addEventListener(EVENT_DOCUMENT_SELECTION_CHANGE, onDocumentSelectionChange)
+        onSelectionRelatedEventListener?.let {
+            ele.addEventListener(EVENT_SELECT, it)
+            ele.addEventListener(EVENT_KEYUP, it)
+            ele.addEventListener(EVENT_MOUSEUP, it)
+            ele.addEventListener(EVENT_TOUCHEND, it)
+        }
+        onDocumentSelectionChangeListener?.let {
+            kuiklyDocument.addEventListener(EVENT_DOCUMENT_SELECTION_CHANGE, it)
+        }
     }
 
     /**
@@ -505,20 +519,20 @@ class KRTextFieldView : IKuiklyRenderViewExport {
         val vv = js("(typeof window !== 'undefined' && window.visualViewport) ? window.visualViewport : null")
         if (vv == null) return
         keyboardTrackingBound = true
+        keyboardViewport = vv
 
-        var isFocused = false
-        ele.addEventListener(EVENT_FOCUS, { isFocused = true })
-        ele.addEventListener(EVENT_BLUR, {
-            isFocused = false
+        onKeyboardFocusListener = { keyboardTrackingFocused = true }
+        onKeyboardBlurListener = {
+            keyboardTrackingFocused = false
             // Treat blur as keyboard fully collapsed.
             if (lastKeyboardHeight != 0f) {
                 lastKeyboardHeight = 0f
                 dispatchKeyboardHeightChangeEvent(0f, DEFAULT_KEYBOARD_DURATION, DEFAULT_KEYBOARD_CURVE)
             }
-        })
+        }
 
-        val onResize: (dynamic) -> Unit = {
-            if (isFocused) {
+        onKeyboardViewportResizeListener = {
+            if (keyboardTrackingFocused) {
                 val innerHeight = js("window.innerHeight").unsafeCast<Number>().toFloat()
                 val viewportHeight = vv.height.unsafeCast<Number>().toFloat()
                 val height = (innerHeight - viewportHeight).coerceAtLeast(0f)
@@ -532,7 +546,10 @@ class KRTextFieldView : IKuiklyRenderViewExport {
                 }
             }
         }
-        vv.addEventListener(EVENT_RESIZE, onResize)
+
+        onKeyboardFocusListener?.let { ele.addEventListener(EVENT_FOCUS, it) }
+        onKeyboardBlurListener?.let { ele.addEventListener(EVENT_BLUR, it) }
+        onKeyboardViewportResizeListener?.let { vv.addEventListener(EVENT_RESIZE, it) }
     }
 
     /**
@@ -549,6 +566,46 @@ class KRTextFieldView : IKuiklyRenderViewExport {
         ele.asDynamic().dispatchEvent(event)
     }
 
+    private fun unbindSelectionTrackingIfNeeded() {
+        if (!selectionTrackingBound) return
+
+        onSelectionRelatedEventListener?.let {
+            ele.removeEventListener(EVENT_SELECT, it)
+            ele.removeEventListener(EVENT_KEYUP, it)
+            ele.removeEventListener(EVENT_MOUSEUP, it)
+            ele.removeEventListener(EVENT_TOUCHEND, it)
+        }
+        onDocumentSelectionChangeListener?.let {
+            kuiklyDocument.removeEventListener(EVENT_DOCUMENT_SELECTION_CHANGE, it)
+        }
+
+        onSelectionRelatedEventListener = null
+        onDocumentSelectionChangeListener = null
+        selectionTrackingBound = false
+    }
+
+    private fun unbindKeyboardHeightTrackingIfNeeded() {
+        if (!keyboardTrackingBound) return
+
+        onKeyboardFocusListener?.let { ele.removeEventListener(EVENT_FOCUS, it) }
+        onKeyboardBlurListener?.let { ele.removeEventListener(EVENT_BLUR, it) }
+        onKeyboardViewportResizeListener?.let { listener ->
+            keyboardViewport?.removeEventListener(EVENT_RESIZE, listener)
+        }
+
+        onKeyboardFocusListener = null
+        onKeyboardBlurListener = null
+        onKeyboardViewportResizeListener = null
+        keyboardViewport = null
+        keyboardTrackingFocused = false
+        keyboardTrackingBound = false
+    }
+
+    override fun onDestroy() {
+        unbindSelectionTrackingIfNeeded()
+        unbindKeyboardHeightTrackingIfNeeded()
+        super.onDestroy()
+    }
 
     /**
      * Set input and keyboard input type

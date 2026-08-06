@@ -12,7 +12,8 @@
 
 ## 在业务落地情况如何? 
 
-Kuikly是腾讯广泛使用的跨端框架，已在15+APP落地500+页面，助力各业务通过跨端开发显著提效。随着鸿蒙平台的适配加速，未来将会发挥更大的价值。
+Kuikly是腾讯广泛使用的跨端框架，目前已有QQ、QQ音乐、QQ浏览器、腾讯新闻、搜狗输入法等30+腾讯业务深度使用，落地页面数1000+，服务日活用户5亿+，覆盖短视频直播、音乐、信息Feeds流、AI对话、金融、游戏社区、高性能动态化运营等众多复杂场景（详见[应用场景案例](../Introduction/application_cases.md)）。
+<br/>开源后，社区开发者与外部业务也在持续体验、接入并共同建设Kuikly生态。
 
 ## Kuikly iOS的底层UI能力是UIKit吗？
 
@@ -57,13 +58,16 @@ Kuikly已经开源微信小程序和 H5跨端的beta版本，欢迎使用。
 ## Kuikly H5 渲染在浏览器上的兼容性怎样
 由于使用css实现部分属性，可能会在低版本浏览器有兼容性问题。建议Chrome在57版本以上, Safari在11版本以上
 
-##  KMM的生态环境目前看还不那么成熟，如果有一些组件需要下沉到KMM层或者说遇到一些问题，目前是怎么解决的？
+## Kuikly的组件和三方库生态现状如何？遇到KMP层缺失的能力怎么解决？
 
-KMM作为后来者，生态上因发展时间较短尚还不具备其生态优势，不过基于KMM的多平台库也在快速丰富，可支撑业务常规第三方库需求，如网络库Ktor以及持久化缓存等, [详情可查看KMM生态组件](https://github.com/terrakok/kmm-awesome)
+Kuikly的生态已经初步成型，可以从四个层面获取所需能力：
 
-<br/>
+1. **内置组件**：Kuikly内置了30+高频业务UI组件（含列表、瀑布流、轮播、弹窗、选择器、富文本、视频、AI Chat等，详见[组件API文档](../API/components/view.md)），覆盖了大部分业务的高频需求场景；
+2. **社区组件市场**：Kuikly已上线[社区组件市场](../Community/component_market.md)，社区开发者可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引上架和复用组件，组件数量在持续增长；
+3. **KMP生态复用**：KuiklyBase兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟的KMP组件生态，如网络库Ktor、持久化缓存等，可支撑业务常规第三方库需求，[详情可查看KMP生态组件](https://github.com/terrakok/kmm-awesome)；
+4. **Native生态融合**：Kuikly设计了一套可扩展的机制，业务方对于需要Native Api的场景，可通过[扩展原生模块](../DevGuide/expand-native-api.md)零成本复用Android/iOS的存量Native生态，动态化等能力诉求也可完整满足。
 
-为了Kuikly能完全满足业务能力诉求（包括动态化诉求），我们和native生态实现融合，设计了一套可扩展的去中心化设计，业务方对于需要Native Api的场景下可通过Kuikly的[扩展原生模块](../DevGuide/expand-native-api.md) 来复用Native生态扩展Kuikly能力。
+基于上述四层设计，业务在落地过程中遇到的组件与三方库需求均有明确的解决路径，不需要等待框架官方排期。
 
 ## 目前多业务场景深度使用后线上Crash数据有不？比较担心有一些特定平台下的Bug，只能等JB来解决
 

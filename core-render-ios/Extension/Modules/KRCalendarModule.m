@@ -22,6 +22,16 @@
     return [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierChinese];
 }
 
+- (NSCalendar *)gregorianCalendar {
+    static NSCalendar *_gregorianCalendar = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _gregorianCalendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+        _gregorianCalendar.timeZone = [NSTimeZone timeZoneWithName:@"Asia/Shanghai"];
+    });
+    return _gregorianCalendar;
+}
+
 - (NSDate *)dateFromString:(NSString *)dateString format:(NSString *)format {
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
     formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
@@ -97,8 +107,7 @@
         // 例如：初始为 7月31日，set MONTH=5（June），此时 day=31 但 6月只有30天，
         // 拼出 "2004-06-31" 后 NSDateFormatter 解析失败返回 nil，导致 timeInMillis() 返回 0。
         // 此行为与 Java Calendar 的 lenient 模式对齐：超出天数自动截取为该月最大天数。
-        NSCalendar *gregorianCalendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
-        gregorianCalendar.timeZone = [NSTimeZone timeZoneWithName:@"Asia/Shanghai"];
+        NSCalendar *gregorianCalendar = [self gregorianCalendar];
         NSDateComponents *tempComponents = [[NSDateComponents alloc] init];
         tempComponents.year = year;
         tempComponents.month = month;
@@ -109,6 +118,9 @@
             if (day > (NSInteger)dayRange.length) {
                 day = dayRange.length;
             }
+        } else {
+            // month 极端越界时 dateFromComponents 可能返回 nil，保底 clamp day 到 28（所有月份的安全下限）
+            day = MIN(day, 28);
         }
         NSString *dateString = [NSString stringWithFormat:@"%04ld-%02ld-%02ld %02ld:%02ld:%02ld.%03ld",
                                 year, month, day, hour, minute, second, millisecond];

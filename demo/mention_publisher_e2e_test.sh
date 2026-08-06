@@ -27,6 +27,8 @@ APP_ACTIVITY="${APP_ACTIVITY:-com.tencent.kuikly.android.demo.KuiklyRenderActivi
 PAGE_NAME="${PAGE_NAME:-MentionPublisherDemo}"
 ADB="${ADB:-adb}"
 WAIT_DEFAULT_MS="${WAIT_DEFAULT_MS:-3000}"
+# 单次引擎请求的 curl 超时（秒）：uia2 冷启动/挂死时快速失败，避免脚本无限阻塞。
+ENGINE_TIMEOUT_S="${ENGINE_TIMEOUT_S:-30}"
 # 设备 serial：未指定时取 adb 第一台已连接设备（真机/模拟器）
 DEVICE_SERIAL="${DEVICE_SERIAL:-}"
 if [ -z "$DEVICE_SERIAL" ]; then
@@ -51,11 +53,11 @@ trap 'rm -f "$RESP_FILE"; restore_ime' EXIT
 # 引擎所有定位类接口都要求 body 内带 {"selector":{...}} 包装，且 Compose 的 testTag 映射到 resource-id，
 # 故统一用 {"selector":{"testTag":"xxx"}}（不要用 id，引擎对 id 选择器会抛 Unknown selector）。
 engine_post() { # endpoint json-body -> http_code (响应体写入 RESP_FILE)
-  curl -s -o "$RESP_FILE" -w "%{http_code}" -X POST "$ENGINE_URL$1" \
+  curl -s --max-time "$ENGINE_TIMEOUT_S" -o "$RESP_FILE" -w "%{http_code}" -X POST "$ENGINE_URL$1" \
     -H "Content-Type: application/json" -d "$2" 2>/dev/null || echo "000"
 }
 engine_get() { # endpoint -> http_code
-  curl -s -o "$RESP_FILE" -w "%{http_code}" "$ENGINE_URL$1" 2>/dev/null || echo "000"
+  curl -s --max-time "$ENGINE_TIMEOUT_S" -o "$RESP_FILE" -w "%{http_code}" "$ENGINE_URL$1" 2>/dev/null || echo "000"
 }
 resp_ok() { # http_code
   [ "$1" = "200" ] && grep -q '"ok":true' "$RESP_FILE"
@@ -107,12 +109,35 @@ run_case() { # case_name  ->  执行后续命令，记录 PASS/FAIL
 }
 
 # ===================== 导航到发布器页 =====================
+# 事件驱动等待：轮询 /view-tree 直到响应成功且内容（按字节长度）连续 2 次一致 = 页面已稳定。
+# 替代盲目 sleep；同时吸收冷启动时 uia2 首次响应慢（curl --max-time 兜底防挂死）。
+wait_quiescence() { # [timeout_s]
+  local timeout_s=${1:-20}
+  local tries=$(( timeout_s * 1000 / 400 ))
+  local prev=-1 cur stable=0
+  while [ "$tries" -gt 0 ]; do
+    if [ "$(engine_get "/view-tree?visible=true")" = "200" ]; then
+      cur=$(wc -c < "$RESP_FILE" 2>/dev/null | tr -d ' ')
+      if [ "${cur:-0}" -gt 50 ] && [ "$cur" = "$prev" ]; then
+        stable=$((stable+1))
+        [ "$stable" -ge 2 ] && return 0
+      else
+        stable=0
+      fi
+      prev="${cur:-0}"
+    fi
+    tries=$((tries-1))
+    sleep 0.4
+  done
+  return 1
+}
+
 open_publisher() {
   # Appium 接管后 restartApp 停在 demo 首页；用 pageName 深链直达发布器页。
   "$ADB" -s "$DEVICE_SERIAL" shell am start -n "$APP_PACKAGE/$APP_ACTIVITY" --es pageName "$PAGE_NAME" >/dev/null 2>&1
-  # 冷启动/新装首启：Kuikly 页面渲染 + view-tree 下发需时，先等再查节点，避免误判“打不开”。
-  sleep 3
-  wait_visible mention_input 8000
+  # 事件驱动等待：轮询 view-tree 直到页面稳定（替代盲目 sleep 3），吸收冷启动 uia2 慢。
+  wait_quiescence 20 || true
+  wait_visible mention_input 15000
 }
 
 # ===================== TC1-TC6 =====================
@@ -228,9 +253,16 @@ main() {
   "$ADB" -s "$DEVICE_SERIAL" shell ime enable "$TEST_IM" >/dev/null 2>&1 || true
   "$ADB" -s "$DEVICE_SERIAL" shell ime set "$TEST_IM" >/dev/null 2>&1 || true
 
-  # 建立会话（restartApp 后停在首页，再深链进发布器）
-  local c
-  c=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}")
+  # 建立会话（restartApp 后停在首页，再深链进发布器）。
+  # Appium 刚起时 /session 偶发 "Failed to fetch"（冷启动竞争），重试 2 次吸收。
+  local c sess_tries=0
+  while [ "$sess_tries" -lt 3 ]; do
+    c=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}")
+    resp_ok "$c" && break
+    sess_tries=$((sess_tries+1))
+    echo "start-session 第 $sess_tries 次失败，等 2s 重试..."
+    sleep 2
+  done
   if ! resp_ok "$c"; then
     echo "start-session 失败: $(cat "$RESP_FILE")"; exit 1
   fi

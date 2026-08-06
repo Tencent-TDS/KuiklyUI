@@ -15,6 +15,20 @@
 
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRViewUtil.h"
+
+bool UpdateForwardHitTestMode(ArkUI_NodeHandle node, const std::string &mode) {
+    if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeBlock)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_BLOCK);
+    } else if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeTransparent)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_TRANSPARENT);
+    } else if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeNone)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_NONE);
+    } else {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_DEFAULT);
+    }
+    return true;
+}
 
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
@@ -50,6 +64,9 @@ bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyV
 
 bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                  const KRRenderCallback event_call_back) {
+    if (!event_call_back && kuikly::util::isEqual(prop_key, kuikly::util::kPropNameHitTestModeOhos)) {
+        return UpdateForwardHitTestMode(GetNode(), prop_value->toString());
+    }
     if (event_call_back) {  // is event
         event_registry_[prop_key] = event_call_back;
         // 设置事件
@@ -65,6 +82,14 @@ bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &
                                                       nullptr, nullptr);
     }
     return true;
+}
+
+bool KRForwardArkTSView::ResetProp(const std::string &prop_key) {
+    if (kuikly::util::isEqual(prop_key, kuikly::util::kPropNameHitTestModeOhos)) {
+        kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
+        return true;
+    }
+    return IKRRenderViewExport::ResetProp(prop_key);
 }
 
 void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {

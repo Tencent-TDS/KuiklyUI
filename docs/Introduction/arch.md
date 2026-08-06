@@ -27,7 +27,7 @@
 
 - 组件生态
   - 兼容标准的Kotlin Multiplatform组件，可复用业界成熟的KMP组件生态
-  - [Kuikly社区组件市场](../Community/component_market.md)已上线，支持组件发现、发布、复用与社区共建，持续扩充`Kuikly`组件生态
+  - [Kuikly社区组件市场](../Community/component_market.html)已上线，支持组件发现、发布、复用与社区共建，持续扩充`Kuikly`组件生态
 
 
 - 强大的多线程协程能力

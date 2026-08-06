@@ -12,7 +12,7 @@
 
 ## 在业务落地情况如何? 
 
-Kuikly是腾讯广泛使用的跨端框架，目前已有QQ、QQ音乐、QQ浏览器、腾讯新闻、搜狗输入法等30+腾讯业务深度使用，落地页面数1000+，服务日活用户5亿+，覆盖短视频直播、音乐、信息Feeds流、AI对话、金融、游戏社区、高性能动态化运营等众多复杂场景（详见[应用场景案例](../Introduction/application_cases.md)）。
+Kuikly是腾讯广泛使用的跨端框架，目前已有QQ、QQ音乐、QQ浏览器、腾讯新闻、搜狗输入法等30+腾讯业务深度使用，落地页面数1000+，服务日活用户5亿+，覆盖短视频直播、音乐、信息Feeds流、AI对话、金融、游戏社区、高性能动态化运营等众多复杂场景（详见[应用场景案例](../Introduction/application_cases.html)）。
 <br/>开源后，社区开发者与外部业务也在持续体验、接入并共同建设Kuikly生态。
 
 ## Kuikly iOS的底层UI能力是UIKit吗？
@@ -46,7 +46,7 @@ Xcode可以调试Kotlin代码，也可以AndroidStudio调试iOS平台的kolint�
 
 ## Kotlin编译成iOS的framework后的堆栈还原是否有问题？
 
-没问题，kotlin/native 编译的framework可完整还原堆栈，详情可参考[官网文档（iOS framework模式堆栈翻译）](../DevGuide/symbol-iOS.md)
+没问题，kotlin/native 编译的framework可完整还原堆栈，详情可参考[官网文档（iOS framework模式堆栈翻译）](../DevGuide/symbol-iOS.html)
 
 ## 编译后的shared库，头文件庞大且无注释，目前是怎么处理的？
 shared.framework的头文件内容包括Kotlin runtime类，Kuikly Core类、业务类，其中业务类是可以做到完全不导出在头文件中的，因为业务类不需要和原生直接交互，其交互通过KuiklyCore的CallNaitve/CallKotlin两个接口通信交互，所以接入层的业务方按理可以不理解share.framework的头文件。
@@ -62,10 +62,10 @@ Kuikly已经开源微信小程序和 H5跨端的beta版本，欢迎使用。
 
 Kuikly的生态已经初步成型，可以从四个层面获取所需能力：
 
-1. **内置组件**：Kuikly内置了30+高频业务UI组件（含列表、瀑布流、轮播、弹窗、选择器、富文本、视频、AI Chat等，详见[组件API文档](../API/components/view.md)），覆盖了大部分业务的高频需求场景；
-2. **社区组件市场**：Kuikly已上线[社区组件市场](../Community/component_market.md)，社区开发者可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引上架和复用组件，组件数量在持续增长；
+1. **内置组件**：Kuikly内置了30+高频业务UI组件（含列表、瀑布流、轮播、弹窗、选择器、富文本、视频、AI Chat等，详见[组件API文档](../API/components/view.html)），覆盖了大部分业务的高频需求场景；
+2. **社区组件市场**：Kuikly已上线[社区组件市场](../Community/component_market.html)，社区开发者可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引上架和复用组件，组件数量在持续增长；
 3. **KMP生态复用**：KuiklyBase兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟的KMP组件生态，如网络库Ktor、持久化缓存等，可支撑业务常规第三方库需求，[详情可查看KMP生态组件](https://github.com/terrakok/kmm-awesome)；
-4. **Native生态融合**：Kuikly设计了一套可扩展的机制，业务方对于需要Native Api的场景，可通过[扩展原生模块](../DevGuide/expand-native-api.md)零成本复用Android/iOS的存量Native生态，动态化等能力诉求也可完整满足。
+4. **Native生态融合**：Kuikly设计了一套可扩展的机制，业务方对于需要Native Api的场景，可通过[扩展原生模块](../DevGuide/expand-native-api.html)零成本复用Android/iOS的存量Native生态，动态化等能力诉求也可完整满足。
 
 基于上述四层设计，业务在落地过程中遇到的组件与三方库需求均有明确的解决路径，不需要等待框架官方排期。
 

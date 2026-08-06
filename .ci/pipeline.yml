@@ -5,9 +5,9 @@
 #
 # 执行机：
 #   本测试为 Android 真机 E2E（Appium + 仓库内置 e2e-engine），必须在连着真机的 Mac 上跑。
-#   因此 e2e job 使用 self-hosted 私有构建池（pool-name 见下），需先在 Stream CI 网页
-#   创建同名自定义资源池并把本机 Mac 注册进去。
-#   ⚠️ pool-name 必须与你在 Stream CI「构建资源池」里建的池名一致（下方为约定名）。
+#   因此 e2e job 使用 self-hosted 私有构建池（pool-name 见下），需先在 Stream CI「构建环境」
+#   创建同名自定义资源池(仅允许字母/数字/下划线)并把本机 Mac 注册进去。
+#   ⚠️ pool-name 必须与你在 Stream CI「构建环境」里建的环境名完全一致（下方为约定名）。
 #
 # 触发：
 #   - schedules: 每天定时跑 e2e（以默认分支 main 上的本文件为准）
@@ -35,7 +35,7 @@ stages:
         name: 编译校验
         runs-on:
           self-hosted: true
-          pool-name: kuikly-mac-local
+          pool-name: kuikly_mac_local
         steps:
           - checkout: self
           - run: |
@@ -48,7 +48,7 @@ stages:
         name: 发布器真机E2E回归
         runs-on:
           self-hosted: true
-          pool-name: kuikly-mac-local
+          pool-name: kuikly_mac_local
         steps:
           - checkout: self
           - run: |

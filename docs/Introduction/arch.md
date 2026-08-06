@@ -26,8 +26,10 @@
   - 支持KN鸿蒙编译以及鸿蒙调试构建
 
 - 组件生态
-  - 兼容标准的Kotlin Multiplatform组件，可复用业界成熟的KMP组件生态
-  - [Kuikly社区组件市场](../Community/component_market.html)已上线，支持组件发现、发布、复用与社区共建，持续扩充`Kuikly`组件生态
+  - `Kuikly`的组件与三方库能力是丰富的，由四个层面构成：内置丰富的高频业务组件、社区组件市场、KMP生态复用、Native生态融合
+  - 兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟、规模庞大的KMP组件生态（如网络库Ktor、序列化kotlinx.serialization、持久化SQLDelight/DataStore等）
+  - [Kuikly社区组件市场](../Community/component_market.html)已上线，支持组件发现、发布、复用与社区共建，组件数量持续增长
+  - 通过[扩展原生模块](../DevGuide/expand-native-api.html)机制，可零成本复用Android/iOS存量Native生态
 
 
 - 强大的多线程协程能力

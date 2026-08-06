@@ -58,13 +58,13 @@ Kuikly已经开源微信小程序和 H5跨端的beta版本，欢迎使用。
 ## Kuikly H5 渲染在浏览器上的兼容性怎样
 由于使用css实现部分属性，可能会在低版本浏览器有兼容性问题。建议Chrome在57版本以上, Safari在11版本以上
 
-## Kuikly的组件和三方库生态现状如何？遇到KMP层缺失的能力怎么解决？
+## Kuikly的组件和三方库生态现状如何？是否能满足业务的第三方库需求？
 
-Kuikly的生态已经初步成型，可以从四个层面获取所需能力：
+Kuikly的组件与三方库能力是丰富的：KuiklyBase兼容标准的Kotlin Multiplatform生态，可直接复用业界成熟、规模庞大的KMP组件，再叠加内置组件、社区组件市场与Native生态融合机制，业务可以从四个层面获取所需能力：
 
-1. **内置组件**：Kuikly内置了30+高频业务UI组件（含列表、瀑布流、轮播、弹窗、选择器、富文本、视频、AI Chat等，详见[组件API文档](../API/components/view.html)），覆盖了大部分业务的高频需求场景；
-2. **社区组件市场**：Kuikly已上线[社区组件市场](../Community/component_market.html)，社区开发者可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引上架和复用组件，组件数量在持续增长；
-3. **KMP生态复用**：KuiklyBase兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟的KMP组件生态，如网络库Ktor、持久化缓存等，可支撑业务常规第三方库需求，[详情可查看KMP生态组件](https://github.com/terrakok/kmm-awesome)；
+1. **内置组件**：Kuikly内置了丰富的高频业务UI组件（含列表、瀑布流、轮播、弹窗、选择器、富文本、视频、AI Chat等，详见[组件API文档](../API/components/view.html)），覆盖了大部分业务的高频需求场景；
+2. **社区组件市场**：Kuikly已上线[社区组件市场](../Community/component_market.html)，社区开发者可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引上架和复用组件，组件数量持续增长；
+3. **KMP生态复用**：KuiklyBase兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟的KMP组件生态，如网络库Ktor、序列化kotlinx.serialization、持久化SQLDelight/DataStore等，覆盖了网络、存储、图片加载等常规第三方库需求，[详情可查看KMP生态组件](https://github.com/terrakok/kmm-awesome)；
 4. **Native生态融合**：Kuikly设计了一套可扩展的机制，业务方对于需要Native Api的场景，可通过[扩展原生模块](../DevGuide/expand-native-api.html)零成本复用Android/iOS的存量Native生态，动态化等能力诉求也可完整满足。
 
 ## 目前多业务场景深度使用后线上Crash数据有不？比较担心有一些特定平台下的Bug，只能等JB来解决

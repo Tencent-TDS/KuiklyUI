@@ -28,9 +28,16 @@ export DEVICE_SERIAL
 APPIUM_PID=""
 ENGINE_PID=""
 
+# 递归杀进程树：先杀子进程再杀自己，避免 npm→tsx 孙进程残留（与 demo/run_publisher_local.sh 同步）
+kill_tree() {
+  local pid=$1 child
+  for child in $(pgrep -P "$pid" 2>/dev/null); do kill_tree "$child"; done
+  kill "$pid" 2>/dev/null
+}
+
 cleanup() {
-  [ -n "$ENGINE_PID" ] && kill "$ENGINE_PID" 2>/dev/null
-  [ -n "$APPIUM_PID" ] && kill "$APPIUM_PID" 2>/dev/null
+  [ -n "$ENGINE_PID" ] && kill_tree "$ENGINE_PID"
+  [ -n "$APPIUM_PID" ] && kill_tree "$APPIUM_PID"
   wait 2>/dev/null
 }
 trap cleanup EXIT

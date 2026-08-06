@@ -32,7 +32,7 @@ stages:
   - name: build
     jobs:
       build_debug:
-        name: 编译校验
+        name: 编译与单测校验
         runs-on:
           self-hosted: true
           pool-name: kuikly_mac_local
@@ -40,7 +40,9 @@ stages:
           - checkout: self
           - run: |
               source ci/setup-env.sh
-              ./gradlew :androidApp:compileDebugKotlin
+              # assembleDebug 覆盖编译+打包；testDebugUnitTest 跑 JVM 原生单测 12 例
+              # （零设备，每次 MR/push 阻断纯逻辑回归）
+              ./gradlew :androidApp:assembleDebug :demo:testDebugUnitTest
 
   - name: test
     jobs:

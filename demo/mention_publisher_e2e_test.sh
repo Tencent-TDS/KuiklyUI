@@ -39,6 +39,10 @@ fi
 PASS=0
 FAIL=0
 FAILED_CASES=()
+# 失败证据目录（每次运行一个时间戳子目录）；失败用例自动收 view-tree/logcat/截图。
+RUN_ID="$(date +%Y%m%d-%H%M%S)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${LOG_DIR:-$SCRIPT_DIR/logs/$RUN_ID}"
 # 注意：macOS/BSD 的 mktemp 要求随机后缀 XXXXXX 必须位于模板末尾，
 # 否则不会随机化、会直接创建字面上的 eng_resp.XXXXXX.json（导致 “File exists” 卡死）。
 RESP_FILE="$(mktemp /tmp/eng_resp.XXXXXX)"
@@ -98,6 +102,25 @@ assert_not_visible() {
 }
 
 # ===================== 用例框架 =====================
+# 失败证据采集（调研 G2）：失败时收 view-tree JSON + page-source + logcat + 截图，
+# 存 $LOG_DIR/<用例名>/，供排查「断了不知为啥红」。成功不采集（省时省空间）。
+collect_evidence() { # case_name
+  local case_name="$1" dir
+  dir="$LOG_DIR/$case_name"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  # view-tree JSON（失败时刻现场，含 testTag/text 的渲染树）
+  engine_get "/view-tree?visible=true" >/dev/null 2>&1
+  cp -f "$RESP_FILE" "$dir/view-tree.json" 2>/dev/null || true
+  # page-source（uia2 原始 XML，比 view-tree 更全）
+  engine_get "/page-source" >/dev/null 2>&1
+  cp -f "$RESP_FILE" "$dir/page-source.json" 2>/dev/null || true
+  # logcat（最近 300 行，定位崩溃/异常）
+  "$ADB" -s "$DEVICE_SERIAL" logcat -d -v time 2>/dev/null | tail -300 > "$dir/logcat.txt" 2>/dev/null || true
+  # 截图（PNG，adb exec-out screencap，不依赖引擎）
+  "$ADB" -s "$DEVICE_SERIAL" exec-out screencap -p > "$dir/screenshot.png" 2>/dev/null || true
+  echo "   证据已存: $dir"
+}
+
 run_case() { # case_name  ->  执行后续命令，记录 PASS/FAIL
   local name="$1"; shift
   echo "── TC: $name"
@@ -105,6 +128,7 @@ run_case() { # case_name  ->  执行后续命令，记录 PASS/FAIL
     PASS=$((PASS+1)); echo "   PASS"
   else
     FAIL=$((FAIL+1)); FAILED_CASES+=("$name"); echo "   FAIL"
+    collect_evidence "$name"
   fi
 }
 
@@ -241,6 +265,7 @@ tc10_empty_backspace_no_crash() {
 main() {
   echo "== 发布器 E2E 回归（Android happy path）=="
   echo "引擎: $ENGINE_URL  页面: $PAGE_NAME  设备: $DEVICE_SERIAL"
+  echo "证据目录: $LOG_DIR"
 
   # 真机（vivo 等）uiautomator2 server 易进入“进程在但 HTTP 无响应”的僵尸态，
   # 导致 getPageSource 等命令 20s 超时。先强制停止并清理残留反向隧道，让 /start-session 干净重拉。
@@ -289,7 +314,7 @@ main() {
 
   echo "────────────────────────────"
   echo "结果: PASS=$PASS  FAIL=$FAIL"
-  [ "$FAIL" -eq 0 ] && echo "✅ 全部通过" || echo "❌ 失败用例: ${FAILED_CASES[*]}"
+  [ "$FAIL" -eq 0 ] && echo "✅ 全部通过" || { echo "❌ 失败用例: ${FAILED_CASES[*]}"; echo "证据见: $LOG_DIR"; }
   rm -f "$RESP_FILE"
   [ "$FAIL" -eq 0 ]
 }

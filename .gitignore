@@ -60,3 +60,4 @@ proto/**/*.kt
 /.workbuddy/
 /BugFix/
 /wdblogs/
+/demo/logs/

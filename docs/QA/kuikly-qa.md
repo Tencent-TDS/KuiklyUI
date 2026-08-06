@@ -67,8 +67,6 @@ Kuikly的生态已经初步成型，可以从四个层面获取所需能力：
 3. **KMP生态复用**：KuiklyBase兼容标准的Kotlin Multiplatform组件，可直接复用业界成熟的KMP组件生态，如网络库Ktor、持久化缓存等，可支撑业务常规第三方库需求，[详情可查看KMP生态组件](https://github.com/terrakok/kmm-awesome)；
 4. **Native生态融合**：Kuikly设计了一套可扩展的机制，业务方对于需要Native Api的场景，可通过[扩展原生模块](../DevGuide/expand-native-api.html)零成本复用Android/iOS的存量Native生态，动态化等能力诉求也可完整满足。
 
-基于上述四层设计，业务在落地过程中遇到的组件与三方库需求均有明确的解决路径，不需要等待框架官方排期。
-
 ## 目前多业务场景深度使用后线上Crash数据有不？比较担心有一些特定平台下的Bug，只能等JB来解决
 
 通过监控的crash数据来看，暂未发现KMM 相关的crash问题，已有crash为业务的代码基本为本身的安全性（如：？/！强解可空变量）crash

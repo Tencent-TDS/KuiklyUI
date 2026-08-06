@@ -609,23 +609,20 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 
 + (NSString *)hr_dictionaryToJSON:(NSDictionary *)dict {
     NSError *parseError = nil;
-    NSString *failureReason = nil;
     NSString *jsonString = nil;
     @try {
         NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dict
                                                            options:NSJSONWritingFragmentsAllowed
                                                              error:&parseError];
         jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-        failureReason = parseError.localizedDescription;
     } @catch (NSException *exception) {
         // 捕获并打印异常信息
         NSString *assertReason = [NSString stringWithFormat:@"%s exception:%@ reason:%@ userinfo:%@", __FUNCTION__, exception.name, exception.reason,exception.userInfo];
         [KRLogModule logError:assertReason];
-        failureReason = assertReason;
         NSAssert(false, assertReason);
     }
     if (!jsonString) {
-        [KRLogModule logError:[NSString stringWithFormat:@"%s JSON 序列化失败, reason: %@, dict: %@", __FUNCTION__, failureReason ?: @"未知原因", dict]];
+        [KRLogModule logError:@"JSON serialization failed"];
         jsonString = @"{}";
     }
     return jsonString;

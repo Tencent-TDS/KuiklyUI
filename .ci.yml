@@ -1,0 +1,57 @@
+# 工蜂 CI 配置 —— KuiklyUI 发布器自动化测试
+#
+# 说明：
+#   本仓库的自动化测试为 Android 真机 E2E（Appium + 仓库内置 e2e-engine），
+#   必须在「连着 Android 真机的 Mac」上执行，无法跑在工蜂共享 Runner（无设备）上。
+#   因此所有 job 均通过 tags: [mac-local-device] 约束到注册在本机 Mac 的私有 Runner。
+#
+# 触发方式：
+#   - 每天定时（schedule）：跑 e2e_publisher
+#   - 提 MR / push：跑 build 编译校验；e2e 默认手动触发（避免每次 push 都占真机）
+#
+# 前置（本机 Mac 一次性配置）：
+#   1. 安装并注册 gitlab-runner，注册时 tags 填 mac-local-device
+#   2. 真机 vivo 保持 USB 连接并开启 USB 调试
+#   3. Android SDK / workbuddy node(appium) 路径见 ci/setup-env.sh
+
+stages:
+  - build
+  - test
+
+# 统一约束到本机私有 Runner
+.defaults: &defaults
+  tags:
+    - mac-local-device
+  before_script:
+    - source ci/setup-env.sh
+
+# ---------- 编译校验（不依赖真机，验证代码不坏） ----------
+build_debug:
+  <<: *defaults
+  stage: build
+  script:
+    - ./gradlew :androidApp:compileDebugKotlin
+  only:
+    - schedules
+    - merge_requests
+    - pushes
+
+# ---------- 真机 E2E 回归（每天定时自动跑） ----------
+e2e_publisher:
+  <<: *defaults
+  stage: test
+  script:
+    - bash ci/run-e2e-ci.sh
+  artifacts:
+    when: always
+    paths:
+      - /tmp/appium_publisher.log
+      - /tmp/e2e_engine_publisher.log
+    expire_in: 3 days
+  only:
+    - schedules
+    - merge_requests
+  # push 时改为手动触发，避免每次提交都占用真机
+  except:
+    - pushes
+  allow_failure: false

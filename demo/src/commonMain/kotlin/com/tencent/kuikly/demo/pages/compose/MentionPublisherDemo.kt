@@ -80,47 +80,9 @@ class MentionPublisherDemo : ComposeContainer() {
 /** @人 高亮色（微博蓝） */
 private val MentionHighlightColor = Color(0xFF5B7FB5)
 
-/** 已知候选名单：name -> userId */
-private val KNOWN_MENTIONS = listOf(
-    "张三" to "u_zhangsan",
-    "李四" to "u_lisi",
-    "王五" to "u_wangwu",
-    "Tom" to "u_tom",
-)
-
-/**
- * Mention 元数据。约束：text.substring(start, end) == displayName
- */
-private data class Mention(
-    val userId: String,
-    val displayName: String,   // 例如 "@张三"
-    val start: Int,
-    val end: Int,              // exclusive
-)
-
 private sealed class DeleteState {
     data object Normal : DeleteState()
     data class MentionSelected(val mention: Mention) : DeleteState()
-}
-
-/**
- * 正则重扫：在 text 中找出所有已知 @昵称 的出现位置，生成 Mention 列表。
- * 对齐官方思路——每次文本变化后重扫，下标自动正确，无需手动前后移。
- */
-private fun scanMentions(text: String): List<Mention> {
-    val result = mutableListOf<Mention>()
-    for ((name, userId) in KNOWN_MENTIONS) {
-        val token = "@$name"
-        var from = 0
-        while (true) {
-            val pos = text.indexOf(token, from)
-            if (pos < 0) break
-            result.add(Mention(userId, token, pos, pos + token.length))
-            from = pos + token.length
-        }
-    }
-    result.sortBy { it.start }
-    return result
 }
 
 private fun findMentionByRange(mentions: List<Mention>, selection: TextRange): Mention? {
@@ -152,27 +114,6 @@ private fun buildHighlightedText(
             }
         }
     }
-}
-
-/**
- * 检测光标前是否有 @ 触发：向回找 @，中间不能有空格；@ 前必须是文本起点或空格；
- * 且 @ 不能落在某个已有 mention 内部（避免对已完成的 @人 重复弹候选）。
- * 返回 @ 的下标，或 null。
- */
-private fun detectMentionTrigger(
-    text: String,
-    cursor: Int,
-    mentions: List<Mention>,
-): Int? {
-    if (cursor <= 0) return null
-    var i = cursor - 1
-    while (i >= 0 && text[i] != '@' && !text[i].isWhitespace()) {
-        i--
-    }
-    if (i < 0 || text[i] != '@') return null
-    // @ 落在已有 mention 内部则不触发（避免对已完成的 @人 重复弹候选）
-    if (mentions.any { it.start <= i && i < it.end }) return null
-    return i
 }
 
 private fun deleteStateLabel(deleteState: DeleteState): String {
@@ -229,9 +170,7 @@ private fun MentionPublisherScreen() {
         null
     }
     val query = triggerPos?.let { editorValue.text.substring(it + 1, editorValue.selection.start) }
-    val candidates = query?.let { q ->
-        KNOWN_MENTIONS.filter { it.first.startsWith(q) }
-    } ?: emptyList()
+    val candidates = query?.let { q -> filterCandidates(q) } ?: emptyList()
 
     Column(
         modifier = Modifier

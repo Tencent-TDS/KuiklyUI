@@ -80,6 +80,11 @@ node_line() {
   engine_get "/view-tree?visible=true" >/dev/null
   resp_text | grep -F "testTag=\"$1\""
 }
+# 取指定 testTag 节点 text="" 属性的原始值（TC9 用来解析 debug_text / debug_mentions 做自洽切片）
+node_text_value() {
+  engine_get "/view-tree?visible=true" >/dev/null
+  resp_text | grep -F "testTag=\"$1\"" | sed 's/.*text="\([^"]*\)".*/\1/' | head -1
+}
 # 该 testTag 节点文本包含子串（固定字符串匹配）
 assert_node_contains() {
   node_line "$1" | grep -qF "$2"
@@ -160,6 +165,53 @@ tc7_query_filters_candidate() {
   assert_not_visible mention_candidate_李四
 }
 
+# ===================== TC8-TC10（P1 边界/异常）=====================
+tc8_mid_cursor_backspace_selects() {
+  # 边界：光标停在 @人 中段退格，原生 KRTextFieldView 应选中整段 @人（deleteState=MentionSelected）。
+  # "@张三" 共 3 字，点选后 text="@张三 " 光标在末尾位置 4；左移 3 次到位置 1（@ 与 张 之间，落在 [0,3] 内）再退格。
+  open_publisher && focus_input && input_text "@" && wait_visible mention_candidate_张三 && \
+  tap mention_candidate_张三 && sleep 0.3 && \
+  for i in 1 2 3; do "$ADB" -s "$DEVICE_SERIAL" shell input keyevent 21; sleep 0.15; done && \
+  "$ADB" -s "$DEVICE_SERIAL" shell input keyevent 67 && sleep 0.3 && \
+  assert_node_contains debug_delete_state "MentionSelected"
+}
+
+tc9_interval_self_consistent() {
+  # 最有价值：文本与区间自洽——对每个 mention 断言 debug_text.substring(start,end)==displayName。
+  # 抓“UI 看着对、内部区间已错位”类隐蔽回归（off-by-one 等），是改坏→红实证那类 bug 的常驻防线。
+  open_publisher && focus_input && input_text "@" && wait_visible mention_candidate_张三 && \
+  tap mention_candidate_张三 && sleep 0.3 && \
+  input_text "@" && wait_visible mention_candidate_李四 && \
+  tap mention_candidate_李四 && sleep 0.3 || return 1
+  local dt dm
+  dt=$(node_text_value debug_text)
+  dm=$(node_text_value debug_mentions)
+  python3 - "$dt" "$dm" <<'PY'
+import sys, re
+text_raw, mentions_raw = sys.argv[1], sys.argv[2]
+m = re.search(r'text\s*=\s*(.*)', text_raw, re.S)
+text = m.group(1) if m else text_raw
+mentions = re.findall(r'\((@[^,]+),\[(\d+),(\d+)\]\)', mentions_raw)
+if not mentions:
+    print("  TC9: 未解析到 mention"); sys.exit(1)
+ok = True
+for name, s, e in mentions:
+    s, e = int(s), int(e)
+    seg = text[s:e]
+    match = (seg == name)
+    print(f"  TC9: {name} [{s},{e}] -> substring={seg!r} {'OK' if match else 'MISMATCH'}")
+    if not match: ok = False
+sys.exit(0 if ok else 1)
+PY
+}
+
+tc10_empty_backspace_no_crash() {
+  # 异常：无 @人 时连续退格不应崩溃。断言：连退 5 次后 mention_input 仍可定位（app 存活）。
+  open_publisher && focus_input || return 1
+  for i in 1 2 3 4 5; do "$ADB" -s "$DEVICE_SERIAL" shell input keyevent 67; sleep 0.2; done
+  wait_visible mention_input 3000
+}
+
 # ===================== 主流程 =====================
 main() {
   echo "== 发布器 E2E 回归（Android happy path）=="
@@ -197,6 +249,9 @@ main() {
   run_case "TC5 无匹配候选不弹出"         tc5_no_match_no_dropdown
   run_case "TC6 @后空格不计入高亮区间"    tc6_space_not_in_range
   run_case "TC7 @+名字过滤出对应候选"     tc7_query_filters_candidate
+  run_case "TC8 光标中段退格选中整段"     tc8_mid_cursor_backspace_selects
+  run_case "TC9 文本与区间自洽切片"       tc9_interval_self_consistent
+  run_case "TC10 空列表连续退格不崩"      tc10_empty_backspace_no_crash
 
   engine_post /stop-session "{}" >/dev/null
 

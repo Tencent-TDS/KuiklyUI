@@ -94,6 +94,13 @@ kotlin {
 //        )
     }
 
+    // JVM 原生单测（@人发布器纯逻辑）：跑在 androidUnitTest，纯 kotlin-test，不依赖 Android/Robolectric。
+    val androidUnitTest by sourceSets.getting {
+        dependencies {
+            implementation(kotlin("test"))
+        }
+    }
+
     sourceSets.iosMain {
         dependsOn(commonMain)
         dependencies {

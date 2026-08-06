@@ -124,7 +124,13 @@ class KRTextFieldView : IKuiklyRenderViewExport {
             }
 
             MAX_TEXT_LENGTH -> {
-                ele.maxLength = propValue.unsafeCast<Int>()
+                val maxTextLength = propValue.unsafeCast<Int>()
+                if (maxTextLength <= 0) {
+                    // Treat negative values as unlimited input length on web.
+                    ele.removeAttribute("maxlength")
+                } else {
+                    ele.maxLength = maxTextLength
+                }
                 true
             }
 

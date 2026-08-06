@@ -128,14 +128,14 @@ fun ShadowExample() {
 
 **影响范围**：所有使用 `Text` 组件的地方，用户无法通过长按等方式选择并复制文本内容。
 
-#### 4. `TextField(value: String)` 不直接暴露 `selection` 参数
+#### 4. Material3 `TextField` 受控重载暴露 `selection` / `composition`
 
-**差异说明**：当前 Material3 `TextField(value: String)` 这一组公开 API 仍不直接暴露 `selection` / `composition` 参数，因此不能像标准 Compose 的 `TextFieldValue` 重载那样，直接通过组件参数程序化指定选区。
+**差异说明**：标准 Compose 通过 `TextField(value: TextFieldValue)` 重载直接以参数暴露 `selection` / `composition`。KuiklyUI 自 2.25.0 起新增 Material3 `TextField(value: TextFieldValue)` 受控重载，可程序化指定选区与组字态；原 `TextField(value: String)` 仍保留不暴露 `selection` / `composition` 参数。
 
-**影响范围**：如果业务使用的是 `TextField(value: String, onValueChange = ...)` 这条公开 API，则无法直接通过参数控制光标位置或选区范围。
+**影响范围**：使用原 `TextField(value: String, onValueChange = ...)` 公开 API 时，仍无法直接通过参数控制光标位置或选区范围；需切换为 `TextField(value: TextFieldValue)` 重载方可。
 
 **推荐方案**：
-- **Compose DSL**：使用 state-based `BasicTextField(state = rememberTextFieldState())`，通过 `TextFieldState.selection` 与 `state.edit { replace(selection.start, selection.end, text) }` 控制 raw 光标 / 选区。
+- **Compose DSL（程序化选区）**：使用新增的 Material3 `TextField(value: TextFieldValue, onValueChange = ...)` 受控重载，直接以参数传入 `selection` / `composition`；或使用 state-based `BasicTextField(state = rememberTextFieldState())`，通过 `TextFieldState.selection` 与 `state.edit { replace(selection.start, selection.end, text) }` 控制 raw 光标 / 选区。
 - **Core / 自研 DSL**：使用 `TextInputState` / `setTextInputState()` 原子化设置 raw text、selection、composition。
 
 **Android 特别说明**：程序化设置 `selection` 后，会同步真实选区并显示高亮，后续输入也会替换该区间；但这**不保证**自动拉起 Android 原生文本选择手柄或 action mode。

@@ -55,6 +55,7 @@ import com.tencent.kuikly.compose.profiler.RecompositionTracker
 import com.tencent.kuikly.compose.profiler.kuiklySetObserver
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
+import com.tencent.kuikly.core.log.KLog
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.CoroutineContext
 
@@ -208,7 +209,27 @@ internal abstract class BaseComposeScene(
 
             recomposer.performScheduledTasks()
 
-            frameClock.sendFrame(nanoTime) // Recomposition
+            // Kuikly runs on HRContextQueueHandlerThread; snapshot apply during sendFrame can
+            // synchronously drain official Jetpack Compose SnapshotStateObservers. If main-thread
+            // official UI (e.g. androidx.compose.animation.Transition) is updated concurrently,
+            // IndexOutOfBoundsException may surface here — not fixable in official Compose.
+            // Only swallow IOOB from that path; rethrow other IOOB so real bugs still crash.
+            try {
+                frameClock.sendFrame(nanoTime) // Recomposition
+            } catch (e: IndexOutOfBoundsException) {
+                val trace = e.stackTraceToString()
+                if (!trace.contains("Transition.calculateTotalDurationNanos")) {
+                    throw e
+                }
+                KLog.e(
+                    "Kuikly.Compose",
+                    "sendFrame IndexOutOfBoundsException (official Compose Transition on shared Snapshot): $trace",
+                )
+                if (frameSampled) {
+                    tracker?.onFrameEnd(0)
+                }
+                return@postponeInvalidation
+            }
             doLayout() // Layout
             recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
 

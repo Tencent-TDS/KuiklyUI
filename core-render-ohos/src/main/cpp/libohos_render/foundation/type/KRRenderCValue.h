@@ -17,8 +17,8 @@
 #define CORE_RENDER_OHOS_KRRENDERCVALUE_H
 
 #include <stdint.h>
-#include <cstddef>
-#include <cstdint>
+#include <stdbool.h>
+#include <stddef.h>
 
 /**
  * 与kotlin侧通信的数据类型
@@ -36,21 +36,31 @@ typedef struct KRRenderCValue {
         int boolValue;
         char *stringValue;
         char *bytesValue;
-        struct KRRenderCValue *arrayValue = NULL;
+        struct KRRenderCValue *arrayValue;
     } value;
 
     /**
      * 当类型为数组或者二进制时, 表示其长度
      */
     int32_t size;
+
+#ifdef __cplusplus
+    KRRenderCValue() : type(NULL_VALUE), value{}, size(0) {}
+#endif
 } KRRenderCValue;
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 typedef void (*CallKotlin)(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2,
                            KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
 extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
 extern void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
                                                           const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
                                                           const KRRenderCValue *arg5, KRRenderCValue *result);
+
+#ifdef __cplusplus
 }
+#endif
+
 #endif  // CORE_RENDER_OHOS_KRRENDERCVALUE_H

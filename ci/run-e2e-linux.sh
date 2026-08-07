@@ -127,7 +127,7 @@ PY
 # 3) 启动 Appium（脱离进程组，免疫 runner 在 installDebug 间隙发 SIGTERM —— 工蜂 7 轮真因）
 echo "==> [1/4] 启动 Appium (port $APP_PORT) [独立 session，防 runner SIGTERM]"
 start_appium_detached "$APPIUM_BIN" "$APP_PORT" "$APPIUM_PIDFILE" "/tmp/appium_publisher_gh.log" || { echo "!! Appium 启动失败"; exit 1; }
-tail -f /tmp/appium_publisher_gh.log >&2 &   # 流式日志进 step stdout（保 AI 可观测）
+tail -F /tmp/appium_publisher_gh.log >&2 &   # 流式日志进 step stdout（保 AI 可观测）；-F 等文件出现后再 follow，防与 grandchild 创建文件竞态
 
 # 4) 装引擎依赖 + 启动 E2E 引擎
 echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
@@ -136,7 +136,7 @@ echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
 export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-10000}"
 ( cd "$ENGINE_DIR" && ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
 ENGINE_PID=$!
-tail -f /tmp/e2e_engine_publisher_gh.log >&2 &   # 流式日志进 step stdout
+tail -F /tmp/e2e_engine_publisher_gh.log >&2 &   # 流式日志进 step stdout（-F 抗文件竞态）
 
 echo "==> 等待服务就绪 ..."
 appium_ready=0

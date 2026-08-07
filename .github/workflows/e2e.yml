@@ -71,6 +71,10 @@ jobs:
             bash ci/run-e2e-linux.sh --install
         env:
           MOBILE_TEST_PORT: 7900
+          # 冷模拟器首跑 uia2 install + 启动要 >120s（WebDriverIO connectionRetryTimeout 默认 120s 会卡死超时）；
+          # vivo 真机 2min 内足够（device job 保持默认），这里只放宽 emulator 路径。
+          WEBDRIVER_REQUEST_TIMEOUT_MS: "300000"
+          SESSION_TIMEOUT_S: "300"
 
   # ---- 路径二：vivo 真机（后续启用）----
   # 启用步骤：

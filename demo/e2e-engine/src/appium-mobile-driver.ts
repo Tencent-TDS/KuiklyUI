@@ -294,6 +294,10 @@ function buildCapabilities(config: AppiumMobileDriverConfig): Record<string, unk
     base["appium:settings[waitForIdleTimeout]"] = 100
     base["appium:uiautomator2ServerReadTimeout"] = androidUia2ReadTimeoutMs()
     base["appium:uiautomator2ServerLaunchTimeout"] = 60_000
+    // 冷模拟器上 `adb shell settings put global hidden_api_policy 1` 偶发 >20s（adbExecTimeout），
+    // 触发 POST /session 500；demo app 不依赖隐藏 API，按 Appium 官方建议忽略该错继续建 session。
+    // 详见 https://github.com/appium/appium/issues/13802
+    base["appium:ignoreHiddenApiPolicyError"] = true
   } else {
     base["appium:bundleId"] = config.bundleId ?? "com.tencent.kuiklycore.demo.luoyibu"
     base["appium:deviceName"] = config.deviceName ?? "iPhone 17 Pro"

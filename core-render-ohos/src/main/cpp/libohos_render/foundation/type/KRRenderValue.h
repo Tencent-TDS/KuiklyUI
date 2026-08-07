@@ -37,6 +37,7 @@
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/NAPIUtil.h"
 #include "thirdparty/cJSON/cJSON.h"
+#include "libohos_render/foundation/type/KRLazyCJsonBridge.h"
 
 // Test cases : 1.0, 100000.0, 9999999900.0, 0.01, 0.020, 0.01234560, 12345670.0123456
 static std::string DoubleToString(double value) {
@@ -575,23 +576,26 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 c_value_.size = byte_array->size();
                 c_value_.value.bytesValue = reinterpret_cast<char *>(byte_array->data());
             } else if (isMap()) {
-                ToJsonMapOrArrayLocked();
+                // Lazy bridge: pass cJSON* so Kotlin JSONObject can delegate field access
+                // without eagerly copying every key/value (esp. large strings).
+                ToNativeJsonLocked();
             } else if (isArray()) {
+                // Arrays: keep structural ARRAY for binary-friendly path; JSON-only arrays
+                // can also use native json when no byte elements.
                 auto array = toArray();
-                if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
+                if (HadByteArrayElement(array)) {
                     c_value_.type = KRRenderCValue::Type::ARRAY;
-                    c_value_.size = array.size();
+                    c_value_.size = static_cast<int32_t>(array.size());
                     if (array_ptr_ != nullptr) {
                         delete[] array_ptr_;
                     }
-                    array_ptr_ = new KRRenderCValue[c_value_.size];
-                    for (size_t i = 0; i < c_value_.size; i++) {
-                        const auto &item = array[i];
-                        array_ptr_[i] = item->toCValue();
+                    array_ptr_ = new KRRenderCValue[c_value_.size > 0 ? c_value_.size : 1];
+                    for (size_t i = 0; i < array.size(); i++) {
+                        array_ptr_[i] = array[i]->toCValue();
                     }
                     c_value_.value.arrayValue = array_ptr_;
                 } else {
-                    ToJsonMapOrArrayLocked();
+                    ToNativeJsonLocked();
                 }
             } else {
                 c_value_.type = KRRenderCValue::Type::NULL_VALUE;
@@ -708,6 +712,10 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             delete[] array_ptr_;
             array_ptr_ = nullptr;
         }
+        if (owned_cjson_owner_ != 0) {
+            kuikly_cjson_release(owned_cjson_owner_);
+            owned_cjson_owner_ = 0;
+        }
     }
 
  private:
@@ -716,20 +724,23 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         value_;
     
     mutable std::once_flag c_value_once_flag_;
-    mutable std::string map_or_array_json_value_;  // 缓存经过序列化的 map或者 array, 用于缓存经过序列化的std::string
     mutable std::string cached_string_for_c_value_;
     mutable KRRenderCValue c_value_;
     mutable KRRenderCValue *array_ptr_ = nullptr;  // 指向数组的指针, 用于防止数组元素copy
+    /** shared_ptr handle (int64) for NATIVE_JSON; shared with Kotlin via retain/release. */
+    mutable int64_t owned_cjson_owner_ = 0;
 
-    // 用于 toCValue() 内部调用，调用时已持有锁
-    void ToJsonMapOrArrayLocked() const {
-        cJSON* cjson = toJson(this);
-        char* p = cJSON_PrintUnformatted(cjson);
-        map_or_array_json_value_ = p;
-        c_value_.type = KRRenderCValue::Type::STRING;
-        c_value_.value.stringValue = const_cast<char *>(map_or_array_json_value_.c_str());
-        cJSON_free(p);
-        cJSON_Delete(cjson);
+    /**
+     * Pass Map/Array as shared_ptr-backed owner (NATIVE_JSON). Kotlin retain()s a
+     * new handle on wrap so the tree can outlive this KRRenderValue (async-safe).
+     */
+    void ToNativeJsonLocked() const {
+        if (owned_cjson_owner_ == 0) {
+            owned_cjson_owner_ = kuikly_cjson_owner_create(toJson(this));
+        }
+        c_value_.type = KRRenderCValue::Type::NATIVE_JSON;
+        c_value_.size = 0;
+        c_value_.value.longValue = owned_cjson_owner_;
     }
 
     JSVM_Status ToJsonMapOrArray(JSVM_Env js_env, JSVM_Value *js_value) const {

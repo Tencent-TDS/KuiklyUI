@@ -121,11 +121,11 @@ object BridgeManager {
                 PagerManager.createPager(
                     arg0 as String,
                     arg1 as String,
-                    arg2 as String
+                    arg2
                 )
             }
             KotlinMethod.UPDATE_INSTANCE -> {
-                PagerManager.firePagerEvent(arg0 as String, arg1 as String, arg2 as String)
+                PagerManager.firePagerEvent(arg0 as String, arg1 as String, arg2)
             }
             KotlinMethod.DESTROY_INSTANCE -> {
                 val instanceId = arg0 as String
@@ -140,7 +140,7 @@ object BridgeManager {
                     arg0 as String,
                     arg1 as Int,
                     arg2 as String,
-                    arg3 as? String
+                    arg3
                 )
             }
             KotlinMethod.LAYOUT_VIEW -> {

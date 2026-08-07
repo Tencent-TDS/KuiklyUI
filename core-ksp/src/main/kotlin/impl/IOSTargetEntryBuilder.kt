@@ -23,6 +23,8 @@ import com.squareup.kotlinpoet.*
 open class IOSTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAbsEntryBuilder() {
 
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
+        // NSDictionary → lazy JSONObject before BridgeManager (OHOS: KRRenderCValue.toAny).
+        builder.addImport("com.tencent.kuikly.core.utils", "toKotlinBridgeArg")
         builder.addType(
             TypeSpec.classBuilder(entryFileName())
                 .apply {
@@ -72,45 +74,56 @@ open class IOSTargetEntryBuilder(private val catchException: Boolean) : KuiklyCo
     fun createCallKtMethodFuncSpec(
         pagesAnnotations: List<PageInfo>,
     ): FunSpec {
+        // Init / NativeBridge register + dispatch — inlined (no per-call lambda).
+        val body = """
+        |if (!BridgeManager.isDidInit()) {
+        |    BridgeManager.init(${catchException})
+        |    $METHOD_NAME_TRIGGER_REGISTER_PAGES()
+        |}
+        |if (!hadRegisterNativeBridge) {
+        |    hadRegisterNativeBridge = true
+        |    val nativeBridge = NativeBridge()
+        |    nativeBridge.iosNativeBridgeDelegate = object : NativeBridge.IOSNativeBridgeDelegate {
+        |        override fun callNative(
+        |            methodId: Int,
+        |            arg0: Any?,
+        |            arg1: Any?,
+        |            arg2: Any?,
+        |            arg3: Any?,
+        |            arg4: Any?,
+        |            arg5: Any?
+        |            ): Any? {
+        |            return hrCoreDelegate?.callNative(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
+        |        }
+        |    }
+        |    BridgeManager.registerNativeBridge(arg0 as String, nativeBridge)
+        |}
+        |BridgeManager.callKotlinMethod(
+        |    methodId,
+        |    arg0.toKotlinBridgeArg(),
+        |    arg1.toKotlinBridgeArg(),
+        |    arg2.toKotlinBridgeArg(),
+        |    arg3.toKotlinBridgeArg(),
+        |    arg4.toKotlinBridgeArg(),
+        |    arg5.toKotlinBridgeArg()
+        |)
+        """.trimMargin()
+
+        val statement = if (catchException) {
+            """
+            |try {
+            |$body
+            |} catch(t: Throwable) {
+            |    BridgeManager.callExceptionMethod(t.stackTraceToString())
+            |}
+            """.trimMargin()
+        } else {
+            body
+        }
+
         return FunSpec.builder(FUNC_NAME_CALL_KT_METHOD)
             .addParameters(createKtMethodParameters())
-            .addStatement("""
-    val callKotlinClosure =  {
-        if (!BridgeManager.isDidInit()) {
-            BridgeManager.init(${catchException})
-            $METHOD_NAME_TRIGGER_REGISTER_PAGES()
-        }
-        if (!hadRegisterNativeBridge) {
-            hadRegisterNativeBridge = true
-            val nativeBridge = NativeBridge()
-            nativeBridge.iosNativeBridgeDelegate = object : NativeBridge.IOSNativeBridgeDelegate {
-                override fun callNative(
-                    methodId: Int,
-                    arg0: Any?,
-                    arg1: Any?,
-                    arg2: Any?,
-                    arg3: Any?,
-                    arg4: Any?,
-                    arg5: Any?
-                    ): Any? {
-                    return hrCoreDelegate?.callNative(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
-                }
-            }
-            BridgeManager.registerNativeBridge(arg0 as String, nativeBridge)
-        }
-        BridgeManager.callKotlinMethod(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
-    }
-    
-    if (BridgeManager.catchException){
-       try {
-           callKotlinClosure()
-       } catch(t: Throwable) {
-           BridgeManager.callExceptionMethod(t.stackTraceToString())
-       }
-    } else {
-        callKotlinClosure()
-    }
-            """)
+            .addStatement(statement)
             .build()
     }
 

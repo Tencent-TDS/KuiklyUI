@@ -559,6 +559,15 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
     return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];
 }
 
+#if DEBUG
+- (void)perf_callWithMethod:(KuiklyRenderContextMethod)method args:(NSArray *)args {
+    [self.contextHandler callWithMethod:method args:args];
+}
+
+- (NSString *)perf_instanceId {
+    return self.instanceId ?: @"";
+}
+#endif
 
 #pragma mark - dealloc
 

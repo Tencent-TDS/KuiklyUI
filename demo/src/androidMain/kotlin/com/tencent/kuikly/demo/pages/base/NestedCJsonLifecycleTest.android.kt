@@ -1,7 +1,7 @@
 /*
  * Tencent is pleased to support the open source community by making KuiklyUI
  * available.
- * Copyright (C) 2025 Tencent. All rights reserved.
+ * Copyright (C) 2026 Tencent. All rights reserved.
  * Licensed under the License of KuiklyUI;
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-// Redirect to the canonical version in core-render-ohos.
-// Do not duplicate content here; all typedefs and structs live there.
-#include "foundation/type/KRRenderCValue.h"
-// Lazy cJSON FFI for Kotlin/Native cinterop (NATIVE_JSON bridge).
-#include "foundation/type/KRLazyCJsonBridge.h"
+package com.tencent.kuikly.demo.pages.base
+
+internal actual fun runNestedCJsonLifecycleTest(ownerHandle: Long): String {
+    return """{"ok":true,"skipped":true,"platform":"android"}"""
+}

@@ -20,6 +20,7 @@
 #include <rawfile/raw_file_manager.h>
 #include <memory>
 #include "libohos_render/context/KRRenderContextParams.h"
+#include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/performance/KRPerformanceManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
@@ -44,6 +45,8 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      */
     virtual void SendEvent(std::string event_name, const std::string &json_data) = 0;
     virtual void SendEvent(std::string event_name, const std::string &json_data, bool sync) = 0;
+    virtual void SendEvent(std::string event_name, const KRAnyValue &data) = 0;
+    virtual void SendEvent(std::string event_name, const KRAnyValue &data, bool sync) = 0;
     
     /**
      * 是否需要同步发送事件（默认异步）

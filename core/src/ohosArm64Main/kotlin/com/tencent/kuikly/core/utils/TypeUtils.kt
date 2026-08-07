@@ -24,6 +24,7 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.cinterop.*
+import com.tencent.kuikly.core.nvi.serialization.json.CJsonJSONObject
 import ohos.KRRenderCValue
 import ohos.Type
 import platform.ohos.OH_LOG_Print
@@ -111,6 +112,7 @@ fun KRRenderCValue.toAny(): Any? {
         Type.STRING -> value.stringValue?.toKString()
         Type.BYTES -> toByteArray()
         Type.ARRAY -> value.arrayValue?.arrayToAny(size)
+        Type.NATIVE_JSON -> CJsonJSONObject.fromOwner(value.longValue)
         else -> null
     }
 }

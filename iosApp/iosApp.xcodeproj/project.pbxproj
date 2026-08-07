@@ -18,6 +18,7 @@
 		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
+		C4A11F012E3A000100CA11F0 /* CallKotlinPerfTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = C4A11F002E3A000100CA11F0 /* CallKotlinPerfTestModule.m */; };
 		FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
 		FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */; };
 		FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */; };
@@ -50,6 +51,8 @@
 		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
 		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
 		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
+		C4A11EFF2E3A000100CA11F0 /* CallKotlinPerfTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CallKotlinPerfTestModule.h; sourceTree = "<group>"; };
+		C4A11F002E3A000100CA11F0 /* CallKotlinPerfTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CallKotlinPerfTestModule.m; sourceTree = "<group>"; };
 		C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
 		F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
 		FF047755288C4842008D3F39 /* NSObject+RIJCategory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+RIJCategory.h"; sourceTree = "<group>"; };
@@ -232,6 +235,8 @@
 			children = (
 				FF05C64129C851A500C5E02A /* KRBridgeModule.h */,
 				FF05C64029C851A500C5E02A /* KRBridgeModule.m */,
+				C4A11EFF2E3A000100CA11F0 /* CallKotlinPerfTestModule.h */,
+				C4A11F002E3A000100CA11F0 /* CallKotlinPerfTestModule.m */,
 				3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */,
 				3A622B992AB052B0002410B8 /* KRNewTestModule.m */,
 				3A622B972AB052B0002410B8 /* TDFTestModule.h */,
@@ -323,8 +328,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks.sh\"\n";
@@ -364,8 +367,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources.sh\"\n";
@@ -389,6 +390,7 @@
 				FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */,
 				FF151BB82A23A7E800D2BBED /* KRVideoViewHandler.m in Sources */,
 				3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */,
+				C4A11F012E3A000100CA11F0 /* CallKotlinPerfTestModule.m in Sources */,
 				3AF526722A9309C300A93682 /* RootViewController.m in Sources */,
 				FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */,
 				FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */,

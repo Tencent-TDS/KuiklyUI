@@ -39,6 +39,9 @@
     },
     {
       "name": "debug",
+      "externalNativeOptions": {
+        "arguments": "-DCMAKE_BUILD_TYPE=Debug"
+      },
       "arkOptions": {
         "obfuscation": {
           "ruleOptions": {

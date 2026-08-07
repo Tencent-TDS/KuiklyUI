@@ -29,6 +29,7 @@
 #include <Kuikly/Kuikly.h>
 #include "napi/native_api.h"
 #include "thirdparty/biz_entry/libshared_api.h"
+#include "libohos_render/export/IKRRenderModuleExport.h"
 
 static std::string customFontPath;
 static std::string customImagePath;

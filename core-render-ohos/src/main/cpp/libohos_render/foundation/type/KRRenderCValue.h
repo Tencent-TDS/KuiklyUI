@@ -25,7 +25,8 @@
  */
 typedef struct KRRenderCValue {
     // 定义一个枚举类型来表示值的类型
-    enum Type { NULL_VALUE, INT, LONG, FLOAT, DOUBLE, BOOL, STRING, BYTES, ARRAY } type;
+    // NATIVE_JSON: longValue holds cJSON* (owned by KRRenderValue for call lifetime)
+    enum Type { NULL_VALUE, INT, LONG, FLOAT, DOUBLE, BOOL, STRING, BYTES, ARRAY, NATIVE_JSON } type;
 
     // 定义一个联合体来存储不同类型的值
     union Value {

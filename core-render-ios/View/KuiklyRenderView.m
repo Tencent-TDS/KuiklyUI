@@ -52,6 +52,13 @@ NSString *const KRDensity = @"density";
 
 @end
 
+#if DEBUG
+@interface KuiklyRenderCore (CallKotlinPerfPrivate)
+- (void)perf_callWithMethod:(KuiklyRenderContextMethod)method args:(NSArray *)args;
+- (NSString *)perf_instanceId;
+@end
+#endif
+
 @implementation KuiklyRenderView {
     CFTimeInterval _beginTime;
     NSMutableArray<dispatch_block_t> *_dellocTasks;
@@ -341,6 +348,16 @@ NSString *const KRDensity = @"density";
     }
     return nil;
 }
+
+#if DEBUG
+- (void)perf_callWithMethod:(KuiklyRenderContextMethod)method args:(NSArray *)args {
+    [self.renderCore perf_callWithMethod:method args:args];
+}
+
+- (NSString *)perf_instanceId {
+    return [self.renderCore perf_instanceId];
+}
+#endif
 
 #pragma mark - dealloc
 

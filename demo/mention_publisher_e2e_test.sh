@@ -146,13 +146,17 @@ run_case() { # case_name  ->  执行后续命令，记录 PASS/FAIL
 
 # ===================== 导航到发布器页 =====================
 # 事件驱动等待：轮询 /view-tree 直到响应成功且内容（按字节长度）连续 2 次一致 = 页面已稳定。
-# 替代盲目 sleep；同时吸收冷启动时 uia2 首次响应慢（curl --max-time 兜底防挂死）。
+# 预算按真实时间（date deadline）而非次数；轮询用 5s 短 --max-time——
+# uia2 冷启动时单次请求慢，短超时可快速失败重试，避免吃满 ENGINE_TIMEOUT_S(30s) 拖爆总时长。
 wait_quiescence() { # [timeout_s]
   local timeout_s=${1:-20}
-  local tries=$(( timeout_s * 1000 / 400 ))
+  local deadline=$(( $(date +%s) + timeout_s ))
   local prev=-1 cur stable=0
-  while [ "$tries" -gt 0 ]; do
-    if [ "$(engine_get "/view-tree?visible=true")" = "200" ]; then
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    # 轮询专用短超时 curl（不走 engine_get 的 30s --max-time）
+    local code
+    code=$(curl -s --max-time 5 -o "$RESP_FILE" -w "%{http_code}" "$ENGINE_URL/view-tree?visible=true" 2>/dev/null || echo "000")
+    if [ "$code" = "200" ]; then
       cur=$(wc -c < "$RESP_FILE" 2>/dev/null | tr -d ' ')
       if [ "${cur:-0}" -gt 50 ] && [ "$cur" = "$prev" ]; then
         stable=$((stable+1))
@@ -162,7 +166,6 @@ wait_quiescence() { # [timeout_s]
       fi
       prev="${cur:-0}"
     fi
-    tries=$((tries-1))
     sleep 0.4
   done
   return 1
@@ -173,7 +176,7 @@ open_publisher() {
   "$ADB" -s "$DEVICE_SERIAL" shell am start -n "$APP_PACKAGE/$APP_ACTIVITY" --es pageName "$PAGE_NAME" >/dev/null 2>&1
   # 事件驱动等待：轮询 view-tree 直到页面稳定（替代盲目 sleep 3），吸收冷启动 uia2 慢。
   wait_quiescence 20 || true
-  wait_visible mention_input 15000
+  wait_visible mention_input 20000
 }
 
 # ===================== TC1-TC6 =====================
@@ -308,7 +311,8 @@ main() {
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。
   "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
 
-  open_publisher || { echo "无法打开发布器页"; exit 1; }
+  # 打开发布器页；首次失败自动重试一次（吸收 uia2 冷启动 flaky，本地经验第二次通常能过）
+  open_publisher || { echo "首次打开发布器页失败，重试一次..."; sleep 2; open_publisher; } || { echo "无法打开发布器页"; exit 1; }
 
   run_case "TC1 输入@候选下拉出现"        tc1_candidate_appears
   run_case "TC2 点选张三插入并高亮区间"   tc2_select_insert

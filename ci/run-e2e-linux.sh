@@ -154,10 +154,31 @@ done
 [ "$appium_ready" -ne 1 ] && { echo "!! Appium 未就绪，详见日志"; exit 1; }
 [ "$engine_ready" -ne 1 ] && { echo "!! E2E 引擎未就绪，详见日志"; exit 1; }
 
-# 5) 编译安装 demo APK
+# 5) 编译 + 安装 demo APK
+# 装包与构建解耦：adb install 在模拟器冷环境偶发 ShellCommandUnresponsiveException（adb 退出码 224），
+# 属环境抖动、与代码无关（工蜂 CI 亦出现过 ~50% 概率）；故 assembleDebug 只构建、安装单独用
+# adb install 带 timeout + 重试 + kill-server/start-server 兜底，避免把 6 分钟构建也一起浪费在重试里。
 if [ "$INSTALL" -eq 1 ]; then
-  echo "==> [3/4] 安装 demo APK (./gradlew :androidApp:installDebug)"
-  ./gradlew :androidApp:installDebug || { echo "!! 装包失败"; exit 1; }
+  echo "==> [3/4] 构建 demo APK (./gradlew :androidApp:assembleDebug)"
+  ./gradlew :androidApp:assembleDebug || { echo "!! 构建失败"; exit 1; }
+  APK="$(find "$REPO_ROOT/androidApp/build/outputs/apk" -name "*.apk" 2>/dev/null | head -1)"
+  [ -z "$APK" ] && { echo "!! 未找到构建产物 APK"; exit 1; }
+  echo "==> APK: $APK"
+  # 等设备 adb 就绪（模拟器 adbd 冷启动可能慢），再重试安装
+  adb -s "$DEVICE_SERIAL" wait-for-device
+  install_ok=0
+  for i in 1 2 3; do
+    if timeout 300 adb -s "$DEVICE_SERIAL" install -r -t "$APK" 2>&1; then
+      install_ok=1; echo "==> 安装成功 (attempt $i)"; break
+    fi
+    echo "!! adb install 第 $i 次失败，重启 adb 后重试..."
+    adb kill-server 2>/dev/null || true
+    sleep 2
+    adb start-server 2>/dev/null || true
+    adb -s "$DEVICE_SERIAL" wait-for-device
+    sleep 2
+  done
+  [ "$install_ok" -eq 1 ] || { echo "!! 装包失败（重试 3 次均失败）"; exit 1; }
 fi
 
 # 6) 跑测试

@@ -29,6 +29,9 @@ ADB="${ADB:-adb}"
 WAIT_DEFAULT_MS="${WAIT_DEFAULT_MS:-3000}"
 # 单次引擎请求的 curl 超时（秒）：uia2 冷启动/挂死时快速失败，避免脚本无限阻塞。
 ENGINE_TIMEOUT_S="${ENGINE_TIMEOUT_S:-30}"
+# 建会话专用超时（秒）：CI 冷环境首次 /start-session 需Appium 装/起 uiautomator2 server
+# （引擎 uiautomator2ServerLaunchTimeout=60s），必须 > 60s，否则 curl 30s 先掐断 → 空响应误判失败。
+SESSION_TIMEOUT_S="${SESSION_TIMEOUT_S:-120}"
 # 设备 serial：未指定时取 adb 第一台已连接设备（真机/模拟器）
 DEVICE_SERIAL="${DEVICE_SERIAL:-}"
 if [ -z "$DEVICE_SERIAL" ]; then
@@ -58,8 +61,8 @@ trap 'rm -f "$RESP_FILE"; restore_ime' EXIT
 # ===================== 引擎请求封装 =====================
 # 引擎所有定位类接口都要求 body 内带 {"selector":{...}} 包装，且 Compose 的 testTag 映射到 resource-id，
 # 故统一用 {"selector":{"testTag":"xxx"}}（不要用 id，引擎对 id 选择器会抛 Unknown selector）。
-engine_post() { # endpoint json-body -> http_code (响应体写入 RESP_FILE)
-  curl -s --max-time "$ENGINE_TIMEOUT_S" -o "$RESP_FILE" -w "%{http_code}" -X POST "$ENGINE_URL$1" \
+engine_post() { # endpoint json-body [timeout_s] -> http_code (响应体写入 RESP_FILE)
+  curl -s --max-time "${3:-$ENGINE_TIMEOUT_S}" -o "$RESP_FILE" -w "%{http_code}" -X POST "$ENGINE_URL$1" \
     -H "Content-Type: application/json" -d "$2" 2>/dev/null || echo "000"
 }
 engine_get() { # endpoint -> http_code
@@ -298,7 +301,7 @@ main() {
   # Appium 刚起时 /session 偶发 "Failed to fetch"（冷启动竞争），重试 2 次吸收。
   local c sess_tries=0
   while [ "$sess_tries" -lt 3 ]; do
-    c=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}")
+    c=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}" "$SESSION_TIMEOUT_S")
     resp_ok "$c" && break
     sess_tries=$((sess_tries+1))
     echo "start-session 第 $sess_tries 次失败，等 2s 重试..."
@@ -344,7 +347,7 @@ main() {
     "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
     local c2 sess2_tries=0
     while [ "$sess2_tries" -lt 3 ]; do
-      c2=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}")
+      c2=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}" "$SESSION_TIMEOUT_S")
       resp_ok "$c2" && break
       sess2_tries=$((sess2_tries+1)); echo "   重建 session 第 $sess2_tries 次失败，等 2s 重试..."; sleep 2
     done

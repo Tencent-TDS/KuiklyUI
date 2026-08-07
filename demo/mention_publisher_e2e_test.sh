@@ -68,14 +68,21 @@ engine_post() { # endpoint json-body [timeout_s] -> http_code (响应体写入 R
 engine_get() { # endpoint -> http_code
   curl -s --max-time "$ENGINE_TIMEOUT_S" -o "$RESP_FILE" -w "%{http_code}" "$ENGINE_URL$1" 2>/dev/null || echo "000"
 }
-# 健康探测：start-session 可能"假成功"（Appium 建好 session 但 uia2 还在僵尸态——本次 CI 失败就吃了这个亏）。
-# 短超时 GET /view-tree：uia2 僵尸时 Appium→uia2 代理会在 10s 读超时后返回 5xx；健康时秒返 200。
-# 返回 0=健康，1=不健康/僵尸。默认 12s（10s uia2 读超时 + 2s 余量），可按需调。
-health_check_uia2() { # [timeout_s=12] -> 0/1
-  local t="${1:-12}"
-  local code
-  code=$(curl -s --max-time "$t" -o /dev/null -w "%{http_code}" "$ENGINE_URL/view-tree?visible=true" 2>/dev/null || echo "000")
-  [ "$code" = "200" ]
+# 健康探测（findElements 语义，可靠探针）：
+# 陷阱：不能用 GET /view-tree（getPageSource）——uia2 部分僵尸态下 getPageSource 可能
+# 返回 200（Appium 缓存/快速失败），而真正卡死的是 findElements（每次 10s uia2 读超时）。
+# 故探针发 /wait-for 一个必然不存在的 testTag，用"总耗时"区分：
+#   - 健康：findElements 秒回 → waitFor 轮询满 wait_ms 后抛错，总耗时 ≈ wait_ms（<6s）
+#   - 僵尸：findElements 卡满 10s uia2 读超时 → waitFor 第一次探测即超时，总耗时 ≈ 10s
+# 返回 0=健康，1=僵尸/未就绪。wait_ms 默认 3000；curl --max-time 12 需 >10s 僵尸耗时。
+health_check_uia2() { # [wait_ms=3000] -> 0/1
+  local wait_ms="${1:-3000}"
+  local meta
+  meta=$(curl -s --max-time 12 -o /dev/null -w "%{http_code}|%{time_total}" -X POST "$ENGINE_URL/wait-for" \
+    -H "Content-Type: application/json" \
+    -d "{\"selector\":{\"testTag\":\"__uia2_health_probe__\"},\"timeoutMs\":$wait_ms}" 2>/dev/null || echo "000|12.0")
+  local total="${meta#*|}"
+  awk -v t="$total" 'BEGIN{exit !(t < 5.5)}'
 }
 resp_ok() { # http_code
   [ "$1" = "200" ] && grep -q '"ok":true' "$RESP_FILE"
@@ -184,11 +191,26 @@ wait_quiescence() { # [timeout_s]
 }
 
 open_publisher() {
+  # 先探针识别 uia2 僵尸（首开失败根因）：
+  # start-session 返回 ok ≠ uia2 就绪。uia2 有"僵尸态"（进程在、8200 隧道通、但 findElements
+  # 每次卡满 10s 读超时），此时 am start 后 Compose Activity 创建，testTag 树不会被 UiAutomation
+  # 捕获，节点永远查不到——首开必失败。
+  # 探针必须用 findElements 语义（/wait-for 一个必然不存在的 testTag），按总耗时区分：
+  #   僵尸（findElements 卡满 10s）→ 耗时≈10s → 判僵尸 → 不白等、快速走重建分支；
+  #   非僵尸（findElements 秒回/快速失败）→ 耗时≈3s → 判就绪 → am start。
+  # 注意：不用 GET /view-tree 当探针——uia2 部分僵尸态下 getPageSource 可能返回 200（Appium
+  # 缓存/快速失败），造成假阳性（本次本地跑首开失败前健康探测就误判通过了）。
+  if ! health_check_uia2 3000; then
+    echo "   !! uia2 僵尸（findElements 卡满），快速走重建分支"
+    return 1
+  fi
   # Appium 接管后 restartApp 停在 demo 首页；用 pageName 深链直达发布器页。
+  # 此刻 uia2 非僵尸（可能仍在慢冷启动），Activity 创建后 testTag 树即被捕获，
+  # 慢就绪场景由下方多轮轮询覆盖。
   "$ADB" -s "$DEVICE_SERIAL" shell am start -n "$APP_PACKAGE/$APP_ACTIVITY" --es pageName "$PAGE_NAME" >/dev/null 2>&1
-  # 多轮轮询等目标节点出现：本设备 uia2 冷启动/重建后常需数十秒才就绪，单次等待易误判。
+  # 多轮轮询等目标节点出现：覆盖 uia2 慢冷启动 / 深链渲染延迟。
   # 每轮 wait_visible 内部已有 10s uia2 读超时（CI 注入 ANDROID_UIA2_READ_TIMEOUT_MS=10000），
-  # 这里最多 4 轮（约 60s 预算）覆盖慢 uia2；uia2 一就绪即命中。
+  # 这里最多 4 轮（约 60s 预算）；uia2 一就绪即命中。
   local op_tries=0
   while [ "$op_tries" -lt 4 ]; do
     if wait_visible mention_input 15000; then return 0; fi
@@ -371,7 +393,7 @@ main() {
     # 10s 就返回 ok，但后续重链 60s 全 timeout）。短超时探测 uia2 真能响应才放心重链；不健康就再
     # force-stop + 二次重建，避免重链时才发现新 uia2 也是僵尸、白等 60s 才放弃。
     echo "   [健康探测] 检查 uia2 真的能响应..."
-    if ! health_check_uia2 12; then
+    if ! health_check_uia2 3000; then
       echo "   ✗ uia2 不健康（session 假成功），再 force-stop + 二次重建 session..."
       "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
       "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
@@ -383,7 +405,7 @@ main() {
         sess3_tries=$((sess3_tries+1)); echo "   二次重建 session 第 $sess3_tries 次失败，等 2s 重试..."; sleep 2
       done
       sleep 2
-      if ! health_check_uia2 12; then
+      if ! health_check_uia2 3000; then
         echo "!! 二次重建后 uia2 仍不健康，设备/环境异常（force-stop 也救不回僵尸 uia2），建议重跑 CI"; exit 1
       fi
       echo "   ✓ 二次重建后 uia2 健康"

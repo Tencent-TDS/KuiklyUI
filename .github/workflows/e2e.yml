@@ -3,7 +3,7 @@ name: 发布器 E2E 回归
 # 触发：PR 到 main（门禁）、push 到 main（仅当改动涉及测试相关路径时跑，避免每次提交都占用模拟器）
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'feat/**' ]
     paths:
       - 'demo/**'
       - 'core/**'

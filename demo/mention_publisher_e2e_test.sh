@@ -321,6 +321,8 @@ main() {
     echo "   diag: 原生 uiautomator dump 含 mention_input 数："
     "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_diag.xml >/dev/null 2>&1 || true
     "$ADB" -s "$DEVICE_SERIAL" shell cat /sdcard/_diag.xml 2>/dev/null | grep -c "mention_input" || echo 0
+    echo "   diag: appium 日志尾部（看 uia2 server 启动/报错）："
+    tail -40 /tmp/appium_publisher.log 2>/dev/null || echo "   (无 /tmp/appium_publisher.log)"
     # 彻底重建：强制停 uia2 两组件 → 重建 8200 → 重建 Appium session（重新拉 uia2 + restartApp）
     echo "   [重建] force-stop uia2 组件 + 重建 8200 + 重建 session..."
     "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true

@@ -64,6 +64,15 @@ open class ListAttr : ScrollerAttr() {
         }
     }
 
+
+    /**
+     * 设置列表视图初始内容偏移量。
+     * @param offset 初始内容偏移量。
+     */
+    fun initContentOffset(offset: Float) {
+        initContentOffset = offset
+    }
+
     companion object {
         const val MIN_LOAD_INDEX = 1 // 最小首屏分批加载数
     }

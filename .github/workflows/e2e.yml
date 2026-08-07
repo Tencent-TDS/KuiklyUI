@@ -29,7 +29,7 @@ jobs:
   e2e-emulator:
     name: 发布器 E2E（模拟器冒烟）
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +44,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      # Gradle / Kotlin-Native 缓存：KMP 冷构建在干净 runner 上极易吃满 45min，
+      # 缓存后二次构建与排障重跑显著提速（首次运行 cache 为空，仅 timeout 兜底）。
+      - name: Restore Gradle & Kotlin-Native cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/configuration-cache
+            ~/.konan
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: 起 Android 模拟器并跑 E2E
         uses: reactivecircus/android-emulator-runner@v2
@@ -68,7 +81,7 @@ jobs:
   e2e-device:
     name: 发布器 E2E（vivo 真机 · self-hosted）
     runs-on: [self-hosted, macos]
-    timeout-minutes: 45
+    timeout-minutes: 60
     if: false
     steps:
       - name: Checkout

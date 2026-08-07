@@ -68,6 +68,15 @@ engine_post() { # endpoint json-body [timeout_s] -> http_code (响应体写入 R
 engine_get() { # endpoint -> http_code
   curl -s --max-time "$ENGINE_TIMEOUT_S" -o "$RESP_FILE" -w "%{http_code}" "$ENGINE_URL$1" 2>/dev/null || echo "000"
 }
+# 健康探测：start-session 可能"假成功"（Appium 建好 session 但 uia2 还在僵尸态——本次 CI 失败就吃了这个亏）。
+# 短超时 GET /view-tree：uia2 僵尸时 Appium→uia2 代理会在 10s 读超时后返回 5xx；健康时秒返 200。
+# 返回 0=健康，1=不健康/僵尸。默认 12s（10s uia2 读超时 + 2s 余量），可按需调。
+health_check_uia2() { # [timeout_s=12] -> 0/1
+  local t="${1:-12}"
+  local code
+  code=$(curl -s --max-time "$t" -o /dev/null -w "%{http_code}" "$ENGINE_URL/view-tree?visible=true" 2>/dev/null || echo "000")
+  [ "$code" = "200" ]
+}
 resp_ok() { # http_code
   [ "$1" = "200" ] && grep -q '"ok":true' "$RESP_FILE"
 }
@@ -358,6 +367,27 @@ main() {
       sess2_tries=$((sess2_tries+1)); echo "   重建 session 第 $sess2_tries 次失败，等 2s 重试..."; sleep 2
     done
     sleep 2
+    # 健康探测：start-session 可能"假成功"（Appium 建好 session 但 uia2 仍僵尸——本次 CI 失败就吃了这个亏：
+    # 10s 就返回 ok，但后续重链 60s 全 timeout）。短超时探测 uia2 真能响应才放心重链；不健康就再
+    # force-stop + 二次重建，避免重链时才发现新 uia2 也是僵尸、白等 60s 才放弃。
+    echo "   [健康探测] 检查 uia2 真的能响应..."
+    if ! health_check_uia2 12; then
+      echo "   ✗ uia2 不健康（session 假成功），再 force-stop + 二次重建 session..."
+      "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
+      "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
+      "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
+      local c3 sess3_tries=0
+      while [ "$sess3_tries" -lt 3 ]; do
+        c3=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}" "$SESSION_TIMEOUT_S")
+        resp_ok "$c3" && break
+        sess3_tries=$((sess3_tries+1)); echo "   二次重建 session 第 $sess3_tries 次失败，等 2s 重试..."; sleep 2
+      done
+      sleep 2
+      if ! health_check_uia2 12; then
+        echo "!! 二次重建后 uia2 仍不健康，设备/环境异常（force-stop 也救不回僵尸 uia2），建议重跑 CI"; exit 1
+      fi
+      echo "   ✓ 二次重建后 uia2 健康"
+    fi
     # 硬恢复后 Compose testTag 树已被 detach，必须重拉深链重建 Activity 才能重新可见；
     # open_publisher 内部多轮轮询会等全新 uia2 就绪并绑定 testTag。
     echo "   重建后重拉深链打开发布器页..."

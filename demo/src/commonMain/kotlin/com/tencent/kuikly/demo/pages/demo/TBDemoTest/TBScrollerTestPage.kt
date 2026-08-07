@@ -60,6 +60,13 @@ internal class TBScrollerTestPage : BasePager() {
 
     override fun created() {
         super.created()
+
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
+
         // 初始化数据
         for (i in 0 until 50) {
             itemList.add(ScrollerItemData(i, "Scroller Item $i", randomColor()))

@@ -79,6 +79,10 @@ jobs:
           # vivo 真机 2min 内足够（device job 保持默认），这里只放宽 emulator 路径。
           WEBDRIVER_REQUEST_TIMEOUT_MS: "300000"
           SESSION_TIMEOUT_S: "300"
+          # 无 KVM 权限的 ubuntu runner 上模拟器是纯软件模拟（TCG），uia2 instrumentation 启动
+          # 极慢，默认 uiautomator2ServerLaunchTimeout=60s 不够（CI 实证：am instrument 空输出、
+          # 60s 超时、start-session 3 次全败）。放宽到 180s；真机默认 60s 不动。
+          ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS: "180000"
 
   # ---- 路径二：vivo 真机（后续启用）----
   # 启用步骤：

@@ -134,7 +134,8 @@ echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
 ( cd "$ENGINE_DIR" && npm install >/tmp/e2e_engine_install.log 2>&1 ) \
   || { echo "!! 引擎依赖安装失败"; tail -20 /tmp/e2e_engine_install.log; exit 1; }
 export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-10000}"
-( cd "$ENGINE_DIR" && ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
+# uiautomator2ServerLaunchTimeout：默认引擎 60s；GitHub 冷模拟器（无 KVM）经此 env 放宽（如 180s）
+( cd "$ENGINE_DIR" && ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS="${ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS:-}" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
 ENGINE_PID=$!
 tail -F /tmp/e2e_engine_publisher_gh.log >&2 &   # 流式日志进 step stdout（-F 抗文件竞态）
 

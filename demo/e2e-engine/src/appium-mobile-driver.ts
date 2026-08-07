@@ -49,6 +49,10 @@ import {
 const DEFAULT_IMPLICIT_WAIT_MS = 400
 /** 真机 dump / find 偶发 >8s；可通过 ANDROID_UIA2_READ_TIMEOUT_MS 覆盖。 */
 const DEFAULT_UIA2_SERVER_READ_TIMEOUT_MS = 20_000
+/** 冷模拟器（GitHub Actions 无 KVM 权限、纯软件模拟 TCG）uia2 instrumentation 启动极慢，
+ *  默认 60s 不够（本次 CI 失败：am instrument 空输出、60s launch timeout 超时）。
+ *  可通过 ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS 覆盖（工蜂真机保持默认，GitHub 冷模拟器放宽）。 */
+const DEFAULT_UIA2_SERVER_LAUNCH_TIMEOUT_MS = 60_000
 
 export interface AppiumMobileDriverConfig {
   platform: Platform
@@ -270,6 +274,15 @@ function androidUia2ReadTimeoutMs(): number {
   return Number.isFinite(n) && n >= 8000 ? n : DEFAULT_UIA2_SERVER_READ_TIMEOUT_MS
 }
 
+/** uia2 instrumentation 启动超时（uiautomator2ServerLaunchTimeout）。
+ *  默认 60s；冷模拟器（无 KVM）可经 ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS 放宽（如 180s）。 */
+function androidUia2ServerLaunchTimeoutMs(): number {
+  const raw = process.env.ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS
+  if (!raw) return DEFAULT_UIA2_SERVER_LAUNCH_TIMEOUT_MS
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 10_000 ? n : DEFAULT_UIA2_SERVER_LAUNCH_TIMEOUT_MS
+}
+
 function buildCapabilities(config: AppiumMobileDriverConfig): Record<string, unknown> {
   const base: Record<string, unknown> = {
     platformName: config.platform === "android" ? "Android" : "iOS",
@@ -293,7 +306,7 @@ function buildCapabilities(config: AppiumMobileDriverConfig): Record<string, unk
     base["appium:settings[waitForSelectorTimeout]"] = 2000
     base["appium:settings[waitForIdleTimeout]"] = 100
     base["appium:uiautomator2ServerReadTimeout"] = androidUia2ReadTimeoutMs()
-    base["appium:uiautomator2ServerLaunchTimeout"] = 60_000
+    base["appium:uiautomator2ServerLaunchTimeout"] = androidUia2ServerLaunchTimeoutMs()
     // 冷模拟器上 `adb shell settings put global hidden_api_policy 1` 偶发 >20s（adbExecTimeout），
     // 触发 POST /session 500；demo app 不依赖隐藏 API，按 Appium 官方建议忽略该错继续建 session。
     // **重要**：settings 类 capability 必须嵌套在 `appium:settings[xxx]`（与上方 waitForSelectorTimeout 同形），

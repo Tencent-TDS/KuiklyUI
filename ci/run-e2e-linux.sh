@@ -77,6 +77,11 @@ export DEVICE_SERIAL
 
 APPIUM_PIDFILE="/tmp/appium_publisher_gh.pid"
 ENGINE_PID=""
+# 流式日志 tail 的 PID。直接记 PID 而不是回头用 pkill 匹配命令行——
+# 之前 cleanup 里写死 `pkill -f "tail -f ..."`，而 c49175be 把启动侧改成了 `tail -F`，
+# 模式不再匹配 → tail 杀不掉 → 末尾裸 `wait` 永远等这两个子进程 → 脚本已 exit 但 step 挂到
+# 60min job timeout（run #9 实证：13:50:44 Appium 已 "successfully closed"，之后静默 50min）。
+TAIL_PIDS=()
 
 kill_tree() {
   local pid=$1 child
@@ -84,9 +89,11 @@ kill_tree() {
   kill "$pid" 2>/dev/null
 }
 cleanup() {
-  # 停 tail 流式日志（保 stdout 可读）
-  pkill -f "tail -f /tmp/appium_publisher_gh.log" 2>/dev/null || true
-  pkill -f "tail -f /tmp/e2e_engine_publisher_gh.log" 2>/dev/null || true
+  # 停 tail 流式日志（保 stdout 可读）；用记录的 PID，不依赖命令行文本匹配
+  local tpid
+  for tpid in "${TAIL_PIDS[@]:-}"; do
+    [ -n "$tpid" ] && kill "$tpid" 2>/dev/null
+  done
   [ -n "$ENGINE_PID" ] && kill_tree "$ENGINE_PID"
   if [ -f "$APPIUM_PIDFILE" ]; then
     local apid; apid="$(cat "$APPIUM_PIDFILE" 2>/dev/null)"
@@ -128,6 +135,7 @@ PY
 echo "==> [1/4] 启动 Appium (port $APP_PORT) [独立 session，防 runner SIGTERM]"
 start_appium_detached "$APPIUM_BIN" "$APP_PORT" "$APPIUM_PIDFILE" "/tmp/appium_publisher_gh.log" || { echo "!! Appium 启动失败"; exit 1; }
 tail -F /tmp/appium_publisher_gh.log >&2 &   # 流式日志进 step stdout（保 AI 可观测）；-F 等文件出现后再 follow，防与 grandchild 创建文件竞态
+TAIL_PIDS+=($!)
 
 # 4) 装引擎依赖 + 启动 E2E 引擎
 echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
@@ -139,6 +147,7 @@ export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-10000}"
 ( cd "$ENGINE_DIR" && ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS="${ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS:-}" ANDROID_UIA2_START_MAX_ATTEMPTS="${ANDROID_UIA2_START_MAX_ATTEMPTS:-}" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
 ENGINE_PID=$!
 tail -F /tmp/e2e_engine_publisher_gh.log >&2 &   # 流式日志进 step stdout（-F 抗文件竞态）
+TAIL_PIDS+=($!)
 
 echo "==> 等待服务就绪 ..."
 appium_ready=0

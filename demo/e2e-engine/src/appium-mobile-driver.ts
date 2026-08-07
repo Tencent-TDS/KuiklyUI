@@ -900,7 +900,10 @@ export class AppiumMobileDriver implements MobileDriver {
   async elementExists(selector: Selector): Promise<boolean> {
     if (this.config.platform === "android") {
       try {
-        return await this.withUiAutomator2Retry(() => this.elementExistsOnce(selector))
+        // waitFor 只负责轮询节点；Session 生命周期由调用方统一管理。
+        // 这里禁止 withUiAutomator2Retry 的 hard recover，否则它会在 Shell
+        // 同时重建 Session 时形成 deleteSession/newSession 竞态。
+        return await this.elementExistsOnce(selector)
       } catch {
         return false
       }
@@ -1005,31 +1008,20 @@ export class AppiumMobileDriver implements MobileDriver {
   }
 
   async dismissAlert(): Promise<void> {
+    // Android 启动流程不主动探测弹窗：该命令在 vivo/uia2 上可能一直占用命令队列。
+    // Promise.race 只能让调用方超时，无法取消已发给 Appium 的底层请求，随后查询节点仍会被堵塞。
+    if (this.config.platform === "android") return
+
     const driver = this.requireDriver()
-    // dismissAlert 仅为「顺手关掉可能存在的系统弹窗」的兜底，绝不能阻塞会话建立。
-    // 真机（尤其 CI 冷环境）上 `mobile: dismissAlert` 会hang 满 uiautomator2ServerReadTimeout（60s）
-    // 才返回 500，把 start-session 整个拖垮。这里套3s 短超时，超时即视为"无弹窗"跳过。
-    const DISMISS_TIMEOUT_MS = 3000
-    const withTimeout = <T>(p: Promise<T>): Promise<T> =>
-      Promise.race([
-        p,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error("dismissAlert timeout")), DISMISS_TIMEOUT_MS),
-        ),
-      ])
     try {
-      await withTimeout(driver.execute("mobile: dismissAlert", { action: "accept" }))
+      await driver.execute("mobile: dismissAlert", { action: "accept" })
     } catch {
-      // Android 会话不支持 -ios predicate（本身立即抛 InvalidSelectorError），
-      // iOS 才走这条按钮兜底；同样套短超时防挂死。
-      if (this.config.platform !== "android") {
-        try {
-          const btn = await driver.$('-ios predicate string:type == "XCUIElementTypeButton" AND name == "确定"')
-          if (await withTimeout(btn.isExisting())) {
-            await withTimeout(btn.click())
-          }
-        } catch {}
-      }
+      try {
+        const btn = await driver.$('-ios predicate string:type == "XCUIElementTypeButton" AND name == "确定"')
+        if (await btn.isExisting()) {
+          await btn.click()
+        }
+      } catch {}
     }
   }
 

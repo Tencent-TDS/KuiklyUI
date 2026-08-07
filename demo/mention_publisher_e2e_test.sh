@@ -315,31 +315,22 @@ main() {
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。
   "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
 
-  # 打开发布器页；首次失败则彻底重建（强制重启 uia2 两组件 + 重建 Appium session）后重试。
-  # 诊断输出用于分诊：8200 隧道 / uia2 进程 / 前台 activity / 原生 dump 是否含 mention_input。
+  # 打开发布器页；首次失败由 Shell 作为唯一恢复方重建 uia2 / Appium Session 后再试一次。
+  # 失败诊断只读进程、Activity、截图与日志；禁止在 active Appium Session 下执行
+  # `uiautomator dump`，避免它与 uia2 instrumentation 争抢 UiAutomation。
   open_publisher || {
     echo "首次打开发布器页失败，诊断 + 重建 uia2/session 后重试..."
     echo "   diag: 8200=$("$ADB" -s "$DEVICE_SERIAL" reverse --list 2>&1 | tr '\n' ' ')"
     echo "   diag: uia2 进程："; "$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -E "uiautomator2" || echo "   (无 uiautomator2 进程)"
     echo "   diag: 前台 activity：" ; "$ADB" -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | grep -E "topResumedActivity|mResumedActivity" | head -3
-    # 关键分诊：人眼可见页面不等于 Android 无障碍树已经下发 testTag。
-    # 保存原生 dump + 截图，并在控制台打印 resource-id 摘要，确认是「节点未下发」还是 Appium 通道问题。
     local diag_dir="$LOG_DIR/open_publisher_failure"
     mkdir -p "$diag_dir" 2>/dev/null || true
-    echo "   diag: 原生 uiautomator dump："
-    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_diag.xml 2>&1 | tee "$diag_dir/native-dump-command.txt"
-    "$ADB" -s "$DEVICE_SERIAL" exec-out cat /sdcard/_diag.xml > "$diag_dir/native-uiautomator.xml" 2>/dev/null || true
     "$ADB" -s "$DEVICE_SERIAL" exec-out screencap -p > "$diag_dir/screenshot.png" 2>/dev/null || true
-    local mention_count debug_count xml_bytes
-    mention_count=$(grep -o "mention_input" "$diag_dir/native-uiautomator.xml" 2>/dev/null | wc -l | tr -d ' ')
-    debug_count=$(grep -o "debug_text" "$diag_dir/native-uiautomator.xml" 2>/dev/null | wc -l | tr -d ' ')
-    xml_bytes=$(wc -c < "$diag_dir/native-uiautomator.xml" 2>/dev/null | tr -d ' ')
-    echo "   diag: 原生 dump bytes=${xml_bytes:-0}, mention_input=${mention_count:-0}, debug_text=${debug_count:-0}"
-    echo "   diag: 原生 dump 的 resource-id 摘要（最多 20 个）："
-    grep -o 'resource-id="[^"]*"' "$diag_dir/native-uiautomator.xml" 2>/dev/null | sort -u | head -20 || true
-    echo "   diag: 原生证据已存: $diag_dir"
-    echo "   diag: appium 日志尾部（看 uia2 server 启动/报错）："
-    tail -80 /tmp/appium_publisher.log 2>/dev/null | tee "$diag_dir/appium-tail.log" || echo "   (无 /tmp/appium_publisher.log)"
+    "$ADB" -s "$DEVICE_SERIAL" logcat -d -b crash -v time > "$diag_dir/logcat-crash.txt" 2>&1 || true
+    echo "   diag: 证据已存: ${diag_dir}（截图 + crash buffer + Appium/引擎日志）"
+    echo "   diag: appium 日志尾部（看 uia2 instrumentation 崩溃）："
+    tail -120 /tmp/appium_publisher.log 2>/dev/null | tee "$diag_dir/appium-tail.log" || echo "   (无 /tmp/appium_publisher.log)"
+    tail -120 /tmp/e2e_engine_publisher.log > "$diag_dir/engine-tail.log" 2>/dev/null || true
     # 彻底重建：强制停 uia2 两组件 → 重建 8200 → 重建 Appium session（重新拉 uia2 + restartApp）
     echo "   [重建] force-stop uia2 组件 + 重建 8200 + 重建 session..."
     "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true

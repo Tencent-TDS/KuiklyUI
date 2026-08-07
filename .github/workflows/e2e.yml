@@ -99,6 +99,10 @@ jobs:
           # 极慢，默认 uiautomator2ServerLaunchTimeout=60s 不够（CI 实证：am instrument 空输出、
           # 60s 超时、start-session 3 次全败）。放宽到 180s；真机默认 60s 不动。
           ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS: "180000"
+          # start-session 自愈重试次数：引擎层主动「等 uia2 就绪」——每次 instrumentation 冷启
+          # 动失败就清半死态让 Appium 重拉，吸收首次冷启动失败使「首开」真正零失败。冷模拟器
+          # 放宽到 5；真机默认 3 足够。
+          ANDROID_UIA2_START_MAX_ATTEMPTS: "5"
 
   # ---- 路径二：vivo 真机（后续启用）----
   # 启用步骤：

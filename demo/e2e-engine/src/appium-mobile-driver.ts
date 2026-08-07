@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process"
+import { execSync, spawn } from "node:child_process"
 import { ELEMENT_KEY } from "webdriver"
 import type { Browser } from "webdriverio"
 import { remote } from "webdriverio"
@@ -53,6 +53,10 @@ const DEFAULT_UIA2_SERVER_READ_TIMEOUT_MS = 20_000
  *  默认 60s 不够（本次 CI 失败：am instrument 空输出、60s launch timeout 超时）。
  *  可通过 ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS 覆盖（工蜂真机保持默认，GitHub 冷模拟器放宽）。 */
 const DEFAULT_UIA2_SERVER_LAUNCH_TIMEOUT_MS = 60_000
+/** start-session 自愈重试上限：每次 uia2 instrumentation 冷启动失败（无 KVM 纯软件模拟器等常见），
+ *  就清掉半死态让 Appium 重拉，吸收首次冷启动失败使「首开」真正零失败。默认 3；
+ *  冷模拟器可经 ANDROID_UIA2_START_MAX_ATTEMPTS 调高（如 5）。 */
+const DEFAULT_UIA2_START_MAX_ATTEMPTS = 3
 
 export interface AppiumMobileDriverConfig {
   platform: Platform
@@ -283,6 +287,22 @@ function androidUia2ServerLaunchTimeoutMs(): number {
   return Number.isFinite(n) && n >= 10_000 ? n : DEFAULT_UIA2_SERVER_LAUNCH_TIMEOUT_MS
 }
 
+/** start-session 自愈重试次数（见 DEFAULT_UIA2_START_MAX_ATTEMPTS）。 */
+function androidUia2StartMaxAttempts(): number {
+  const raw = process.env.ANDROID_UIA2_START_MAX_ATTEMPTS
+  if (!raw) return DEFAULT_UIA2_START_MAX_ATTEMPTS
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 1 ? n : DEFAULT_UIA2_START_MAX_ATTEMPTS
+}
+
+/** 识别「uia2 instrumentation 冷启动未就绪」类错误（launch timeout / 初始化失败），用于 start-session 自愈重试。 */
+function isUia2InstrumentationInitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  return /instrumentation process cannot be initialized|uiautomator2ServerLaunchTimeout|UiAutomator2 (cannot be initialized|did not start|failed to launch)/i.test(
+    msg,
+  )
+}
+
 function buildCapabilities(config: AppiumMobileDriverConfig): Record<string, unknown> {
   const base: Record<string, unknown> = {
     platformName: config.platform === "android" ? "Android" : "iOS",
@@ -341,9 +361,53 @@ export class AppiumMobileDriver implements MobileDriver {
     this.config = config
   }
 
+  /**
+   * 冷环境（无 KVM 的纯软件模拟器等）首次拉起 uia2 instrumentation 易超 launch timeout 而失败。
+   * 引擎层在 start-session 主动「等 uia2 就绪」：先后台预拉起 instrumentation 热身，再自愈重试——
+   * 每次 instrumentation 启动失败就清掉半死态、让 Appium 重拉，吸收首次冷启动失败，使「首开」真正零失败。
+   */
+  private preWarmUia2Instrumentation(): void {
+    if (this.config.platform !== "android") return
+    const udidArg = this.config.udid ? `-s ${this.config.udid} ` : ""
+    try {
+      // -w 会阻塞直到 instrumentation 退出；必须 detached 后台、不等待，让设备先启动 server。
+      const child = spawn(
+        "adb",
+        `${udidArg}shell am instrument -w io.appium.uiautomator2.server.test/androidx.test.runner.AndroidJUnitRunner`.split(
+          " ",
+        ),
+        { detached: true, stdio: "ignore" },
+      )
+      child.unref()
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[kuikly-mobile-test] [start-session] 后台预拉起 uia2 instrumentation（热身，Appium 建会话时复用）",
+      )
+    } catch (e) {
+      // 预拉失败不致命：Appium 建会话时会自行拉起。
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[kuikly-mobile-test] [start-session] 预拉起 uia2 失败（交给 Appium）：${e instanceof Error ? e.message : String(e)}`,
+      )
+    }
+  }
+
+  /** 建会话后轻量探测：确认 uia2 真能响应，挡住「Appium 建好 session 但 uia2 仍僵尸」的假成功（冷启动常见）。 */
+  private async assertUia2Responsive(): Promise<void> {
+    if (this.config.platform !== "android" || !this.driver) return
+    await this.driver.setTimeout({ implicit: 1000 })
+    try {
+      await this.driver.getWindowSize()
+    } catch (e) {
+      throw new Error(
+        `uia2 假成功（session 已建但 server 不响应）：${e instanceof Error ? e.message : String(e)}`,
+      )
+    }
+  }
+
   async startSession(): Promise<void> {
     const caps = buildCapabilities(this.config)
-    this.driver = await remote({
+    const remoteOpts = {
       protocol: "http",
       hostname: new URL(this.config.appiumUrl).hostname,
       port: parseInt(new URL(this.config.appiumUrl).port || "4723"),
@@ -360,25 +424,53 @@ export class AppiumMobileDriver implements MobileDriver {
         alwaysMatch: caps,
         firstMatch: [{}],
       },
-    })
-    await this.driver.setTimeout({ implicit: DEFAULT_IMPLICIT_WAIT_MS })
-    if (this.config.platform === "android") {
+    }
+    const maxAttempts = androidUia2StartMaxAttempts()
+    let lastErr: unknown
+    // 冷环境首拉 instrumentation 可能超时；先后台预拉起热身，再自愈重试吸收首次冷启动失败。
+    this.preWarmUia2Instrumentation()
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await this.driver.updateSettings({
-          waitForIdleTimeout: 100,
-          waitForSelectorTimeout: 3000,
-        })
-      } catch {
-        // older uiautomator2 builds may ignore unknown keys
-      }
-      if (this.config.lockPortrait) {
-        try {
-          await this.driver.setOrientation("PORTRAIT")
-        } catch {
-          // 部分设备/Activity 不支持旋转时忽略
+        this.driver = await remote(remoteOpts)
+        await this.driver.setTimeout({ implicit: DEFAULT_IMPLICIT_WAIT_MS })
+        if (this.config.platform === "android") {
+          try {
+            await this.driver.updateSettings({
+              waitForIdleTimeout: 100,
+              waitForSelectorTimeout: 3000,
+            })
+          } catch {
+            // older uiautomator2 builds may ignore unknown keys
+          }
+          if (this.config.lockPortrait) {
+            try {
+              await this.driver.setOrientation("PORTRAIT")
+            } catch {
+              // 部分设备/Activity 不支持旋转时忽略
+            }
+          }
+          await this.assertUia2Responsive()
         }
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[kuikly-mobile-test] [start-session] session ready (attempt ${attempt}/${maxAttempts})`,
+        )
+        return
+      } catch (e) {
+        lastErr = e
+        if (this.config.platform === "android" && isUia2InstrumentationInitError(e)) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[kuikly-mobile-test] [start-session] attempt ${attempt}/${maxAttempts}: uia2 instrumentation 未就绪 (${e instanceof Error ? e.message : String(e)}); 清理半死态后重试...`,
+          )
+          this.killUiautomator2ServerOnDevice()
+          await new Promise((r) => setTimeout(r, 1500))
+          continue
+        }
+        throw e // 非 instrumentation 错误（cap 错 / app 崩溃）直接抛，不自愈
       }
     }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
   }
 
   async stopSession(): Promise<void> {

@@ -81,6 +81,12 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: true
+          # 不指定 profile 时默认 AVD 是 qemu.skin=320x640（极小屏）。发布器页外层 Column 不可滚动，
+          # 按 dp 排下来 top padding 32 + 标题 + 输入框 min 120dp + Spacer + 6 个调试 Text 超出 640px，
+          # debug_delete_state / debug_inject_张（调试区最后两个节点）被挤出屏幕、不进 accessibility 树，
+          # 导致 TC4/TC7/TC8 失败（run #9: PASS=7 FAIL=3）。vivo 真机屏幕大故工蜂 PASS=10——
+          # 是模拟器屏幕尺寸的环境差异，不是业务回归。用 pixel_5（1080x2340）给足垂直空间。
+          profile: pixel_5
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           # disable-animations:false 是为了避开 reactivecircus 动作自己跑的
           # `adb shell settings put global window_animation_scale 0.0` 在冷模拟器上 Broken pipe / exit 224

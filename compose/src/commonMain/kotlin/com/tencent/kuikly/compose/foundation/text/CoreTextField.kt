@@ -423,7 +423,8 @@ internal fun CoreTextField(
 
     // 一次遍历拆分 Modifier，使用 remember 避免重复计算
     val (propsAndEvents, others) = remember(modifier) { modifier.splitByPropOrEvent() }
-    val combinedModifier = others.then(focusModifier)
+    val combinedModifier = others
+        .then(focusModifier)
 
     Box(modifier = pointerModifier.then(combinedModifier), propagateMinConstraints = true) {
         decorationBox {

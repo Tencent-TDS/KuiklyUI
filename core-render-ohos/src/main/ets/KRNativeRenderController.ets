@@ -46,6 +46,7 @@ export const KRPageDidAppearEventKey = 'viewDidAppear';
 export const KRPageDidDisappearEventKey = 'viewDidDisappear';
 
 export const KRConfigurationUpdateEventKey = 'configurationDidChanged';
+export const KRImeInsetsDidChangedEventKey = 'imeInsetsDidChanged';
 
 /** 字典key常量 */
 export const KRRootViewWidthKey = 'rootViewWidth';
@@ -75,6 +76,8 @@ export const KRParamKey = 'param';
 export const KRWidthKey = 'width';
 
 export const KRHeightKey = 'height';
+export const KRDurationKey = 'duration';
+export const KRCurveKey = 'curve';
 
 export const KRNativeBuild = 'nativeBuild';
 
@@ -170,6 +173,7 @@ export class KRNativeRenderController {
   private updateSafeInsetsHandler: number = 0;
   private windowClass: window.Window | null = null;
   private destroyed: boolean = false;
+  private imeBottomHeight: number = -1;
   private onWindowSizeChanged: Callback<window.Size> = (params: window.Size) => {
     if (this.imeMode) {
       return;
@@ -189,6 +193,19 @@ export class KRNativeRenderController {
       params.type == window.AvoidAreaType.TYPE_CUTOUT ||
       params.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
       this.doUpdateSafeArea();
+    } else if (params.type == window.AvoidAreaType.TYPE_KEYBOARD) {
+      // 键盘高度变化时，上报页面级 IME insets。
+      // bottomRect.height 以屏幕底为基准；若页面 view 未延伸到屏幕底（如停在导航条上方的
+      // 安全区内），需按页面实际底边动态扣减差值，否则滚动/避让会多出一段空隙。
+      // 不固定减去导航条高度：沉浸式页面（view 底 == 屏幕底）时 gap 为 0，上报完整高度。
+      const keyboardAreaPx = params.area.bottomRect.height;
+      const windowH = this.windowClass?.getWindowProperties().windowRect.height ?? 0;
+      const density = this.getWindowActiveDensity();
+      const pageBottomPx = ((this.viewRect?.y ?? 0) + (this.viewRect?.height ?? 0)) * density;
+      const pageBottomGap = this.viewRect != null ? Math.max(0, windowH - pageBottomPx) : 0;
+      const occludedPx = Math.max(0, keyboardAreaPx - pageBottomGap);
+      const keyboardHeight = px2vp(occludedPx);
+      this.notifyImeInsetsChanged(keyboardHeight);
     }
   };
 
@@ -275,6 +292,10 @@ export class KRNativeRenderController {
       this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
       this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
       this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+      const windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+      if (windowInfo != undefined) {
+        this.imeBottomHeight = windowInfo.getCurrentKeyboardHeight();
+      }
     }
   }
 
@@ -307,6 +328,21 @@ export class KRNativeRenderController {
     data[KRWidthKey] = width;
     data[KRHeightKey] = height;
     render.sendEvent(this.instanceId, KRWindowSizeDidChangedEventKey, JSON.stringify(data));
+  }
+
+  private notifyImeInsetsChanged(height: number, duration: number = 250, curve: number = 0) {
+    if (this.imeBottomHeight === height) {
+      return;
+    }
+    this.imeBottomHeight = height;
+    const resolvedDuration = duration > 0 ? duration : 250;
+    const resolvedCurve = curve >= 0 ? curve : 0;
+    const data: KRRecord = {};
+    data[KRHeightKey] = height;
+    data[KRDurationKey] = resolvedDuration;
+    data[KRCurveKey] = resolvedCurve;
+    // 独立于现有 TextField 级 keyboardHeightChange 通路，新增页面级 IME 上报到 pager 事件通道。
+    this.sendEvent(KRImeInsetsDidChangedEventKey, data);
   }
 
   paramsReady(): boolean {
@@ -445,6 +481,7 @@ export class KRNativeRenderController {
 
   onAboutToDisappear() {
     this.destroyed = true;
+    this.imeBottomHeight = -1;
     try {
       if (this.windowClass) {
         this.windowClass.off('avoidAreaChange', this.avoidAreaListener);
@@ -466,6 +503,11 @@ export class KRNativeRenderController {
 
   onPageShow() {
     this.doOnPageShow();
+
+    const windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+    if (windowInfo != undefined) {
+      this.notifyImeInsetsChanged(windowInfo.getCurrentKeyboardHeight());
+    }
 
     if (this.didInit && !this.destroyed) {
       const newDensity = this.getWindowActiveDensity();

@@ -16,15 +16,57 @@
 
 package com.tencent.kuikly.compose.foundation.gestures
 
+import com.tencent.kuikly.compose.ui.geometry.Rect
+
 /**
  * Static field to turn on a bunch of verbose logging to debug animations. Since this is a constant,
  * any log statements guarded by this value should be removed by the compiler when it's false.
  */
-private const val DEBUG = false
-private const val TAG = "ContentInViewModifier"
+internal const val CONTENT_IN_VIEW_DEBUG = false
+internal const val CONTENT_IN_VIEW_TAG = "BringIntoView"
 
 /**
  * A minimum amount of delta that it is considered a valid scroll.
  */
-private const val MinScrollThreshold = 0.5f
+internal const val MinScrollThreshold = 0.5f
 
+/**
+ * Checks whether [focusedChildRect] was fully visible in [oldViewport] but is at least partially
+ * clipped by [newViewport]. This is the official Compose condition for triggering path-A
+ * (FocusedBounds) compensation scrolling when the viewport shrinks (e.g. keyboard appearing
+ * with ADJUST_RESIZE semantics).
+ *
+ * Aligned with official `ContentInViewNode.kt:150-167`:
+ * ```kotlin
+ * previousFocusedChildBounds.isMaxVisible(oldSize) && !focusedChild.isMaxVisible(size)
+ * ```
+ *
+ * Note: unlike the official implementation which compares the PREVIOUS focused child bounds
+ * against the old viewport (and the current bounds against the new viewport), this MVP
+ * approximation uses the CURRENT bounds for both checks. If the viewport shrink and the child
+ * relayout happen in the same frame, this may misjudge; acceptable since the focused child
+ * typically has not moved when the keyboard appears.
+ *
+ * @param focusedChildRect The current bounds of the focused child, in container-local coordinates.
+ * @param oldViewport      The viewport rect before the resize.
+ * @param newViewport      The viewport rect after the resize.
+ * @return `true` if the focused child was fully visible before but is now partially clipped.
+ */
+internal fun wasFocusedChildClippedByViewportShrink(
+    focusedChildRect: Rect,
+    oldViewport: Rect,
+    newViewport: Rect,
+): Boolean {
+    return isMaxVisible(focusedChildRect, oldViewport) && !isMaxVisible(focusedChildRect, newViewport)
+}
+
+/**
+ * Returns `true` if [rect] is fully contained within [viewport] (i.e. visible on all sides).
+ * Aligned with official `Rect.isMaxVisible(...)`.
+ */
+private fun isMaxVisible(rect: Rect, viewport: Rect): Boolean {
+    return rect.top >= viewport.top &&
+        rect.bottom <= viewport.bottom &&
+        rect.left >= viewport.left &&
+        rect.right <= viewport.right
+}

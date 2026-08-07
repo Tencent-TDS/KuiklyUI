@@ -311,15 +311,27 @@ main() {
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。
   "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
 
-  # 打开发布器页；首次失败自动重试一次（吸收 uia2 冷启动 + vivo 8200 隧道 flaky）。
-  # 重试前先重建 8200 反向隧道（vivo 上 adb reverse 不可靠） + uiautomator dump 预热 uia2，
-  # 并打印 8200/进程数诊断便于排查。
+  # 打开发布器页；首次失败则彻底重建（强制重启 uia2 两组件 + 重建 Appium session）后重试。
+  # 诊断输出用于分诊：8200 隧道 / uia2 进程 / 前台 activity / 原生 dump 是否含 mention_input。
   open_publisher || {
-    echo "首次打开发布器页失败，重试前 warm uia2 + 重建 8200..."
+    echo "首次打开发布器页失败，诊断 + 重建 uia2/session 后重试..."
     echo "   diag: 8200=$("$ADB" -s "$DEVICE_SERIAL" reverse --list 2>&1 | tr '\n' ' ')"
-    echo "   diag: uia2=$("$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -c uiautomator2) procs"
+    echo "   diag: uia2 进程："; "$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -E "uiautomator2" || echo "   (无 uiautomator2 进程)"
+    echo "   diag: 前台 activity：" ; "$ADB" -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | grep -E "topResumedActivity|mResumedActivity" | head -3
+    echo "   diag: 原生 uiautomator dump 含 mention_input 数："
+    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_diag.xml >/dev/null 2>&1 || true
+    "$ADB" -s "$DEVICE_SERIAL" shell cat /sdcard/_diag.xml 2>/dev/null | grep -c "mention_input" || echo 0
+    # 彻底重建：强制停 uia2 两组件 → 重建 8200 → 重建 Appium session（重新拉 uia2 + restartApp）
+    echo "   [重建] force-stop uia2 组件 + 重建 8200 + 重建 session..."
+    "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true
+    "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
     "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
-    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_warm.xml >/dev/null 2>&1 || true
+    local c2 sess2_tries=0
+    while [ "$sess2_tries" -lt 3 ]; do
+      c2=$(engine_post /start-session "{\"platform\":\"$PLATFORM\",\"appPackage\":\"$APP_PACKAGE\",\"appActivity\":\"$APP_ACTIVITY\",\"udid\":\"$DEVICE_SERIAL\",\"deviceName\":\"$DEVICE_SERIAL\"}")
+      resp_ok "$c2" && break
+      sess2_tries=$((sess2_tries+1)); echo "   重建 session 第 $sess2_tries 次失败，等 2s 重试..."; sleep 2
+    done
     sleep 2
     open_publisher
   } || { echo "无法打开发布器页"; exit 1; }

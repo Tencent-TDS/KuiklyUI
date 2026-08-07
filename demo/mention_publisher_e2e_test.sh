@@ -177,10 +177,16 @@ wait_quiescence() { # [timeout_s]
 open_publisher() {
   # Appium 接管后 restartApp 停在 demo 首页；用 pageName 深链直达发布器页。
   "$ADB" -s "$DEVICE_SERIAL" shell am start -n "$APP_PACKAGE/$APP_ACTIVITY" --es pageName "$PAGE_NAME" >/dev/null 2>&1
-  # 直接等目标节点出现：wait_quiescence 会反复请求完整 view-tree；CI 冷启动时 curl 超时虽断开，
-  # 引擎侧 getPageSource 仍持续占用 uia2 队列，反而把下面的 findElements 堵住。
-  # wait_visible 是单一、顺序的目标节点条件等待，不产生并发 page-source 请求。
-  wait_visible mention_input 20000
+  # 多轮轮询等目标节点出现：本设备 uia2 冷启动/重建后常需数十秒才就绪，单次等待易误判。
+  # 每轮 wait_visible 内部已有 10s uia2 读超时（CI 注入 ANDROID_UIA2_READ_TIMEOUT_MS=10000），
+  # 这里最多 4 轮（约 60s 预算）覆盖慢 uia2；uia2 一就绪即命中。
+  local op_tries=0
+  while [ "$op_tries" -lt 4 ]; do
+    if wait_visible mention_input 15000; then return 0; fi
+    op_tries=$((op_tries+1))
+    [ "$op_tries" -lt 4 ] && sleep 2
+  done
+  return 1
 }
 
 # ===================== TC1-TC6 =====================
@@ -315,10 +321,16 @@ main() {
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。
   "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
 
-  # 打开发布器页；首次失败由 Shell 作为唯一恢复方重建 uia2 / Appium Session 后再试一次。
-  # 失败诊断只读进程、Activity、截图与日志；禁止在 active Appium Session 下执行
+  # 打开发布器页；首次失败由 Shell 作为唯一恢复方升级为"诊断 + 重建 uia2/session"硬恢复：
+  #   open_publisher 内部已多轮轮询等待 uia2 就绪，仍失败说明 uia2 卡死（本设备冷启动常见），
+  #   只有 force-stop 后的全新 uia2 进程才能恢复；重建后重链 open_publisher（同样多轮轮询）等待
+  #   新 uia2 就绪并重建 Activity 绑定 Compose testTag——这是该慢设备的必要步骤，非误判。
+  # 失败诊断只读进程/Activity/截图/日志；禁止在 active Appium Session 下执行
   # `uiautomator dump`，避免它与 uia2 instrumentation 争抢 UiAutomation。
   open_publisher || {
+    # 首次打开失败（open_publisher 已多轮轮询等待 uia2 就绪，仍失败说明 uia2 卡死）→ 升级硬恢复：
+    # force-stop 后全新 uia2 进程才能从卡死态恢复，再重链 open_publisher（同样多轮轮询）等待新
+    # uia2 就绪并重建 Activity 绑定 Compose testTag（本设备的必要步骤）。
     echo "首次打开发布器页失败，诊断 + 重建 uia2/session 后重试..."
     echo "   diag: 8200=$("$ADB" -s "$DEVICE_SERIAL" reverse --list 2>&1 | tr '\n' ' ')"
     echo "   diag: uia2 进程："; "$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -E "uiautomator2" || echo "   (无 uiautomator2 进程)"
@@ -343,7 +355,10 @@ main() {
       sess2_tries=$((sess2_tries+1)); echo "   重建 session 第 $sess2_tries 次失败，等 2s 重试..."; sleep 2
     done
     sleep 2
-    open_publisher
+    # 硬恢复后 Compose testTag 树已被 detach，必须重拉深链重建 Activity 才能重新可见；
+    # open_publisher 内部多轮轮询会等全新 uia2 就绪并绑定 testTag。
+    echo "   重建后重拉深链打开发布器页..."
+    open_publisher || { echo "无法打开发布器页"; exit 1; }
   } || { echo "无法打开发布器页"; exit 1; }
 
   run_case "TC1 输入@候选下拉出现"        tc1_candidate_appears

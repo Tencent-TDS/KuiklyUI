@@ -85,7 +85,13 @@ start_appium_detached "$APP_PORT" "$APPIUM_PIDFILE" "/tmp/appium_publisher.log" 
 echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
 # 用本地 tsx 绝对路径启动，避免 agent shell 下 npm run 未注入 node_modules/.bin 到 PATH 导致 tsx: command not found
 ( cd "$ENGINE_DIR" && npm install >/tmp/e2e_engine_install.log 2>&1 )
-( cd "$ENGINE_DIR" && "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher.log 2>&1 ) &
+# ANDROID_UIA2_READ_TIMEOUT_MS：缩短 Appium→uia2 代理读超时（默认 20000），让 uia2 冷启动/重建后
+# 假死时的 findElements 在 10s 内快速返回（而非卡满 20s），配合测试脚本多轮短轮询预热即可在 uia2
+# 一就绪时命中节点、消除"误判未打开→重开"。下限 8000；仅影响代理读超时，正常 findElements（<1s）不受影响。
+export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-10000}"
+# exec 让 $! 直接捕获 tsx 进程 PID（否则只拿到 subshell PID，cleanup 杀不到真正的引擎孙进程，
+# 多次运行会残留孤儿占着 7900 端口，导致 CI 偶发"引擎未就绪"）。
+( cd "$ENGINE_DIR" && exec env ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher.log 2>&1 ) &
 ENGINE_PID=$!
 
 echo "==> 等待服务就绪 ..."

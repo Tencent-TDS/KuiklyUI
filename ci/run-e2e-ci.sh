@@ -16,6 +16,10 @@ source "$REPO_ROOT/ci/setup-env.sh" || exit 1
 
 APP_PORT=4723
 ENGINE_PORT="${MOBILE_TEST_PORT:-7900}"
+# 单变量验证：CI 冷环境下首次 uia2 页面树读取是否仅超过默认 20s。
+# 只影响本 CI E2E 进程；本地启动器与测试逻辑均不改。若 CI 仍失败，说明不是超时余量问题。
+export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-60000}"
+echo "==> uia2 页面树读取超时: ${ANDROID_UIA2_READ_TIMEOUT_MS}ms（CI 单变量实验）"
 ENGINE_DIR="$REPO_ROOT/demo/e2e-engine"
 TEST_SCRIPT="$REPO_ROOT/demo/mention_publisher_e2e_test.sh"
 

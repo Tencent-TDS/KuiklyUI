@@ -1006,15 +1006,30 @@ export class AppiumMobileDriver implements MobileDriver {
 
   async dismissAlert(): Promise<void> {
     const driver = this.requireDriver()
+    // dismissAlert 仅为「顺手关掉可能存在的系统弹窗」的兜底，绝不能阻塞会话建立。
+    // 真机（尤其 CI 冷环境）上 `mobile: dismissAlert` 会hang 满 uiautomator2ServerReadTimeout（60s）
+    // 才返回 500，把 start-session 整个拖垮。这里套3s 短超时，超时即视为"无弹窗"跳过。
+    const DISMISS_TIMEOUT_MS = 3000
+    const withTimeout = <T>(p: Promise<T>): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error("dismissAlert timeout")), DISMISS_TIMEOUT_MS),
+        ),
+      ])
     try {
-      await driver.execute("mobile: dismissAlert", { action: "accept" })
+      await withTimeout(driver.execute("mobile: dismissAlert", { action: "accept" }))
     } catch {
-      try {
-        const btn = await driver.$('-ios predicate string:type == "XCUIElementTypeButton" AND name == "确定"')
-        if (await btn.isExisting()) {
-          await btn.click()
-        }
-      } catch {}
+      // Android 会话不支持 -ios predicate（本身立即抛 InvalidSelectorError），
+      // iOS 才走这条按钮兜底；同样套短超时防挂死。
+      if (this.config.platform !== "android") {
+        try {
+          const btn = await driver.$('-ios predicate string:type == "XCUIElementTypeButton" AND name == "确定"')
+          if (await withTimeout(btn.isExisting())) {
+            await withTimeout(btn.click())
+          }
+        } catch {}
+      }
     }
   }
 

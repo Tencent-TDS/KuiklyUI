@@ -58,6 +58,22 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle.properties') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      # 真根因（run #1–#7 全部命中）：ubuntu-latest(24.04) 上 /dev/kvm 的 udev 规则默认不给
+      # runner 用户权限（日志铁证：`ProbeKVM: This user doesn't have permissions to use KVM`
+      # + `The KVM line in /etc/group is: [kvm:x:993:]` —— 组存在但没成员），于是
+      # emulator-runner 走 `Disabling Linux hardware acceleration` 用纯软件模拟(TCG)。
+      # 软件模拟下整机慢约 10 倍：boot 374s、`adb shell getprop` 3s、`dumpsys package` 10s、
+      # `ps -A` 9s、装 apk 40-65s，于是每轮都在不同位置撞超时（install 抖动 / session>120s /
+      # hidden_api_policy 20s / window_animation_scale Broken pipe / uia2 instrumentation 60s）
+      # —— 都是同一根因的影子。开 KVM 让模拟器走硬件加速，这些超时不再被触发（而非被放宽）。
+      - name: 开启 KVM 硬件加速
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
       - name: 起 Android 模拟器并跑 E2E
         uses: reactivecircus/android-emulator-runner@v2
         with:

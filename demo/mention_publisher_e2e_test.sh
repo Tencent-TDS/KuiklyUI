@@ -298,10 +298,10 @@ main() {
   "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server.test 2>/dev/null || true
   "$ADB" -s "$DEVICE_SERIAL" reverse --remove tcp:8200 2>/dev/null || true
 
-  # 切到 AppiumIME（原样提交英文，避开中文拼音把 @zzz 转写成 @z'z'z），
-  # 结束由顶部 EXIT trap 切回原输入法，任何退出路径都不会遗留。
+  # 仅 enable（io.appium.settings 可能尚未安装，enable 静默失败无害）；
+  # 真正 ime set 放到 /start-session 成功之后（Appium 建会话时才安装 io.appium.settings），
+  # 否则干净模拟器上 set 会因 IME 不存在而静默失败，导致 TC5（英文 @zzz）失真。
   "$ADB" -s "$DEVICE_SERIAL" shell ime enable "$TEST_IM" >/dev/null 2>&1 || true
-  "$ADB" -s "$DEVICE_SERIAL" shell ime set "$TEST_IM" >/dev/null 2>&1 || true
 
   # 建立会话（restartApp 后停在首页，再深链进发布器）。
   # Appium 刚起时 /session 偶发 "Failed to fetch"（冷启动竞争），重试 2 次吸收。
@@ -316,6 +316,9 @@ main() {
   if ! resp_ok "$c"; then
     echo "start-session 失败: $(cat "$RESP_FILE")"; exit 1
   fi
+
+  # Appium 建会话后 io.appium.settings 已安装，此时切 AppiumIME 才可靠（干净模拟器首次必需；真机已有则幂等）
+  "$ADB" -s "$DEVICE_SERIAL" shell ime set "$TEST_IM" >/dev/null 2>&1 || true
 
   # 部分 ROM（vivo 等）Appium 不会自动建立 uiautomator2 的 8200 反向隧道，手动补上，
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。

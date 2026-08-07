@@ -1,0 +1,92 @@
+name: 发布器 E2E 回归
+
+# 触发：PR 到 main（门禁）、push 到 main（仅当改动涉及测试相关路径时跑，避免每次提交都占用模拟器）
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'demo/**'
+      - 'core/**'
+      - 'compose/**'
+      - 'androidApp/**'
+      - 'ci/**'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'demo/**'
+      - 'core/**'
+      - 'compose/**'
+      - 'androidApp/**'
+      - 'ci/**'
+      - '.github/workflows/e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # ---- 路径一：模拟器冒烟（先上，零硬件、AI 全可见）----
+  e2e-emulator:
+    name: 发布器 E2E（模拟器冒烟）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 起 Android 模拟器并跑 E2E
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          force-avd-create: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            bash ci/run-e2e-linux.sh --install
+        env:
+          MOBILE_TEST_PORT: 7900
+
+  # ---- 路径二：vivo 真机（后续启用）----
+  # 启用步骤：
+  #   1) 本机 Mac 注册 GitHub self-hosted runner（标签 macos + 自定 label）
+  #   2) USB 接 vivo 并授权；把 serial 存入仓库 secret DEVICE_SERIAL
+  #   3) 去掉下面 `if: false`
+  # 说明：日志经 step stdout 进云端 job log，AI 用 gh 直读，不需读本机 /tmp。
+  e2e-device:
+    name: 发布器 E2E（vivo 真机 · self-hosted）
+    runs-on: [self-hosted, macos]
+    timeout-minutes: 45
+    if: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 跑 E2E（真机）
+        run: bash ci/run-e2e-linux.sh --install
+        env:
+          MOBILE_TEST_PORT: 7900
+          DEVICE_SERIAL: ${{ secrets.DEVICE_SERIAL }}

@@ -309,10 +309,15 @@ function buildCapabilities(config: AppiumMobileDriverConfig): Record<string, unk
     base["appium:uiautomator2ServerLaunchTimeout"] = androidUia2ServerLaunchTimeoutMs()
     // 冷模拟器上 `adb shell settings put global hidden_api_policy 1` 偶发 >20s（adbExecTimeout），
     // 触发 POST /session 500；demo app 不依赖隐藏 API，按 Appium 官方建议忽略该错继续建 session。
-    // **重要**：settings 类 capability 必须嵌套在 `appium:settings[xxx]`（与上方 waitForSelectorTimeout 同形），
-    // 写成 `appium:ignoreHiddenApiPolicyError`（不带方括号）Appium 不认——上一版错位置让 #5/#6
-    // 在同一坑里反复重试 57min 才到 job timeout。详见 https://github.com/appium/appium/issues/13802
-    base["appium:settings[ignoreHiddenApiPolicyError]"] = true
+    // **必须用扁平写法，不能写成 `appium:settings[ignoreHiddenApiPolicyError]`**：
+    //   - appium/lib/helpers/capability.js `pullSettings()` 会把 `appium:settings[xxx]` 从 caps 里
+    //     delete 掉转成 device settings，等 session 建好后才通过 updateSettings 下发；
+    //   - 但本 cap 是驱动 capability（uiautomator2-driver/lib/constraints.ts），由
+    //     uiautomator2-server/session.ts `performPreExecSetup()` 读 this.opts.ignoreHiddenApiPolicyError，
+    //     发生在**建 session 期间**，早于 settings 下发 → 嵌套后永远读到 undefined（!!undefined=false）。
+    // 上一版（378a293a）误按 waitForSelectorTimeout 的形状套嵌套，反而让这个开关彻底失效。
+    // 详见 https://github.com/appium/appium/issues/13802
+    base["appium:ignoreHiddenApiPolicyError"] = true
   } else {
     base["appium:bundleId"] = config.bundleId ?? "com.tencent.kuiklycore.demo.luoyibu"
     base["appium:deviceName"] = config.deviceName ?? "iPhone 17 Pro"

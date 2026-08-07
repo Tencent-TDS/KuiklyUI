@@ -25,7 +25,7 @@ DEVICE_SERIAL="${DEVICE_SERIAL:-$(adb devices 2>/dev/null | awk 'NF && $2=="devi
 echo "==> 目标设备: $DEVICE_SERIAL"
 export DEVICE_SERIAL
 
-APPIUM_PID=""
+APPIUM_PIDFILE="/tmp/appium_publisher.pid"
 ENGINE_PID=""
 
 # 递归杀进程树：先杀子进程再杀自己，避免 npm→tsx 孙进程残留（与 demo/run_publisher_local.sh 同步）
@@ -37,15 +37,49 @@ kill_tree() {
 
 cleanup() {
   [ -n "$ENGINE_PID" ] && kill_tree "$ENGINE_PID"
-  [ -n "$APPIUM_PID" ] && kill_tree "$APPIUM_PID"
+  # Appium 已脱离脚本进程树（独立 session），按 pidfile 精确回收真实 PID
+  if [ -f "$APPIUM_PIDFILE" ]; then
+    local apid; apid="$(cat "$APPIUM_PIDFILE" 2>/dev/null)"
+    [ -n "$apid" ] && kill_tree "$apid"
+  fi
+  rm -f "$APPIUM_PIDFILE"
   wait 2>/dev/null
 }
 trap cleanup EXIT
 
+# 在独立 session 启动 Appium（macOS/Linux 通用；macOS 默认无 setsid）。
+# 双 fork + os.setsid()：让 Appium 成为新会话/新进程组的 leader，且被 launchd(PID 1) 收养，
+# 彻底脱离 CI agent 的进程树监管 —— agent 在装包空隙（探活后 ~20s）向脚本进程组发 SIGTERM 时，
+# 不再能连带杀掉 Appium。脚本仍通过 pidfile 持有真实 PID，退出时由 trap cleanup 精确回收。
+start_appium_detached() {
+  local port="$1" pidfile="$2" logfile="$3"
+  : > "$pidfile"
+  local py
+  py="$(command -v python3 || command -v python || true)"
+  if [ -z "$py" ]; then
+    echo "!! 未找到 python3，无法以独立 session 启动 Appium（setsid 等价物）" >&2
+    return 1
+  fi
+  "$py" - "$port" "$pidfile" "$logfile" <<'PY' &
+import os, sys, subprocess
+port, pidfile, logfile = sys.argv[1], sys.argv[2], sys.argv[3]
+if os.fork() > 0:
+    sys.exit(0)          # 父进程退出，孙进程被 init/launchd 收养，脱离脚本进程树
+os.setsid()              # 新会话 leader，脱离 agent 进程组/控制终端
+if os.fork() > 0:
+    sys.exit(0)          # 再 fork，确保无控制终端
+with open(logfile, "w") as logf:
+    p = subprocess.Popen(["appium", "--port", port], stdout=logf, stderr=logf)
+    with open(pidfile, "w") as f:
+        f.write(str(p.pid))
+    p.wait()
+PY
+  return 0
+}
+
 # 3) 启动 Appium
-echo "==> [1/4] 启动 Appium (port $APP_PORT)"
-appium --port "$APP_PORT" >/tmp/appium_publisher.log 2>&1 &
-APPIUM_PID=$!
+echo "==> [1/4] 启动 Appium (port $APP_PORT) [独立 session，防 agent 误杀]"
+start_appium_detached "$APP_PORT" "$APPIUM_PIDFILE" "/tmp/appium_publisher.log" || { echo "!! Appium 启动失败"; exit 1; }
 
 # 4) 启动 E2E 引擎
 echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"

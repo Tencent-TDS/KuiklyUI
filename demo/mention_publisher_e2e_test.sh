@@ -174,8 +174,9 @@ wait_quiescence() { # [timeout_s]
 open_publisher() {
   # Appium 接管后 restartApp 停在 demo 首页；用 pageName 深链直达发布器页。
   "$ADB" -s "$DEVICE_SERIAL" shell am start -n "$APP_PACKAGE/$APP_ACTIVITY" --es pageName "$PAGE_NAME" >/dev/null 2>&1
-  # 事件驱动等待：轮询 view-tree 直到页面稳定（替代盲目 sleep 3），吸收冷启动 uia2 慢。
-  wait_quiescence 20 || true
+  # 直接等目标节点出现：wait_quiescence 会反复请求完整 view-tree；CI 冷启动时 curl 超时虽断开，
+  # 引擎侧 getPageSource 仍持续占用 uia2 队列，反而把下面的 findElements 堵住。
+  # wait_visible 是单一、顺序的目标节点条件等待，不产生并发 page-source 请求。
   wait_visible mention_input 20000
 }
 

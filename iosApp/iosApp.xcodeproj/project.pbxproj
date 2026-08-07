@@ -10,6 +10,8 @@
 		058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
 		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
+		B7E41A032F00100100AAAA03 /* KRLLVMProfileDump.m in Sources */ = {isa = PBXBuildFile; fileRef = B7E41A022F00100100AAAA02 /* KRLLVMProfileDump.m */; };
+		B7E41A062F00100100AAAA06 /* KRLLVMProfileStub.m in Sources */ = {isa = PBXBuildFile; fileRef = B7E41A052F00100100AAAA05 /* KRLLVMProfileStub.m */; };
 		3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
@@ -35,6 +37,9 @@
 		058557BA273AAA24004C7B11 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		B7E41A012F00100100AAAA01 /* KRLLVMProfileDump.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRLLVMProfileDump.h; sourceTree = "<group>"; };
+		B7E41A022F00100100AAAA02 /* KRLLVMProfileDump.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRLLVMProfileDump.m; sourceTree = "<group>"; };
+		B7E41A052F00100100AAAA05 /* KRLLVMProfileStub.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRLLVMProfileStub.m; sourceTree = "<group>"; };
 		389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-iosApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A622B972AB052B0002410B8 /* TDFTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TDFTestModule.h; sourceTree = "<group>"; };
 		3A622B982AB052B0002410B8 /* TDFTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TDFTestModule.m; sourceTree = "<group>"; };
@@ -148,6 +153,9 @@
 				FF047745288C47A7008D3F39 /* Vendor */,
 				058557BA273AAA24004C7B11 /* Assets.xcassets */,
 				7555FF82242A565900829871 /* ContentView.swift */,
+				B7E41A012F00100100AAAA01 /* KRLLVMProfileDump.h */,
+				B7E41A022F00100100AAAA02 /* KRLLVMProfileDump.m */,
+				B7E41A052F00100100AAAA05 /* KRLLVMProfileStub.m */,
 				7555FF8C242A565B00829871 /* Info.plist */,
 				2152FB032600AC8F00CF470E /* iOSApp.swift */,
 				058557D7273AAEEB004C7B11 /* Preview Content */,
@@ -323,8 +331,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks.sh\"\n";
@@ -364,8 +370,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources.sh\"\n";
@@ -380,6 +384,8 @@
 			files = (
 				FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */,
 				2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */,
+				B7E41A032F00100100AAAA03 /* KRLLVMProfileDump.m in Sources */,
+				B7E41A062F00100100AAAA06 /* KRLLVMProfileStub.m in Sources */,
 				FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */,
 				FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */,
 				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,

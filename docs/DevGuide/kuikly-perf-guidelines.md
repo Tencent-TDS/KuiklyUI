@@ -21,7 +21,7 @@
 1. 启用--pack-dyn-relocs=relr
 2. 启用gc-sections，function-sections，data-sections
 3. 使用Os选项（Oz效果更佳，但对性能影响偏大一些）
-4. 启用-mllvm -enable-machine-outiner=always 提取重复指令，这个对性能影响偏大一些，使用时要多加关注
+4. 启用-mllvm -enable-machine-outiner=always 提取重复指令，这个对性能影响偏大一些，使用时要多加关注。**更推荐先用 LLVM PGO 采集运行时频次，再在 Machine Outliner 中按热度 outlining**，可显著降低对热路径的误伤；完整流程与本仓库 `demo`/`iosApp` 落地见 [iOS Machine Outliner + PGO 指引](./machine-outliner-pgo-guide.md)。
 ```kotlin
 kotlin {
     targets.all {

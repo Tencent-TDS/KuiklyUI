@@ -2,6 +2,13 @@
 #use_frameworks!
 source 'https://cdn.cocoapods.org/'
 
+def pod_llvm_compile_rt
+  # 仅 PGO 插装包需要 profile runtime；MachineOutliner / 普通包不要链接。
+  if ENV['LLVM_PGO_TYPE'] == 'LLVMPGO'
+    pod 'LLVMCompileRT', :path => './components/LLVMCompileRT'
+  end
+end
+
 target 'iosApp' do
   platform :ios, '14.1'
   pod 'SDWebImage', '~> 5.20.1'
@@ -9,6 +16,8 @@ target 'iosApp' do
   pod 'demo', :path => '../demo'
   pod 'WMPlayer', "~> 5.0" # 第三方播放器库
   pod 'libpag', "~> 4.3.21"
+
+  pod_llvm_compile_rt
 end
 
 

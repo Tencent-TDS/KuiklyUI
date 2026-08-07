@@ -71,20 +71,38 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
     private var pendingView: AutoHeightTextAreaView? = null
     private var pendingAction = PendingAction.NONE
     private var scheduleInputCommand = false
+    // 无焦点场景下 hideKeepFocus() 打的标记：焦点由 requestFocus 经 Compose 焦点系统
+    // 异步送达，届时 startInput 会把默认 focus() 替换为 focusWithoutKeyboard()。
+    private var pendingFocusNoKeyboard = false
 
     override fun show() {
+        // 显式弹键盘意图，清除免键盘标记，避免被之前残留的 hideKeepFocus 标记拦截
+        pendingFocusNoKeyboard = false
         activeView?.also { sendInputCommand(it, PendingAction.SHOW_KEYBOARD) }
     }
 
     override fun hide() {
-        activeView?.also { sendInputCommand(it, PendingAction.HIDE_KEYBOARD) }
+        // 现在hide的作用全面和当前的hideKeepFocus的作用对齐
+        val target = activeView ?: pendingView
+        if (target != null) {
+            // 已有目标 view（已获焦，或 requestFocus 已同步生效）：直接下发自包含命令。
+            sendInputCommand(target, PendingAction.HIDE_KEYBOARD)
+        } else {
+            // 无焦点：此刻 requestFocus 触发的 startInput 尚未到达，拿不到 view。
+            // 打标记，等 startInput 送来 pendingView 时把默认 focus() 替换为 focusWithoutKeyboard()，
+            // 最终仍只下发一条命令，键盘全程不出现，等待 requestFocus() 重置焦点后再执行
+            pendingFocusNoKeyboard = true
+        }
     }
+
 
     internal fun startInput(view: AutoHeightTextAreaView) {
         sendInputCommand(view, PendingAction.START_INPUT)
     }
 
     internal fun stopInput(view: AutoHeightTextAreaView) {
+        // 焦点离开即清理免键盘标记，避免 requestFocus 失败/事件取消导致其永久残留、污染后续输入框
+        pendingFocusNoKeyboard = false
         sendInputCommand(view, PendingAction.STOP_INPUT)
     }
 
@@ -95,8 +113,17 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                 scheduleInputCommand = false
                 when (pendingAction) {
                     PendingAction.START_INPUT -> {
-                        pendingView?.focus()
-                        activeView = pendingView
+                        if (pendingFocusNoKeyboard) {
+                            // hideKeepFocus() 在无焦点时先被调用并打了标记；焦点经 Compose 焦点系统
+                            // 异步送达，此刻才拿到 pendingView。把默认 focus() 替换为 focusWithoutKeyboard()，
+                            // 只下发一条命令，键盘全程不出现。
+                            pendingView?.focusWithoutKeyboard()
+                            activeView = pendingView
+                            pendingFocusNoKeyboard = false
+                        } else {
+                            pendingView?.focus()
+                            activeView = pendingView
+                        }
                     }
                     PendingAction.STOP_INPUT -> {
                         if (activeView == pendingView) {
@@ -108,7 +135,12 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur()
+                        // 单条自包含命令，获焦但键盘全程不出现。
+                        // 该命令自身完成获焦，后续不再单独下发 focus()，因此不会触发键盘弹起。
+                        val targetView = activeView ?: pendingView
+                        targetView?.focusWithoutKeyboard()
+                        // 命令已让 targetView 获焦，无条件同步 activeView
+                        activeView = pendingView
                     }
                     else -> {}
                 }

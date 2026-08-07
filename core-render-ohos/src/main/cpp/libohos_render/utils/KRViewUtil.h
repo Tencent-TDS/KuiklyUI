@@ -235,6 +235,8 @@ void SetArkUIPadding(ArkUI_NodeHandle handle, float start, float top, float end,
 
 void UpdateInputNodeFocusStatus(ArkUI_NodeHandle node, int32_t status);
 
+void UpdateInputNodeFocusAndKeyBoardStatus(ArkUI_NodeHandle node, int32_t status);
+
 void UpdateInputNodeFocusable(ArkUI_NodeHandle node, int32_t enable);
 
 void UpdateInputNodeKeyboardType(ArkUI_NodeHandle node, ArkUI_TextInputType input_type);

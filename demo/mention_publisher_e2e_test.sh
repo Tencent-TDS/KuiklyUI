@@ -311,8 +311,18 @@ main() {
   # 否则后续 view-tree / tap / input 等命令会 20s 超时。
   "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
 
-  # 打开发布器页；首次失败自动重试一次（吸收 uia2 冷启动 flaky，本地经验第二次通常能过）
-  open_publisher || { echo "首次打开发布器页失败，重试一次..."; sleep 2; open_publisher; } || { echo "无法打开发布器页"; exit 1; }
+  # 打开发布器页；首次失败自动重试一次（吸收 uia2 冷启动 + vivo 8200 隧道 flaky）。
+  # 重试前先重建 8200 反向隧道（vivo 上 adb reverse 不可靠） + uiautomator dump 预热 uia2，
+  # 并打印 8200/进程数诊断便于排查。
+  open_publisher || {
+    echo "首次打开发布器页失败，重试前 warm uia2 + 重建 8200..."
+    echo "   diag: 8200=$("$ADB" -s "$DEVICE_SERIAL" reverse --list 2>&1 | tr '\n' ' ')"
+    echo "   diag: uia2=$("$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -c uiautomator2) procs"
+    "$ADB" -s "$DEVICE_SERIAL" reverse tcp:8200 tcp:8200 2>/dev/null || true
+    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_warm.xml >/dev/null 2>&1 || true
+    sleep 2
+    open_publisher
+  } || { echo "无法打开发布器页"; exit 1; }
 
   run_case "TC1 输入@候选下拉出现"        tc1_candidate_appears
   run_case "TC2 点选张三插入并高亮区间"   tc2_select_insert

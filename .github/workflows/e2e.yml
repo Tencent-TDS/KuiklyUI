@@ -66,7 +66,11 @@ jobs:
           arch: x86_64
           force-avd-creation: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
+          # disable-animations:false 是为了避开 reactivecircus 动作自己跑的
+          # `adb shell settings put global window_animation_scale 0.0` 在冷模拟器上 Broken pipe / exit 224
+          # （与 hidden_api_policy 同款 adb shell settings 抖动），那一步崩了会跳过整个 script。
+          # uia2 看 view tree 不依赖动画关/开。
+          disable-animations: false
           script: |
             bash ci/run-e2e-linux.sh --install
         env:

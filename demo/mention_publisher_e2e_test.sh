@@ -318,11 +318,24 @@ main() {
     echo "   diag: 8200=$("$ADB" -s "$DEVICE_SERIAL" reverse --list 2>&1 | tr '\n' ' ')"
     echo "   diag: uia2 进程："; "$ADB" -s "$DEVICE_SERIAL" shell ps -A 2>/dev/null | grep -E "uiautomator2" || echo "   (无 uiautomator2 进程)"
     echo "   diag: 前台 activity：" ; "$ADB" -s "$DEVICE_SERIAL" shell dumpsys activity activities 2>/dev/null | grep -E "topResumedActivity|mResumedActivity" | head -3
-    echo "   diag: 原生 uiautomator dump 含 mention_input 数："
-    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_diag.xml >/dev/null 2>&1 || true
-    "$ADB" -s "$DEVICE_SERIAL" shell cat /sdcard/_diag.xml 2>/dev/null | grep -c "mention_input" || echo 0
+    # 关键分诊：人眼可见页面不等于 Android 无障碍树已经下发 testTag。
+    # 保存原生 dump + 截图，并在控制台打印 resource-id 摘要，确认是「节点未下发」还是 Appium 通道问题。
+    local diag_dir="$LOG_DIR/open_publisher_failure"
+    mkdir -p "$diag_dir" 2>/dev/null || true
+    echo "   diag: 原生 uiautomator dump："
+    "$ADB" -s "$DEVICE_SERIAL" shell uiautomator dump /sdcard/_diag.xml 2>&1 | tee "$diag_dir/native-dump-command.txt"
+    "$ADB" -s "$DEVICE_SERIAL" exec-out cat /sdcard/_diag.xml > "$diag_dir/native-uiautomator.xml" 2>/dev/null || true
+    "$ADB" -s "$DEVICE_SERIAL" exec-out screencap -p > "$diag_dir/screenshot.png" 2>/dev/null || true
+    local mention_count debug_count xml_bytes
+    mention_count=$(grep -o "mention_input" "$diag_dir/native-uiautomator.xml" 2>/dev/null | wc -l | tr -d ' ')
+    debug_count=$(grep -o "debug_text" "$diag_dir/native-uiautomator.xml" 2>/dev/null | wc -l | tr -d ' ')
+    xml_bytes=$(wc -c < "$diag_dir/native-uiautomator.xml" 2>/dev/null | tr -d ' ')
+    echo "   diag: 原生 dump bytes=${xml_bytes:-0}, mention_input=${mention_count:-0}, debug_text=${debug_count:-0}"
+    echo "   diag: 原生 dump 的 resource-id 摘要（最多 20 个）："
+    grep -o 'resource-id="[^"]*"' "$diag_dir/native-uiautomator.xml" 2>/dev/null | sort -u | head -20 || true
+    echo "   diag: 原生证据已存: $diag_dir"
     echo "   diag: appium 日志尾部（看 uia2 server 启动/报错）："
-    tail -40 /tmp/appium_publisher.log 2>/dev/null || echo "   (无 /tmp/appium_publisher.log)"
+    tail -80 /tmp/appium_publisher.log 2>/dev/null | tee "$diag_dir/appium-tail.log" || echo "   (无 /tmp/appium_publisher.log)"
     # 彻底重建：强制停 uia2 两组件 → 重建 8200 → 重建 Appium session（重新拉 uia2 + restartApp）
     echo "   [重建] force-stop uia2 组件 + 重建 8200 + 重建 session..."
     "$ADB" -s "$DEVICE_SERIAL" shell am force-stop io.appium.uiautomator2.server 2>/dev/null || true

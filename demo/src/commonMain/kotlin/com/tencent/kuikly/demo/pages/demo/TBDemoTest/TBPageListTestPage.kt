@@ -97,6 +97,11 @@ internal class TBPageListTestPage : BasePager() {
         // 恢复缓存
         restoreFromPageData()
 
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
 
         if (extraCacheContent.keySet().size > 0) {
             val keys = extraCacheContent.keySet().toList()
@@ -301,6 +306,7 @@ internal class TBPageListTestPage : BasePager() {
                 }
 
                 attr {
+                    firstContentLoadMaxIndex(6)
                     flex(1f)
                     pageDirection(true)
                     pageItemWidth(pagerData.pageViewWidth)
@@ -324,6 +330,12 @@ internal class TBPageListTestPage : BasePager() {
 
                 vforIndex({ ctx.pageItems }) { pageItem, pageIndex, _ ->
                     List {
+                        attr {
+                            if (pageIndex == ctx.restoredPageIndex) {
+                                initContentOffset(ctx.listRestoredOffsetY)
+                                firstContentLoadMaxIndex(40)
+                            }
+                        }
                         ref {
                             ctx.nestedListRefs[pageIndex] = it
                             if (pageIndex == ctx.restoredPageIndex) {
@@ -424,7 +436,7 @@ internal class TBPageListTestPage : BasePager() {
      * 每个list 32个item，每8个使用同一颜色（32/8=4组）
      */
     private fun getColorByPageAndIndex(pageIndex: Int, itemIndex: Int): Color {
-        val scheme = colorSchemes[pageIndex % colorSchemes.size]
+        val scheme = colorSchemes[kotlin.random.Random.nextInt(colorSchemes.size)]
         val colorGroup = (itemIndex / 8) % 4 // 每8个item一组，共4组
         return scheme[colorGroup]
     }

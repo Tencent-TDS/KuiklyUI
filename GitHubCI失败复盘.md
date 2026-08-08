@@ -216,13 +216,12 @@ UI E2E 必须**显式指定模拟器 profile**——默认 AVD 是 320x640，
 
 ### 已知边界（诚实说明）
 
-- **`e2e-device`（vivo 真机 job）已启用并跑通**：`if: schedule || workflow_dispatch`，
-  真机 TC1-TC10 全绿（见下"真机线补充"）。self-hosted runner `NIKAZHAO-MC0-vivo` 上线、
-  `DEVICE_SERIAL` secret 已配、日志进云端 job log 可读。
-- **本文效果基于模拟器线**；真机线的结论见工蜂那份文档 + 本文「真机线补充」节。
-- **KVM 修复依赖 GitHub 托管 runner 的当前镜像行为**。若未来镜像默认放开权限，
-  这一步会变成 no-op（无害）；若换 runner 提供商需重新确认。
-- **`profile: pixel_5` 是够用而非最优**——只要垂直空间足够即可，未做多尺寸矩阵覆盖。
+- **`e2e-device`（vivo 真机 job）已是 push/PR 门禁**：`if: push || pull_request || schedule || workflow_dispatch`，
+  真机 TC1-TC10 全绿。self-hosted runner `NIKAZHAO-MC0-vivo` 上线、`DEVICE_SERIAL` secret 已配、
+  日志进云端 job log 可读。**模拟器冒烟已移除**（`e2e-emulator` 删除，`77e9c686`），GitHub 直接真机门禁。
+- **本文主体基于模拟器线**（历史踩坑）；真机线结论见工蜂那份文档 + 本文「真机线补充」节。
+- **KVM 修复已随模拟器移除不再触发**——历史价值保留在本文，未来若重开模拟器需重新确认镜像权限。
+- **`profile: pixel_5` 已随模拟器移除**——真机屏幕大，无此问题。
 
 ### 真机线补充（2026-08-08 晚间，真机跑通后的新发现）
 
@@ -252,9 +251,11 @@ UI E2E 必须**显式指定模拟器 profile**——默认 AVD 是 320x640，
 2. **分支策略评估**：工蜂线与 GitHub 线是否拆分支（当前共用一个分支、靠 env 区分）。
    （注：用户已决定暂缓分支整理，此条保留为开放项。）
 3. ~~启用 `e2e-device`~~（已完成：真机 TC1-TC10 全绿，见"真机线补充"节）。
-4. 可选：多屏幕尺寸矩阵，防止再出现"小屏挤掉节点"类问题。
+4. ~~多屏幕尺寸矩阵~~（模拟器已移除，真机屏幕大无此问题，此条作废）。
 5. **真机线长期稳定性**：真机 uia2 中途卡死是常态（恢复机制会被反复触发），
    建议跑 20+ 轮统计 flaky 率，确认自愈机制能稳定吸收（对比分析文档待补数据项）。
+6. ~~GitHub 直接真机门禁~~（`77e9c686` 已完成：移除模拟器，`e2e-device` 进 push/PR 门禁）。
+7. ~~引擎自愈对齐工蜂~~（`34c8af46` 已完成：start-session 自愈 + 读路径自愈同步到工蜂分支）。
 
 ---
 
@@ -280,3 +281,6 @@ UI E2E 必须**显式指定模拟器 profile**——默认 AVD 是 320x640，
 | `f1296206` | cleanup 记 PID 杀 tail | ✅ 真实问题 |
 | `96cc2836` | artifact 上传 + `CAPTURE_BASELINE` | ✅ 可观测性 |
 | `96fde447` | 移除已被 KVM 取代的 180s 放宽 | ✅ 回收治标 |
+| `05f6fb5a` | auto-confirm：装包阶段自动点掉 vivo 确认安装弹窗（+ `da5b5755` 工蜂侧） | ✅ 新功能 |
+| `77e9c686` | GitHub 直接真机门禁：移除模拟器冒烟，`e2e-device` 进 push/PR，加 concurrency | ✅ 架构演进 |
+| `34c8af46` | 引擎自愈同步到工蜂分支（start-session 自愈 + 读路径自愈） | ✅ 对齐共用内核 |

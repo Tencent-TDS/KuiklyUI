@@ -20,9 +20,10 @@
 # ⚠️⚠️ 真机独占：本 job 与 GitHub Actions 的 e2e-device 指向**同一台 Mac + 同一台 USB vivo**。
 #   设备上 uia2 instrumentation server 是单例，两条 CI 同时 `am instrument` 会互相杀
 #   （instrumentation cannot be initialized / adb 抢占）。**两边定时必须错峰，禁止同时刻。**
-#   当前排布：工蜂 09:05、GitHub 10:05（均 UTC+8），间隔 1h > 单轮最长耗时（13min）。
+#   当前排布：工蜂 10:00、GitHub 10:50（均 UTC+8），间隔 50min > 单轮最长耗时
+#   （真机线实测 12m58s，含装包重试与 uia2 重建恢复；留足 ~3.8x 余量）。
 #   注意两边 cron 时区不同：工蜂 Stream CI 用北京时间，GitHub Actions 用 UTC
-#   （故 GitHub 侧写的是 '5 2 * * 1-5' = UTC+8 10:05）。改任一侧前先换算再确认不撞车。
+#   （故 GitHub 侧写的是 '50 2 * * 1-5' = UTC+8 10:50）。改任一侧前先换算再确认不撞车。
 #
 # 与 GitHub Actions 侧（.github/workflows/e2e.yml）的策略对齐情况：
 #   ✅ 真机 E2E 都不进 push 门禁，都走定时 + 手动
@@ -40,8 +41,8 @@ on:
   mr:
     target-branches: [ main ]
   schedules:
-    # 北京时间每工作日 09:05。与 GitHub 侧 10:05 错开 1 小时，避免抢同一台 vivo。
-    cron: "5 9 * * 1-5"
+    # 北京时间每工作日 10:00。与 GitHub 侧 10:50 错开 50min，避免抢同一台 vivo。
+    cron: "0 10 * * 1-5"
     branches: [ main ]
 
 stages:

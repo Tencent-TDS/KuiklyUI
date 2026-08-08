@@ -109,6 +109,24 @@ jobs:
           # 动失败就清半死态让 Appium 重拉，吸收首次冷启动失败使「首开」真正零失败。冷模拟器
           # 放宽到 5；真机默认 3 足够。
           ANDROID_UIA2_START_MAX_ATTEMPTS: "5"
+          # CAPTURE_BASELINE=1：PASS 用例也存截图（默认只有 FAIL 才收证据）。
+          # 模拟器是 -no-window 无头跑，人看不到屏幕；开这个 + 下面的 artifact 上传，
+          # 才能在 Actions 页下载到 TC1-TC10 每一条的实际画面，肉眼确认"真的点到了、真的渲染了"。
+          CAPTURE_BASELINE: "1"
+
+      # 无论成败都上传：失败时是 view-tree/page-source/logcat/截图（collect_evidence），
+      # 成功时是每个 TC 的 golden baseline 截图（CAPTURE_BASELINE=1）。
+      # 不传就随 runner 一起销毁——此前 11 轮都看不到模拟器实际长什么样。
+      - name: 上传 E2E 证据与截图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-emulator-evidence
+          path: |
+            demo/logs/**
+            demo/golden-baseline/**
+          if-no-files-found: warn
+          retention-days: 14
 
   # ---- 路径二：vivo 真机（后续启用）----
   # 启用步骤：

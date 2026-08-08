@@ -27,7 +27,12 @@ on:
       - 'ci/**'
       - '.github/workflows/e2e.yml'
   # 每日真机回归：10:05 (UTC+8) = 02:05 UTC。选工作时段而非凌晨——
-  # runner 跑在本机 Mac 上，凌晨休眠/关机会让任务静默不跑（工蜂 0 2 * * * 有同样隐患）。
+  # runner 跑在本机 Mac 上，凌晨休眠/关机会让任务静默不跑。
+  # ⚠️ 真机独占：本仓库的真机 job 与工蜂 .ci/pipeline.yml 的 e2e_publisher
+  #   指向**同一台 Mac + 同一台 USB vivo**。设备上 uia2 instrumentation 是单例，
+  #   两条 CI 同时跑会互相杀（instrumentation cannot be initialized）。
+  #   两边定时已错峰：工蜂 09:05、这里 10:05（均 UTC+8），间隔 1h > 单轮最长 13min。
+  #   注意时区不同：工蜂 cron 是北京时间，GitHub cron 是 UTC。改前先换算。
   schedule:
     - cron: '5 2 * * 1-5'
   # 手动触发：需要临时验真机时用，可选跑不跑真机。

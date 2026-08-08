@@ -10,10 +10,25 @@
 #   ⚠️ pool-name 必须与你在 Stream CI「构建环境」里建的环境名完全一致（下方为约定名）。
 #
 # 触发：
-#   - schedules: 每天定时跑 e2e（以默认分支 main 上的本文件为准）
+#   - schedules: 每个工作日定时跑 e2e（以默认分支 main 上的本文件为准）
+#     ⚠️ 时间特意选工作时段而非凌晨：执行机是本机 Mac，凌晨大概率休眠/关机，
+#        定时任务会**静默不跑**（你以为每天在跑，其实一次没跑）。
 #   - mr:        提 MR 时跑 build 编译校验
 #   - push:      push 到 main 时跑 build 编译校验
 #   - e2e 在 push 时不自动跑，避免每次提交都占用真机
+#
+# ⚠️⚠️ 真机独占：本 job 与 GitHub Actions 的 e2e-device 指向**同一台 Mac + 同一台 USB vivo**。
+#   设备上 uia2 instrumentation server 是单例，两条 CI 同时 `am instrument` 会互相杀
+#   （instrumentation cannot be initialized / adb 抢占）。**两边定时必须错峰，禁止同时刻。**
+#   当前排布：工蜂 09:05、GitHub 10:05（均 UTC+8），间隔 1h > 单轮最长耗时（13min）。
+#   注意两边 cron 时区不同：工蜂 Stream CI 用北京时间，GitHub Actions 用 UTC
+#   （故 GitHub 侧写的是 '5 2 * * 1-5' = UTC+8 10:05）。改任一侧前先换算再确认不撞车。
+#
+# 与 GitHub Actions 侧（.github/workflows/e2e.yml）的策略对齐情况：
+#   ✅ 真机 E2E 都不进 push 门禁，都走定时 + 手动
+#   ✅ 都跑 JVM 单测作快速门禁（GitHub 侧已补上 unit-test job）
+#   ⚠️ GitHub 侧多一层模拟器冒烟（云端可并发，做每次 push 的门禁）；
+#      工蜂无此层——本机没有等价的零成本并发资源，不强行对齐。
 
 version: v2.0
 
@@ -25,7 +40,8 @@ on:
   mr:
     target-branches: [ main ]
   schedules:
-    cron: "0 2 * * *"
+    # 北京时间每工作日 09:05。与 GitHub 侧 10:05 错开 1 小时，避免抢同一台 vivo。
+    cron: "5 9 * * 1-5"
     branches: [ main ]
 
 stages:

@@ -193,11 +193,65 @@ run_with_timeout() { # <seconds> <cmd...>
   fi
 }
 
+# ── vivo「安全守护提示你」自动确认（两步：勾选 + 继续安装） ──
+# 适用：vivo 真机 adb install 时弹出外部来源应用确认页。
+#   Step 1 勾选「已了解应用的风险检测结果」；Step 2 点「继续安装」。
+# 模拟器不弹此页（AUTO_CONFIRM_INSTALL=0 关闭空转）。
+AUTO_CONFIRM_PID=""
+start_auto_confirm_install() {
+  local serial="$1"
+  [ "${AUTO_CONFIRM_INSTALL:-1}" = "0" ] && return 0
+  (
+    local step1_done=0 xml node bounds cx cy
+    while true; do
+      xml="$(adb -s "$serial" shell uiautomator dump /sdcard/_ci_uidump.xml 2>/dev/null; \
+            adb -s "$serial" shell cat /sdcard/_ci_uidump.xml 2>/dev/null)" || true
+      [ -z "$xml" ] && { sleep 1; continue; }
+
+      if [ "$step1_done" = "1" ]; then
+        # Step 2：点「继续安装」。text 精确优先，button1 兜底（防误抓「取消」）
+        node="$(echo "$xml" | grep -oE \
+          '<node[^>]*text="继续安装"[^>]*bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1)"
+        [ -z "$node" ] && node="$(echo "$xml" | grep -oE \
+          '<node[^>]*resource-id="android:id/button1"[^>]*bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1)"
+        if [ -n "$node" ]; then
+          bounds="$(echo "$node" | grep -oE '\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]')"
+          set -- $(echo "$bounds" | grep -oE '[0-9]+')   # $1=x1 $2=y1 $3=x2 $4=y2
+          cx=$(( ($1 + $3) / 2 )); cy=$(( ($2 + $4) / 2 ))
+          adb -s "$serial" shell input tap "$cx" "$cy" >/dev/null 2>&1
+          echo "    [auto-confirm] Step 2: 已点「继续安装」($cx,$cy)"
+          step1_done=0
+        fi
+      else
+        # Step 1：勾选「已了解…风险检测」（整行 text 命中）
+        node="$(echo "$xml" | grep -oE \
+          '<node[^>]*text="[^"]*已了解[^"]*风险检测[^"]*"[^>]*bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1)"
+        if [ -n "$node" ]; then
+          bounds="$(echo "$node" | grep -oE '\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]')"
+          set -- $(echo "$bounds" | grep -oE '[0-9]+')
+          cx=$(( ($1 + $3) / 2 )); cy=$(( ($2 + $4) / 2 ))
+          adb -s "$serial" shell input tap "$cx" "$cy" >/dev/null 2>&1
+          echo "    [auto-confirm] Step 1: 已勾选「已了解...」($cx,$cy)"
+          step1_done=1
+        fi
+      fi
+      sleep 1
+    done
+  ) &
+  AUTO_CONFIRM_PID=$!
+}
+stop_auto_confirm_install() {
+  [ -n "$AUTO_CONFIRM_PID" ] && kill "$AUTO_CONFIRM_PID" 2>/dev/null || true
+  AUTO_CONFIRM_PID=""
+}
+
 # 5) 编译 + 安装 demo APK
 # 装包与构建解耦：adb install 在模拟器冷环境偶发 ShellCommandUnresponsiveException（adb 退出码 224），
 # 属环境抖动、与代码无关（工蜂 CI 亦出现过 ~50% 概率）；故 assembleDebug 只构建、安装单独用
 # adb install 带 timeout + 重试 + kill-server/start-server 兜底，避免把 6 分钟构建也一起浪费在重试里。
 if [ "$INSTALL" -eq 1 ]; then
+  trap stop_auto_confirm_install EXIT INT TERM
+  start_auto_confirm_install "$DEVICE_SERIAL"
   echo "==> [3/4] 构建 demo APK (./gradlew :androidApp:assembleDebug)"
   ./gradlew :androidApp:assembleDebug || { echo "!! 构建失败"; exit 1; }
   APK="$(find "$REPO_ROOT/androidApp/build/outputs/apk" -name "*.apk" 2>/dev/null | head -1)"
@@ -217,6 +271,7 @@ if [ "$INSTALL" -eq 1 ]; then
     adb -s "$DEVICE_SERIAL" wait-for-device
     sleep 2
   done
+  stop_auto_confirm_install
   [ "$install_ok" -eq 1 ] || { echo "!! 装包失败（重试 3 次均失败）"; exit 1; }
 fi
 

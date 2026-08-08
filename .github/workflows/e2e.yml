@@ -1,6 +1,12 @@
 name: 发布器 E2E 回归
 
-# 触发：PR 到 main（门禁）、push 到 main（仅当改动涉及测试相关路径时跑，避免每次提交都占用模拟器）
+# 触发策略（与工蜂 .ci/pipeline.yml 对齐）：
+#   - push/PR：跑 JVM 单测 + 模拟器 E2E。模拟器在云端、可并发，适合做每次提交的门禁。
+#   - 真机 E2E：**不进 push 门禁**，改为每日定时 + 手动触发。
+#     原因：真机是独占资源（一台 vivo + 一台 Mac runner），每次 push 都跑会互相排队，
+#     且连续 push 时后面的 job 只能干等。这是工蜂那边已验证过的设计
+#     （.ci/pipeline.yml 注释原文："e2e 在 push 时不自动跑，避免每次提交都占用真机"）。
+#   - paths 过滤：仅测试相关路径改动才触发，纯文档改动不烧 CI。
 on:
   push:
     branches: [ main, 'feat/**' ]
@@ -20,12 +26,63 @@ on:
       - 'androidApp/**'
       - 'ci/**'
       - '.github/workflows/e2e.yml'
+  # 每日真机回归：10:05 (UTC+8) = 02:05 UTC。选工作时段而非凌晨——
+  # runner 跑在本机 Mac 上，凌晨休眠/关机会让任务静默不跑（工蜂 0 2 * * * 有同样隐患）。
+  schedule:
+    - cron: '5 2 * * 1-5'
+  # 手动触发：需要临时验真机时用，可选跑不跑真机。
+  workflow_dispatch:
+    inputs:
+      run_device:
+        description: '同时跑 vivo 真机 E2E'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 jobs:
-  # ---- 路径一：模拟器冒烟（先上，零硬件、AI 全可见）----
+  # ---- 路径零：JVM 单测（零设备快速门禁）----
+  # 对齐工蜂 .ci/pipeline.yml 的 build_debug（`:demo:testDebugUnitTest`，12 例原生单测）。
+  # 价值：纯逻辑回归几十秒内就能拦住，不必等 4-13min 的 E2E；
+  # 且单测的失败信号比 E2E 精确得多（直接指到断言，而非"某个 TC 红了"）。
+  # 此前 GitHub 侧缺这一层，任何逻辑退化都得靠 E2E 兜底才发现。
+  unit-test:
+    name: JVM 单测（发布器逻辑）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-unit-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle.properties') }}
+          restore-keys: gradle-unit-${{ runner.os }}-
+
+      - name: 跑 JVM 单测
+        run: ./gradlew :demo:testDebugUnitTest --console=plain
+
+      - name: 上传单测报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: demo/build/reports/tests/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ---- 路径一：模拟器冒烟（云端、可并发，做每次提交的门禁）----
   e2e-emulator:
     name: 发布器 E2E（模拟器冒烟）
     runs-on: ubuntu-latest
@@ -130,14 +187,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # ---- 路径二：vivo 真机（self-hosted，已启用）----
+  # ---- 路径二：vivo 真机（self-hosted）----
   # runner：本机 Mac 注册，见 ci/setup-selfhosted-runner.sh。
-  # 触发策略：与 emulator job 同时跑（同一 push 事件）。两者互不干扰——
-  #   emulator 在云端 ubuntu、device 在本机 Mac+vivo，设备不共享。
+  # **不进 push 门禁**：真机是独占资源（一台 vivo + 一台 Mac runner），
+  #   每次 push 都跑会互相排队、连续提交时后面的只能干等。改为每日定时 + 手动触发，
+  #   与工蜂 .ci/pipeline.yml 的既有设计一致（那边注释："e2e 在 push 时不自动跑，
+  #   避免每次提交都占用真机"——已被验证过的取舍，不重复踩）。
   # 说明：日志经 step stdout 进云端 job log，AI 用 gh 直读，不需读本机 /tmp
-  #      （这正是相对工蜂的核心优势，见 CI对比分析_工蜂vsGitHub.md 4.2）。
+  #      （这正是相对工蜂的核心优势，已验证，见 CI对比分析_工蜂vsGitHub.md 4.2）。
   e2e-device:
     name: 发布器 E2E（vivo 真机 · self-hosted）
+    # 仅定时或手动触发时跑；手动触发可用 run_device=false 跳过（只想验模拟器时）。
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_device)
     # 必须与 runner 实际 label 完全一致。runner 注册后自带 self-hosted/macOS/ARM64
     # 三个内置 label（大小写如实），自定义的小写 macos 会被内置 macOS 去重掉。
     # 为避免大小写匹配的不确定性，这里直接用 runner 实际持有的 label。

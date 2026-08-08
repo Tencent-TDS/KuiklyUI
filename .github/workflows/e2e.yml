@@ -130,17 +130,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # ---- 路径二：vivo 真机（后续启用）----
-  # 启用步骤：
-  #   1) 本机 Mac 注册 GitHub self-hosted runner（标签 macos + 自定 label）
-  #   2) USB 接 vivo 并授权；把 serial 存入仓库 secret DEVICE_SERIAL
-  #   3) 去掉下面 `if: false`
-  # 说明：日志经 step stdout 进云端 job log，AI 用 gh 直读，不需读本机 /tmp。
+  # ---- 路径二：vivo 真机（self-hosted，已启用）----
+  # runner：本机 Mac 注册，见 ci/setup-selfhosted-runner.sh。
+  # 触发策略：与 emulator job 同时跑（同一 push 事件）。两者互不干扰——
+  #   emulator 在云端 ubuntu、device 在本机 Mac+vivo，设备不共享。
+  # 说明：日志经 step stdout 进云端 job log，AI 用 gh 直读，不需读本机 /tmp
+  #      （这正是相对工蜂的核心优势，见 CI对比分析_工蜂vsGitHub.md 4.2）。
   e2e-device:
     name: 发布器 E2E（vivo 真机 · self-hosted）
-    runs-on: [self-hosted, macos]
+    # 必须与 runner 实际 label 完全一致。runner 注册后自带 self-hosted/macOS/ARM64
+    # 三个内置 label（大小写如实），自定义的小写 macos 会被内置 macOS 去重掉。
+    # 为避免大小写匹配的不确定性，这里直接用 runner 实际持有的 label。
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 60
-    if: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -161,3 +163,19 @@ jobs:
         env:
           MOBILE_TEST_PORT: 7900
           DEVICE_SERIAL: ${{ secrets.DEVICE_SERIAL }}
+          # 与 emulator job 一致：PASS 也存截图，配合下面的 artifact 上传，
+          # 让真机画面同样可见（工蜂线的最大短板正是证据只落本机、AI 读不到）。
+          CAPTURE_BASELINE: "1"
+
+      # 真机线的关键验证点：证据能否随 artifact 进云端。
+      # 若这一步产出正常，说明 self-hosted 确实补上了工蜂"日志/证据 AI 不可见"的短板。
+      - name: 上传 E2E 证据与截图（真机）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-device-evidence
+          path: |
+            demo/logs/**
+            demo/golden-baseline/**
+          if-no-files-found: warn
+          retention-days: 14

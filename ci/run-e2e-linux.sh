@@ -165,6 +165,32 @@ done
 [ "$appium_ready" -ne 1 ] && { echo "!! Appium 未就绪，详见日志"; exit 1; }
 [ "$engine_ready" -ne 1 ] && { echo "!! E2E 引擎未就绪，详见日志"; exit 1; }
 
+# 跨平台 timeout：`timeout(1)` 属 GNU coreutils，Linux runner 自带，
+# **stock macOS 没有**（也没有 gtimeout，除非 brew install coreutils）。
+# 真机线首跑就撞到 `timeout: command not found` → adb install 3 次全"失败"
+# （其实 adb 根本没被执行）。这里按可用性择优，最后回退到 perl（两平台都自带）。
+run_with_timeout() { # <seconds> <cmd...>
+  local secs="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+  else
+    # perl 版：alarm 到点给子进程发 TERM；退出码与 timeout(1) 对齐（124=超时）
+    perl -e '
+      my $secs = shift;
+      my $pid = fork();
+      die "fork failed: $!" unless defined $pid;
+      if ($pid == 0) { exec @ARGV or exit 127; }
+      local $SIG{ALRM} = sub { kill "TERM", $pid; sleep 1; kill "KILL", $pid; exit 124 };
+      alarm $secs;
+      waitpid($pid, 0);
+      alarm 0;
+      exit($? >> 8);
+    ' "$secs" "$@"
+  fi
+}
+
 # 5) 编译 + 安装 demo APK
 # 装包与构建解耦：adb install 在模拟器冷环境偶发 ShellCommandUnresponsiveException（adb 退出码 224），
 # 属环境抖动、与代码无关（工蜂 CI 亦出现过 ~50% 概率）；故 assembleDebug 只构建、安装单独用
@@ -179,7 +205,7 @@ if [ "$INSTALL" -eq 1 ]; then
   adb -s "$DEVICE_SERIAL" wait-for-device
   install_ok=0
   for i in 1 2 3; do
-    if timeout 300 adb -s "$DEVICE_SERIAL" install -r -t "$APK" 2>&1; then
+    if run_with_timeout 300 adb -s "$DEVICE_SERIAL" install -r -t "$APK" 2>&1; then
       install_ok=1; echo "==> 安装成功 (attempt $i)"; break
     fi
     echo "!! adb install 第 $i 次失败，重启 adb 后重试..."

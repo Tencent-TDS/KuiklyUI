@@ -624,6 +624,23 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     return jsonString;
 }
 
+// 新增 Array 转 jsonString
++ (NSString *)hr_arrayToJSON:(NSArray *)array {
+    NSError *parseError = nil;
+    NSString *jsonString = nil;
+    @try {
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:array
+                                                           options:NSJSONWritingFragmentsAllowed
+                                                             error:&parseError];
+        jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    } @catch (NSException *exception) {
+        NSString *assertReason = [NSString stringWithFormat:@"%s exception:%@ reason:%@ userinfo:%@", __FUNCTION__, exception.name, exception.reason, exception.userInfo];
+        [KRLogModule logError:assertReason];
+        NSAssert(false, assertReason);
+    }
+    return jsonString;
+}
+
 + (BOOL)hr_isJsonArray:(id)value {
     if ([value isKindOfClass:[NSArray class]]) {
         NSArray *array = (NSArray *)value;

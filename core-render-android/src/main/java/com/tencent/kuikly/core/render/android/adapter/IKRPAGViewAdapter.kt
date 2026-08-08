@@ -79,6 +79,20 @@ interface IPAGView {
     fun replaceImageLayerContent(layerName: String, filePath: String)
 
     /**
+     * 按 editableIndex 替换当前 PAG 文件中的文字
+     * @param editableIndex 可编辑文字的索引 (0 到 numTexts-1)
+     * @param text 替换文案内容
+     */
+    fun replaceTextByIndex(editableIndex: Int, text: String) {}
+
+    /**
+     * 按 editableIndex 替换当前 PAG 文件中的图片
+     * @param editableIndex 可编辑图片的索引 (0 到 numImages-1)
+     * @param filePath 替换图片的文件路径
+     */
+    fun replaceImageByIndex(editableIndex: Int, filePath: String) {}
+
+    /**
      * kuikly侧设置的属性，一般用于业务扩展使用
      * @param propKey
      * @param propValue
@@ -97,6 +111,18 @@ interface IPAGView {
      */
     fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Boolean {
         return false
+    }
+
+    /**
+     * 获取指定坐标下的所有可编辑图层信息。
+     * 坐标为相对于 PAGView 自身的 dp 值，实现方需要自行转换为 libpag 所需的像素坐标。
+     * @param x 触摸点 x 坐标（dp）
+     * @param y 触摸点 y 坐标（dp）
+     * @return 图层信息列表，每个元素包含 "layerName" 和 "editableIndex" 键值对。
+     *         仅返回 editableIndex >= 0 的可编辑图层（文本/图像图层）。
+     */
+    fun getEditableLayersUnderPoint(x: Float, y: Float): List<Map<String, Any>> {
+        return emptyList()
     }
 
 }

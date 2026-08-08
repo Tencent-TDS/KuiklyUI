@@ -40,11 +40,21 @@ class KRForwardArkTSView : public IKRRenderViewExport {
     bool ToSetBaseProp(const std::string &prop_key, const KRAnyValue &prop_value,
                        const KRRenderCallback event_call_back) override;
 
+    void ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,
+                   const KRRenderCallback event_call_back = nullptr) override;
+
     bool ReuseEnable() override {
         return false;
     }
 
  private:
+    /**
+     * 包装 click callback，在点击触发时同步调用 ArkTS 侧获取图层信息并注入到 click 参数中。
+     * @param original_callback 原始 click callback
+     * @return 包装后的 callback
+     */
+    KRRenderCallback WrapClickCallbackWithLayers(const KRRenderCallback &original_callback);
+
     std::unordered_map<std::string, KRRenderCallback> event_registry_;
     ArkUI_NodeHandle ark_node_ = nullptr;
 };

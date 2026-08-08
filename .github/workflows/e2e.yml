@@ -1,11 +1,15 @@
 name: 发布器 E2E 回归
 
-# 触发策略（与工蜂 .ci/pipeline.yml 对齐）：
-#   - push/PR：跑 JVM 单测 + 模拟器 E2E。模拟器在云端、可并发，适合做每次提交的门禁。
-#   - 真机 E2E：**不进 push 门禁**，改为每日定时 + 手动触发。
-#     原因：真机是独占资源（一台 vivo + 一台 Mac runner），每次 push 都跑会互相排队，
-#     且连续 push 时后面的 job 只能干等。这是工蜂那边已验证过的设计
-#     （.ci/pipeline.yml 注释原文："e2e 在 push 时不自动跑，避免每次提交都占用真机"）。
+# 触发策略：
+#   - push/PR：跑 JVM 单测 + **直接跑 vivo 真机 E2E**（门禁）。真机保真度最高，
+#     与工蜂真机线一致。模拟器冒烟已移除（真机测到的输入法/厂商 ROM/性能模拟器测不到，
+#     且模拟器小屏等环境差异会引入与真机不一致的假红，维护两套成本高）。
+#   - 真机是独占资源（一台 vivo + 一台 Mac runner），故加 concurrency：连续 push 时
+#     旧 run 自动取消、只跑最新一次，避免排队积压抢真机。
+#   - 真机 job 与工蜂 .ci/pipeline.yml 的 e2e_publisher 共用同一台 vivo + 同一台 Mac。
+#     设备上 uia2 instrumentation 是单例，两条 CI 同时跑会互相杀。定时已错峰：
+#     工蜂 10:00、GitHub 10:50（均 UTC+8），间隔 50min > 单轮实测 12m58s。
+#     注意时区不同：工蜂 cron 是北京时间，GitHub cron 是 UTC。改前先换算。
 #   - paths 过滤：仅测试相关路径改动才触发，纯文档改动不烧 CI。
 on:
   push:
@@ -28,21 +32,20 @@ on:
       - '.github/workflows/e2e.yml'
   # 每日真机回归：10:50 (UTC+8) = 02:50 UTC。选工作时段而非凌晨——
   # runner 跑在本机 Mac 上，凌晨休眠/关机会让任务静默不跑。
-  # ⚠️ 真机独占：本仓库的真机 job 与工蜂 .ci/pipeline.yml 的 e2e_publisher
-  #   指向**同一台 Mac + 同一台 USB vivo**。设备上 uia2 instrumentation 是单例，
-  #   两条 CI 同时跑会互相杀（instrumentation cannot be initialized）。
-  #   两边定时已错峰：工蜂 10:00、这里 10:50（均 UTC+8），间隔 50min；
-  #   真机线单轮实测 12m58s，余量约 3.8x。
-  #   注意时区不同：工蜂 cron 是北京时间，GitHub cron 是 UTC。改前先换算。
   schedule:
     - cron: '50 2 * * 1-5'
-  # 手动触发：需要临时验真机时用，可选跑不跑真机。
+  # 手动触发：需要临时验真机时用。
   workflow_dispatch:
     inputs:
       run_device:
-        description: '同时跑 vivo 真机 E2E'
+        description: '跑 vivo 真机 E2E'
         type: boolean
         default: true
+
+# 真机独占资源防排队：同一分支（ref）连续 push 时，旧 run 自动取消、只跑最新。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -88,127 +91,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # ---- 路径一：模拟器冒烟（云端、可并发，做每次提交的门禁）----
-  e2e-emulator:
-    name: 发布器 E2E（模拟器冒烟）
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      # Gradle / Kotlin-Native 缓存：KMP 冷构建在干净 runner 上极易吃满 45min，
-      # 缓存后二次构建与排障重跑显著提速（首次运行 cache 为空，仅 timeout 兜底）。
-      - name: Restore Gradle & Kotlin-Native cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.gradle/configuration-cache
-            ~/.konan
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
-
-      # 真根因（run #1–#7 全部命中）：ubuntu-latest(24.04) 上 /dev/kvm 的 udev 规则默认不给
-      # runner 用户权限（日志铁证：`ProbeKVM: This user doesn't have permissions to use KVM`
-      # + `The KVM line in /etc/group is: [kvm:x:993:]` —— 组存在但没成员），于是
-      # emulator-runner 走 `Disabling Linux hardware acceleration` 用纯软件模拟(TCG)。
-      # 软件模拟下整机慢约 10 倍：boot 374s、`adb shell getprop` 3s、`dumpsys package` 10s、
-      # `ps -A` 9s、装 apk 40-65s，于是每轮都在不同位置撞超时（install 抖动 / session>120s /
-      # hidden_api_policy 20s / window_animation_scale Broken pipe / uia2 instrumentation 60s）
-      # —— 都是同一根因的影子。开 KVM 让模拟器走硬件加速，这些超时不再被触发（而非被放宽）。
-      - name: 开启 KVM 硬件加速
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          ls -l /dev/kvm
-
-      - name: 起 Android 模拟器并跑 E2E
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          target: google_apis
-          arch: x86_64
-          force-avd-creation: true
-          # 不指定 profile 时默认 AVD 是 qemu.skin=320x640（极小屏）。发布器页外层 Column 不可滚动，
-          # 按 dp 排下来 top padding 32 + 标题 + 输入框 min 120dp + Spacer + 6 个调试 Text 超出 640px，
-          # debug_delete_state / debug_inject_张（调试区最后两个节点）被挤出屏幕、不进 accessibility 树，
-          # 导致 TC4/TC7/TC8 失败（run #9: PASS=7 FAIL=3）。vivo 真机屏幕大故工蜂 PASS=10——
-          # 是模拟器屏幕尺寸的环境差异，不是业务回归。用 pixel_5（1080x2340）给足垂直空间。
-          profile: pixel_5
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          # disable-animations:false 是为了避开 reactivecircus 动作自己跑的
-          # `adb shell settings put global window_animation_scale 0.0` 在冷模拟器上 Broken pipe / exit 224
-          # （与 hidden_api_policy 同款 adb shell settings 抖动），那一步崩了会跳过整个 script。
-          # uia2 看 view tree 不依赖动画关/开。
-          disable-animations: false
-          script: |
-            bash ci/run-e2e-linux.sh --install
-        env:
-          MOBILE_TEST_PORT: 7900
-          # 冷模拟器首跑 uia2 install + 启动要 >120s（WebDriverIO connectionRetryTimeout 默认 120s 会卡死超时）；
-          # vivo 真机 2min 内足够（device job 保持默认），这里只放宽 emulator 路径。
-          WEBDRIVER_REQUEST_TIMEOUT_MS: "300000"
-          SESSION_TIMEOUT_S: "300"
-          # 注：这里曾注入 ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS=180000（8372f212），
-          # 那是 KVM 根因未明时为「纯软件模拟下 instrumentation 起不来」加的放宽阈值。
-          # d48b14be 开启 KVM 硬件加速后 instrumentation 数秒即起，该阈值永不触发；
-          # 继续留着只会在未来 instrumentation 真变慢时把退化静默吸收掉（默认 60s 反而是有效告警线）。
-          # 故移除注入，回落引擎默认 60s。env 覆盖能力保留在 appium-mobile-driver.ts，
-          # 真机线或无硬件加速环境仍可随时按需注入。
-          # start-session 自愈重试次数：引擎层主动「等 uia2 就绪」——每次 instrumentation 冷启
-          # 动失败就清半死态让 Appium 重拉，吸收首次冷启动失败使「首开」真正零失败。冷模拟器
-          # 放宽到 5；真机默认 3 足够。（与上面的阈值放宽不同，这是有行为的自愈机制、无副作用，保留）
-          ANDROID_UIA2_START_MAX_ATTEMPTS: "5"
-          # CAPTURE_BASELINE=1：PASS 用例也存截图（默认只有 FAIL 才收证据）。
-          # 模拟器是 -no-window 无头跑，人看不到屏幕；开这个 + 下面的 artifact 上传，
-          # 才能在 Actions 页下载到 TC1-TC10 每一条的实际画面，肉眼确认"真的点到了、真的渲染了"。
-          CAPTURE_BASELINE: "1"
-          # AUTO_CONFIRM_INSTALL=0：模拟器是 Google 原厂镜像，装包无需用户确认，
-          # 关掉 vivo 确认安装弹窗自动点击的空转（省掉每秒 uiautomator dump）。
-          # 真机 job（e2e-device）不设此 env = 默认 1，自动点击生效。
-          AUTO_CONFIRM_INSTALL: "0"
-
-      # 无论成败都上传：失败时是 view-tree/page-source/logcat/截图（collect_evidence），
-      # 成功时是每个 TC 的 golden baseline 截图（CAPTURE_BASELINE=1）。
-      # 不传就随 runner 一起销毁——此前 11 轮都看不到模拟器实际长什么样。
-      - name: 上传 E2E 证据与截图
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-emulator-evidence
-          path: |
-            demo/logs/**
-            demo/golden-baseline/**
-          if-no-files-found: warn
-          retention-days: 14
-
-  # ---- 路径二：vivo 真机（self-hosted）----
+  # ---- 路径一：vivo 真机（self-hosted）----
   # runner：本机 Mac 注册，见 ci/setup-selfhosted-runner.sh。
-  # **不进 push 门禁**：真机是独占资源（一台 vivo + 一台 Mac runner），
-  #   每次 push 都跑会互相排队、连续提交时后面的只能干等。改为每日定时 + 手动触发，
-  #   与工蜂 .ci/pipeline.yml 的既有设计一致（那边注释："e2e 在 push 时不自动跑，
-  #   避免每次提交都占用真机"——已被验证过的取舍，不重复踩）。
+  # **真机门禁**：push/PR 到 main（测试相关路径）直接跑真机 E2E，与工蜂真机线一致。
+  #   真机独占资源（一台 vivo + 一台 Mac runner），连续 push 会排队——顶层 concurrency
+  #   已设 cancel-in-progress，旧 push 自动取消、只跑最新，避免积压抢真机。
+  # 定时 + 手动触发保留（每日回归 + 临时验真机）。
   # 说明：日志经 step stdout 进云端 job log，AI 用 gh 直读，不需读本机 /tmp
   #      （这正是相对工蜂的核心优势，已验证，见 CI对比分析_工蜂vsGitHub.md 4.2）。
   e2e-device:
     name: 发布器 E2E（vivo 真机 · self-hosted）
-    # 仅定时或手动触发时跑；手动触发可用 run_device=false 跳过（只想验模拟器时）。
+    # push/PR（门禁）+ 定时 + 手动触发都跑。push/PR 由文件头 paths 过滤（仅测试相关路径）。
     if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.run_device)
     # 必须与 runner 实际 label 完全一致。runner 注册后自带 self-hosted/macOS/ARM64
@@ -236,8 +132,8 @@ jobs:
         env:
           MOBILE_TEST_PORT: 7900
           DEVICE_SERIAL: ${{ secrets.DEVICE_SERIAL }}
-          # 与 emulator job 一致：PASS 也存截图，配合下面的 artifact 上传，
-          # 让真机画面同样可见（工蜂线的最大短板正是证据只落本机、AI 读不到）。
+          # CAPTURE_BASELINE=1：PASS 用例也存截图（默认只有 FAIL 才收证据），
+          # 配合下面的 artifact 上传，让真机画面随 evidence 进云端（AI/人可见）。
           CAPTURE_BASELINE: "1"
 
       # 真机线的关键验证点：证据能否随 artifact 进云端。

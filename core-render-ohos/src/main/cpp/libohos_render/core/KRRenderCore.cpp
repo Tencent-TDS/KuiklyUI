@@ -21,6 +21,7 @@
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/performance/memory/KRMemoryMonitor.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/view/KRRenderView.h"
@@ -42,6 +43,15 @@ void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, con
 CallKotlin callKotlin_;
 int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin) {
     callKotlin_ = callKotlin;
+    return 0;
+}
+
+/**
+ * 用于获取Native堆大小
+ */
+GetNativeHeapSize getNativeHeapSize_;
+long long com_tencent_kuikly_SetGetNativeHeapSize(GetNativeHeapSize getNativeHeapSize) {
+    getNativeHeapSize_ = getNativeHeapSize;
     return 0;
 }
 

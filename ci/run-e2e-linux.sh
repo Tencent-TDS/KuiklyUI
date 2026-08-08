@@ -144,7 +144,9 @@ echo "==> [2/4] 启动 E2E 引擎 (port $ENGINE_PORT) [demo/e2e-engine]"
 export ANDROID_UIA2_READ_TIMEOUT_MS="${ANDROID_UIA2_READ_TIMEOUT_MS:-10000}"
 # uiautomator2ServerLaunchTimeout：默认引擎 60s；GitHub 冷模拟器（无 KVM）经此 env 放宽（如 180s）
 # ANDROID_UIA2_START_MAX_ATTEMPTS：start-session 自愈重试次数；冷模拟器经此放宽（如 5）吸收首次冷启动失败
-( cd "$ENGINE_DIR" && ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS="${ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS:-}" ANDROID_UIA2_START_MAX_ATTEMPTS="${ANDROID_UIA2_START_MAX_ATTEMPTS:-}" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
+# exec 让 $! 直接捕获 tsx 进程 PID（否则只拿到 subshell PID，cleanup 杀不到真正的引擎孙进程，
+# 多次运行会残留孤儿占着 7900 端口，导致 CI 偶发"引擎未就绪"——工蜂侧同款注释，见 run-e2e-ci.sh）。
+( cd "$ENGINE_DIR" && exec env ANDROID_UIA2_READ_TIMEOUT_MS="$ANDROID_UIA2_READ_TIMEOUT_MS" ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS="${ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS:-}" ANDROID_UIA2_START_MAX_ATTEMPTS="${ANDROID_UIA2_START_MAX_ATTEMPTS:-}" "$ENGINE_DIR/node_modules/.bin/tsx" src/server.ts >/tmp/e2e_engine_publisher_gh.log 2>&1 ) &
 ENGINE_PID=$!
 tail -F /tmp/e2e_engine_publisher_gh.log >&2 &   # 流式日志进 step stdout（-F 抗文件竞态）
 TAIL_PIDS+=($!)

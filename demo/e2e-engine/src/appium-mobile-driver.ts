@@ -594,8 +594,12 @@ export class AppiumMobileDriver implements MobileDriver {
   }
 
   async getSnapshot(): Promise<UiSnapshot> {
-    const driver = this.requireDriver()
-    const pageSource = await driver.getPageSource()
+    // 真机上 uia2 中途 idle 卡住时 getPageSource 会卡满读超时；包进 withUiAutomator2Retry，
+    // 让断言/证据路径也能自动硬恢复重建（否则 TC 中途 uia2 挂掉 → /view-tree 直接抛超时 → TC FAIL）。
+    const pageSource = await this.withUiAutomator2Retry(async () => {
+      const driver = this.requireDriver()
+      return await driver.getPageSource()
+    })
     const elements = this.parsePageSource(pageSource)
     return {
       platform: this.config.platform,
@@ -605,9 +609,13 @@ export class AppiumMobileDriver implements MobileDriver {
   }
 
   async getViewTree(): Promise<UiViewTree> {
-    const driver = this.requireDriver()
-    const pageSource = await driver.getPageSource()
-    const windowSize = await driver.getWindowSize()
+    // 同上：getPageSource + getWindowSize 都在 retry 内，uia2 中途卡死时自动硬恢复重建。
+    const { pageSource, windowSize } = await this.withUiAutomator2Retry(async () => {
+      const driver = this.requireDriver()
+      const pageSource = await driver.getPageSource()
+      const windowSize = await driver.getWindowSize()
+      return { pageSource, windowSize }
+    })
     const viewport: [number, number] = [windowSize.width, windowSize.height]
     const tree = buildViewTree(pageSource, this.config.platform, viewport)
     if (!tree) throw new Error("Failed to parse view tree from page source")

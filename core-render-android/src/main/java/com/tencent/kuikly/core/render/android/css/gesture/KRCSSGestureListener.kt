@@ -25,11 +25,12 @@ import java.lang.ref.WeakReference
 
 /**
  * 手势处理类
- * 目前支持以下三种手势:
+ * 目前支持以下五种手势:
  * 1.[TYPE_CLICK]: 单击事件
  * 2.[TYPE_DOUBLE_CLICK]: 双击事件
  * 3.[TYPE_LONG_PRESS]: 长按事件
  * 4.[TYPE_PAN]: 拖拽事件
+ * 5.[TYPE_PINCH]: 捏合事件
  */
 class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : GestureDetector.SimpleOnGestureListener() {
 
@@ -47,6 +48,14 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
      * 是否正在触发longPress事件
      */
     var isLongPressEventHappening = false
+
+    /**
+     * 是否正在触发pinch事件
+     */
+    var isPinchEventHappening = false
+
+    private var pinchRawOffsetX = 0f
+    private var pinchRawOffsetY = 0f
 
     private var gestureDetectorWeakRef: WeakReference<GestureDetector>? = null
 
@@ -225,6 +234,21 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         distanceX: Float,
         distanceY: Float
     ): Boolean {
+        // pinch进行中不派发pan。
+        //
+        // pan与pinch在语义上并不冲突(可同时表达质心平移与间距缩放)，此处抑制是为了
+        // 划清「单指pan、双指pinch」的职责边界，原因有两点:
+        // 1. pan的坐标语义在多指下不自洽: onScroll的触发条件是所有手指的焦点位移，
+        //    而派发时取的是MotionEvent.getX()(即index 0那根手指)，二者并非同一个点，
+        //    手指增减时报出的位置还会跳变。
+        // 2. 双指平移能力并未丢失: pinch每帧都带焦点坐标(x/y与pageX/pageY)，
+        //    业务可直接由焦点位移派生平移量，无需依赖双指pan。
+        //
+        // 该边界仅在组件同时注册pan与pinch时生效，只注册pan的存量组件行为不变。
+        // 与iOS侧限制panGR最多1指的处理保持一致。
+        if (isPinchEventHappening) {
+            return false
+        }
         // 通过滚动事件来作为pan事件
         return if (containEvent(TYPE_PAN)) {
             if (!isPanEventHappening) { // 首次发生pan事件时, 补down事件
@@ -246,6 +270,37 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
             PAGE_X to kuiklyContext.toDpF(e.rawX),
             PAGE_Y to kuiklyContext.toDpF(e.rawY)
         ))
+    }
+
+    /**
+     * 记录当前触摸事件中，view局部坐标到屏幕坐标的偏移量。
+     *
+     * 捏合焦点由两指坐标取中点得到，只有view局部坐标，
+     * 需要借助该偏移量换算出 pageX/pageY，与pan事件保持一致的坐标语义。
+     */
+    fun updatePinchRawOffset(e: MotionEvent) {
+        pinchRawOffsetX = e.rawX - e.x
+        pinchRawOffsetY = e.rawY - e.y
+    }
+
+    /**
+     * 派发pinch事件
+     * @param state 手势状态: start/move/end
+     * @param focusX 捏合中心点在view局部坐标系下的x
+     * @param focusY 捏合中心点在view局部坐标系下的y
+     * @param scale 相对手势开始时的累计缩放倍数
+     */
+    fun dispatchPinchEvent(state: String, focusX: Float, focusY: Float, scale: Float) {
+        dispatchEvent(
+            TYPE_PINCH, mapOf(
+                KRViewConst.X to kuiklyContext.toDpF(focusX),
+                KRViewConst.Y to kuiklyContext.toDpF(focusY),
+                EVENT_STATE to state,
+                PAGE_X to kuiklyContext.toDpF(focusX + pinchRawOffsetX),
+                PAGE_Y to kuiklyContext.toDpF(focusY + pinchRawOffsetY),
+                SCALE to scale
+            )
+        )
     }
 
     private fun dispatchEvent(type: Int, result: Map<String, Any>): Boolean {
@@ -271,10 +326,12 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         const val TYPE_DOUBLE_CLICK = 2
         const val TYPE_LONG_PRESS = 3
         const val TYPE_PAN = 4
+        const val TYPE_PINCH = 5
 
         const val EVENT_STATE = "state"
         private const val PAGE_X = "pageX"
         private const val PAGE_Y = "pageY"
+        private const val SCALE = "scale"
         const val EVENT_STATE_START = "start"
         internal const val EVENT_STATE_MOVE = "move"
         internal const val EVENT_STATE_END = "end"

@@ -174,6 +174,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Pi"
+            titleText = "Pinch事件"
+            subtitleText = "双指捏合事件，scale为相对手势起点的累计倍数，配合transform实现缩放"
+            declarativeExampleUrl = generateJumpUrl("PinchGestureExampleDemo")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Bu"
             titleText = "ButtonView"
             subtitleText = "Kuikly中的Button实际上是一个带有文字和背景颜色的View"

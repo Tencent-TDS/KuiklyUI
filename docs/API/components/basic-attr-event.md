@@ -1250,6 +1250,158 @@ internal class PanEventPage : BasePager() {
 }
 ```
 
+### pinch事件
+
+``pinch``事件为双指捏合事件, 常用于实现图片、地图等内容的缩放效果。当``Kuikly``组件有设置``pinch``事件，并且``Kuikly``组件被双指捏合时，会触发``pinch``闭包回调。
+``pinch``回调闭包中含有``PinchGestureParams``类型参数，以此来描述捏合事件的信息。
+
+<div class="table-01">
+
+**PinchGestureParams**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| x   | 捏合中心点相对于组件的坐标x  | Float |
+| y   | 捏合中心点相对于组件的坐标y  | Float |
+| pageX   | 捏合中心点相对于页面的坐标x  | Float |
+| pageY   | 捏合中心点相对于页面的坐标y  | Float |
+| scale | 相对手势开始时的累计缩放倍数，手势开始时为1.0  | Float |
+| state | 捏合状态："start", "move", "end" | String |
+
+</div>
+
+:::tip 注意
+- ``scale``为**相对手势开始时**的累计倍数，而非相邻两次回调间的增量。若需在多次手势间累积缩放，需业务侧自行记录手势结束时的基准值。
+- 缩放渲染由业务侧通过``transform``的``scale``实现。
+- ``x``/``y``为组件局部坐标，**会随组件自身的``scale``变化**；若需计算与缩放无关的位移，请使用``pageX``/``pageY``。
+:::
+
+:::warning 与 pan 事件的职责边界
+同一组件同时注册``pan``与``pinch``时，二者按「**单指 pan、双指 pinch**」划分职责：
+
+- 双指捏合期间**不会**派发``pan``事件
+- Android 上若捏合前已触发``pan``，会先补发一次``pan``的``end``状态再开始``pinch``
+- 仅注册``pan``（未注册``pinch``）的组件不受影响，``pan``仍可由多指触发
+
+这不是因为两个手势语义上互斥——双指的质心平移与间距缩放本可同时表达。
+划分职责的原因有两点：一是``pan``在多指下的坐标语义不明确（报出的是其中一根手指的位置，
+手指增减时会跳变），交由``pinch``统一处理更可靠；二是与鸿蒙保持语义方向一致。
+
+鸿蒙渲染层将``pan``/``pinch``/``longPress``/``click``全部注册在同一个
+``EXCLUSIVE_GROUP``手势组内，组内先识别成功者胜出、其余判失败，本就是互斥的。
+Android 与 iOS 的处理比鸿蒙更宽松：仅在捏合实际发生时才让``pan``让位，
+不会出现``pinch``被``pan``抢死而完全不触发的情况。
+:::
+
+:::warning macOS 暂不支持
+macOS 无对应的捏合手势识别器实现，注册``pinch``不会报错，但回调不会触发。
+
+**需要「缩放同时平移」时**，不必依赖双指``pan``：``pinch``每次回调都带焦点坐标
+（``x``/``y``与``pageX``/``pageY``），用焦点相对手势起点的位移即可得到平移量。
+:::
+
+:::warning 缩放中心的实现方式
+实现「以捏合点为中心缩放」时，**不要用``anchor``表达缩放中心**。
+
+渲染位置为 ``V(p) = c + s·(p − c) + t``（``c``为锚点、``s``为缩放、``t``为位移），
+锚点``c``出现在表达式中，故在``s != 1``时改变``c``会导致画面跳变，
+无法同时满足「绕任意点缩放」与「不跳变」。
+
+正确做法是锚点保持默认（组件中心），改用``translate``补偿：
+
+```
+t = t0 + (s0 − s)·(p0 − c)
+```
+
+其中``s0``/``t0``为手势开始时的缩放与位移，``p0``为手势开始时的捏合中心点。
+手势首帧``s == s0``，代入得``t == t0``，故起手连续不跳变。完整示例见下方。
+:::
+
+:::warning 平台差异
+**手指落点超出组件范围时的行为不一致：**
+
+| 场景 | Android | iOS |
+|:----|:--------|:----|
+| 两指落在组件内，移动时超出组件 | 手势继续 | 手势继续 |
+| 第二根手指直接落在组件外 | 手势继续 | **手势不成立** |
+
+原因是两端触摸路由模型不同：Android 的后续触点均跟随首个按下事件所捕获的 View；
+iOS 对每个触点独立做 hitTest，落在组件外的触点不会关联到该组件的手势识别器。
+
+若业务需要较大的捏合响应范围，建议将``pinch``注册在**外层容器**而非内容组件上。
+:::
+
+**示例**
+
+```kotlin {33-49}
+@Page("demo_page")
+internal class PinchEventPage : BasePager() {
+
+    // 渲染状态
+    private var currentScale by observable(1f)
+    private var translateX by observable(0f)
+    private var translateY by observable(0f)
+
+    // 上次手势结束时固化的基准
+    private var baseScale = 1f
+    private var baseTranslateX = 0f
+    private var baseTranslateY = 0f
+
+    // 本次手势内固定的量
+    private var startScale = 1f
+    private var focusX = SIZE / 2
+    private var focusY = SIZE / 2
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            attr {
+                allCenter()
+            }
+            View {
+                attr {
+                    size(SIZE, SIZE)
+                    backgroundColor(Color.GREEN)
+                    // 锚点保持默认(组件中心)，缩放中心由 translate 补偿实现
+                    transform(
+                        scale = Scale(ctx.currentScale, ctx.currentScale),
+                        translate = Translate(ctx.translateX / SIZE, ctx.translateY / SIZE)
+                    )
+                }
+
+                event {
+                    pinch { params ->
+                        if (params.isStart) {
+                            // 手势开始: 固化基准与捏合中心点，手势内不再变化
+                            ctx.startScale = ctx.baseScale
+                            ctx.focusX = params.x
+                            ctx.focusY = params.y
+                        }
+
+                        val scale = ctx.startScale * params.scale
+                        // t = t0 + (s0 − s)·(p0 − c)
+                        val deltaScale = ctx.startScale - scale
+                        ctx.currentScale = scale
+                        ctx.translateX = ctx.baseTranslateX + deltaScale * (ctx.focusX - SIZE / 2)
+                        ctx.translateY = ctx.baseTranslateY + deltaScale * (ctx.focusY - SIZE / 2)
+
+                        if (params.isEnd) { // 手势结束: 固化结果供下次手势累积
+                            ctx.baseScale = ctx.currentScale
+                            ctx.baseTranslateX = ctx.translateX
+                            ctx.baseTranslateY = ctx.translateY
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val SIZE = 200f
+    }
+}
+```
+
 ### animationCompletion事件
 
 ``animationCompletion``事件为动画结束事件。当``Kuikly``组件有设置``animationCompletion``事件，并且``Kuikly``组件动画结束时，会触发``animationCompletion``闭包回调。

@@ -44,7 +44,8 @@ internal val ScrollableState.kuiklyInfo: KuiklyScrollInfo
     }
 
 /**
- * Handle scroll events
+ * Handle scroll events (non-gesture: programmatic offset sync / correction).
+ * Does NOT set isScrollInProgress=true.
  * @param delta scroll offset
  * @return actual consumed offset
  */
@@ -56,6 +57,23 @@ internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
     is LazyStaggeredGridState -> scrollableState.kuiklyOnScroll(delta)
     is ScrollState -> scrollableState.kuiklyOnScroll(delta)
     is KuiklyScrollableState -> kuiklyOnScroll(delta)
+    else -> dispatchRawDelta(delta)
+}
+
+/**
+ * Handle real user gesture scroll events.
+ * Sets isScrollInProgress=true in addition to applying the delta.
+ * @param delta scroll offset
+ * @return actual consumed offset
+ */
+internal fun ScrollableState.kuiklyOnGestureScroll(delta: Float): Float = when (this) {
+    is LazyListState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is PagerState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is DrawerInternalPagerState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is LazyGridState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is LazyStaggeredGridState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is ScrollState -> scrollableState.kuiklyOnGestureScroll(delta)
+    is KuiklyScrollableState -> kuiklyOnGestureScroll(delta)
     else -> dispatchRawDelta(delta)
 }
 

@@ -99,6 +99,13 @@ class KuiklyScrollInfo {
     var isDragging: Boolean by mutableStateOf(false)
 
     /**
+     * True while a real user gesture scroll is in progress (dragBegin→scrollEnd).
+     * Used to distinguish genuine gesture-driven scrolls from programmatic offset
+     * sync/correction events, preventing false isScrollInProgress=true on iOS.
+     */
+    var gestureScrollActive: Boolean = false
+
+    /**
      * List height cache
      */
     internal var itemMainSpaceCache = hashMapOf<Any, Int>()
@@ -190,6 +197,7 @@ class KuiklyScrollInfo {
         composeOffset = 0f
         contentOffset = 0
         isDragging = false
+        gestureScrollActive = false
         offsetDirty = false
 
         // Reset content size related (reinitialize based on current density)

@@ -83,6 +83,7 @@ import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.lastItemVisible
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
+import com.tencent.kuikly.compose.scroller.kuiklyOnGestureScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
@@ -271,6 +272,7 @@ fun SubcomposeLayout(
             if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
                 dragBegin {
                     kuiklyInfo.ignoreScrollOffset = null
+                    kuiklyInfo.gestureScrollActive = true
                 }
                 willDragEndBySync(isSync = scrollableState is PagerState && !isAndroid, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
@@ -309,6 +311,7 @@ fun SubcomposeLayout(
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
                 // / back是回滑,forward是前滑
+                kuiklyInfo.gestureScrollActive = false
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
                 // Touch-active align jobs only reschedule while the finger is down; re-arm once
                 // the gesture settles so prepend desync can still be repaired.
@@ -384,7 +387,14 @@ fun SubcomposeLayout(
                 }
 
                 // 触发compose滑动，并重新布局
-                val comsumedDelta = scrollableState.kuiklyOnScroll(delta)
+                // 真实手势路径（dragBegin 已开启 gestureScrollActive 或 scaleParams 标记 isDragging）
+                // 会置 isScrollInProgress=true；程序化/对齐修正路径只做位移，不影响 isScrollInProgress
+                val isGestureScroll = kuiklyInfo.gestureScrollActive || scaleParams.isDragging
+                val comsumedDelta = if (isGestureScroll) {
+                    scrollableState.kuiklyOnGestureScroll(delta)
+                } else {
+                    scrollableState.kuiklyOnScroll(delta)
+                }
 
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)

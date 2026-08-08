@@ -216,11 +216,33 @@ UI E2E 必须**显式指定模拟器 profile**——默认 AVD 是 320x640，
 
 ### 已知边界（诚实说明）
 
-- **`e2e-device`（vivo 真机 job）仍是 `if: false`**，需注册 self-hosted runner + 配 `DEVICE_SERIAL` secret。
-- **本文效果均基于模拟器线**；真机线的结论见工蜂那份文档。
+- **`e2e-device`（vivo 真机 job）已启用并跑通**：`if: schedule || workflow_dispatch`，
+  真机 TC1-TC10 全绿（见下"真机线补充"）。self-hosted runner `NIKAZHAO-MC0-vivo` 上线、
+  `DEVICE_SERIAL` secret 已配、日志进云端 job log 可读。
+- **本文效果基于模拟器线**；真机线的结论见工蜂那份文档 + 本文「真机线补充」节。
 - **KVM 修复依赖 GitHub 托管 runner 的当前镜像行为**。若未来镜像默认放开权限，
   这一步会变成 no-op（无害）；若换 runner 提供商需重新确认。
 - **`profile: pixel_5` 是够用而非最优**——只要垂直空间足够即可，未做多尺寸矩阵覆盖。
+
+### 真机线补充（2026-08-08 晚间，真机跑通后的新发现）
+
+模拟器线收敛后，真机线（`e2e-device`）在 GitHub self-hosted 上跑通，暴露了一个
+**模拟器线（有 KVM 后）从未触发、只有真机才会暴露**的新根因：
+
+| 项 | 结果 |
+|---|---|
+| 现象 | 真机 uia2 中途 idle 卡死（`QueryController: Could not detect idle state`），此后 `/view-tree`、`/page-source` 直接抛 `Could not proxy command to the remote server. timeout of 10000ms exceeded`，TC4-TC10 全挂 |
+| **根因** | 引擎 `getViewTree`/`getSnapshot` **未包 `withUiAutomator2Retry`**。自愈只覆盖"操作"（tap/input/find），没覆盖"读"（view-tree/source/screenshot）。真机 uia2 中途卡死 → 断言路径直接抛超时、无恢复 → TC 直接 FAIL |
+| 修复 | `f4a5dc62`：getPageSource+getWindowSize 读操作包进 `withUiAutomator2Retry`，uia2 卡死时自动硬恢复重建；解析留在 retry 外 |
+| 验证 | **模拟器 + 真机双线 `PASS=10 FAIL=0` 全绿**；真机 golden-baseline TC1-TC10 截图齐全 |
+
+**方法论补充**（与第 3 节互补）：
+
+- **自愈机制要覆盖"读"路径，不只"写"路径**。tap/input 有 `withUiAutomator2Retry`，
+  但 view-tree/source/screenshot 没有——这是本次根因。检查"某类调用是否有恢复兜底"时，
+  要同时看读和写两类。
+- **模拟器绿 ≠ 真机绿**。模拟器（有 KVM）uia2 稳定不卡死，读路径无自愈也一直绿；
+  真机 uia2 会中途卡死，暴露了这个隐蔽缺口。所以「模拟器全绿」不能推断「真机也全绿」。
 
 ---
 
@@ -228,8 +250,11 @@ UI E2E 必须**显式指定模拟器 profile**——默认 AVD 是 320x640，
 
 1. ~~清理已被 KVM 取代的治标修复~~（`96fde447` 已完成）。
 2. **分支策略评估**：工蜂线与 GitHub 线是否拆分支（当前共用一个分支、靠 env 区分）。
-3. **启用 `e2e-device`**：注册 self-hosted runner + 配 secret。
+   （注：用户已决定暂缓分支整理，此条保留为开放项。）
+3. ~~启用 `e2e-device`~~（已完成：真机 TC1-TC10 全绿，见"真机线补充"节）。
 4. 可选：多屏幕尺寸矩阵，防止再出现"小屏挤掉节点"类问题。
+5. **真机线长期稳定性**：真机 uia2 中途卡死是常态（恢复机制会被反复触发），
+   建议跑 20+ 轮统计 flaky 率，确认自愈机制能稳定吸收（对比分析文档待补数据项）。
 
 ---
 

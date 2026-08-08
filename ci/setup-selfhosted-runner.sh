@@ -30,33 +30,45 @@ case "$ARCH" in
   *) echo "!! 不支持的架构: $ARCH"; exit 1 ;;
 esac
 
-# ---- 已存在则先卸载旧服务 ----
+# ---- 已存在则判断状态：已注册 → 问是否重装；只解压未注册 → 直接续跑注册 ----
+# 区分依据：.runner 是 config.sh 成功后才写的注册标记。上一次跑挂在注册这一步时，
+# 目录里有 config.sh 但没有 .runner——此时重新下载纯属浪费，直接续跑即可。
+SKIP_DOWNLOAD=0
 if [ -d "$RUNNER_DIR" ]; then
-  echo "==> 检测到已有 $RUNNER_DIR"
-  read -r -p "    先卸载旧 runner 再重装？[y/N] " ans
-  if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
-    ( cd "$RUNNER_DIR" && sudo ./svc.sh uninstall 2>/dev/null; \
-      ./config.sh remove --token "$(gh api -X POST "repos/$REPO/actions/runners/remove-token" --jq .token)" 2>/dev/null )
-    rm -rf "$RUNNER_DIR"
-  else
-    echo "    保留现有 runner，退出。"; exit 0
+  if [ -f "$RUNNER_DIR/.runner" ]; then
+    echo "==> 检测到已注册的 runner（${RUNNER_DIR}）"
+    read -r -p "    先卸载旧 runner 再重装？[y/N] " ans
+    if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
+      ( cd "$RUNNER_DIR" && sudo ./svc.sh uninstall 2>/dev/null; \
+        ./config.sh remove --token "$(gh api -X POST "repos/${REPO}/actions/runners/remove-token" --jq .token)" 2>/dev/null )
+      rm -rf "$RUNNER_DIR"
+    else
+      echo "    保留现有 runner，退出。"; exit 0
+    fi
+  elif [ -x "$RUNNER_DIR/config.sh" ]; then
+    echo "==> 检测到已解压但未注册的 runner，跳过下载直接续跑注册"
+    SKIP_DOWNLOAD=1
   fi
 fi
 
 # ---- 下载 ----
-echo "==> 下载 runner $RUNNER_VERSION ($ARCH)"
-mkdir -p "$RUNNER_DIR" && cd "$RUNNER_DIR"
-curl -fsSL -o "$PKG" \
-  "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${PKG}" \
-  || { echo "!! 下载失败"; exit 1; }
-tar xzf "$PKG" && rm -f "$PKG"
+if [ "$SKIP_DOWNLOAD" -eq 0 ]; then
+  echo "==> 下载 runner $RUNNER_VERSION ($ARCH)"
+  mkdir -p "$RUNNER_DIR" && cd "$RUNNER_DIR"
+  curl -fsSL -o "$PKG" \
+    "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${PKG}" \
+    || { echo "!! 下载失败"; exit 1; }
+  tar xzf "$PKG" && rm -f "$PKG"
+else
+  cd "$RUNNER_DIR"
+fi
 
 # ---- 申请 token 并注册 ----
 echo "==> 申请 registration token"
 REG_TOKEN="$(gh api -X POST "repos/$REPO/actions/runners/registration-token" --jq .token)" \
   || { echo "!! 申请 token 失败（需要仓库 admin 权限）"; exit 1; }
 
-echo "==> 注册到 $REPO（labels: self-hosted,macos）"
+echo "==> 注册到 ${REPO}（labels: self-hosted,macos）"
 ./config.sh \
   --url "https://github.com/$REPO" \
   --token "$REG_TOKEN" \

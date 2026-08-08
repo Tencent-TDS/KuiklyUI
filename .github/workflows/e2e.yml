@@ -101,13 +101,15 @@ jobs:
           # vivo 真机 2min 内足够（device job 保持默认），这里只放宽 emulator 路径。
           WEBDRIVER_REQUEST_TIMEOUT_MS: "300000"
           SESSION_TIMEOUT_S: "300"
-          # 无 KVM 权限的 ubuntu runner 上模拟器是纯软件模拟（TCG），uia2 instrumentation 启动
-          # 极慢，默认 uiautomator2ServerLaunchTimeout=60s 不够（CI 实证：am instrument 空输出、
-          # 60s 超时、start-session 3 次全败）。放宽到 180s；真机默认 60s 不动。
-          ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS: "180000"
+          # 注：这里曾注入 ANDROID_UIA2_SERVER_LAUNCH_TIMEOUT_MS=180000（8372f212），
+          # 那是 KVM 根因未明时为「纯软件模拟下 instrumentation 起不来」加的放宽阈值。
+          # d48b14be 开启 KVM 硬件加速后 instrumentation 数秒即起，该阈值永不触发；
+          # 继续留着只会在未来 instrumentation 真变慢时把退化静默吸收掉（默认 60s 反而是有效告警线）。
+          # 故移除注入，回落引擎默认 60s。env 覆盖能力保留在 appium-mobile-driver.ts，
+          # 真机线或无硬件加速环境仍可随时按需注入。
           # start-session 自愈重试次数：引擎层主动「等 uia2 就绪」——每次 instrumentation 冷启
           # 动失败就清半死态让 Appium 重拉，吸收首次冷启动失败使「首开」真正零失败。冷模拟器
-          # 放宽到 5；真机默认 3 足够。
+          # 放宽到 5；真机默认 3 足够。（与上面的阈值放宽不同，这是有行为的自愈机制、无副作用，保留）
           ANDROID_UIA2_START_MAX_ATTEMPTS: "5"
           # CAPTURE_BASELINE=1：PASS 用例也存截图（默认只有 FAIL 才收证据）。
           # 模拟器是 -no-window 无头跑，人看不到屏幕；开这个 + 下面的 artifact 上传，

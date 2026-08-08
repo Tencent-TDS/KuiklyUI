@@ -62,3 +62,5 @@ proto/**/*.kt
 /wdblogs/
 /demo/logs/
 /demo/golden-baseline/
+/.hvigor/
+/.vscode/

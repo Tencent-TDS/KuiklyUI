@@ -87,4 +87,15 @@ export class KRWindowInfo {
       KRRenderLog.e("WindowInfo", `setWindow off error code:${e.code}`)
     }
   }
+
+  // 实时获取当前键盘高度，用于页面初始化和 onPageShow 补发
+  getCurrentKeyboardHeight(): number {
+    try {
+      const avoidArea = this.window.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD);
+      return px2vp(avoidArea.bottomRect.height);
+    } catch (e) {
+      KRRenderLog.e("WindowInfo", `getCurrentKeyboardHeight error code:${e.code}`)
+      return 0;
+    }
+  }
 }

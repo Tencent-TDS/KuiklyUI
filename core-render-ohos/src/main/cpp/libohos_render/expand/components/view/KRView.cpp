@@ -59,13 +59,7 @@ constexpr char kPropNameTouchUp[] = "touchUp";
 constexpr char kPropNameTouchCancel[] = "touchCancel";
 constexpr char kPropNamePreventTouch[] = "preventTouch";
 constexpr char kPropNameSuperTouch[] = "superTouch";
-constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
 constexpr char kPropNameStopPropagation[] = "stop-propagation-ohos";
-
-constexpr char kOhosHitTestModeDefault[] = "default";
-constexpr char kOhosHitTestModeBlock[] = "block";
-constexpr char kOhosHitTestModeNone[] = "none";
-constexpr char kOhosHitTestModeTransparent[] = "transparent";
 
 
 KRView::KRView() {
@@ -129,7 +123,7 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
             }
         }
         didHand = true;
-    } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+    } else if (kuikly::util::isEqual(prop_key, kuikly::util::kPropNameHitTestModeOhos)) {
         didHand = SetTargetHitTestMode(prop_value->toString());
     } else if (kuikly::util::isEqual(prop_key, kPropNameStopPropagation)) {
         stop_propagation_ = prop_value->toBool();
@@ -413,7 +407,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
     } else if (kuikly::util::isEqual(prop_key, kPropNameSuperTouch)) {
         super_touch_handler_ = nullptr;
         didHande = true;
-    } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+    } else if (kuikly::util::isEqual(prop_key, kuikly::util::kPropNameHitTestModeOhos)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
         UpdateHitTestMode(HasBaseEvent() || HasTouchEvent());
         didHande = true;
@@ -513,13 +507,13 @@ bool KRView::RegisterTouchUpEvent(const KRRenderCallback &event_call_back) {
 }
 
 bool KRView::SetTargetHitTestMode(const std::string &mode) {
-    if (kuikly::util::isEqual(mode, kOhosHitTestModeBlock)) {
+    if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeBlock)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_BLOCK;
-    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeNone)) {
+    } else if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeNone)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_NONE;
-    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeTransparent)) {
+    } else if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeTransparent)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_TRANSPARENT;
-    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeDefault)) {
+    } else if (kuikly::util::isEqual(mode, kuikly::util::kOhosHitTestModeDefault)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
     }
     return true;

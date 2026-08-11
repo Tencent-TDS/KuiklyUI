@@ -37,10 +37,8 @@ internal class ScrollPickerExamplePage: BasePager() {
     private var provinceName: String by  observable("")
     private var cityStr: String by  observable("")
 
-    private var date: Date by observable(Date(0,0,0))
-    private var dateTimestamp : Long by observable(0L)
-    
-    // 用于测试 initialDate 动态刷新
+    private var date: Date by observable(Date(0, 0, 0))
+    private var dateTimestamp: Long by observable(0L)
     private var initialDate: Date by observable(Date(2025, 1, 22))
 
     override fun body(): ViewBuilder {
@@ -112,7 +110,7 @@ internal class ScrollPickerExamplePage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.chooseIdx = centerItemIndex
                                 ctx.chooseValue = centerValue
                             }
@@ -160,7 +158,7 @@ internal class ScrollPickerExamplePage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.hourStr = centerValue
                             }
                         }
@@ -176,7 +174,7 @@ internal class ScrollPickerExamplePage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.minuteStr = centerValue
                             }
                         }
@@ -231,7 +229,7 @@ internal class ScrollPickerExamplePage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.provinceIndex = centerItemIndex
                                 ctx.provinceName = centerValue
                             }
@@ -248,7 +246,7 @@ internal class ScrollPickerExamplePage: BasePager() {
                                 backgroundColor(Color.WHITE)
                             }
                             event {
-                                dragEndEvent { centerValue, centerItemIndex ->
+                                scrollEndEvent { centerValue, centerItemIndex ->
                                     ctx.cityStr = centerValue
                                 }
                             }
@@ -275,71 +273,14 @@ internal class ScrollPickerExamplePage: BasePager() {
                     alignItemsCenter()
                     width(pagerData.pageViewWidth)
                     marginTop(3f)
+                    marginBottom(24f)
                 }
                 Text {
                     attr {
                         text("选中日期: ${ctx.date}, 时间戳: ${ctx.dateTimestamp}")
                     }
                 }
-                
-                // 快捷日期切换按钮
-                View {
-                    attr {
-                        flexDirectionRow()
-                        justifyContentCenter()
-                        marginTop(8f)
-                        marginBottom(8f)
-                    }
-                    Text {
-                        attr {
-                            text("今天")
-                            fontSize(14f)
-                            color(Color.WHITE)
-                            backgroundColor(Color(0xFF4A90E2))
-                            borderRadius(4f)
-                            margin(8f, 12f)
-                        }
-                        event {
-                            click {
-                                // 设置为今天 (示例：2025-1-22)
-                                ctx.initialDate = Date(2025, 1, 22)
-                            }
-                        }
-                    }
-                    Text {
-                        attr {
-                            text("近一月")
-                            fontSize(14f)
-                            color(Color.WHITE)
-                            backgroundColor(Color(0xFF4A90E2))
-                            borderRadius(4f)
-                            margin(8f, 12f)
-                        }
-                        event {
-                            click {
-                                // 一个月前
-                                ctx.initialDate = Date(2024, 12, 22)
-                            }
-                        }
-                    }
-                    Text {
-                        attr {
-                            text("近三月")
-                            fontSize(14f)
-                            color(Color.WHITE)
-                            backgroundColor(Color(0xFF4A90E2))
-                            borderRadius(4f)
-                            margin(8f, 12f)
-                        }
-                        event {
-                            click {
-                                // 三个月前
-                                ctx.initialDate = Date(2024, 10, 22)
-                            }
-                        }
-                    }
-                }
-                
+                apply(ctx.dateQuickButtons { ctx.initialDate = it })
                 Text {
                     attr {
                         text("初始日期: ${ctx.initialDate}")
@@ -348,25 +289,75 @@ internal class ScrollPickerExamplePage: BasePager() {
                         marginBottom(4f)
                     }
                 }
-                
-                // 使用 vbind 包裹 DatePicker，当 initialDate 变化时重新创建
                 vbind({ ctx.initialDate }) {
                     DatePicker {
                         attr {
                             width(300f)
                             backgroundColor(Color.WHITE)
                             borderRadius(8f)
-                            initialDate(ctx.initialDate)  // 设置初始日期
+                            initialDate(ctx.initialDate)
                             initialScrollAnimated = true
                         }
                         event {
                             chooseEvent {
-                                it.date?.let {
-                                    ctx.date = it
+                                it.date?.let { date ->
+                                    ctx.date = date
                                 }
                                 ctx.dateTimestamp = it.timeInMillis
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun dateQuickButtons(onSelect: (Date) -> Unit): ViewBuilder {
+        return {
+            View {
+                attr {
+                    flexDirectionRow()
+                    justifyContentCenter()
+                    marginTop(8f)
+                    marginBottom(8f)
+                }
+                Text {
+                    attr {
+                        text("今天")
+                        fontSize(14f)
+                        color(Color.WHITE)
+                        backgroundColor(Color(0xFF4A90E2))
+                        borderRadius(4f)
+                        margin(8f, 12f)
+                    }
+                    event {
+                        click { onSelect(Date(2025, 1, 22)) }
+                    }
+                }
+                Text {
+                    attr {
+                        text("近一月")
+                        fontSize(14f)
+                        color(Color.WHITE)
+                        backgroundColor(Color(0xFF4A90E2))
+                        borderRadius(4f)
+                        margin(8f, 12f)
+                    }
+                    event {
+                        click { onSelect(Date(2024, 12, 22)) }
+                    }
+                }
+                Text {
+                    attr {
+                        text("近三月")
+                        fontSize(14f)
+                        color(Color.WHITE)
+                        backgroundColor(Color(0xFF4A90E2))
+                        borderRadius(4f)
+                        margin(8f, 12f)
+                    }
+                    event {
+                        click { onSelect(Date(2024, 10, 22)) }
                     }
                 }
             }

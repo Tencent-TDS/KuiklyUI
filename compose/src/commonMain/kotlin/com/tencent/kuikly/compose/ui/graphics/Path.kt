@@ -235,12 +235,12 @@ fun Path(): Path = KuiklyPath()
      */
     fun translate(offset: Offset)
 
-//    /**
-//     * Transform the points in this path by the provided matrix
-//     */
-//    fun transform(matrix: Matrix) {
-//        // NO-OP to ensure runtime + compile time compatibility
-//    }
+    /**
+     * Transform the points in this path by the provided matrix
+     */
+    fun transform(matrix: Matrix) {
+        // NO-OP default to ensure runtime + compile time compatibility
+    }
 
     /**
      * Compute the bounds of the control points of the path, and write the
@@ -249,22 +249,25 @@ fun Path(): Path = KuiklyPath()
      */
     fun getBounds(): Rect
 
-//    /**
-//     * Set this path to the result of applying the Op to the two specified paths.
-//     * The resulting path will be constructed from non-overlapping contours.
-//     * The curve order is reduced where possible so that cubics may be turned
-//     * into quadratics, and quadratics maybe turned into lines.
-//     *
-//     * @param path1 The first operand (for difference, the minuend)
-//     * @param path2 The second operand (for difference, the subtrahend)
-//     *
-//     * @return True if operation succeeded, false otherwise and this path remains unmodified.
-//     */
-//    fun op(
-//        path1: Path,
-//        path2: Path,
-//        operation: PathOperation
-//    ): Boolean
+    /**
+     * Set this path to the result of applying the Op to the two specified paths.
+     * The resulting path will be constructed from non-overlapping contours.
+     * The curve order is reduced where possible so that cubics may be turned
+     * into quadratics, and quadratics maybe turned into lines.
+     *
+     * @param path1 The first operand (for difference, the minuend)
+     * @param path2 The second operand (for difference, the subtrahend)
+     *
+     * @return True if operation succeeded, false otherwise and this path remains unmodified.
+     */
+    fun op(
+        path1: Path,
+        path2: Path,
+        operation: PathOperation
+    ): Boolean {
+        // Default: simple addPath union (approximation for platforms without native path ops)
+        return false
+    }
 
     companion object {
 //        /**

@@ -130,9 +130,10 @@ internal class RecompositionTracker {
     /**
      * CompositionObserver 实例，用于精确的 scope→state 重组原因追踪。
      * 通过 [BaseComposeScene] 注册到 Composition 实例上。
+     * 具体实现由 runtime19Main（真实 CompositionObserver）或 runtimeLegacyMain（no-op）提供。
      */
-    internal val compositionObserver: ProfilerCompositionObserver by lazy {
-        ProfilerCompositionObserver(this)
+    internal val compositionObserver: ProfilerObserverFacade by lazy {
+        createProfilerObserver(this)
     }
 
     /** 当前是否有精确的 scope→state 映射可用 */

@@ -92,7 +92,7 @@ class CheckBoxView : ComposeView<CheckBoxAttr, CheckBoxEvent>() {
         val ctx = this
         return {
             attr {
-
+                touchEnable(!ctx.attr.disable)
             }
             event {
                 click {

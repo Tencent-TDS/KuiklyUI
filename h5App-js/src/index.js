@@ -79,6 +79,19 @@ function main() {
   
   // Add web-specific parameters
   params[H5Sign] = '1';
+
+  // Enable auto root-view resize forwarding (example)
+  // const renderWebModule = window.com.tencent.kuikly.core.render.web;
+  // const setAutoUpdateRootViewSizeOnResize =
+  //   renderWebModule?.runtime?.web?.expand?.setAutoUpdateRootViewSizeOnResize
+  //   || renderWebModule?.runtime?.expand?.setAutoUpdateRootViewSizeOnResize;
+
+  // if (typeof setAutoUpdateRootViewSizeOnResize === 'function') {
+  //   setAutoUpdateRootViewSizeOnResize(true);
+  //   console.log('✅ setAutoUpdateRootViewSizeOnResize(true)');
+  // } else {
+  //   console.warn('⚠️ setAutoUpdateRootViewSizeOnResize is not available in current runtime');
+  // }
   
   // Page parameter Map
   const paramMap = {

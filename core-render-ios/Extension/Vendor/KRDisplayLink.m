@@ -44,19 +44,19 @@
 }
 #endif
 
-- (void)startWithCallback:(DisplayLinkCallback)callback {
+- (void)startWithCallback:(DisplayLinkCallback)callback runLoop:(NSRunLoop *)runLoop {
     [self stop];
     self.callback = callback;
 #if TARGET_OS_OSX
     self.timer = [NSTimer timerWithTimeInterval:(1.0/60.0)
                                          target:self
                                        selector:@selector(updateDisplayTimer:)
-                                       userInfo:nil
-                                        repeats:YES];
-    [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSRunLoopCommonModes];
+                                         userInfo:nil
+                                          repeats:YES];
+    [runLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
 #else
     self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateDisplay)];
-    [self.displayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+    [self.displayLink addToRunLoop:runLoop forMode:NSRunLoopCommonModes];
 #endif
 }
 
@@ -67,6 +67,17 @@
     }
 #else
     self.displayLink.paused = pause;
+#endif
+}
+
+- (void)setPreferredFrameRateRangeWithMinimum:(CGFloat)minimum
+                                      maximum:(CGFloat)maximum
+                                    preferred:(CGFloat)preferred {
+#if !TARGET_OS_OSX
+    if (@available(iOS 15.0, *)) {
+        self.displayLink.preferredFrameRateRange =
+            CAFrameRateRangeMake(minimum, maximum, preferred);
+    }
 #endif
 }
 
@@ -94,13 +105,25 @@
 
 
 - (void)startWithCallback:(DisplayLinkCallback)callback {
+    [self startWithCallback:callback runLoop:NSRunLoop.mainRunLoop];
+}
+
+- (void)startWithCallback:(DisplayLinkCallback)callback runLoop:(NSRunLoop *)runLoop {
     [self stop];
     self.displayLink = [[_KRDisplayLink alloc] init];
-    [self.displayLink startWithCallback:callback];
+    [self.displayLink startWithCallback:callback runLoop:runLoop ?: NSRunLoop.mainRunLoop];
 }
 
 - (void)pause:(BOOL)pause {
     [self.displayLink pause:pause];
+}
+
+- (void)setPreferredFrameRateRangeWithMinimum:(CGFloat)minimum
+                                      maximum:(CGFloat)maximum
+                                    preferred:(CGFloat)preferred {
+    [self.displayLink setPreferredFrameRateRangeWithMinimum:minimum
+                                                    maximum:maximum
+                                                  preferred:preferred];
 }
 
 - (void)stop {

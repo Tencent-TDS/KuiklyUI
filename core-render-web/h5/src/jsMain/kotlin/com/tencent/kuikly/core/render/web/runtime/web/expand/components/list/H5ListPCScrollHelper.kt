@@ -1,5 +1,6 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
+import com.tencent.kuikly.core.render.web.KuiklyRenderView
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.add
 import com.tencent.kuikly.core.render.web.collection.array.clear
@@ -135,6 +136,10 @@ object PCListScrollHandler {
         }
         kuiklyWindow.addEventListener(KREventConst.DRAG_END, dragFinalizer, json("passive" to true))
         kuiklyWindow.addEventListener("drop", dragFinalizer, json("passive" to true))
+
+        kuiklyWindow.addEventListener(KuiklyRenderView.VIEW_PAUSE_RESET_POINTER_EVENT, { evt ->
+            cancelMouseInteraction(evt.unsafeCast<MouseEvent>())
+        }, json("passive" to true))
     }
 
     /**

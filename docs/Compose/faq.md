@@ -241,3 +241,22 @@ class MyComposePage : ComposeContainer() {
     }
 }
 ```
+
+### 与 `enableConsumeSnapshot` 的区别
+
+`enableConsumeSnapshot = false` **不能**解决下列崩溃：
+
+- 栈特征：`IndexOutOfBoundsException: index: 1, size: 1`
+- 落在 `androidx.compose.animation.core.Transition.calculateTotalDurationNanos`
+- 经 `BaseComposeScene.render` → `sendFrame` → `Recomposer.apply` → `SnapshotStateObserver.drainChanges`
+
+**原因**：Kuikly Compose 在 Android 上运行在独立线程（`HRContextQueueHandlerThread`），而页面上的**原生 Jetpack Compose**（如主线程上的 `AnimatedVisibility`）与 Kuikly **共用** `androidx.compose.runtime` 的 Snapshot。Kuikly 在子线程 `sendFrame` 时 `MutableSnapshot.apply()` 会**同步回调**官方 Compose 注册的 observer，可能在 Kuikly 线程上重算官方 `Transition.totalDurationNanos`，与主线程上对同一 Transition 的增删动画形成竞态。
+
+`enableConsumeSnapshot` 仅关闭 Kuikly `GlobalSnapshotManager` 对全局 write observer 的主动消费，**不影响** Recomposer 自身的 snapshot apply 路径。
+
+**框架侧处理**（Kuikly 2.x+）：`BaseComposeScene.render` 在 `sendFrame` 捕获 **仅当异常栈命中官方** `androidx.compose.animation.core.Transition.calculateTotalDurationNanos` 的 `IndexOutOfBoundsException`，跳过本帧 layout/draw 并调度下一帧，避免整页崩溃；其它 IOOB 仍会 crash，便于发现真实 bug。日志 tag 为 `Kuikly.Compose`。
+
+**业务侧建议**：
+
+- 共存场景务必设置 `enableConsumeSnapshot = false`（解决 ANR / 官方状态丢失，与本节 crash 互补）
+- 尽量减少主线程官方 Compose 动画与 Kuikly 页高频同帧更新的叠加；长期可关注 Kuikly「双 Compose 共存模式」演进

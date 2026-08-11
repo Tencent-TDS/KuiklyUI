@@ -1,0 +1,1 @@
+../MacSupport/NSView+KRCompat.h

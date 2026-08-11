@@ -61,7 +61,11 @@
 - (instancetype)initWithCoder:(NSCoder *)coder {
     KRTurboDisplayPropType type = [coder decodeIntegerForKey:PROP_TYPE];
     NSString *propKey = [coder decodeObjectForKey:PROP_KEY];
-    id propValue = [coder decodeObjectForKey:PROP_VALUE];
+    // Event 类型的 propValue 是 block，跳过解码避免 allocWithZone 崩溃，propValue 保持 nil 由 lazyEventIfNeed 重建
+    id propValue = nil;
+    if (type != KRTurboDisplayPropTypeEvent) {
+        propValue = [coder decodeObjectForKey:PROP_VALUE];
+    }
     self = [self initWithType:type propKey:propKey propValue:propValue];
     return self;
 }
@@ -70,7 +74,7 @@
 - (void)encodeWithCoder:(NSCoder *)coder {
     [coder encodeInteger:self.propType forKey:PROP_TYPE];
     [coder encodeObject:self.propKey forKey:PROP_KEY];
-    if ([self.propValue conformsToProtocol:@protocol(NSCoding)]) {
+    if (self.propType != KRTurboDisplayPropTypeEvent && [self.propValue conformsToProtocol:@protocol(NSCoding)]) {
         [coder encodeObject:self.propValue forKey:PROP_VALUE];
     }
     

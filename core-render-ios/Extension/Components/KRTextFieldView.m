@@ -25,7 +25,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
  */
-@interface KRTextFieldView()<UITextFieldDelegate>
+@interface KRTextFieldView()<UITextFieldDelegate, UIGestureRecognizerDelegate>
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
 /** attr is values */
@@ -368,16 +368,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)css_getTextInputState:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
-        NSUInteger cursorIndex = [self offsetFromPosition:self.beginningOfDocument toPosition:self.selectedTextRange.start];
-        NSUInteger cursorEnd = [self offsetFromPosition:self.beginningOfDocument toPosition:self.selectedTextRange.end];
-        callback(@{
-            @"text": self.text ?: @"",
-            @"selectionStart": @(cursorIndex),
-            @"selectionEnd": @(cursorEnd),
-            @"compositionStart": @(-1),
-            @"compositionEnd": @(-1),
-            @"length": @([self p_calculateLengthForText:self.text])
-        });
+        callback([self p_currentTextInputStatePayload]);
     }
 }
 
@@ -465,6 +456,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
             }
         }
+        [self p_notifyTextInputStateChangeIfNeeded];
         return;
     }
     [self p_limitTextInput];
@@ -592,23 +584,55 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     [self setNeedsLayout];
 }
 
-- (NSDictionary *)p_currentTextInputStatePayload {
+- (NSRange)p_selectedRange {
     UITextRange *selectedRange = self.selectedTextRange;
-    NSUInteger selectionStart = 0;
-    NSUInteger selectionEnd = 0;
-    if (selectedRange) {
-        selectionStart = [self offsetFromPosition:self.beginningOfDocument toPosition:selectedRange.start];
-        selectionEnd = [self offsetFromPosition:self.beginningOfDocument toPosition:selectedRange.end];
+    if (!selectedRange) {
+        return NSMakeRange(0, 0);
     }
-    NSString *text = self.text ?: @"";
+    NSInteger selectionStart = [self offsetFromPosition:self.beginningOfDocument toPosition:selectedRange.start];
+    NSInteger selectionEnd = [self offsetFromPosition:self.beginningOfDocument toPosition:selectedRange.end];
+    if (selectionStart < 0 || selectionEnd < 0) {
+        return NSMakeRange(0, 0);
+    }
+    NSUInteger start = (NSUInteger)MIN(selectionStart, selectionEnd);
+    NSUInteger end = (NSUInteger)MAX(selectionStart, selectionEnd);
+    return NSMakeRange(start, end - start);
+}
+
+- (NSRange)p_markedRange {
+    UITextRange *markedRange = self.markedTextRange;
+    if (!markedRange) {
+        return NSMakeRange(NSNotFound, 0);
+    }
+    NSInteger compositionStart = [self offsetFromPosition:self.beginningOfDocument toPosition:markedRange.start];
+    NSInteger compositionEnd = [self offsetFromPosition:self.beginningOfDocument toPosition:markedRange.end];
+    if (compositionStart < 0 || compositionEnd < 0) {
+        return NSMakeRange(NSNotFound, 0);
+    }
+    NSUInteger start = (NSUInteger)MIN(compositionStart, compositionEnd);
+    NSUInteger end = (NSUInteger)MAX(compositionStart, compositionEnd);
+    return NSMakeRange(start, end - start);
+}
+
+- (NSDictionary *)p_textInputStatePayloadWithText:(NSString *)text selectionRange:(NSRange)selectionRange compositionRange:(NSRange)compositionRange {
+    NSString *resolvedText = text ?: @"";
+    NSInteger compositionStart = compositionRange.location == NSNotFound ? -1 : (NSInteger)compositionRange.location;
+    NSInteger compositionEnd = compositionRange.location == NSNotFound ? -1 : (NSInteger)NSMaxRange(compositionRange);
     return @{
-        @"text": text,
-        @"selectionStart": @(selectionStart),
-        @"selectionEnd": @(selectionEnd),
-        @"compositionStart": @(-1),
-        @"compositionEnd": @(-1),
-        @"length": @([self p_calculateLengthForText:text])
+        @"text": resolvedText,
+        @"selectionStart": @(selectionRange.location),
+        @"selectionEnd": @(NSMaxRange(selectionRange)),
+        @"compositionStart": @(compositionStart),
+        @"compositionEnd": @(compositionEnd),
+        @"length": @([self p_calculateLengthForText:resolvedText])
     };
+}
+
+- (NSDictionary *)p_currentTextInputStatePayload {
+    NSString *text = self.text ?: @"";
+    return [self p_textInputStatePayloadWithText:text
+                                  selectionRange:[self p_selectedRange]
+                                compositionRange:[self p_markedRange]];
 }
 
 - (void)p_notifyTextInputStateChangeIfNeeded {
@@ -795,6 +819,85 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             return [text kr_length];
     }
 }
+
+// TODO: 预留方法，当前未启用（全仓库无调用方）。
+// 意图：在 shouldChangeCharactersInRange / textDidChange 等「新文本尚未生成 attributedText」的场景，
+// 用 [xxx] placeholder 正则估算 emoji 数量来预估 CHARACTER 长度（每个占位算 1 字符，对齐 Android ReplacementSpan）。
+// 当前 length 统一走 p_calculateLengthForText: → p_calculateCharacterLengthForAttributedText:
+// （枚举真实 NSAttachment，结果更准）。本方法保留供后续「输入前限长预校验」切换使用；
+// 请勿误以为 length 已走此分支。
+- (NSUInteger)p_calculateCharacterLength {
+    return [self p_calculateCharacterLengthForText:self.text];
+}
+
+// CHARACTER 模式：基于指定文本计算长度
+// 在 shouldChangeCharactersInRange 中，传入的是新构造的文本
+- (NSUInteger)p_calculateCharacterLengthForText:(NSString *)text {
+    if (text.length == 0) {
+        return 0;
+    }
+
+    NSAttributedString *attributedText = self.attributedText;
+
+    // 如果没有 attributedText 或者传入的 text 与当前不同，
+    // 则需要基于传入的 text 计算，同时估算 emoji 的数量
+    if (attributedText.length == 0 || ![text isEqualToString:attributedText.string]) {
+        // 计算 emoji placeholder 的数量（[xxx] 格式）
+        // 每个 placeholder 在显示时会变成 NSTextAttachment，算 1 个字符
+        NSUInteger emojiCount = 0;
+        NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\[[a-zA-Z0-9_\\-]+\\]" options:0 error:nil];
+        emojiCount = [regex numberOfMatchesInString:text options:0 range:NSMakeRange(0, text.length)];
+
+        // 移除 emoji placeholder 后的纯文本长度
+        NSString *plainText = [regex stringByReplacingMatchesInString:text options:0 range:NSMakeRange(0, text.length) withTemplate:@""];
+
+        return emojiCount + [plainText kr_length];
+    }
+
+    // attributedText 与传入的 text 一致，直接计算 attachment
+    NSUInteger length = 0;
+    NSUInteger index = 0;
+    NSMutableArray<NSValue *> *attachmentRanges = [NSMutableArray array];
+
+    // 收集所有 attachment 的范围
+    [attributedText enumerateAttribute:NSAttachmentAttributeName
+                               inRange:NSMakeRange(0, attributedText.length)
+                               options:0
+                            usingBlock:^(id value, NSRange range, BOOL *stop) {
+                                if (value != nil) {
+                                    [attachmentRanges addObject:[NSValue valueWithRange:range]];
+                                }
+                            }];
+
+    // 按位置排序
+    [attachmentRanges sortUsingComparator:^NSComparisonResult(NSValue *obj1, NSValue *obj2) {
+        NSRange r1 = [obj1 rangeValue];
+        NSRange r2 = [obj2 rangeValue];
+        if (r1.location < r2.location) return NSOrderedAscending;
+        if (r1.location > r2.location) return NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+
+    // 计算长度：普通文本用 kr_length，每个 attachment 算 1
+    for (NSValue *rangeValue in attachmentRanges) {
+        NSRange range = [rangeValue rangeValue];
+        if (index < range.location) {
+            NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, range.location - index)];
+            length += [substring kr_length];
+        }
+        length += 1; // attachment 算 1 个字符
+        index = range.location + range.length;
+    }
+
+    // 处理剩余文本
+    if (index < attributedText.length) {
+        NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, attributedText.length - index)];
+        length += [substring kr_length];
+    }
+
+    return length;
+}
+
 
 - (BOOL)p_shouldTruncate:(NSAttributedString *)attributedText maxLength:(NSInteger)maxLength {
     NSString *rawText = [self p_rawTextFromAttributedText:attributedText] ?: @"";

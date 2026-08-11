@@ -141,6 +141,144 @@ web 已支持项目中 assets 目录内图片资源的引用，但需要注意�
 pageAssets 方式引用的是 demo/src/commonMain/assets/{pageName}/内的图片，注意这里{pageName}一定是业务Page中@Page注解内的真实pageName，包括大小写，分隔符等。在部署时，需要将 h5App/build/dist/js/productionExecutable/assets 目录
 整个拷贝到 web 项目根目录下，这样业务内通过 ImageUrl.pageAssets 和 ImageUri.commonAssets 所拿到的 assets 资源相对路径就能访问到对应的图片资源了
 
+- 浏览器默认行为开关（`KuiklyProcessor` 全局配置）
+
+WebRender 在 `KuiklyProcessor`（`com.tencent.kuikly.core.render.web.processor.KuiklyProcessor`）上暴露了几个全局布尔开关，
+用于控制底层是否阻止一些浏览器默认交互。业务通常在 `Main.kt` 的入口处、`KuiklyRenderView` 初始化之前设置：
+
+| 开关 | 类型 | 默认值 | 作用 |
+| --- | --- | --- | --- |
+| `preventDefaultDragAndSelect` | `Boolean` | `true` | 兼容旧版的组合开关，赋值时会**同时**修改 `preventDefaultSelect` 与 `preventDefaultDrag` |
+| `preventDefaultSelect` | `Boolean` | `true` | 是否阻止文本选中（`selectstart`）。关掉后 H5 页面上的文字可以被选中/复制 |
+| `preventDefaultDrag` | `Boolean` | `true` | 是否阻止原生 HTML5 图片拖拽（`dragstart`）。**强烈建议保持 `true`**，否则原生拖拽会吞掉 `mousemove`/`mouseup`，导致 List 拖动状态卡住 |
+| `preventDefaultContextMenu` | `Boolean` | `true`（默认阻止） | 是否阻止浏览器右键菜单 / 移动端长按系统菜单（`contextmenu` 事件）。PC / 移动端默认都阻止，业务需要右键 / 长按菜单时显式设为 `false` |
+| `autoUpdateRootViewSizeOnResize` | `Boolean` | `false`（默认关闭） | 是否自动把浏览器 / 容器 resize 转发给 Kuikly，触发响应式布局。默认关闭，PC / 移动端都需要业务显式打开。详见下方"响应式布局"小节 |
+
+`preventDefaultContextMenu` 语义如下：
+
+- `true`（默认）：**PC / 移动端都阻止**。
+  - PC 端鼠标右键不会弹出浏览器默认右键菜单；
+  - 移动端长按不会弹出浏览器"复制 / 保存图片"等系统菜单，避免打断业务的 `longPress` / `pan` 手势。
+  - 适合将右键 / 长按作为应用内部手势的页面（也是历史行为兼容的默认选项）。
+- `false`：**PC / 移动端都放行**。
+  - PC 端右键会弹出浏览器默认右键菜单（可用于复制、检查元素等）；
+  - 移动端长按会弹出浏览器默认长按菜单（如"保存图片"）。
+  - 适合希望保留浏览器原生交互的页面。
+
+使用示例（放在 `h5App/src/jsMain/kotlin/Main.kt` 的 `main()` 顶部）：
+
+```kotlin
+// 业务需要允许右键 / 长按浏览器菜单（例如允许 PC 用户右键复制、允许移动端长按保存图片）：
+KuiklyProcessor.preventDefaultContextMenu = false
+
+// 默认行为（PC / 移动端都屏蔽浏览器默认菜单）无需设置，或显式保持：
+// KuiklyProcessor.preventDefaultContextMenu = true
+```
+
+> 说明：该开关仅控制 WebRender 内部（`LongPressHandler` / `PanHandler`）在 `contextmenu` 事件上的 `preventDefault()` 调用，不会影响业务自行注册的 `contextmenu` 监听。业务侧仍可自由监听 `contextmenu` 事件实现自定义右键菜单。iOS Safari 的"长按预览/图片保存"由 `-webkit-touch-callout` 控制，若需要彻底禁用移动端长按菜单，可在业务 CSS 中额外设置 `-webkit-touch-callout: none;`。
+
+- 响应式布局（运行时更新 rootViewSize）
+
+传给 `KuiklyView.onAttach(container, pageName, pageData, size)` 的 `size` 只作用于**首次初始化**。当宿主容器随后被拉伸/压缩（桌面浏览器 window resize、侧边栏折叠、分栏拖动等）时，Kuikly 需要收到"根视图尺寸变化"的通知才能触发响应式重排。
+
+WebRender 提供了两种方式来完成这件事，二者可同时存在：
+
+**方式 A：命令式 API（业务全权控制）**
+
+`KuiklyView` / `KuiklyRenderViewDelegator` 都暴露了 `updateRootViewSize(width, height)` 方法。业务在任何时机（自己监听 `resize`、`ResizeObserver`、CSS media query、外部脚本调整宽度等）拿到新的容器尺寸后，直接调用即可。
+
+> 提示：在当前 `h5App` 模板下，`Main.kt` 里持有的 `delegator` 是**业务侧的** `KuiklyWebRenderViewDelegator`（`KuiklyRenderViewDelegatorDelegate` 的实现类），并未直接透传 SDK 的 `updateRootViewSize`。业务侧统一通过 `delegator.getKuiklyRenderContext()?.kuiklyRenderRootView?.updateRootViewSize(...)` 调用即可（`?.` 会自动兼容 renderView 尚未初始化完成的极早期时刻）。
+
+在 [Main.kt](src/jsMain/kotlin/Main.kt) 的 `main()` 中，在 `KuiklyRouter.createDelegator(...)` 之后加入以下代码即可让页面随窗口尺寸响应式重排：
+
+```kotlin
+// 在 KuiklyRouter.createDelegator(...) 之后
+val delegator = KuiklyRouter.createDelegator(window.location.href)
+
+// —— 方式 A：业务侧手动监听 window.resize ——
+// 100ms 节流，与 SDK 内置节流频率保持一致，避免拖拽窗口时高频重排
+var resizeTimerId: Int? = null
+window.addEventListener("resize", { _ ->
+    resizeTimerId?.let { window.clearTimeout(it) }
+    resizeTimerId = window.setTimeout({
+        delegator.getKuiklyRenderContext()
+            ?.kuiklyRenderRootView
+            ?.updateRootViewSize(window.innerWidth, window.innerHeight)
+    }, 100)
+})
+```
+
+如果 Kuikly 只嵌入在页面某个容器里（比如桌面站的分栏、右侧详情区），推荐用 `ResizeObserver` 监听该容器，而不是整个 window：
+
+```kotlin
+val container = document.getElementById("root") ?: return
+val ro = js(
+    """
+    new ResizeObserver(function(entries){
+        var e = entries[0];
+        if (!e) return;
+        var w = (e.contentRect && e.contentRect.width) | 0;
+        var h = (e.contentRect && e.contentRect.height) | 0;
+        // 回调回 Kotlin 侧
+        window.__kuiklyOnContainerResize && window.__kuiklyOnContainerResize(w, h);
+    })
+    """
+)
+// 暴露一个纯 Kotlin 侧回调，避免在 js(...) 内直接引用 Kotlin 闭包
+window.asDynamic().__kuiklyOnContainerResize = { w: Int, h: Int ->
+    delegator.getKuiklyRenderContext()
+        ?.kuiklyRenderRootView
+        ?.updateRootViewSize(w, h)
+}
+ro.observe(container)
+```
+
+> 说明：
+> - `updateRootViewSize` 内部会向 Kuikly Pager 派发 `rootViewSizeDidChanged` 事件，同步更新 `PageData.pageViewWidth / pageViewHeight`（以及 `deviceWidth / deviceHeight`），业务代码里基于 `pageData.pageViewWidth` 的百分比 / flex 布局会自动重算。
+
+> - **业务实时获取 size 的方法**：
+>   1. 直接读取 `pageData`（如 `pageData.pageViewWidth / pageData.pageViewHeight`），适合在布局计算时按需取最新值。
+>   2. 监听 `rootViewSizeDidChanged` 事件后读取 `pageData`，适合需要在尺寸变化时执行命令式逻辑。
+
+> - **参考示例位置**：
+>   - 页面示例（打印/展示 `pageData`，含 `onReceivePagerEvent` 监听）：`demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/PageDataTestPage.kt`
+>   - 页面事件用法文档（`onReceivePagerEvent`、`addPagerEventObserver`）：`docs/DevGuide/pager-event.md`
+
+> - `?.` 是有意为之：若首帧极早时 renderView 尚未就绪，`getKuiklyRenderContext()` 可能返回 `null`，此时安全跳过；等 renderView 就绪后，后续 resize 都会被正常派发。
+> - 方式 A 与方式 B 可以共存（内部会去重同尺寸事件），但通常**二选一**即可，避免维护负担。
+
+**方式 B：自动模式（WebRender 内置转发器）**
+
+通过 `KuiklyProcessor.autoUpdateRootViewSizeOnResize` 开关，让 WebRender 自动帮你把 `resize` 派发给 Kuikly：
+
+| 值 | 语义 |
+| --- | --- |
+| `false`（默认） | **关闭**：WebRender 不做任何自动转发，PC / 移动端行为一致。业务如需响应式，请使用方式 A |
+| `true` | **开启**：PC / 移动端都自动转发容器 / 窗口 resize |
+
+> 默认关闭的原因：自动响应 resize 对页面布局的影响面较广（例如移动端软键盘弹起触发 `window.resize` 会导致重排，桌面端某些嵌入式布局也不希望 Kuikly 页面随容器缩放）。业务确认需要响应式布局时再显式打开即可。
+
+自动模式的实现细节：
+
+- 优先使用 `ResizeObserver` 观察真实的根 DOM 容器（`rootContainer`），能同时响应 window resize、侧栏折叠、外部脚本改宽度等所有触发容器几何变化的场景；旧浏览器不支持 `ResizeObserver` 时降级为 `window.resize`。
+- 100 ms 节流（与 `H5WindowResizeModule` 保持一致），仅在新旧尺寸实际变化时才向 Kuikly 派发事件，避免同尺寸的重复重排。
+- 生命周期跟随 `KuiklyView`：`onAttach` 后启动，`onDetach` 时自动反注册，无需业务手工清理。
+
+使用示例：
+
+```kotlin
+// 桌面响应式站点：需要显式打开
+KuiklyProcessor.autoUpdateRootViewSizeOnResize = true
+
+// 默认关闭（推荐）：完全由业务用方式 A 掌控 resize 时机
+// KuiklyProcessor.autoUpdateRootViewSizeOnResize = false
+```
+
+> 注意：
+> 1. 响应式最终能不能生效，还取决于 Kuikly 业务页面是否使用了相对/百分比/flex 布局。若业务写死了绝对 `width` / `height`，光转发尺寸事件不会让页面变宽变窄。
+> 2. 首次 `onAttach` 传入的 `size` 仍然是初始尺寸，自动转发器会以此为 baseline，只在**尺寸真的变化**后才第一次触发事件，不会引起首屏抖动。
+> 3. 开启自动模式后，移动端也会跟随 `resize` 重排。iOS/Android 上软键盘弹起会缩小 `window.innerHeight`，可能引起不必要的布局跳变；如果只想响应"横竖屏切换"而不想响应软键盘，建议关掉自动模式、走方式 A 自行判断后再调用 `updateRootViewSize`。
+
 ## 多模块工程下 UMD 全局命名空间被覆盖问题
 
 ### 现象

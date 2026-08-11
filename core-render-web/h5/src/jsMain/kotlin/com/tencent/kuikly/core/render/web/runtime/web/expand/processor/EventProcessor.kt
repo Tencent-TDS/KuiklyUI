@@ -173,9 +173,12 @@ class TouchEventHandlers {
          * Set up event listeners
          */
         private fun setupListeners() {
-            // Prevent default context menu
+            // Prevent default context menu (right-click / long-press callout) only
+            // when the global switch says so. See KuiklyProcessor.preventDefaultContextMenu.
             element.addEventListener("contextmenu", { event ->
-                event.preventDefault()
+                if (KuiklyProcessor.preventDefaultContextMenu) {
+                    event.preventDefault()
+                }
             })
 
             // Touch events
@@ -332,9 +335,12 @@ class TouchEventHandlers {
          * Set up event listeners
          */
         private fun setupListeners() {
-            // Prevent default context menu
+            // Prevent default context menu (right-click / long-press callout) only
+            // when the global switch says so. See KuiklyProcessor.preventDefaultContextMenu.
             element.addEventListener("contextmenu", { event ->
-                event.preventDefault()
+                if (KuiklyProcessor.preventDefaultContextMenu) {
+                    event.preventDefault()
+                }
             })
 
             // Touch events

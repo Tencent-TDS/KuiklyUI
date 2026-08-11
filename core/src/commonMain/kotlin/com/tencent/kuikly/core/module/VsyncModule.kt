@@ -26,14 +26,26 @@ class VsyncModule : Module() {
     }
 
     fun registerVsync(callback: () -> Unit) {
-        toNative(
+        registerVsyncWithFrameInterval { callback() }
+    }
+
+    /**
+     * Registers a persistent VSync callback whose frame interval is passed as an atomic [Int].
+     * This avoids JSON serialization on the per-frame bridge path.
+     */
+    fun registerVsyncWithFrameInterval(callback: (Int) -> Unit) {
+        toNativeWithAtomicCallback(
             keepCallbackAlive = true,
             methodName = METHOD_REGISTER_VSYNC,
-            syncCall = false,
             param = null,
-            callback = {
-                callback()
-            }
+            callback = { data ->
+                val frameIntervalNanos =
+                    (data as? Int)?.takeIf {
+                        it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+                    } ?: DEFAULT_FRAME_INTERVAL_NANOS
+                callback(frameIntervalNanos)
+            },
+            syncCall = false
         )
     }
 
@@ -50,5 +62,9 @@ class VsyncModule : Module() {
         const val MODULE_NAME = ModuleConst.VSYNC
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
+
+        private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+        private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+        private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000
     }
 }

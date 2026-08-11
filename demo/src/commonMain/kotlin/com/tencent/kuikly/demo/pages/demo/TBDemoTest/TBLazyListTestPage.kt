@@ -72,6 +72,12 @@ internal class TBLazyListTestPage : BasePager() {
         // 恢复缓存
         restoreFromPageData()
 
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
+
         if (extraCacheContent.keySet().size > 0) {
             val key = extraCacheContent.keySet().toList()[0].toString()
             val listPropsValue = extraCacheContent.toMap().get(key)
@@ -197,6 +203,8 @@ internal class TBLazyListTestPage : BasePager() {
 
                 attr {
                     flex(1f)
+                    initContentOffset(ctx.restoredOffsetY)
+                    firstContentLoadMaxIndex(ctx.restoredFirstVisibleIndex + 10)
                 }
 
                 event {

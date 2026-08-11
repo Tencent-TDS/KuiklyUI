@@ -99,7 +99,8 @@
 
         // 提前标记 firstScreenTurboDisplay，让 Kotlin 侧 created() 中能拿到正确结果
         // init 早于 didInit（didInit 里 nodeWithCachKey 读完即删，之后文件不再存在），
-        // 必须在 init 阶段用 hasNodeWithCacheKey 预判，再在 didInit 中真正加载。
+        // 必须在 init 阶段用 hasNodeWithCacheKey 预判存在性（不会删除文件），
+        // 再在 didInit 中通过 nodeWithCachKey 真正加载并删除。
         if ([[KRTurboDisplayCacheManager sharedInstance] hasNodeWithCacheKey:self.turboDisplayCacheKey]) {
             KRTurboDisplayModule *module = (KRTurboDisplayModule *)[_renderLayerHandler moduleWithName:NSStringFromClass([KRTurboDisplayModule class])];
             module.firstScreenTurboDisplay = YES;
@@ -145,7 +146,7 @@
     if ([_turboDisplayCacheData.turboDisplayNode isKindOfClass:[KRTurboDisplayNode class]]) {
         _lazyRendering = YES;                                               // 存在TB缓存，更新懒渲染标志
         _turboDisplayCacheData.extraCacheContent = _extraCacheContent;      // 业务自定义缓存，与TB缓存存储于同一对象
-    
+
 
 
         // 【日志】缓存读取成功
@@ -153,6 +154,7 @@
     } else {
         // 【日志】缓存读取失败/不存在
         [KRLogModule logError:[NSString stringWithFormat:@"[TurboDisplay] Error: turboDisplay file read fail"]];
+        [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 无TB缓存，确保标志位不残留
     }
     double readTurboFileCostTime = (CFAbsoluteTimeGetCurrent() - readBeginTime) * 1000.0;
     
@@ -173,7 +175,8 @@
         
         UIView *view = (UIView *)[_renderLayerHandler viewWithTag:self.turboDisplayCacheData.turboDisplayNode.children.firstObject.tag];
         [view.superview layoutIfNeeded];            // 为了触发contentViewDidLoad首屏渲染完成
-        
+        [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 第一次TB缓存上屏完成，恢复sync事件立即flush
+
         double renderCostTime = (CFAbsoluteTimeGetCurrent() - renderBeginTime) * 1000.0f;
         NSString *log = [NSString stringWithFormat:@"[TurboDisplay] Summary：page_name:%@ turbo_display render cost_time %.2lfms readTurboFileCostTime: %.2lfms :%d", _contextParam.pageName, renderCostTime, readTurboFileCostTime, _lazyRendering];
         [KRLogModule logInfo:log];

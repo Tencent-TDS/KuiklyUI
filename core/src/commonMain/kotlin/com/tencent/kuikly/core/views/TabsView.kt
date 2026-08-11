@@ -81,8 +81,8 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
         var width =  tabItems[selectedIndex].flexNode.layoutFrame.width
         var scrollProgress = if (tabItems.size - 1 <= 0) 0f else (selectedIndex.toFloat() / ((tabItems.size - 1).toFloat()))
         this.attr.scrollParams?.also {
-            selectedIndex = min((it.offsetX / it.viewWidth + 0.5f).toInt(), tabItems.size - 1)
-            val leftIndex = min((it.offsetX / it.viewWidth).toInt(),tabItems.size - 1)
+            selectedIndex = max(0, min((it.offsetX / it.viewWidth + 0.5f).toInt(), tabItems.size - 1))
+            val leftIndex = max(0, min((it.offsetX / it.viewWidth).toInt(),tabItems.size - 1))
             val rightIndex = min(leftIndex + 1, tabItems.size - 1)
             val letItemFrame = tabItems[leftIndex].flexNode.layoutFrame
             val rightItemFrame = tabItems[rightIndex].flexNode.layoutFrame

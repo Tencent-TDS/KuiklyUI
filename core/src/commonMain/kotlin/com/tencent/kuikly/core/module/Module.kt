@@ -235,6 +235,19 @@ abstract class Module {
         return innerToNative(keepCallbackAlive, methodName, param, nativeCallback, syncCall)
     }
 
+    /**
+     * Internal native call path for callbacks that return atomic values without JSON conversion.
+     */
+    internal fun toNativeWithAtomicCallback(
+        keepCallbackAlive: Boolean = false,
+        methodName: String,
+        param: Any?,
+        callback: AnyCallbackFn? = null,
+        syncCall: Boolean = false
+    ): ReturnValue {
+        return innerToNative(keepCallbackAlive, methodName, param, callback, syncCall)
+    }
+
     private fun innerToNative(
         keepCallbackAlive: Boolean = false,
         methodName: String,

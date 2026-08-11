@@ -36,13 +36,14 @@ kotlin {
         binaries.sharedLib("shared"){
             freeCompilerArgs += "-Xadd-light-debug=enable"
             linkerOpts += "--build-id=sha1"
-            // 安装包优化（仅 release）
             if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.RELEASE) {
-                val CLANG_OPT_FLAGS = "-Os   -ffunction-sections"
-                val CLANG_FLAGS = "clangOptFlags.ios_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ios_arm64=$CLANG_OPT_FLAGS;clangOptFlags.ohos_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ohos_arm64=$CLANG_OPT_FLAGS"
+                // 保留 Konan 默认 -O3（不用 -Os），仅叠加 sections；linker 侧加 relr/gc/hash-style
+                val CLANG_OPT_FLAGS = "-O3 -ffunction-sections -fdata-sections"
+                val CLANG_FLAGS = "clangOptFlags.ohos_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ohos_arm64=$CLANG_OPT_FLAGS"
                 freeCompilerArgs += "-Xoverride-konan-properties=$CLANG_FLAGS"
                 linkerOpts += "--pack-dyn-relocs=relr"
                 linkerOpts += "--gc-sections"
+                linkerOpts += "--hash-style=gnu"
             }
         }
     }

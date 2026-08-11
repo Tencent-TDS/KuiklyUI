@@ -25,6 +25,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) BOOL performingMainQueueTask;
 /** sync 事件场景下，等待主线程恢复后立即执行的 UI 任务闭包（外部设置占位标记，内部覆盖为真正的 UI 任务） */
 @property (nonatomic, copy, nullable) dispatch_block_t mainThreadTaskWaitToSyncBlock;
+/** TurboDisplay lazy rendering 阶段标志，该阶段内 sync 事件不立即 flush UI 任务 */
+@property (nonatomic, assign) BOOL isInTurboDisplayLazyRendering;
 /*
  * @brief KuiklyRenderUIScheduler初始化方法
  * @param delegate KuiklyRenderUISchedulerDelegate代理

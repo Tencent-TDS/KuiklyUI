@@ -51,6 +51,10 @@ open class KuiklyView(private val delegate: KuiklyRenderViewDelegatorDelegate? =
         kuiklyRenderViewDelegator.sendEvent(event, data)
     }
 
+    override fun updateRootViewSize(width: Int, height: Int) {
+        kuiklyRenderViewDelegator.updateRootViewSize(width, height)
+    }
+
     override fun addKuiklyRenderViewLifeCycleCallback(callback: IKuiklyRenderViewLifecycleCallback) {
         kuiklyRenderViewDelegator.addKuiklyRenderViewLifeCycleCallback(callback)
     }

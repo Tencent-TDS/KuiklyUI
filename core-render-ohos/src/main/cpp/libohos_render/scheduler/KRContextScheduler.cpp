@@ -131,7 +131,7 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 }
             });
             using namespace std::chrono_literals;
-            constexpr auto kSyncMainTaskWarnTimeout = 5s;
+            constexpr auto kSyncMainTaskWarnTimeout = 10s;
             if (doneFuture.wait_for(kSyncMainTaskWarnTimeout) == std::future_status::timeout) {
                 // 各路径 fail-fast 同口径。throw 出去也走不到任何业务可达的 catch 点：
                 //   - ToCallArkTSMethod / SyncCallArkTSMethod / KRForwardArkTSModule 都不接异常，
@@ -141,9 +141,9 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 // 避免栈 unwind 现场失真；也不会让 caller 误以为“这个 throw 可以 catch”
                 // 这种 API 双重含义陷阱。裸调 __assert_fail（而非 assert 宏）确保 release
                 // 也一定触发，与 KRThreadChecker.cpp 现有用法一致。
-                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>5s), "
+                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>10s), "
                                 "possible main<->worker deadlock; aborting to preserve crash context";
-                __assert_fail("ScheduleTaskOnMainThread(sync, worker) wait timeout (>5s), "
+                __assert_fail("ScheduleTaskOnMainThread(sync, worker) wait timeout (>10s), "
                               "possible main<->worker deadlock",
                               __FILE__, __LINE__, __func__);
             }

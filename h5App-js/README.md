@@ -106,6 +106,7 @@ npm run dev
 ## 📖 详细说明
 
 ### 1. 安装依赖
+
 ```bash
 npm install
 ```
@@ -121,6 +122,7 @@ npm run rebuild-kotlin
 2. 复制编译产物到 `src/libs/`
 
 **手动编译（可选）**
+
 ```bash
 # 从项目根目录编译 Kotlin 模块
 ./gradlew :core-render-web:h5:clean :core-render-web:h5:jsBrowserProductionWebpack
@@ -133,9 +135,11 @@ npm run copy-libs
 - `KuiklyCore-render-web-h5.js` + `.d.ts`：H5 渲染模块（webpack 打包，已包含 base 模块和所有依赖）
 
 **开发模式编译（可选）**
+
 ```bash
 npm run rebuild-kotlin:dev
 ```
+
 开发模式生成的产物包含更多调试信息，便于排查问题。
 
 ### 3. 编译并复制页面 Bundle
@@ -166,6 +170,7 @@ npm run build-bundles:all:dev
 **手动编译（可选）**
 
 **Windows（推荐，PowerShell/Terminal 直接可运行）**
+
 ```bash
 # 生产环境（默认）
 cmd /c "cd /d D:\Projects\KuiklyUI && gradlew.bat clean && gradlew.bat :demo:packEntryJSBundleRelease -PpageNameList=HelloWorldPage,000"
@@ -177,6 +182,7 @@ cmd /c "cd /d D:\Projects\KuiklyUI && gradlew.bat clean && gradlew.bat :demo:pac
 ```
 
 **macOS / Linux（可选）**
+
 ```bash
 # 从项目根目录执行
 cd ..
@@ -209,6 +215,7 @@ Bundle 文件采用 **Webpack 智能代码分包**策略，自动将代码拆分
 | **资源文件** | `composeResources/` | Compose 资源 | 按需缓存 |
 
 **分包优势：**
+
 - ✅ **长期缓存**：Kotlin 标准库等基础文件很少变化，可以长期缓存
 - ✅ **按需更新**：修改页面代码只需更新对应的 bundle 文件
 - ✅ **并行加载**：多个小文件可以并行下载，提升加载速度
@@ -289,6 +296,7 @@ npm run generate-manifest
 | ⚠️ **依赖清单** | 必须有 manifest.json 才能运行 |
 
 ### 4. 启动开发服务器
+
 ```bash
 npm run dev
 ```
@@ -296,6 +304,7 @@ npm run dev
 访问 http://localhost:8080/?page_name=xxx
 
 ### 5. 构建生产版本
+
 ```bash
 npm run build
 ```
@@ -347,6 +356,7 @@ KuiklyRenderViewDelegator (Kotlin/JS 编译)
 ### 1. Kotlin/JS 模块加载
 
 在 `index.html` 中加载：
+
 ```html
 <script src="libs/KuiklyCore-render-web-h5.js"></script>
 ```
@@ -403,6 +413,7 @@ const kotlinDelegator = new KotlinDelegator(delegateImpl);
 ### 4. JavaScript ↔ Kotlin 类型转换
 
 **JS Object → Kotlin Map**
+
 ```javascript
 const kotlinStdlib = window['kotlin-kotlin-stdlib'];
 const pageDataMap = kotlinStdlib.kotlin.collections.KtMap.fromJsMap(
@@ -411,6 +422,7 @@ const pageDataMap = kotlinStdlib.kotlin.collections.KtMap.fromJsMap(
 ```
 
 **尺寸转换（Pair<Int, Int>）**
+
 ```javascript
 // Kotlin Pair 在 JS 中用数组表示
 const kotlinSize = [width, height];
@@ -420,6 +432,12 @@ const kotlinSize = [width, height];
 
 ```javascript
 import { KuiklyWebRenderViewDelegator } from './KuiklyWebRenderViewDelegator';
+
+const renderWebModule = window.com.tencent.kuikly.core.render.web;
+const h5Expand = renderWebModule?.runtime?.web?.expand || renderWebModule?.runtime?.expand;
+
+// KuiklyProcessor 全局开关建议在 init 前设置
+h5Expand?.setAutoUpdateRootViewSizeOnResize?.(true);
 
 const delegator = new KuiklyWebRenderViewDelegator();
 delegator.init(
@@ -434,9 +452,88 @@ delegator.resume();  // 页面可见
 delegator.pause();   // 页面不可见
 delegator.detach();  // 页面卸载
 
+// 运行时更新根视图尺寸（手动模式）
+window.addEventListener('resize', () => {
+  delegator.updateRootViewSize(window.innerWidth, window.innerHeight);
+});
+
+// 自定义字体异步加载后，通知渲染层重新测量文本
+document.fonts?.ready?.then?.(() => delegator.fontLoaded());
+
 // 发送事件
 delegator.sendEvent('custom_event', { data: 'value' });
 ```
+
+### 6. KuiklyProcessor 全局开关（H5）
+
+`KuiklyProcessor` 在 H5 侧提供了一组全局行为开关，通过 `@JsExport` 导出的函数访问：
+
+| 接口 | 默认值 | 作用 | 常见场景 |
+|------|--------|------|---------|
+| `setPreventDefaultContextMenu(boolean)` | `true` | 是否阻止浏览器 `contextmenu`（PC 右键 / 移动端长按菜单） | 需要允许右键菜单、长按保存图片时设为 `false` |
+| `setPreventDefaultSelect(boolean)` | `true` | 是否阻止文本选择（`selectstart`） | 需要支持文本复制时设为 `false` |
+| `setPreventDefaultDrag(boolean)` | `true` | 是否阻止图片原生拖拽（`dragstart`） | 通常建议保持 `true`，避免列表拖动态异常 |
+| `setPreventDefaultDragAndSelect(boolean)` | `true` | 兼容历史的组合开关，会同时设置 `Select` 和 `Drag` | 老逻辑迁移、快速统一开关 |
+| `setAutoUpdateRootViewSizeOnResize(boolean)` | `false` | 是否自动把容器/window resize 同步为 `rootViewSizeDidChanged` | PC 自适应布局、分栏/侧边栏尺寸变化 |
+
+#### 推荐调用时机
+
+在 `delegator.init(...)` 前设置，避免页面初始化后才切换全局行为导致首屏行为不一致。
+
+```javascript
+const renderWebModule = window.com.tencent.kuikly.core.render.web;
+const h5Expand = renderWebModule?.runtime?.web?.expand || renderWebModule?.runtime?.expand;
+
+// 允许文本选择复制，但仍阻止图片原生拖拽
+h5Expand?.setPreventDefaultSelect?.(false);
+h5Expand?.setPreventDefaultDrag?.(true);
+
+// 允许浏览器右键/长按菜单
+h5Expand?.setPreventDefaultContextMenu?.(false);
+
+// 开启根视图尺寸自动更新（按需）
+h5Expand?.setAutoUpdateRootViewSizeOnResize?.(true);
+```
+
+#### 注意事项
+
+1. `setPreventDefaultDragAndSelect(value)` 会同步覆盖 `setPreventDefaultSelect` 与 `setPreventDefaultDrag`，如果你需要细粒度控制，优先单独调用后两者。
+2. `setAutoUpdateRootViewSizeOnResize(true)` 在移动端会受到软键盘触发的 `resize` 影响，如需完全可控行为建议保持关闭并通过 `updateRootViewSize` 手动驱动。
+3. 如果运行时报接口不存在，请先执行 `npm run rebuild-kotlin`（或 `npm run rebuild-kotlin:dev`）并确认 `src/libs/KuiklyCore-render-web-h5.d.ts` 已更新。
+
+### 7. 运行时尺寸更新与字体重排（`updateRootViewSize` / `fontLoaded`）
+
+除了 `setAutoUpdateRootViewSizeOnResize(true)` 自动模式，`KuiklyWebRenderViewDelegator` 也提供了命令式接口，便于业务侧精细控制：
+
+| 接口 | 作用 | 典型场景 |
+|------|------|---------|
+| `updateRootViewSize(width, height)` | 手动通知 Kuikly 根视图尺寸变化，触发响应式重排 | 只希望在特定时机响应 resize（例如过滤软键盘触发） |
+| `fontLoaded()` | 自定义字体异步加载完成后，触发文本重新测量和布局 | 页面首屏使用 webfont，避免字体加载后文案截断/错位 |
+
+#### 推荐用法（手动尺寸驱动）
+
+```javascript
+const delegator = new KuiklyWebRenderViewDelegator();
+delegator.init('root', pageName, pageData, { width: window.innerWidth, height: window.innerHeight });
+
+// 例如：仅在横竖屏变化或容器真实尺寸变化后再调用
+window.addEventListener('resize', () => {
+  delegator.updateRootViewSize(window.innerWidth, window.innerHeight);
+});
+```
+
+#### 推荐用法（字体加载后重排）
+
+```javascript
+// 自定义字体加载完成后通知 Kuikly
+if (document.fonts?.ready) {
+  document.fonts.ready
+    .then(() => delegator.fontLoaded())
+    .catch(() => {});
+}
+```
+
+> 提示：如果你已经开启 `setAutoUpdateRootViewSizeOnResize(true)`，通常不需要再全量监听 `window.resize` 去重复调用 `updateRootViewSize`。只有在你需要“更细粒度控制触发时机”时，才建议使用手动模式。
 
 ## 🔄 开发工作流
 
@@ -447,11 +544,13 @@ npm run rebuild-kotlin
 ```
 
 **手动方式：**
+
 1. 重新编译 h5 模块：`./gradlew :core-render-web:h5:clean :core-render-web:h5:jsBrowserProductionWebpack`
 2. 复制产物：`cd h5App-js && ./scripts/copy-kotlin-libs.sh`
 3. 刷新浏览器
 
 **脚本功能：**
+
 - ✅ 自动编译 h5 模块（已包含 base 模块代码）
 - ✅ 自动复制 JS 文件和 TypeScript 声明文件（`.d.ts`）
 - ✅ 提供编译进度提示
@@ -468,6 +567,7 @@ npm run build-bundles:all:dev
 ```
 
 **手动方式：**
+
 1. 编译页面（按需二选一；Windows 用 `gradlew.bat`）：
    - 生产环境：`./gradlew clean && ./gradlew :demo:packEntryJSBundleRelease -PpageNameList=HelloWorldPage`
    - 开发环境：`./gradlew clean && ./gradlew :demo:packEntryJSBundleDebug -PpageNameList=HelloWorldPage`
@@ -477,6 +577,7 @@ npm run build-bundles:all:dev
 3. 刷新浏览器
 
 **脚本功能：**
+
 - ✅ 自动清理旧产物
 - ✅ 编译指定页面或全部页面
 - ✅ 自动复制 bundle 文件和资源
@@ -549,11 +650,13 @@ npm run build-bundles:all:dev
 **症状：** Gradle 编译报错或构建失败
 
 **可能原因：**
+
 - Kotlin 代码存在语法错误
 - 依赖配置问题
 - Gradle 缓存损坏
 
 **解决方案：**
+
 1. 检查控制台输出的详细错误信息
 2. 清理 Gradle 缓存：`./gradlew clean`
 3. 检查 `build.gradle.kts` 中的依赖配置
@@ -568,11 +671,13 @@ npm run build-bundles:all:dev
 **症状：** 编译成功但找不到生成的 bundle 文件
 
 **可能原因：**
+
 - 页面名称拼写错误
 - 编译产物路径不正确
 - 复制脚本失败
 
 **解决方案：**
+
 1. 检查页面名称：查看 `demo/src/commonMain/assets/` 目录
 2. 确认编译产物：检查 `demo/build/dist/js/productionExecutable/`（默认）或 `demo/build/dist/js/developmentExecutable/`（dev）
 3. 验证复制结果：检查 `h5App-js/src/bundles/` 目录
@@ -588,11 +693,13 @@ npm run build-bundles:all:dev
 **症状：** 浏览器控制台报 "Module not loaded" 错误
 
 **可能原因：**
+
 - Kotlin/JS 模块加载顺序不正确
 - 模块未加载完成就被调用
 - 缺少必要的依赖文件
 
 **解决方案：**
+
 1. 检查 HTML 中脚本加载顺序是否正确
 2. 确认核心库文件存在：`src/libs/KuiklyCore-render-web-h5.js`
 3. 清空浏览器缓存（Ctrl + Shift + Delete）
@@ -607,11 +714,13 @@ npm run build-bundles:all:dev
 **症状：** 页面无法正常显示，控制台报 bundle 加载错误
 
 **可能原因：**
+
 - `src/bundles/manifest.json` 不存在或过期
 - `manifest.json` 中缺少 `pages` 映射，或 `pages` 中没有当前 `page_name`
 - bundle 文件名变化但清单未更新
 
 **解决方案：**
+
 1. 重新生成 manifest：`npm run generate-manifest`
 2. 检查文件存在：`src/bundles/manifest.json`
 3. 验证文件内容：确认存在 `files` 与 `pages`，并且 `pages` 包含当前 `page_name`
@@ -626,11 +735,13 @@ npm run build-bundles:all:dev
 **症状：** 页面显示空白或无法交互
 
 **可能原因：**
+
 - JavaScript 执行错误
 - Bundle 文件损坏
 - 页面数据格式错误
 
 **解决方案：**
+
 1. 打开浏览器开发者工具（F12）
 2. 查看 Console 面板的错误信息
 3. 检查 Network 面板的资源加载状态
@@ -647,11 +758,13 @@ npm run build-bundles:all:dev
 **症状：** 修改代码后页面不自动刷新
 
 **可能原因：**
+
 - Webpack Dev Server 配置问题
 - 端口被占用
 - 浏览器缓存过强
 
 **解决方案：**
+
 1. 重启开发服务器：停止后重新 `npm run dev`
 2. 检查端口占用：`lsof -i :8080`
 3. 修改端口：在 `webpack.config.js` 中配置
@@ -740,6 +853,7 @@ npm run rebuild-kotlin && npm run build-bundles:all
 ### Webpack 自动复制配置
 
 `webpack.config.js` 已配置自动复制 Kotlin 库：
+
 ```javascript
 new CopyWebpackPlugin({
   patterns: [
@@ -751,11 +865,13 @@ new CopyWebpackPlugin({
 ### 一键更新脚本
 
 修改 Kotlin 代码后运行：
+
 ```bash
 cd h5App-js
 ./scripts/rebuild-kotlin-and-copy.sh
 ```
 
 此脚本包含以下步骤：
+
 1. 编译 `core-render-web:h5` 模块（已包含 base 模块代码）
 2. 复制所有编译产物（包括 `.d.ts` 类型定义文件）

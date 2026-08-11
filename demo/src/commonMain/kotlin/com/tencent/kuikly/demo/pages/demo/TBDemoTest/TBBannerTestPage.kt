@@ -76,6 +76,12 @@ internal class TBBannerTestPage : BasePager() {
         super.created()
         restoreFromPageData()
 
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
+
         // 解析恢复数据
         if (extraCacheContent.keySet().size > 0){
             var key = extraCacheContent.keySet().toList()[0].toString()
@@ -224,6 +230,7 @@ internal class TBBannerTestPage : BasePager() {
                         pageDirection(true)  // 横向
                         pageItemWidth(pagerData.pageViewWidth - 24f)  // 减去两边 margin
                         showScrollerIndicator(false)
+                        defaultPageIndex(ctx.currentPageIndex)
                     }
 
                     event {

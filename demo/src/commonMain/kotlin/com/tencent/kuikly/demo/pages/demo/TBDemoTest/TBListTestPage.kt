@@ -75,6 +75,12 @@ internal class TBListTestPage : BasePager() {
     override fun created() {
         super.created()
 
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
+
         // 初始化50个item
         for (i in 0 until 40) {
             dataList.add(ListItemData(i, "Item $i"))
@@ -289,6 +295,8 @@ internal class TBListTestPage : BasePager() {
 
                 attr {
                     flex(1f)
+                    firstContentLoadMaxIndex(ctx.restoredFirstVisibleIndex + 10)
+                    initContentOffset(ctx.restoredOffsetY)
                 }
 
                 event {
@@ -370,7 +378,7 @@ internal class TBListTestPage : BasePager() {
      * 根据 item index 获取颜色，每8个item一组
      */
     private fun getColorByIndex(index: Int): Color {
-        val colorGroup = (index / 8) % listColorScheme.size
+        val colorGroup = kotlin.random.Random.nextInt(listColorScheme.size)
         return listColorScheme[colorGroup]
     }
 }

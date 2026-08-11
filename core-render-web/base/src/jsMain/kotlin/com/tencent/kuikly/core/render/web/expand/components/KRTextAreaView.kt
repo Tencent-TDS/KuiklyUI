@@ -13,6 +13,7 @@ import com.tencent.kuikly.core.render.web.scheduler.KuiklyRenderCoreContextSched
 import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.events.InputEvent
 import org.w3c.dom.events.KeyboardEvent
+import kotlin.js.JSON
 
 /**
  * KRTextAreaView, corresponding to Kuikly's TextArea
@@ -33,13 +34,39 @@ class KRTextAreaView : IKuiklyRenderViewExport {
     // Text length limit exceeded callback
     private var textLengthLimitEventCallback: KuiklyRenderCallback? = null
 
+    // Raw text/selection/composition state change callback
+    private var textInputStateChangedEventCallback: KuiklyRenderCallback? = null
+
+    // Cursor/selection-only change callback
+    private var selectionChangedEventCallback: KuiklyRenderCallback? = null
+
     // Keyboard height change callback (iOS/Android native parity)
     private var keyboardHeightChangeCallback: KuiklyRenderCallback? = null
+
+    // Whether textarea selection listeners have been bound.
+    private var selectionTrackingBound = false
+
+    // Last emitted selection range, used to de-dup selection-only callbacks.
+    private var lastSelectionStart = -1
+    private var lastSelectionEnd = -1
+
+    // Suppress selection callback when selection is changed programmatically.
+    private var suppressSelectionChange = false
+
+    // Selection tracking listener references for deterministic unbinding on destroy.
+    private var onSelectionRelatedEventListener: ((dynamic) -> Unit)? = null
+    private var onDocumentSelectionChangeListener: ((dynamic) -> Unit)? = null
 
     // Whether a VisualViewport-based keyboard listener has been bound (H5 only).
     private var keyboardTrackingBound = false
     // Last reported keyboard height, used to de-dup resize events.
     private var lastKeyboardHeight: Float = 0f
+    // VisualViewport + listener references for deterministic unbinding on destroy.
+    private var keyboardViewport: dynamic = null
+    private var keyboardTrackingFocused = false
+    private var onKeyboardFocusListener: ((dynamic) -> Unit)? = null
+    private var onKeyboardBlurListener: ((dynamic) -> Unit)? = null
+    private var onKeyboardViewportResizeListener: ((dynamic) -> Unit)? = null
 
     // Text input element
     private val textarea = kuiklyDocument.createElement(ElementType.TEXT_AREA).apply {
@@ -112,7 +139,13 @@ class KRTextAreaView : IKuiklyRenderViewExport {
             }
 
             MAX_TEXT_LENGTH -> {
-                ele.maxLength = propValue.unsafeCast<Int>()
+                val maxTextLength = propValue.unsafeCast<Int>()
+                if (maxTextLength <= 0) {
+                    // Treat negative values as unlimited input length on web.
+                    ele.removeAttribute("maxlength")
+                } else {
+                    ele.maxLength = maxTextLength
+                }
                 true
             }
 
@@ -151,7 +184,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 focusedEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
                 ele.addEventListener("focus", {
                     val map = mutableMapOf<String, Any>()
-                    map["text"] = ele.value
+                    map[MAP_KEY_TEXT] = ele.value
                     // Notify kotlin side
                     focusedEventCallback?.invoke(map)
                 })
@@ -163,7 +196,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 blurEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
                 ele.addEventListener("blur", {
                     val map = mutableMapOf<String, Any>()
-                    map["text"] = ele.value
+                    map[MAP_KEY_TEXT] = ele.value
                     // Notify kotlin side
                     blurEventCallback?.invoke(map)
                 })
@@ -177,11 +210,23 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                     // Keyboard event
                     if (event.key === "Enter" || event.keyCode == 13) {
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         // Return key clicked
                         clickReturnEventCallback?.invoke(map)
                     }
                 })
+                true
+            }
+
+            TEXT_INPUT_STATE_CHANGE -> {
+                textInputStateChangedEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
+                bindSelectionTrackingIfNeeded()
+                true
+            }
+
+            SELECTION_CHANGE -> {
+                selectionChangedEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
+                bindSelectionTrackingIfNeeded()
                 true
             }
 
@@ -199,9 +244,9 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                     val duration = (detail?.duration ?: 0).unsafeCast<Number>().toFloat()
                     val curve = (detail?.curve ?: 0).unsafeCast<Number>().toInt()
                     val map = mutableMapOf<String, Any>()
-                    map["height"] = height
-                    map["duration"] = duration
-                    map["curve"] = curve
+                    map[MAP_KEY_HEIGHT] = height
+                    map[MAP_KEY_DURATION] = duration
+                    map[MAP_KEY_CURVE] = curve
                     keyboardHeightChangeCallback?.invoke(map)
                 })
                 bindKeyboardHeightTrackingIfNeeded()
@@ -219,7 +264,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                     isComposing = false
                     if (ele.maxLength > 0 && currentLength > ele.maxLength) {
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         textLengthLimitEventCallback?.invoke(map)
                         ele.value = ele.value.substring(0, ele.maxLength)
                     }
@@ -240,7 +285,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                         // Cancel the default behavior of this input event
                         it.preventDefault()
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         textLengthLimitEventCallback?.invoke(map)
                     }
                 })
@@ -279,7 +324,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 // get input cursor index
                 KuiklyRenderCoreContextScheduler.scheduleTask {
                     callback?.invoke(mapOf(
-                        "cursorIndex" to ele.selectionStart
+                        MAP_KEY_CURSOR_INDEX to ele.selectionStart
                     ))
                 }
             }
@@ -288,7 +333,18 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 val index = params?.toIntOrNull() ?: return null
                 // set input cursor index, focus first
                 ele.focus()
-                ele.setSelectionRange(index, index)
+                updateSelection(index, index)
+            }
+
+            SET_TEXT_INPUT_STATE -> {
+                val stateText = params ?: return null
+                applyTextInputState(stateText)
+            }
+
+            GET_TEXT_INPUT_STATE -> {
+                KuiklyRenderCoreContextScheduler.scheduleTask {
+                    callback?.invoke(buildCurrentTextInputStateMap(includeLength = true))
+                }
             }
 
             else -> super.call(method, params, callback)
@@ -300,9 +356,117 @@ class KRTextAreaView : IKuiklyRenderViewExport {
      */
     private fun notifyTextValueChanged(text: String) {
         val map = mutableMapOf<String, Any>()
-        map["text"] = text
+        map[MAP_KEY_TEXT] = text
         // Notify kotlin side
         textDidChangedEventCallback?.invoke(map)
+        // Keep textInputStateChange in parity with native renderers.
+        textInputStateChangedEventCallback?.invoke(buildCurrentTextInputStateMap(includeLength = true))
+    }
+
+    /**
+     * Bind selection listeners once and emit selection/textInputState changes in a unified payload.
+     *
+     * Besides element-level events, we also listen to document-level `selectionchange`.
+     * On some mobile browsers, long-press "Select All" may skip `select`/`touchend`
+     * on the target textarea while still dispatching `selectionchange` on document.
+     */
+    private fun bindSelectionTrackingIfNeeded() {
+        if (selectionTrackingBound) return
+        selectionTrackingBound = true
+
+        onSelectionRelatedEventListener = selectionHandler@{
+            if (suppressSelectionChange) return@selectionHandler
+            notifySelectionChangedIfNeeded()
+        }
+
+        onDocumentSelectionChangeListener = selectionHandler@{
+            if (suppressSelectionChange) return@selectionHandler
+            val activeElement = kuiklyDocument.asDynamic().activeElement
+            if (activeElement != ele) return@selectionHandler
+            notifySelectionChangedIfNeeded()
+        }
+
+        onSelectionRelatedEventListener?.let {
+            ele.addEventListener(EVENT_SELECT, it)
+            ele.addEventListener(EVENT_KEYUP, it)
+            ele.addEventListener(EVENT_MOUSEUP, it)
+            ele.addEventListener(EVENT_TOUCHEND, it)
+        }
+        onDocumentSelectionChangeListener?.let {
+            kuiklyDocument.addEventListener(EVENT_DOCUMENT_SELECTION_CHANGE, it)
+        }
+    }
+
+    /**
+     * Emit selectionChange when cursor/selection actually changed.
+     */
+    private fun notifySelectionChangedIfNeeded(force: Boolean = false) {
+        val start = ele.selectionStart ?: ele.value.length
+        val end = ele.selectionEnd ?: start
+        if (!force && start == lastSelectionStart && end == lastSelectionEnd) {
+            return
+        }
+        lastSelectionStart = start
+        lastSelectionEnd = end
+        selectionChangedEventCallback?.invoke(buildCurrentTextInputStateMap(includeLength = true))
+    }
+
+    /**
+     * Build unified text input state payload.
+     */
+    private fun buildCurrentTextInputStateMap(includeLength: Boolean): Map<String, Any> {
+        val text = ele.value
+        val selectionStart = ele.selectionStart ?: text.length
+        val selectionEnd = ele.selectionEnd ?: selectionStart
+        val map = mutableMapOf<String, Any>(
+            MAP_KEY_TEXT to text,
+            MAP_KEY_SELECTION_START to selectionStart,
+            MAP_KEY_SELECTION_END to selectionEnd,
+            MAP_KEY_COMPOSITION_START to NO_COMPOSITION,
+            MAP_KEY_COMPOSITION_END to NO_COMPOSITION,
+        )
+        if (includeLength) {
+            map[MAP_KEY_LENGTH] = text.length
+        }
+        return map
+    }
+
+    /**
+     * Update selection range and optionally suppress selection callback for programmatic changes.
+     */
+    private fun updateSelection(start: Int, end: Int, suppressSelectionEvent: Boolean = true) {
+        val textLength = ele.value.length
+        val safeStart = start.coerceIn(0, textLength)
+        val safeEnd = end.coerceIn(0, textLength)
+        if (suppressSelectionEvent) {
+            suppressSelectionChange = true
+        }
+        ele.setSelectionRange(safeStart, safeEnd)
+        if (suppressSelectionEvent) {
+            suppressSelectionChange = false
+            lastSelectionStart = safeStart
+            lastSelectionEnd = safeEnd
+        }
+    }
+
+    /**
+     * Apply textInputState JSON payload from core layer.
+     */
+    private fun applyTextInputState(stateText: String) {
+        val state = try {
+            JSON.parse<dynamic>(stateText)
+        } catch (_: Throwable) {
+            return
+        }
+
+        val requestedText = (state?.text as? String) ?: ""
+        ele.value = requestedText
+
+        val requestedSelectionStart = (state?.selectionStart as? Number)?.toInt() ?: requestedText.length
+        val requestedSelectionEnd = (state?.selectionEnd as? Number)?.toInt() ?: requestedSelectionStart
+        updateSelection(requestedSelectionStart, requestedSelectionEnd, suppressSelectionEvent = true)
+
+        notifyTextValueChanged(ele.value)
     }
 
     /**
@@ -326,20 +490,20 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         val vv = js("(typeof window !== 'undefined' && window.visualViewport) ? window.visualViewport : null")
         if (vv == null) return
         keyboardTrackingBound = true
+        keyboardViewport = vv
 
-        var isFocused = false
-        ele.addEventListener("focus", { isFocused = true })
-        ele.addEventListener("blur", {
-            isFocused = false
+        onKeyboardFocusListener = { keyboardTrackingFocused = true }
+        onKeyboardBlurListener = {
+            keyboardTrackingFocused = false
             // Treat blur as keyboard fully collapsed.
             if (lastKeyboardHeight != 0f) {
                 lastKeyboardHeight = 0f
                 dispatchKeyboardHeightChangeEvent(0f, DEFAULT_KEYBOARD_DURATION, DEFAULT_KEYBOARD_CURVE)
             }
-        })
+        }
 
-        val onResize: (dynamic) -> Unit = {
-            if (isFocused) {
+        onKeyboardViewportResizeListener = {
+            if (keyboardTrackingFocused) {
                 val innerHeight = js("window.innerHeight").unsafeCast<Number>().toFloat()
                 val viewportHeight = vv.height.unsafeCast<Number>().toFloat()
                 val height = (innerHeight - viewportHeight).coerceAtLeast(0f)
@@ -353,7 +517,10 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 }
             }
         }
-        vv.addEventListener("resize", onResize)
+
+        onKeyboardFocusListener?.let { ele.addEventListener("focus", it) }
+        onKeyboardBlurListener?.let { ele.addEventListener("blur", it) }
+        onKeyboardViewportResizeListener?.let { vv.addEventListener("resize", it) }
     }
 
     /**
@@ -368,6 +535,47 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         detail.curve = curve
         val event = js("new CustomEvent('keyboardheightchange', { detail: detail })")
         ele.asDynamic().dispatchEvent(event)
+    }
+
+    private fun unbindSelectionTrackingIfNeeded() {
+        if (!selectionTrackingBound) return
+
+        onSelectionRelatedEventListener?.let {
+            ele.removeEventListener(EVENT_SELECT, it)
+            ele.removeEventListener(EVENT_KEYUP, it)
+            ele.removeEventListener(EVENT_MOUSEUP, it)
+            ele.removeEventListener(EVENT_TOUCHEND, it)
+        }
+        onDocumentSelectionChangeListener?.let {
+            kuiklyDocument.removeEventListener(EVENT_DOCUMENT_SELECTION_CHANGE, it)
+        }
+
+        onSelectionRelatedEventListener = null
+        onDocumentSelectionChangeListener = null
+        selectionTrackingBound = false
+    }
+
+    private fun unbindKeyboardHeightTrackingIfNeeded() {
+        if (!keyboardTrackingBound) return
+
+        onKeyboardFocusListener?.let { ele.removeEventListener("focus", it) }
+        onKeyboardBlurListener?.let { ele.removeEventListener("blur", it) }
+        onKeyboardViewportResizeListener?.let { listener ->
+            keyboardViewport?.removeEventListener("resize", listener)
+        }
+
+        onKeyboardFocusListener = null
+        onKeyboardBlurListener = null
+        onKeyboardViewportResizeListener = null
+        keyboardViewport = null
+        keyboardTrackingFocused = false
+        keyboardTrackingBound = false
+    }
+
+    override fun onDestroy() {
+        unbindSelectionTrackingIfNeeded()
+        unbindKeyboardHeightTrackingIfNeeded()
+        super.onDestroy()
     }
 
     /**
@@ -412,9 +620,13 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         private const val BLUR = "blur"
         private const val GET_CURSOR_INDEX = "getCursorIndex"
         private const val SET_CURSOR_INDEX = "setCursorIndex"
+        private const val SET_TEXT_INPUT_STATE = "setTextInputState"
+        private const val GET_TEXT_INPUT_STATE = "getTextInputState"
 
         // Events
         private const val TEXT_DID_CHANGE = "textDidChange"
+        private const val TEXT_INPUT_STATE_CHANGE = "textInputStateChange"
+        private const val SELECTION_CHANGE = "selectionChange"
         private const val INPUT_FOCUS = "inputFocus"
         private const val INPUT_BLUR = "inputBlur"
         private const val INPUT_RETURN = "inputReturn"
@@ -423,10 +635,30 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         // Unified DOM event name used by both mini-program (real) and H5 (synthesized
         // from visualViewport.resize) to deliver keyboard height change signals.
         private const val EVENT_KEYBOARD_HEIGHT_CHANGE = "keyboardheightchange"
+        private const val EVENT_SELECT = "select"
+        private const val EVENT_KEYUP = "keyup"
+        private const val EVENT_MOUSEUP = "mouseup"
+        private const val EVENT_TOUCHEND = "touchend"
+        private const val EVENT_DOCUMENT_SELECTION_CHANGE = "selectionchange"
 
         // Fallback animation values for H5 where VisualViewport does not provide
         // keyboard animation timing info; match typical iOS keyboard animation.
         private const val DEFAULT_KEYBOARD_DURATION = 0.25f
         private const val DEFAULT_KEYBOARD_CURVE = 0
+
+        // TextInputState default composition sentinel.
+        private const val NO_COMPOSITION = -1
+
+        // Payload keys
+        private const val MAP_KEY_TEXT = "text"
+        private const val MAP_KEY_CURSOR_INDEX = "cursorIndex"
+        private const val MAP_KEY_SELECTION_START = "selectionStart"
+        private const val MAP_KEY_SELECTION_END = "selectionEnd"
+        private const val MAP_KEY_COMPOSITION_START = "compositionStart"
+        private const val MAP_KEY_COMPOSITION_END = "compositionEnd"
+        private const val MAP_KEY_LENGTH = "length"
+        private const val MAP_KEY_HEIGHT = "height"
+        private const val MAP_KEY_DURATION = "duration"
+        private const val MAP_KEY_CURVE = "curve"
     }
 }

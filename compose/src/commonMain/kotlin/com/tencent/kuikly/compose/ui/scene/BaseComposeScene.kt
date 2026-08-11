@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalComposeUiApi::class)
+@file:OptIn(
+    InternalComposeUiApi::class,
+    com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi::class,
+)
 
 package com.tencent.kuikly.compose.ui.scene
 
@@ -28,8 +31,6 @@ import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.tooling.CompositionObserverHandle
-import androidx.compose.runtime.tooling.observe
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -43,11 +44,18 @@ import com.tencent.kuikly.compose.ui.input.pointer.ProcessResult
 import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
+import com.tencent.kuikly.compose.foundation.lazy.layout.FramePrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
+import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.compose.container.VsyncTickConditions
+import com.tencent.kuikly.compose.profiler.KuiklyObserverHandle
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
+import com.tencent.kuikly.compose.profiler.kuiklySetObserver
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
+import com.tencent.kuikly.core.log.KLog
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.CoroutineContext
 
@@ -63,8 +71,11 @@ internal abstract class BaseComposeScene(
     coroutineContext: CoroutineContext,
     val composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
+    internal val prefetchScheduler: PrefetchScheduler? = null,
 ) : ComposeScene {
     private var paused = false
+    /** Previous frame draw time; official idle = 2 vsync periods since last draw. */
+    private var lastFrameDrawTimeMillis: Double = 0.0
 
     override val vsyncTickConditions =
         VsyncTickConditions { paused ->
@@ -97,8 +108,7 @@ internal abstract class BaseComposeScene(
     // ========== CompositionObserver 集成 ==========
 
     /** CompositionObserver 注册句柄 */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
-    private var compositionObserverHandle: CompositionObserverHandle? = null
+    private var compositionObserverHandle: KuiklyObserverHandle? = null
 
     /** Profiler 生命周期监听器 */
     private var profilerListener: RecompositionProfiler.ProfilerLifecycleListener? = null
@@ -199,17 +209,62 @@ internal abstract class BaseComposeScene(
 
             recomposer.performScheduledTasks()
 
-            frameClock.sendFrame(nanoTime) // Recomposition
+            // Kuikly runs on HRContextQueueHandlerThread; snapshot apply during sendFrame can
+            // synchronously drain official Jetpack Compose SnapshotStateObservers. If main-thread
+            // official UI (e.g. androidx.compose.animation.Transition) is updated concurrently,
+            // IndexOutOfBoundsException may surface here — not fixable in official Compose.
+            // Only swallow IOOB from that path; rethrow other IOOB so real bugs still crash.
+            try {
+                frameClock.sendFrame(nanoTime) // Recomposition
+            } catch (e: IndexOutOfBoundsException) {
+                val trace = e.stackTraceToString()
+                if (!trace.contains("Transition.calculateTotalDurationNanos")) {
+                    throw e
+                }
+                KLog.e(
+                    "Kuikly.Compose",
+                    "sendFrame IndexOutOfBoundsException (official Compose Transition on shared Snapshot): $trace",
+                )
+                if (frameSampled) {
+                    tracker?.onFrameEnd(0)
+                }
+                return@postponeInvalidation
+            }
             doLayout() // Layout
             recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
-
-            if (frameSampled) {
-                tracker?.onFrameEnd(0)
-            }
 
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()
             draw(KuiklyCanvas()) // Draw
+
+            val frameTimestampMillis = vsyncTickConditions.frameTimestampMillis
+            val previousDrawTimeMillis = lastFrameDrawTimeMillis
+            lastFrameDrawTimeMillis = frameTimestampMillis
+            val frameIntervalMillis = vsyncTickConditions.frameIntervalMillis
+            val isFrameIdle =
+                previousDrawTimeMillis != 0.0 &&
+                    frameTimestampMillis >
+                    previousDrawTimeMillis +
+                    KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER * frameIntervalMillis
+            val framePrefetchScheduler = prefetchScheduler as? FramePrefetchScheduler
+            val prefetchResult =
+                framePrefetchScheduler?.processRequests(
+                    frameDeadlineMillis = vsyncTickConditions.frameDeadlineMillis,
+                    isFrameIdle = isFrameIdle,
+                )
+            val prefetchSpentNs = prefetchResult?.spentNs ?: 0L
+            LazyListPrefetchTrace.log(
+                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${framePrefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs scheduleNextFrame=${prefetchResult?.scheduleForNextFrame == true}",
+            )
+
+            if (frameSampled) {
+                tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())
+            }
+
+            // Align AndroidPrefetchScheduler: post next frame while queue has work or budget ran out.
+            if (prefetchResult?.scheduleForNextFrame == true) {
+                vsyncTickConditions.needRedraw()
+            }
         }
 
         // 在 postponeInvalidation 之后（isInvalidationDisabled 已恢复 false），
@@ -272,16 +327,17 @@ internal abstract class BaseComposeScene(
      * Register a CompositionObserver on the given composition for precise recomposition tracking.
      * Also registers a [RecompositionProfiler.ProfilerLifecycleListener] so that profiler
      * start/stop can dynamically attach/detach the observer.
+     *
+     * On runtime 1.9+ (runtime19Main) the observer is wired via [kuiklySetObserver].
+     * On legacy runtimes (runtimeLegacyMain) the call is a no-op.
      */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
     private fun setupCompositionObserver(comp: Composition) {
-        // Clean up any previous observer
         teardownCompositionObserver()
 
         val listener = object : RecompositionProfiler.ProfilerLifecycleListener {
             override fun onProfilerStarted(tracker: RecompositionTracker) {
                 compositionObserverHandle?.dispose()
-                compositionObserverHandle = comp.observe(tracker.compositionObserver)
+                compositionObserverHandle = comp.kuiklySetObserver(tracker.compositionObserver)
             }
 
             override fun onProfilerStopped() {
@@ -296,7 +352,6 @@ internal abstract class BaseComposeScene(
     /**
      * Tear down the CompositionObserver and lifecycle listener.
      */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
     private fun teardownCompositionObserver() {
         compositionObserverHandle?.dispose()
         compositionObserverHandle = null

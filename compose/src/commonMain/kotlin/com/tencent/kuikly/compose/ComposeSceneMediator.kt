@@ -14,26 +14,24 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalComposeUiApi::class)
+@file:OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 
 package com.tencent.kuikly.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
+import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.foundation.lazy.layout.FramePrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.createDefaultKuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
-import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.WindowInfo
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
-import com.tencent.kuikly.compose.container.LocalSlotProvider
-import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.container.SuperTouchManager
-import com.tencent.kuikly.compose.platform.Configuration
+import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.timer.Timer
@@ -41,14 +39,30 @@ import com.tencent.kuikly.core.views.DivView
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlin.coroutines.CoroutineContext
 
+internal fun resolveFrameIntervalMillis(frameIntervalNanos: Int?): Double {
+    val validFrameIntervalNanos =
+        frameIntervalNanos?.takeIf {
+            it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+        } ?: DEFAULT_FRAME_INTERVAL_NANOS
+    return validFrameIntervalNanos.toDouble() / NANOS_PER_MILLISECOND
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 class ComposeSceneMediator(
     private val container: DivView,
     private val windowInfo: WindowInfo,
     private val coroutineContext: CoroutineContext,
     private val density: Float,
-    private val composeSceneFactory: (invalidate: () -> Unit, coroutineContext: CoroutineContext) -> ComposeScene
+    private val composeSceneFactory: (
+        invalidate: () -> Unit,
+        coroutineContext: CoroutineContext,
+        prefetchScheduler: PrefetchScheduler,
+    ) -> ComposeScene
 ) {
+
+    @OptIn(ExperimentalFoundationApi::class)
+    internal val prefetchScheduler: FramePrefetchScheduler =
+        createDefaultKuiklyPrefetchScheduler()
 
     private var hasStartRender = false
     val superTouchManager = SuperTouchManager()
@@ -65,7 +79,8 @@ class ComposeSceneMediator(
     private val scene: ComposeScene by lazy {
         composeSceneFactory(
             ::onComposeSceneInvalidate,
-            coroutineContext
+            coroutineContext,
+            prefetchScheduler,
         )
     }
 
@@ -83,6 +98,7 @@ class ComposeSceneMediator(
     }
 
     fun dispose() {
+        prefetchScheduler.cancelAll()
         scene.close()
     }
 
@@ -107,10 +123,18 @@ class ComposeSceneMediator(
         return timer
     }
 
-    fun renderFrame() {
-        val timestamp = DateTime.nanoTime()
+    fun renderFrame(frameIntervalNanos: Int? = null) {
+        val timestampNanos = DateTime.nanoTime()
+        val localTimestampMillis = timestampNanos.toDouble() / NANOS_PER_MILLISECOND
+        val frameIntervalMillis = resolveFrameIntervalMillis(frameIntervalNanos)
+        scene.vsyncTickConditions.updateFrameTiming(
+            frameTimestampMillis = localTimestampMillis,
+            frameIntervalMillis = frameIntervalMillis
+        )
         scene.vsyncTickConditions.onDisplayLinkTick {
-            scene.render(null, timestamp)
+            // Keep Compose animations on the local monotonic clock. Native frame timing is only
+            // used for idle detection and prefetch deadlines.
+            scene.render(null, timestampNanos)
         }
     }
 
@@ -122,3 +146,8 @@ class ComposeSceneMediator(
         superTouchManager.manage(container, scene)
     }
 }
+
+private const val NANOS_PER_MILLISECOND = 1_000_000.0
+private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000

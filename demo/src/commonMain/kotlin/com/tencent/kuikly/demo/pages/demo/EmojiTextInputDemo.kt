@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.TextArea
@@ -34,6 +35,10 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("EmojiTextInputDemo")
 internal class EmojiTextInputDemo : Pager() {
+
+    companion object {
+        private const val TAG = "EmojiTextInputDemo"
+    }
 
     private var inputState: TextInputState by observable(TextInputState(text = ""))
     private var previewText: String by observable("")
@@ -97,10 +102,22 @@ internal class EmojiTextInputDemo : Pager() {
                         }
                         event {
                             textInputStateChange { state ->
+                                KLog.i(
+                                    TAG,
+                                    "textInputStateChange: text=${state.text}, selectionStart=${state.selectionStart}, " +
+                                        "selectionEnd=${state.selectionEnd}, compositionStart=${state.compositionStart}, " +
+                                        "compositionEnd=${state.compositionEnd}, length=${state.length}"
+                                )
                                 ctx.inputState = state
                                 ctx.previewText = state.text
                             }
                             selectionChange { state ->
+                                KLog.i(
+                                    TAG,
+                                    "selectionChange: text=${state.text}, selectionStart=${state.selectionStart}, " +
+                                        "selectionEnd=${state.selectionEnd}, compositionStart=${state.compositionStart}, " +
+                                        "compositionEnd=${state.compositionEnd}, length=${state.length}"
+                                )
                                 ctx.inputState = state
                             }
                             textDidChange {

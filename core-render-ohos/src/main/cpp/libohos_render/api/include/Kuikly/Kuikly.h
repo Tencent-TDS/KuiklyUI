@@ -22,6 +22,7 @@
 #include <arkui/native_type.h>
 
 #include "KRAnyData.h"
+#include "KuiklyExport.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,21 +41,21 @@ typedef struct KRRenderModuleCallbackContextData *KRRenderModuleCallbackContext;
  * 回调给Kotlin侧的闭包
  * @param data 数据(类型为String)
  */
-void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char *data);
+KUIKLY_EXPORT void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char *data);
 
 /**
  * 从回调上下文对象根据tag获取capi的handle
  * @param tag
  * @return ArkUI_NodeHandle
  */
-ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag);
+KUIKLY_EXPORT ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag);
 
 /**
  * 从回调上下文对象获取当前页面的InstanceID
  * @param context 回调上下文
  * @return 字符串指针，仅当前scope有效，请勿转移指针，如有需要请拷贝字符串内容。
  */
-const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context);
+KUIKLY_EXPORT const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context);
 
 /**
  * The type of a funtion to free an object
@@ -120,7 +121,7 @@ typedef void (*KRRenderModuleOnDestruct)(const void* moduleInstance);
  * @param onCallMethod 模块的call method实现
  * @param reserved 保留字段
  */
-void KRRenderModuleRegister(const char *moduleName,
+KUIKLY_EXPORT void KRRenderModuleRegister(const char *moduleName,
                             KRRenderModuleOnConstruct onConstruct,
                             KRRenderModuleOnDestruct  onDestruct,
                             KRRenderModuleCallMethod  onCallMethod,
@@ -134,7 +135,7 @@ void KRRenderModuleRegister(const char *moduleName,
  * @param onCallMethod 模块的call method实现
  * @param reserved 保留字段
  */
-void KRRenderModuleRegisterV2(const char *moduleName,
+KUIKLY_EXPORT void KRRenderModuleRegisterV2(const char *moduleName,
                             KRRenderModuleOnConstruct onConstruct,
                             KRRenderModuleOnDestruct  onDestruct,
                             KRRenderModuleCallMethodV2  onCallMethod,
@@ -159,7 +160,7 @@ typedef bool (*KRRenderViewOnResetProp)(void *arkui_handle, const char *propKey)
  * 设置自定义属性handler
  * @param handler
  */
-void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewOnResetProp reset);
+KUIKLY_EXPORT void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewOnResetProp reset);
 
 /**
  * @brief 一个用于析构KRFontAdapterFontBufferForFamily返回的fontBuffer的回调函数
@@ -185,7 +186,7 @@ typedef char *(*KRFontAdapter)(const char *fontFamily, char **fontBuffer, size_t
  * @param adapter adapter函数指针
  * @param fontFamily adapter对应的font family
  */
-void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily);
+KUIKLY_EXPORT void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily);
 
 /**
  * @brief 一个用于析构KRImageAdapter返回的imageDescriptor或src的回调函数
@@ -234,13 +235,13 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
  * @param adapter adapter函数指针
  */
 [[deprecated("Use KRRegisterImageAdapterV2(KRImageAdapterV2) instead.")]]
-void KRRegisterImageAdapter(KRImageAdapter adapter);
+KUIKLY_EXPORT void KRRegisterImageAdapter(KRImageAdapter adapter);
 
 /**
  * @brief 注册image adapter V2
  * @param adapter adapter函数指针
  */
-void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
+KUIKLY_EXPORT void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
 
 /**
  * @brief 自定义image adapter V3，支持传递图片加载参数
@@ -260,16 +261,16 @@ typedef int32_t (*KRImageAdapterV3)(const void *context,
  * @param adapter adapter函数指针
  * @note V3版本支持传递图片加载参数 imageParams（Map类型）
  */
-void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
+KUIKLY_EXPORT void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
 
 
 /**
  * Log level定义
  * 判断loglevel的时候，不要假设每个level的值是永远固定的，请通过常量对比进行判断
  */
-extern int KRLogLevelInfo;
-extern int KRLogLevelDebug;
-extern int KRLogLevelError;
+KUIKLY_EXPORT extern int KRLogLevelInfo;
+KUIKLY_EXPORT extern int KRLogLevelDebug;
+KUIKLY_EXPORT extern int KRLogLevelError;
 
 /**
  * Log Adapter回调
@@ -296,7 +297,7 @@ typedef void (*KRLogAdapter)(int logLevel, const char *tag, const char *message)
  *
  * @param adapter
  */
-void KRRegisterLogAdapter(KRLogAdapter adapter);
+KUIKLY_EXPORT void KRRegisterLogAdapter(KRLogAdapter adapter);
 
 
 /**
@@ -320,13 +321,13 @@ typedef int64_t (*KRColorAdapterParseColor)(const char* str);
  * }
  *
  */
-void KRRegisterColorAdapter(KRColorAdapterParseColor adapter);
+KUIKLY_EXPORT void KRRegisterColorAdapter(KRColorAdapterParseColor adapter);
 
 /**
  * 禁止view复用。
  * 这是一个临时API，后续会删除，未经沟通，请勿调用。
  */
-void KRDisableViewReuse();
+KUIKLY_EXPORT void KRDisableViewReuse();
 
 
 /* ============ Text Post Processor Adapter ============
@@ -361,7 +362,7 @@ typedef struct KRTextProcessedResultBuilder_ *KRTextProcessedResultBuilder;
  * @param builder builder 句柄
  * @param text    UTF-8 文本，SDK 内部立即拷贝；NULL 视为忽略
  */
-void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
+KUIKLY_EXPORT void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
                                          const char *text);
 
 /**
@@ -382,7 +383,7 @@ void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
  *       上抛给业务的 textDidChange/state.text 会带来 shortcode 丢失。
  *       *推荐* 在输入框场景下改用 KRTextProcessedResultAppendImageSpanWithRaw。
  */
-void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
+KUIKLY_EXPORT void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
                                           const char *src,
                                           float width,
                                           float height);
@@ -407,7 +408,7 @@ void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
  * @param width        图片宽度（vp），<=0 表示按当前字号自适应
  * @param height       图片高度（vp），<=0 表示按当前字号自适应
  */
-void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder builder,
+KUIKLY_EXPORT void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder builder,
                                                  const char *src,
                                                  const char *raw_literal,
                                                  float width,
@@ -442,7 +443,7 @@ typedef void (*KRTextPostProcessorAdapter)(const char *name,
  *
  * @param adapter adapter 函数指针；NULL 表示注销
  */
-void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter);
+KUIKLY_EXPORT void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter);
 
 
 #ifdef __cplusplus

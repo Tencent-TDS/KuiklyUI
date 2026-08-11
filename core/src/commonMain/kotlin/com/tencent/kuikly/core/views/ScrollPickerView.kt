@@ -124,17 +124,20 @@ class ScrollPickerView(
                 }
                 event {
                     click { params ->
-                        val temp = params.y - 2 * itemHeight
-                        val offsetValue =
-                            temp - params.y.toInt() % itemHeight
+                        val contentY = scroller.curOffsetY + params.y
+                        val clickedItemIndex = (contentY / itemHeight).toInt() - offset
+                        val centerIndex = clickedItemIndex.coerceIn(0, ctx.itemList.size - 1)
                         val finOffSet = min(
-                            max(0f, offsetValue),
-                            (dataList.size) * itemHeight - ctx.attr.countPerScreen * itemHeight
+                            max(0f, centerIndex * itemHeight),
+                            dataList.size * itemHeight - ctx.attr.countPerScreen * itemHeight
                         )
                         isSnapping = true
                         scroller.setContentOffset(0f, finOffSet, true)
-                        val centerIndex = (finOffSet / itemHeight).toInt()
-                        (ctx.event.scrollEndEvent ?: ctx.event.dragEndEvent)?.invoke(dataList[centerIndex + offset], centerIndex)
+                        ctx.lastScrollIndex = centerIndex
+                        (ctx.event.scrollEndEvent ?: ctx.event.dragEndEvent)?.invoke(
+                            dataList[centerIndex + offset],
+                            centerIndex
+                        )
                     }
 
                     scroll { params ->
@@ -161,18 +164,18 @@ class ScrollPickerView(
                                 (finOffSet / ctx.attr.itemHeight).toInt()
                         }
                     }
-                    dragEnd { params->
+                    dragEnd { params ->
                         ctx.event.dragEndEvent?.let {
                             val finOffSet = ctx.scrollOffset(params, dataList.size)
                             isSnapping = true
-                            scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200,1.0f,1f))
+                            scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200, 1.0f, 1f))
                             targetIndex =
                                 (finOffSet / ctx.attr.itemHeight).toInt()
                             ctx.event.dragEndEvent?.invoke(dataList[targetIndex + offset], targetIndex)
                         }
                     }
 
-                    scrollEnd { params->
+                    scrollEnd { params ->
                         ctx.event.scrollEndEvent?.let {
                             val finOffSet = ctx.scrollOffset(params, dataList.size)
                             if (isSnapping || params.offsetY == finOffSet) {

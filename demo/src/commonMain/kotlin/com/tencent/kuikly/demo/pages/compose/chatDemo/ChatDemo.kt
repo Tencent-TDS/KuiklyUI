@@ -1,5 +1,6 @@
 package com.tencent.kuikly.demo.pages.compose.chatDemo
 
+import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +11,9 @@ import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.keyboardHeightChange
 import com.tencent.kuikly.compose.foundation.Canvas
+import com.tencent.kuikly.compose.foundation.text.BasicTextField
+import com.tencent.kuikly.compose.foundation.text.input.TextFieldState
+import com.tencent.kuikly.compose.foundation.text.input.rememberTextFieldState
 import com.tencent.kuikly.compose.foundation.Image
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
@@ -32,8 +36,8 @@ import com.tencent.kuikly.compose.foundation.lazy.itemsIndexed
 import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
 import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
+import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
 import com.tencent.kuikly.compose.material3.Text
-import com.tencent.kuikly.compose.material3.TextField
 import com.tencent.kuikly.compose.material3.TextFieldDefaults
 import com.tencent.kuikly.compose.resources.DrawableResource
 import com.tencent.kuikly.compose.resources.InternalResourceApi
@@ -44,7 +48,10 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Path
+import com.tencent.kuikly.compose.ui.graphics.SolidColor
+import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
+import com.tencent.kuikly.compose.ui.text.input.VisualTransformation
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
@@ -74,7 +81,7 @@ internal class ChatDemo : ComposeContainer() {
 
     @Composable
     internal fun ChatScreen() {
-        var inputText by remember { mutableStateOf("") }
+        val inputState = rememberTextFieldState()
         val chatList = remember { mutableStateListOf<String>() }
         var keyboardHeight by remember { mutableStateOf(0f) }
 
@@ -133,14 +140,16 @@ internal class ChatDemo : ComposeContainer() {
                     }
                 } else {
                     welcome(
-                        onInputTextChange = { inputText = it },
+                        onInputTextChange = { inputState.setTextAndPlaceCursorAtEnd(it) },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
                 Column(
                     modifier = Modifier
-                        .padding(bottom = keyboardHeight.dp)
+                        .padding(
+                            bottom = (keyboardHeight + pagerData.safeAreaInsets.bottom).dp,
+                        )
                 ) {
 
                     // 输入栏
@@ -152,21 +161,12 @@ internal class ChatDemo : ComposeContainer() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
-                            TextField(
-                                value = inputText,
-                                onValueChange = { inputText = it },
+                            ChatInputField(
+                                state = inputState,
                                 modifier = Modifier
                                     .padding(end = 40.dp) // 给右侧按钮留出空间
-                                    .fillMaxWidth()
-                                    .keyboardHeightChange {
-                                        keyboardHeight = it.height
-                                    },
-                                placeholder = { Text(PLACEHOLDER) },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = TextFieldDefaults.colors(
-                                    unfocusedContainerColor = Color.White,
-                                    focusedContainerColor = Color.White
-                                )
+                                    .fillMaxWidth(),
+                                onKeyboardHeightChange = { keyboardHeight = it },
                             )
                         }
 
@@ -182,9 +182,9 @@ internal class ChatDemo : ComposeContainer() {
                             contentDescription = "Send",
                             modifier = Modifier
                                 .size(30.dp)
-                                .clickable(enabled = inputText.isNotBlank()) {
-                                    val messageToSend = inputText
-                                    inputText = ""
+                                .clickable(enabled = inputState.text.isNotBlank()) {
+                                    val messageToSend = inputState.text
+                                    inputState.clearText()
                                     chatList.add(messageToSend)
                                     GlobalScope.launch {
                                         chatList.add("")
@@ -197,6 +197,77 @@ internal class ChatDemo : ComposeContainer() {
                                 }
                         )
                     }
+
+                    EmojiPanelBar(
+                        emojis = DEFAULT_EMOJIS,
+                        onEmojiClick = { emoji -> inputState.insertAtSelection(emoji) },
+                    )
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun ChatInputField(
+        state: TextFieldState,
+        onKeyboardHeightChange: (Float) -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.White,
+            focusedContainerColor = Color.White,
+        )
+        BasicTextField(
+            state = state,
+            modifier = modifier.keyboardHeightChange {
+                onKeyboardHeightChange(it.height)
+            },
+            textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
+            cursorBrush = SolidColor(Color.Black),
+            singleLine = true,
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                TextFieldDefaults.DecorationBox(
+                    value = state.text,
+                    innerTextField = innerTextField,
+                    enabled = true,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    placeholder = { Text(PLACEHOLDER) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = colors,
+                )
+            },
+        )
+    }
+
+    @Composable
+    private fun EmojiPanelBar(
+        emojis: List<String>,
+        onEmojiClick: (String) -> Unit,
+        modifier: Modifier = Modifier,
+    ) {
+        LazyRow(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(emojis) { emoji ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF5F5F5))
+                        .clickable { onEmojiClick(emoji) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text = emoji, fontSize = 22.sp)
                 }
             }
         }
@@ -463,12 +534,20 @@ internal class ChatDemo : ComposeContainer() {
     }
 
 
+    private fun TextFieldState.insertAtSelection(text: String) {
+        val rawSelection = selection
+        edit {
+            replace(rawSelection.start, rawSelection.end, text)
+        }
+    }
+
     companion object {
         private const val BACK_ICON = "ic_back.png"
         private const val SEND_ICON = "ic_send.png"
         private const val LOGO_ICON = "kuikly_logo.png"
 
         private const val PLACEHOLDER = "Type something..."
+        private val DEFAULT_EMOJIS = listOf("😀", "😂", "❤️", "👍", "🎉", "🔥", "😊", "🙏")
         private val markdown = """
             # 一级标题
             ## 二级标题

@@ -86,6 +86,11 @@ object KuiklyRenderAdapterManager {
     var krTextPostProcessorAdapter: IKRTextPostProcessorAdapter? = null
 
     /**
+     * 键盘高度适配器，供业务按机型修正框架上报的键盘高度
+     */
+    var krKeyboardHeightAdapter: IKRKeyboardHeightAdapter? = null
+
+    /**
      * 视觉宽度配置
      * 业务可通过该配置调整 VISUAL_WIDTH 模式下 Emoji / Attachment 占用的宽度
      */

@@ -148,7 +148,7 @@
 #if DEBUG
     [KRConvertUtil hr_alertWithTitle:title message:message];
 #else
-    NSAssert(false, [NSString stringWithFormat:@"%@|%@", title, message]);
+    NSAssert(false, @"%@|%@", title, message);
 #endif
 }
 

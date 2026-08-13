@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CalendarModule
 import com.tencent.kuikly.core.module.ICalendar
 import com.tencent.kuikly.core.reactive.handler.observable
+import kotlin.math.min
 
 class Date(
     var year: Int = 0,
@@ -60,11 +61,37 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
 
     var date: Date by observable(Date(2023, 1, 1))
     var chooseDate: Date by observable(Date(2023, 1, 1))
+    var daysInMonthCount: Int by observable(31)
 
-    private fun updateDateRow(date: Date) {
+    private var dayPickerInitialized = false
+
+    private fun updateDateRow(year: Int, month: Int, day: Int): Boolean {
         val ctx = this@DatePickerView
-        ctx.date = date
-        ctx.chooseDate = ctx.date
+        val maxDay = ctx.getDaysInMonth(year, month)
+        val clampedDay = min(day, maxDay)
+        if (ctx.date.year == year && ctx.date.month == month && ctx.date.day == clampedDay) {
+            return false
+        }
+        ctx.date.year = year
+        ctx.date.month = month
+        ctx.date.day = clampedDay
+        ctx.chooseDate.year = year
+        ctx.chooseDate.month = month
+        ctx.chooseDate.day = clampedDay
+        if (ctx.daysInMonthCount != maxDay) {
+            ctx.daysInMonthCount = maxDay
+        }
+        return true
+    }
+
+    private fun updateChooseDay(day: Int): Boolean {
+        val ctx = this@DatePickerView
+        if (ctx.chooseDate.day == day && ctx.date.day == day) {
+            return false
+        }
+        ctx.chooseDate.day = day
+        ctx.date.day = day
+        return true
     }
 
     private fun getDaysInMonth(year: Int, month: Int): Int {
@@ -130,8 +157,13 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
             calendar.get(ICalendar.Field.MONTH) + 1,
             calendar.get(ICalendar.Field.DAY_OF_MONTH)
         )
-        ctx.date = initialDate
-        ctx.chooseDate = initialDate
+        ctx.date.year = initialDate.year
+        ctx.date.month = initialDate.month
+        ctx.date.day = initialDate.day
+        ctx.chooseDate.year = initialDate.year
+        ctx.chooseDate.month = initialDate.month
+        ctx.chooseDate.day = initialDate.day
+        ctx.daysInMonthCount = ctx.getDaysInMonth(initialDate.year, initialDate.month)
         
         return {
             View {
@@ -162,9 +194,10 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                         initialScrollAnimated = ctx.attr.initialScrollAnimated
                     }
                     event {
-                        dragEndEvent { centerValue, centerItemIndex ->
-                            ctx.updateDateRow(Date(dataList[centerItemIndex].toInt(), ctx.date.month, ctx.date.day))
-                            ctx.handleChooseEvent()
+                        scrollEndEvent { _, centerItemIndex ->
+                            if (ctx.updateDateRow(dataList[centerItemIndex].toInt(), ctx.date.month, ctx.date.day)) {
+                                ctx.handleChooseEvent()
+                            }
                         }
                     }
                 }
@@ -186,23 +219,27 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                         initialScrollAnimated = ctx.attr.initialScrollAnimated
                     }
                     event {
-                        dragEndEvent { centerValue, centerItemIndex ->
-                            ctx.updateDateRow(Date(ctx.date.year, monthList[centerItemIndex], ctx.date.day))
-                            ctx.handleChooseEvent()
+                        scrollEndEvent { _, centerItemIndex ->
+                            if (ctx.updateDateRow(ctx.date.year, monthList[centerItemIndex], ctx.date.day)) {
+                                ctx.handleChooseEvent()
+                            }
                         }
                     }
                 }
-                vbind({ctx.date}) {
+                vbind({ ctx.daysInMonthCount }) {
+                    val daysInMonth = ctx.daysInMonthCount
                     val daysList = ArrayList<String>()
-                    for (i in 1..ctx.getDaysInMonth(ctx.date.year, ctx.date.month)) {
+                    for (i in 1..daysInMonth) {
                         daysList.add(i.toString())
                     }
                     val dayListForShow = arrayListOf<String>()
                     dayListForShow.addAll(daysList.map { "${it}日" })
-                    
-                    // Calculate default index for day (day starts from 1, index starts from 0)
-                    val dayDefaultIndex = (initialDate.day - 1).takeIf { it >= 0 && it < daysList.size }
-                    
+
+                    val currentDay = min(ctx.date.day, daysInMonth)
+                    val dayDefaultIndex = (currentDay - 1).takeIf { it >= 0 && it < daysList.size }
+                    val animateInitialScroll = ctx.attr.initialScrollAnimated && !ctx.dayPickerInitialized
+                    ctx.dayPickerInitialized = true
+
                     ScrollPicker(
                         dayListForShow.toTypedArray(),
                         dayDefaultIndex
@@ -211,12 +248,13 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                             itemWidth = ctx.attr.width() / 3f
                             itemHeight = ITEM_HEIGHT
                             countPerScreen = 5
-                            initialScrollAnimated = ctx.attr.initialScrollAnimated
+                            initialScrollAnimated = animateInitialScroll
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
-                                ctx.chooseDate = Date(ctx.date.year, ctx.date.month, daysList[centerItemIndex].toInt())
-                                ctx.handleChooseEvent()
+                            scrollEndEvent { _, centerItemIndex ->
+                                if (ctx.updateChooseDay(daysList[centerItemIndex].toInt())) {
+                                    ctx.handleChooseEvent()
+                                }
                             }
                         }
                     }

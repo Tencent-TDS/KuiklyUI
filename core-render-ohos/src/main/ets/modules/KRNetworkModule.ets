@@ -92,6 +92,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             resultObject['data'] = '';
             resultObject['errorMsg'] = JSON.stringify(err);
             resultObject['success'] = '0';
+            resultObject['statusCode'] = response ? response.responseCode.toString() : '-1000';
           } else {
             if (binaryMode) {
               if (response.result instanceof ArrayBuffer) {
@@ -104,6 +105,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             }
             resultObject['errorMsg'] = '';
             resultObject['success'] = '1';
+            resultObject['statusCode'] = response.responseCode.toString();
           }
 
           if (binaryMode) {
@@ -123,6 +125,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
           let resultObject: Record<string, string> = {};
           resultObject['errorMsg'] = errmsg;
           resultObject['success'] = "0";
+          resultObject['statusCode'] = '-1000';
           callback(resultObject);
         });
       }

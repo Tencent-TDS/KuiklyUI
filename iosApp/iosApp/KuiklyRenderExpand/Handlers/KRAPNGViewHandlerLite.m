@@ -15,9 +15,9 @@
 
 #import "KRAPNGViewHandlerLite.h"
 
-#pragma mark - APNG 手工解析
+#pragma mark - Hand-rolled APNG parser
 
-/// 单个动画帧：重建好的标准 PNG 数据 + 展示时长（秒）
+/// One animation frame: rebuilt standard PNG data + display duration (seconds)
 @interface KRAPNGLiteFrame : NSObject
 @property (nonatomic, strong) NSData *pngData;
 @property (nonatomic, assign) NSTimeInterval duration;
@@ -26,7 +26,7 @@
 @implementation KRAPNGLiteFrame
 @end
 
-/// PNG CRC32（自实现，避免引入 libz 链接依赖）
+/// PNG CRC32 (self-contained, avoids linking libz just for this)
 static uint32_t KRAPNGLiteCrc32(const void *bytes, NSUInteger length) {
     static uint32_t table[256];
     static dispatch_once_t onceToken;
@@ -47,7 +47,7 @@ static uint32_t KRAPNGLiteCrc32(const void *bytes, NSUInteger length) {
     return c ^ 0xFFFFFFFFu;
 }
 
-/// 写出一块 PNG chunk（length + type + data + crc32）
+/// Writes one PNG chunk (length + type + data + crc32)
 static NSData *KRAPNGLiteChunk(NSString *type, NSData *data) {
     NSMutableData *out = [NSMutableData data];
     uint32_t len = CFSwapInt32HostToBig((uint32_t)data.length);
@@ -63,8 +63,8 @@ static NSData *KRAPNGLiteChunk(NSString *type, NSData *data) {
     return out;
 }
 
-/// 解析 APNG 文件。仅支持全帧（offset=0, blend/dispose=0），见头文件说明。
-/// 解析失败返回 nil（调用方降级为静态图，不崩溃）。
+/// Parses an APNG file. Full-frame only (offset = 0, blend/dispose = 0); see header doc.
+/// Returns nil on parse failure (caller falls back to a static image; no crash).
 static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outNumPlays) {
     static const uint8_t kSig[] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
     if (data.length < 8 || memcmp(data.bytes, kSig, 8) != 0) {
@@ -73,14 +73,15 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
     const uint8_t *p = (const uint8_t *)data.bytes + 8;
     const uint8_t *end = (const uint8_t *)data.bytes + data.length;
 
-    // 注意：ihdr/pendingDelay 在 flushFrame 闭包内读取，必须 __block，
-    // 否则闭包按值捕获到的是创建瞬间的初始值（帧永远组装不出来）
+    // NOTE: ihdr/pendingDelay are read inside the flushFrame block and must be
+    // __block — otherwise the block captures the initial values by value and
+    // never sees the assignments made later in the loop (frames never assemble).
     __block NSData *ihdr = nil;
     NSMutableArray<KRAPNGLiteFrame *> *frames = [NSMutableArray array];
     __block NSTimeInterval pendingDelay = 0.1;
     __block BOOL hasPendingFctl = NO;
     NSMutableData *pendingIdat = [NSMutableData data];
-    NSInteger numPlays = 0; // acTL num_plays，0 = 无限
+    NSInteger numPlays = 0; // acTL num_plays: 0 = loop forever
 
     __auto_type flushFrame = ^{
         if (!hasPendingFctl || pendingIdat.length == 0 || ihdr == nil) { return; }
@@ -101,7 +102,7 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
         uint32_t len = CFSwapInt32BigToHost(*(const uint32_t *)p);
         const uint8_t *type = p + 4;
         const uint8_t *body = p + 8;
-        if (body + len + 4 > end) { break; } // 截断文件，止损
+        if (body + len + 4 > end) { break; } // truncated file, bail out
 
         if (memcmp(type, "IHDR", 4) == 0) {
             ihdr = [NSData dataWithBytes:body length:len];
@@ -111,7 +112,7 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
             flushFrame();
             uint16_t delayNum = CFSwapInt16BigToHost(*(const uint16_t *)(body + 20));
             uint16_t delayDen = CFSwapInt16BigToHost(*(const uint16_t *)(body + 22));
-            if (delayDen == 0) { delayDen = 100; } // 规范：den=0 按 100 计
+            if (delayDen == 0) { delayDen = 100; } // Spec: den = 0 means 100
             pendingDelay = MAX(0.01, (NSTimeInterval)delayNum / delayDen);
             hasPendingFctl = YES;
         } else if (memcmp(type, "IDAT", 4) == 0) {
@@ -121,7 +122,7 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
         } else if (memcmp(type, "IEND", 4) == 0) {
             break;
         }
-        p = body + len + 4; // 跳过 data + crc
+        p = body + len + 4; // skip data + crc
     }
     flushFrame();
     if (outNumPlays) { *outNumPlays = numPlays; }
@@ -133,11 +134,11 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
 @interface KRAPNGViewHandlerLite ()
 @property (nonatomic, strong) UIImageView *imageView;
 @property (nonatomic, copy) NSArray<KRAPNGLiteFrame *> *frames;
-@property (nonatomic, assign) NSInteger fileNumPlays; // 文件自带的播放次数
+@property (nonatomic, assign) NSInteger fileNumPlays; // play count from the file itself
 @property (nonatomic, assign) NSUInteger frameIndex;
 @property (nonatomic, assign) NSUInteger playedLoops;
 @property (nonatomic, assign) BOOL animating;
-@property (nonatomic, assign) BOOL didSetPlayCount;   // 区分「未设置」与「显式 0」
+@property (nonatomic, assign) BOOL didSetPlayCount;   // distinguishes "unset" from "explicitly 0"
 @end
 
 @implementation KRAPNGViewHandlerLite
@@ -189,9 +190,9 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
         self.frames = frames;
         self.fileNumPlays = numPlays;
         firstImage = [UIImage imageWithData:frames.firstObject.pngData];
-        self.imageView.image = firstImage; // 未播放时定格首帧
+        self.imageView.image = firstImage; // hold the first frame until playback starts
     } else if (data) {
-        // 解析失败/普通 PNG：降级为静态图兜底，不崩溃
+        // Parse failure or plain PNG: fall back to a static image, no crash
         firstImage = [UIImage imageWithData:data];
         self.imageView.image = firstImage;
     }
@@ -215,8 +216,8 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
 #pragma mark - private
 
 - (NSInteger)p_effectivePlayCount {
-    if (self.didSetPlayCount) { return self.playCount; } // 宿主显式设置（含 0=无限）
-    return self.fileNumPlays;                            // 否则用文件里的 num_plays
+    if (self.didSetPlayCount) { return self.playCount; } // host explicitly set it (0 = infinite)
+    return self.fileNumPlays;                            // otherwise use the file's num_plays
 }
 
 - (void)p_showFrameAtIndex:(NSUInteger)index {
@@ -233,27 +234,28 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
 }
 
 - (void)p_advanceFromIndex:(NSUInteger)index {
-    if (!self.animating || index != self.frameIndex) { return; } // 已停止或已被新播放覆盖
+    if (!self.animating || index != self.frameIndex) { return; } // stopped or superseded by a new play
     NSUInteger next = index + 1;
     if (next < self.frames.count) {
         [self p_showFrameAtIndex:next];
         return;
     }
-    // 一轮播完
+    // One loop finished
     self.playedLoops += 1;
     if ([self.delegate respondsToSelector:@selector(apngImageView:playEndLoop:)]) {
         [self.delegate apngImageView:self playEndLoop:self.playedLoops];
     }
     NSInteger maxLoops = [self p_effectivePlayCount];
     if (maxLoops <= 0 || self.playedLoops < (NSUInteger)maxLoops) {
-        [self p_showFrameAtIndex:0]; // 继续下一轮
+        [self p_showFrameAtIndex:0]; // start the next loop
     } else {
-        self.animating = NO; // 定格末帧（imageView 已停在最后一帧）
+        self.animating = NO; // hold the last frame (imageView already shows it)
     }
 }
 
 - (void)p_stopTimer {
-    // 播放基于 dispatch_after + frameIndex 守卫，无需显式取消：把 index 推大即可让旧回调失效
+    // Playback is driven by dispatch_after guarded by frameIndex; no explicit
+    // cancellation needed — bumping the index invalidates any pending callback.
     self.frameIndex = NSUIntegerMax / 2;
 }
 

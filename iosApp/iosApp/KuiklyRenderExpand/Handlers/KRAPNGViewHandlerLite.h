@@ -19,23 +19,28 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- * 零第三方依赖的 APNG 宿主适配器（参考实现）。
+ * Zero-dependency APNG host adapter (reference implementation).
  *
- * 与 KRAPNGViewHandler（基于 SDWebImage 的 SDAnimatedImageView）不同，
- * 本实现不引入任何第三方库：手工解析 APNG 块结构（IHDR/acTL/fcTL/IDAT/fdAT），
- * 逐帧重建标准 PNG 交给 UIImage 解码，按帧延时调度播放。
+ * Unlike KRAPNGViewHandler (built on SDWebImage's SDAnimatedImageView), this
+ * implementation pulls in no third-party dependency: it parses the APNG chunk
+ * structure (IHDR/acTL/fcTL/IDAT/fdAT) by hand, rebuilds each frame as a
+ * standard PNG for UIImage to decode, and schedules playback by per-frame delays.
  *
- * 适用边界：仅支持「全帧」APNG（每帧尺寸=画布尺寸、offset=0、blend/dispose=0），
- * 这类文件覆盖了大多数图标/加载动效场景（常见导出工具默认产出全帧）。
- * 解析失败或不含动画帧时降级为静态图显示，不崩溃。
+ * Scope: only "full-frame" APNG files are supported (every frame matches the
+ * canvas size, offset = 0, blend/dispose = 0). Most export tools produce
+ * full-frame output by default, which covers typical icon/loading animations.
+ * On parse failure or missing animation frames, falls back to displaying a
+ * static image instead of crashing.
  *
- * 注意：本类不做 +load 自动注册（demo 中的 KRAPNGViewHandler 已在 +load 注册，
- * 两个 +load 同时存在时生效顺序不确定）。业务如需使用本实现，请在启动时显式调用
- * +registerToKuikly 覆盖注册。
+ * Note: this class intentionally does NOT self-register in +load. The demo's
+ * KRAPNGViewHandler already registers in +load, and with two +load registrations
+ * the winner is undefined. To use this implementation, call +registerToKuikly
+ * explicitly at app startup to override the registered creator.
  */
 @interface KRAPNGViewHandlerLite : UIView <APNGImageViewProtocol>
 
-/// 注册到 Kuikly（覆盖此前注册的 creator），业务启动时调用
+/// Registers this implementation with Kuikly (overrides any previously
+/// registered creator). Call once at app startup.
 + (void)registerToKuikly;
 
 @end

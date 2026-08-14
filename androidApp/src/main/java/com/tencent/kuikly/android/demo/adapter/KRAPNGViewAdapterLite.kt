@@ -29,17 +29,21 @@ import java.nio.ByteBuffer
 import java.util.zip.CRC32
 
 /**
- * 零第三方依赖的 APNG 宿主适配器（参考实现）。
+ * Zero-dependency APNG host adapter (reference implementation).
  *
- * 与 [KRAPNGViewAdapter]（依赖 APNG4Android 库）不同，本实现不引入任何第三方库：
- * 手工解析 APNG 块结构（IHDR/acTL/fcTL/IDAT/fdAT），逐帧重建标准 PNG 交给
- * BitmapFactory 解码，Handler 按帧延时切帧，只依赖 Android 稳定 API。
+ * Unlike [KRAPNGViewAdapter] (which relies on the APNG4Android library), this
+ * implementation pulls in no third-party dependency: it parses the APNG chunk
+ * structure (IHDR/acTL/fcTL/IDAT/fdAT) by hand, rebuilds each frame as a
+ * standard PNG for BitmapFactory to decode, and switches frames on a Handler
+ * using per-frame delays — stable Android APIs only.
  *
- * 适用边界：仅支持「全帧」APNG（每帧尺寸=画布尺寸、offset=0、blend/dispose=0），
- * 这类文件覆盖了大多数图标/加载动效场景（常见导出工具默认产出全帧）。
- * 解析失败或不含动画帧时降级为静态图显示，不崩溃。
+ * Scope: only "full-frame" APNG files are supported (every frame matches the
+ * canvas size, offset = 0, blend/dispose = 0). Most export tools produce
+ * full-frame output by default, which covers typical icon/loading animations.
+ * On parse failure or missing animation frames, falls back to displaying a
+ * static image instead of crashing.
  *
- * 使用：在 Application.onCreate 注册
+ * Usage: register in Application.onCreate
  *   KuiklyRenderAdapterManager.krAPNGViewAdapter = KRAPNGViewAdapterLite()
  */
 class KRAPNGViewAdapterLite : IKRAPNGViewAdapter {
@@ -53,8 +57,8 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
     private val imageView = ImageView(context)
     private val handler = Handler(Looper.getMainLooper())
     private var frames: List<Frame> = emptyList()
-    private var numPlays = 0 // acTL num_plays：0=无限
-    private var repeatCount = 0 // Kuikly repeatCount：0=不限制（回退到文件 num_plays），N=播 N 次
+    private var numPlays = 0 // acTL num_plays: 0 = loop forever
+    private var repeatCount = 0 // Kuikly repeatCount: 0 = fall back to file num_plays, N = play N times
     private var frameIndex = 0
     private var playedLoops = 0
     private var playing = false
@@ -70,7 +74,7 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
                 playedLoops++
                 val limit = if (repeatCount > 0) repeatCount else numPlays
                 if (limit > 0 && playedLoops >= limit) {
-                    // 播完停在最末帧并保持显示
+                    // Finished: hold on the last frame
                     playing = false
                     frameIndex = frames.size - 1
                     listeners.toList().forEach { it.onAnimationEnd(imageView) }
@@ -89,7 +93,8 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
             emptyList()
         }
         if (frames.isEmpty()) {
-            // 解析失败/非动画：降级为静态图兜底（普通 PNG 也能正常显示）
+            // Parse failure or non-animated image: fall back to a static bitmap
+            // (plain PNG files also render correctly this way) instead of crashing.
             imageView.setImageBitmap(BitmapFactory.decodeFile(filePath))
         }
     }
@@ -124,7 +129,7 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
 
     override fun setKRProp(propKey: String, value: Any): Boolean = false
 
-    // ---------- 极简 APNG 解析（仅支持全帧：offset=0、blend/dispose=0） ----------
+    // ---------- Minimal APNG parser (full-frame only: offset = 0, blend/dispose = 0) ----------
 
     private fun chunk(type: String, body: ByteArray): ByteArray {
         val crc = CRC32()
@@ -142,32 +147,33 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
         val sig = byteArrayOf(-119, 80, 78, 71, 13, 10, 26, 10)
         if (data.size < 8 || !data.copyOfRange(0, 8).contentEquals(sig)) return emptyList()
         val buf = ByteBuffer.wrap(data)
-        buf.position(8) // 跳过 PNG 签名
+        buf.position(8) // skip PNG signature
         var ihdr: ByteArray? = null
         var pendingDelayMs = 40L
         var pendingFirstFrame = false
         val result = arrayListOf<Frame>()
         while (buf.remaining() >= 12) {
             val len = buf.int
-            if (len < 0 || buf.remaining() < len + 4) break // 截断文件，止损
+            if (len < 0 || buf.remaining() < len + 4) break // truncated file, bail out
             val typeBytes = ByteArray(4)
             buf.get(typeBytes)
             val type = String(typeBytes, Charsets.US_ASCII)
             val body = ByteArray(len)
             buf.get(body)
-            buf.int // crc 跳过
+            buf.int // skip crc
             when (type) {
                 "IHDR" -> ihdr = body
                 "acTL" -> numPlays = ByteBuffer.wrap(body).getInt(4)
                 "fcTL" -> {
                     val dn = ByteBuffer.wrap(body).getShort(20).toInt()
                     val dd = ByteBuffer.wrap(body).getShort(22).toInt()
-                    // 规范：delay_den=0 按 100 计
+                    // Spec: delay_den = 0 means 100; clamp to >= 10ms to avoid a zero-delay spin
                     pendingDelayMs = (dn * 1000L / (if (dd == 0) 100 else dd)).coerceAtLeast(10)
                     pendingFirstFrame = result.isEmpty()
                 }
                 "IDAT" -> {
-                    // fcTL 之后的 IDAT = 动画首帧（首帧参与动画的常见结构）
+                    // IDAT following a fcTL is the first animation frame (the common layout
+                    // where the default image is part of the animation)
                     if (pendingFirstFrame && ihdr != null) {
                         result.add(Frame(rebuildPng(ihdr!!, body), pendingDelayMs))
                         pendingFirstFrame = false
@@ -175,7 +181,7 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
                 }
                 "fdAT" -> {
                     if (ihdr != null && body.size >= 4) {
-                        // fdAT 数据前 4 字节为序号，其后为 IDAT 数据
+                        // fdAT payload: 4-byte sequence number followed by IDAT data
                         result.add(Frame(rebuildPng(ihdr!!, body.copyOfRange(4, body.size)), pendingDelayMs))
                     }
                 }

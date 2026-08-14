@@ -48,7 +48,8 @@ export class KRBlurView extends KuiklyRenderBaseView {
   }
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
-
+    // 将未处理的 method（如 accessibilityAnnounce / accessibilityFocus）交给基类默认实现。
+    super.call(method, params, callback);
   }
 
   createArkUIView(): ComponentContent<KuiklyRenderBaseView> {

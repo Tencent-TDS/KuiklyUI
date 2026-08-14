@@ -323,6 +323,13 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("BridgeCallStressTestPage")
         })
 
+        itemList.add(ExampleItemData().apply {
+            avatarText = "A11"
+            titleText = "Accessibility 全覆盖测试"
+            subtitleText = "覆盖 accessibility / role / info / announce / focus 五项无障碍能力（真机开启读屏后验证）"
+            declarativeExampleUrl = generateJumpUrl("AccessibilityTestPage")
+        })
+
         // 仅在微信小程序平台展示 WX 组件 / API 示例
         if (pageData.params.optString(IS_MINI_PROGRAM) == "1") {
             itemList.add(ExampleItemData().apply {

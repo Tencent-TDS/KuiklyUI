@@ -88,6 +88,27 @@ void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue
             auto manager = root->GetSnapshotManager();
             manager->TakeSnapshot(instance_id, method_name, nodeId, params, callback, weak_view);
         }
+        return;
+    }
+    // 无障碍主动播报 / 焦点跳转：cpp 侧没有等价 CAPI（provider 只支持 ARKUI_NODE_CUSTOM），
+    // 统一桥到 ArkTS 侧调用 @ohos.accessibility.sendAccessibilityEvent。
+    // CAPI 内置 view 走此基类实现；ArkTS 转发 view 由 KRForwardArkTSViewV2::CallMethod override 处理。
+    if (method == "accessibilityAnnounce" || method == "accessibilityFocus") {
+        // 为 focus 桥接留下 nodeId 锚点：把 kuikly 侧 nodeId 设到 CAPI node 的 NODE_ID 上，
+        // 供 ArkTS 侧 customId 匹配。设置失败（如 ArkTS 节点）也能被上层容错。
+        std::string nodeId = GetNodeId();
+        ArkUI_AttributeItem idItem = {nullptr, 0, nodeId.c_str(), nullptr};
+        kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_ID, &idItem);
+
+        // announce params 直接透传 kotlin 侧的 message；focus params 覆盖为 nodeId，
+        // 让 ArkTS 侧在 view 未注册（CAPI 组件）时也能拿到 customId 走全局兜底。
+        auto forwarded_params =
+            (method == "accessibilityFocus") ? KRRenderValue::Make(nodeId) : params;
+        KRArkTSManager::GetInstance().CallArkTSMethod(
+            GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
+            KRRenderValue::Make(GetViewTag()), KRRenderValue::Make(method),
+            forwarded_params, nullptr, nullptr, callback);
+        return;
     }
 }
 

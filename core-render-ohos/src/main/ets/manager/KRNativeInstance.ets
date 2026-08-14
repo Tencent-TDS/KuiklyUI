@@ -128,7 +128,19 @@ export class KRNativeInstance {
       let view = this.viewRegistry.get(tag);
       if (view) {
         view.toCall(method, params, callback);
+        return;
       }
+    }
+    // 兜底：CAPI 内置组件（如 kuikly 的 View / Image）在 ArkTS 侧没有 view 注册项，
+    // 但 accessibilityAnnounce / accessibilityFocus 与具体 view 实例无关，
+    // 直接走 KuiklyRenderBaseView 的静态实现完成播报 / 焦点跳转。
+    if (method === 'accessibilityAnnounce') {
+      const bundleName = KuiklyRenderBaseView.resolveBundleNameFrom(this.uiContext);
+      KuiklyRenderBaseView.postAccessibilityAnnounce(bundleName, (params as string) ?? '');
+    } else if (method === 'accessibilityFocus') {
+      const bundleName = KuiklyRenderBaseView.resolveBundleNameFrom(this.uiContext);
+      // cpp 侧对 CAPI 组件已将 params 覆盖为 nodeId，见 IKRRenderViewExport::CallMethod。
+      KuiklyRenderBaseView.postAccessibilityFocus(bundleName, (params as string) ?? '');
     }
   }
 

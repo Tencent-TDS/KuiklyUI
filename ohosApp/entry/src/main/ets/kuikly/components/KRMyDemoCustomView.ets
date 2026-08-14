@@ -32,7 +32,8 @@ export class KRMyDemoCustomView extends KuiklyRenderBaseView {
   slot: NodeContent | null = new NodeContent()
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
-    throw new Error('Method not implemented.');
+    // 未识别的 method 交给基类（含 accessibilityAnnounce / accessibilityFocus 支持）。
+    super.call(method, params, callback);
   }
 
   createArkUIView(): ComponentContent<KuiklyRenderBaseView> {
@@ -63,6 +64,7 @@ export class KRMyDemoCustomView extends KuiklyRenderBaseView {
         }
         return true
       default:
+        // 基类会处理 backgroundColor / backgroundImage / accessibility*，未识别返回 false。
         return super.setProp(propKey, propValue);
     }
   }
@@ -85,6 +87,8 @@ export struct KRMyDemoCustomViewComponent {
           .width('100%')
           .height('50%')
           .textAlign(TextAlign.Center).align(Alignment.End)
+          // 纯展示子节点让出焦点，避免抢占外层 accessibilityText。
+          .accessibilityLevel('no')
 
         Button("Tap Me").onClick(()=>{
           if(this.renderView.onMyViewTapped){
@@ -103,7 +107,16 @@ export struct KRMyDemoCustomViewComponent {
     .size({width:this.renderView.width, height: this.renderView.height})
     .alignSelf(ItemAlign.Start)
     .border({color: Color.Black, width: 2})
-    .id("KRMyDemoCustomView")
+    // 无障碍接入模板（业务方参考）：
+    // .id()：提供 customId 供 accessibilityFocus 定位（缺失会导致 focus 静默失效）
+    .id(this.renderView.getNodeId())
+    // .accessibilityText()：应用 kuikly `accessibility` 属性
+    .accessibilityText(this.renderView.cssAccessibilityText ?? '')
+    // .accessibilityGroup()：使用者调 accessibilityRole(非 NONE) 时，把组件聚合为一个焦点单元；
+    .accessibilityGroup(this.renderView.cssAccessibilityRole != null
+      && this.renderView.cssAccessibilityRole !== 'none')
+    // .accessibilityLevel()：role=none 时让外层退出无障碍树；其余用默认 'auto'
+    .accessibilityLevel(this.renderView.cssAccessibilityRole === 'none' ? 'no' : 'auto')
   }
 }
 

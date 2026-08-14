@@ -22,6 +22,8 @@
 #include "libohos_render/utils/KREventUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRViewUtil.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
+#include "libohos_render/view/IKRRenderView.h"
 
 const char *kBackgroundColor = "backgroundColor";
 const char *kFrame = "frame";
@@ -35,6 +37,8 @@ const char *kOverflow = "overflow";
 const char *kZIndex = "zIndex";
 const char *kTouchEnable = "touchEnable";
 const char *kAccessibility = "accessibility";
+const char *kAccessibilityRole = "accessibilityRole";
+const char *kAccessibilityInfo = "accessibilityInfo";
 const char *kBoxShadow = "boxShadow";
 const char *KAnimation = "animation";
 const char *kAnimationCompletion = "animationCompletion";
@@ -137,6 +141,22 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
 
     if (strcmp(prop_key.c_str(), kAccessibility) == 0) {  // 无障碍化
         kuikly::util::UpdateNodeAccessibility(node_, prop_value->toString());
+        return true;
+    }
+
+    if (strcmp(prop_key.c_str(), kAccessibilityRole) == 0) {  // 无障碍角色
+        kuikly::util::UpdateNodeAccessibilityRole(node_, prop_value->toString());
+        return true;
+    }
+
+    if (strcmp(prop_key.c_str(), kAccessibilityInfo) == 0) {  // 无障碍交互动作
+        NativeResourceManager *res_mgr = nullptr;
+        if (auto view = weakView_.lock()) {
+            if (auto root = view->GetRootView().lock()) {
+                res_mgr = root->GetNativeResourceManager();
+            }
+        }
+        kuikly::util::UpdateNodeAccessibilityActions(node_, prop_value->toString(), res_mgr);
         return true;
     }
 
@@ -249,6 +269,24 @@ bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
     if (strcmp(prop_key.c_str(), kAccessibility) == 0) {  // 无障碍化
         kuikly::util::UpdateNodeAccessibility(node_, "");
         kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_TEXT);
+        return true;
+    }
+
+    if (strcmp(prop_key.c_str(), kAccessibilityRole) == 0) {  // 无障碍角色
+        // 同时重置 ROLE、MODE、GROUP，涵盖 none 情形（MODE=DISABLED 需回默认）与
+        // 常规角色情形（SetProp 会写 GROUP=1，reset 时若不清 GROUP，聚合语义会残留）。
+        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_ROLE);
+        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_MODE);
+        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_GROUP);
+        return true;
+    }
+
+    if (strcmp(prop_key.c_str(), kAccessibilityInfo) == 0) {  // 无障碍交互动作
+        // 同时重置 ACTIONS 与 DESCRIPTION：SetProp 路径在 actions != 0 时会写入
+        // NODE_ACCESSIBILITY_DESCRIPTION（"双击激活/双击并长按"提示文案），reset
+        // 时若只清 ACTIONS，DESCRIPTION 会残留被朗读。
+        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_ACTIONS);
+        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_ACCESSIBILITY_DESCRIPTION);
         return true;
     }
 

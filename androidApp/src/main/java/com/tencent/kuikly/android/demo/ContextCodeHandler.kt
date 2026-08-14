@@ -165,6 +165,10 @@ open class ContextCodeHandler(
             renderViewExport(MyModalView.VIEW_NAME, {
                 MyModalView(it)
             })
+            // Demo 自定义 View，对齐鸿蒙 KRMyDemoCustomView.ets（供 AccessibilityTestPage / CustomViewExamplePage 使用）
+            renderViewExport(KRMyDemoCustomView.VIEW_NAME, {
+                KRMyDemoCustomView(it)
+            })
         }
     }
 

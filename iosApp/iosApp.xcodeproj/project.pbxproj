@@ -16,6 +16,7 @@
 		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
+		AC11B4462E1E726900B6B1D9 /* KRMyDemoCustomView.m in Sources */ = {isa = PBXBuildFile; fileRef = AC11B4452E1E709000B6B1D9 /* KRMyDemoCustomView.m */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
 		FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
@@ -47,6 +48,8 @@
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7555FF8C242A565B00829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AC11B4442E1E708100B6B1D9 /* KRMyDemoCustomView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRMyDemoCustomView.h; sourceTree = "<group>"; };
+		AC11B4452E1E709000B6B1D9 /* KRMyDemoCustomView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRMyDemoCustomView.m; sourceTree = "<group>"; };
 		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
 		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
 		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
@@ -118,6 +121,8 @@
 			children = (
 				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
 				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
+				AC11B4442E1E708100B6B1D9 /* KRMyDemoCustomView.h */,
+				AC11B4452E1E709000B6B1D9 /* KRMyDemoCustomView.m */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -323,8 +328,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks.sh\"\n";
@@ -364,8 +367,6 @@
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
-			outputPaths = (
-			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources.sh\"\n";
@@ -384,6 +385,7 @@
 				FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */,
 				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,
 				7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */,
+				AC11B4462E1E726900B6B1D9 /* KRMyDemoCustomView.m in Sources */,
 				FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
 				FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */,

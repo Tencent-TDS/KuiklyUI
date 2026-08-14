@@ -3,6 +3,14 @@
     {
       "name": "page_show",
       "value": "page from package"
+    },
+    {
+      "name": "kuikly_a11y_hint_clickable",
+      "value": "单指双击即可执行"
+    },
+    {
+      "name": "kuikly_a11y_hint_long_clickable",
+      "value": "双击并按住即可弹出更多选项"
     }
   ]
 }

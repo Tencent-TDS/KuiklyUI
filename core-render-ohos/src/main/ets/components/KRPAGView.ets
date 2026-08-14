@@ -136,6 +136,9 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
           this.controller?.setProgress(value);
         }
       }
+    } else {
+      // 将未处理的 method（如 accessibilityAnnounce / accessibilityFocus）交给基类默认实现。
+      super.call(method, params, callback);
     }
   }
 

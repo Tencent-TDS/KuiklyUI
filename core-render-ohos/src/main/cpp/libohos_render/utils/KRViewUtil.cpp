@@ -18,6 +18,8 @@
 #include <arkui/drawable_descriptor.h>
 #include <deviceinfo.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
+#include <rawfile/raw_file_manager.h>
+#include <resourcemanager/ohresmgr.h>
 
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/utils/KRThreadChecker.h"
@@ -507,6 +509,130 @@ void UpdateNodeAccessibility(ArkUI_NodeHandle node, const std::string &accessibi
     auto nodeAPI = GetNodeApi();
     ArkUI_AttributeItem textItem = {.string = accessibility.c_str()};
     nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_TEXT, &textItem);
+}
+
+void UpdateNodeAccessibilityRole(ArkUI_NodeHandle node, const std::string &roleStr) {
+    auto nodeAPI = GetNodeApi();
+    // NONE：走 NODE_ACCESSIBILITY_MODE 通道剔除出无障碍树，等价 Android IMPORTANT_FOR_ACCESSIBILITY_NO。
+    if (roleStr == "none") {
+        ArkUI_NumberValue val[] = {{.i32 = ARKUI_ACCESSIBILITY_MODE_DISABLED}};
+        ArkUI_AttributeItem item = {val, 1};
+        nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_MODE, &item);
+        // 同时清掉可能残留的 role 与 group，避免叠加。
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_ROLE);
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_GROUP);
+        return;
+    }
+    // 常规角色映射：NODE_ACCESSIBILITY_ROLE 的 value 类型是 ArkUI_NodeType。
+    // SEARCH → TEXT_INPUT 是降级映射（ArkUI_NodeType 无 SEARCH 值），与 Android EditText 语义对齐。
+    uint32_t nodeType = 0;
+    bool hit = true;
+    if (roleStr == "button") {
+        nodeType = static_cast<uint32_t>(ARKUI_NODE_BUTTON);
+    } else if (roleStr == "text") {
+        nodeType = static_cast<uint32_t>(ARKUI_NODE_TEXT);
+    } else if (roleStr == "image") {
+        nodeType = static_cast<uint32_t>(ARKUI_NODE_IMAGE);
+    } else if (roleStr == "checkbox") {
+        nodeType = static_cast<uint32_t>(ARKUI_NODE_CHECKBOX);
+    } else if (roleStr == "search") {
+        nodeType = static_cast<uint32_t>(ARKUI_NODE_TEXT_INPUT);
+    } else {
+        hit = false;
+    }
+    if (!hit) {
+        // 未知 role 一律重置为默认。
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_ROLE);
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_MODE);
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_GROUP);
+        return;
+    }
+    // 切换到常规 role 时，把 MODE 恢复默认，避免上一次 none 的 DISABLED 残留。
+    nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_MODE);
+    ArkUI_NumberValue val[] = {{.u32 = nodeType}};
+    ArkUI_AttributeItem item = {val, 1};
+    nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_ROLE, &item);
+    // 设了具体 role 即代表"整个节点是一个语义单元"，把子节点吞进来一起聚焦。
+    // 与 ArkTS 转发组件在 build() 里应用 `.accessibilityGroup(cssAccessibilityRole != null && !== 'none')`
+    // 的行为对齐；三端语义上等价 Android `setClassName(Button.class.getName())`（子节点默认不再单独播报）、
+    // iOS `.button` trait + `isAccessibilityElement = YES`（聚焦到本节点，子节点被吞）。
+    ArkUI_NumberValue groupVal[] = {{.i32 = 1}};
+    ArkUI_AttributeItem groupItem = {groupVal, 1};
+    nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_GROUP, &groupItem);
+}
+
+// 从资源管理器读取无障碍提示字符串。进程级缓存：不同 res_mgr 指针共享同一 locale，
+// 系统资源在 App 生命周期内基本不变；首次读取后即可复用。
+// 注意 OH_ResourceManager_GetStringByName 返回的 char* 需要调用者 free()，读一次即释放。
+static const std::string &FetchAccessibilityHint(NativeResourceManager *res_mgr, const char *res_name) {
+    static std::string s_hint_clickable;
+    static std::string s_hint_long_clickable;
+    static bool s_loaded = false;
+    if (!s_loaded && res_mgr != nullptr) {
+        auto readOne = [res_mgr](const char *name, std::string &out) {
+            char *value = nullptr;
+            auto err = OH_ResourceManager_GetStringByName(res_mgr, name, &value);
+            if (err == 0 && value != nullptr) {
+                out = value;
+                free(value);
+            }
+        };
+        readOne("kuikly_a11y_hint_clickable", s_hint_clickable);
+        readOne("kuikly_a11y_hint_long_clickable", s_hint_long_clickable);
+        s_loaded = true;
+    }
+    if (strcmp(res_name, "kuikly_a11y_hint_clickable") == 0) {
+        return s_hint_clickable;
+    }
+    return s_hint_long_clickable;
+}
+
+void UpdateNodeAccessibilityActions(ArkUI_NodeHandle node, const std::string &infoStr,
+                                    NativeResourceManager *res_mgr) {
+    auto nodeAPI = GetNodeApi();
+    // kotlin 侧序列化格式："<clickable> <longClickable>"，如 "1 0"。
+    // 用位置解析（Android / iOS 同格式）以保持跨端一致，见 core Attr.kt。
+    bool clickable = (infoStr.size() >= 1 && infoStr[0] == '1');
+    bool longClickable = (infoStr.size() >= 3 && infoStr[2] == '1');
+
+    uint32_t actions = 0;
+    if (clickable) {
+        actions |= static_cast<uint32_t>(ARKUI_ACCESSIBILITY_ACTION_CLICK);
+    }
+    if (longClickable) {
+        actions |= static_cast<uint32_t>(ARKUI_ACCESSIBILITY_ACTION_LONG_CLICK);
+    }
+    if (actions == 0) {
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_ACTIONS);
+        nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_DESCRIPTION);
+        return;
+    }
+    // 1) 声明可交互动作
+    ArkUI_NumberValue actionsVal[] = {{.u32 = actions}};
+    ArkUI_AttributeItem actionsItem = {actionsVal, 1};
+    nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_ACTIONS, &actionsItem);
+
+    // 2) 拼接 description（朗读器聚焦时会在 accessibilityText 之后读出，
+    //    对齐 iOS accessibilityHint 行为）。文案按当前 locale 从 core-render-ohos 资源读取。
+    if (res_mgr != nullptr) {
+        std::string hint;
+        if (clickable) {
+            hint = FetchAccessibilityHint(res_mgr, "kuikly_a11y_hint_clickable");
+        }
+        if (longClickable) {
+            const std::string &longHint = FetchAccessibilityHint(res_mgr, "kuikly_a11y_hint_long_clickable");
+            if (!hint.empty() && !longHint.empty()) {
+                hint += "，";
+            }
+            hint += longHint;
+        }
+        if (!hint.empty()) {
+            ArkUI_AttributeItem descItem = {nullptr, 0, hint.c_str(), nullptr};
+            nodeAPI->setAttribute(node, NODE_ACCESSIBILITY_DESCRIPTION, &descItem);
+        } else {
+            nodeAPI->resetAttribute(node, NODE_ACCESSIBILITY_DESCRIPTION);
+        }
+    }
 }
 
 void UpdateNodeBorder(ArkUI_NodeHandle node, std::string borderStr) {

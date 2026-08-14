@@ -43,6 +43,9 @@
 #include "libohos_render/utils/animate/KRAnimateOption.h"
 #include "libohos_render/utils/animate/KRAnimationUtils.h"
 
+// forward-declare 以避免直接依赖 rawfile/raw_file_manager.h（该头文件在此仅需类型指针）。
+struct NativeResourceManager;
+
 #define KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK 1
 
 // OH_Drawing_Lattice：native drawing 层的九宫格分割线对象，仅在
@@ -132,6 +135,37 @@ void UpdateNodeHitTest(ArkUI_NodeHandle node, bool touchEnable);
 void UpdateNodeHitTestMode(ArkUI_NodeHandle node, ArkUI_HitTestMode mode);
 
 void UpdateNodeAccessibility(ArkUI_NodeHandle node, const std::string &accessibility);
+
+/**
+ * 设置无障碍角色。
+ *
+ * kotlin `AccessibilityRole` 枚举 → HarmonyOS 映射：
+ *   button   → NODE_ACCESSIBILITY_ROLE = ARKUI_NODE_BUTTON
+ *   text     → NODE_ACCESSIBILITY_ROLE = ARKUI_NODE_TEXT
+ *   image    → NODE_ACCESSIBILITY_ROLE = ARKUI_NODE_IMAGE
+ *   checkbox → NODE_ACCESSIBILITY_ROLE = ARKUI_NODE_CHECKBOX
+ *   search   → NODE_ACCESSIBILITY_ROLE = ARKUI_NODE_TEXT_INPUT（降级，与 Android EditText 语义对齐）
+ *   none     → NODE_ACCESSIBILITY_MODE = ARKUI_ACCESSIBILITY_MODE_DISABLED（不设 role，改设 mode）
+ *
+ * 注意：ArkUI_NodeType 枚举无 SEARCH/NONE 值，故 search 降级到 TEXT_INPUT，none 走 mode 通道。
+ * 对 ArkTS 侧创建的 node 调用 setAttribute 会返回 106103（ARKUI_ERROR_CODE_ARKTS_NODE_NOT_SUPPORTED），
+ * ArkTS 转发组件不走此路径，由 ets 层 KuiklyRenderBaseView 处理。
+ */
+void UpdateNodeAccessibilityRole(ArkUI_NodeHandle node, const std::string &roleStr);
+
+/**
+ * 设置无障碍可交互动作。
+ *
+ * kotlin `Attr.accessibilityInfo(clickable, longClickable)` 序列化为 "0/1 0/1" 位串，
+ * 解析为 ArkUI_AccessibilityActionType 位或（ACTION_CLICK | ACTION_LONG_CLICK），
+ * 写入 NODE_ACCESSIBILITY_ACTIONS。同时按当前 locale 从 core-render-ohos 的
+ * string 资源读取"双击激活/双击并长按"提示文案，拼接写入 NODE_ACCESSIBILITY_DESCRIPTION，
+ * 与 iOS 的 accessibilityHint 行为对齐。
+ *
+ * @param res_mgr rootView 提供的 NativeResourceManager；为空时跳过 DESCRIPTION 写入。
+ */
+void UpdateNodeAccessibilityActions(ArkUI_NodeHandle node, const std::string &infoStr,
+                                    NativeResourceManager *res_mgr);
 
 void UpdateNodeBorder(ArkUI_NodeHandle node, std::string borderStr);
 

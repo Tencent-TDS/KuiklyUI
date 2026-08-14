@@ -3,6 +3,14 @@
     {
       "name": "page_show",
       "value": "page from package"
+    },
+    {
+      "name": "kuikly_a11y_hint_clickable",
+      "value": "Double-tap to activate"
+    },
+    {
+      "name": "kuikly_a11y_hint_long_clickable",
+      "value": "Double-tap and hold to bring up more options"
     }
   ]
 }

@@ -747,7 +747,103 @@ internal class OverflowPage : BasePager() {
 
 ### accessibility方法
 
-无障碍化属性, 当应用处于TalkBack模式时, 元素获取焦点后, 元素会语音读出该值
+无障碍化属性, 当应用处于 TalkBack / VoiceOver / 屏幕朗读 模式时, 元素获取焦点后, 元素会语音读出该值。
+
+<div class="table-01">
+
+| 参数 | 描述 | 类型 |
+|:---|:---|:---|
+| text | 朗读文本内容 | String |
+
+</div>
+
+**跨端映射：**
+
+| 端 | 底层 API |
+|:---|:---|
+| Android | `View.contentDescription` |
+| iOS | `UIView.accessibilityLabel` |
+| HarmonyOS | ArkUI `.accessibilityText(...)` / CAPI `NODE_ACCESSIBILITY_TEXT` |
+
+> HarmonyOS 端接入自定义 ArkTS 组件时，业务方需在自己的 `@Component` 里应用 `.accessibilityText(this.renderView.cssAccessibilityText ?? '')`。详见 [鸿蒙自定义组件无障碍接入指南](../../DevGuide/ohos-custom-accessibility.md)。
+
+### accessibilityRole方法
+
+声明组件的无障碍角色（button / text / image / checkbox / search / none）。屏幕朗读器聚焦到该组件时会同时播报角色（如"按钮"）。
+
+<div class="table-01">
+
+| 参数 | 描述 | 类型 |
+|:---|:---|:---|
+| role | 无障碍角色，取值见下 | AccessibilityRole |
+
+</div>
+
+**AccessibilityRole 枚举与三端映射：**
+
+| kotlin role | Android | iOS | HarmonyOS |
+|:---|:---|:---|:---|
+| `BUTTON` | `Button::class.java.name` | `.button` trait | `ARKUI_NODE_BUTTON` |
+| `TEXT` | `TextView::class.java.name` | `.staticText` trait | `ARKUI_NODE_TEXT` |
+| `IMAGE` | `ImageView::class.java.name` | `.image` trait | `ARKUI_NODE_IMAGE` |
+| `CHECKBOX` | `CheckBox::class.java.name` | `.button` + `.selected` | `ARKUI_NODE_CHECKBOX` |
+| `SEARCH` | `EditText::class.java.name` | `.searchField` trait | `ARKUI_NODE_TEXT_INPUT`（降级）|
+| `NONE` | `IMPORTANT_FOR_ACCESSIBILITY_NO` | `.accessibilityElement = false` | `ARKUI_ACCESSIBILITY_MODE_DISABLED` |
+
+> **鸿蒙 ArkTS 转发组件限制**：ArkTS 转发组件不支持此属性，无法读出具体角色词（"按钮"/"复选框"等），可在 kotlin 侧把角色词直接嵌入 `accessibility` 文案（如 `accessibility("提交按钮")`）作为语义补偿。详见 [鸿蒙自定义 ArkTS 组件无障碍接入指南](../../DevGuide/ohos-custom-accessibility.md)。
+>
+> **`NONE` 的作用范围（三端一致）**：`NONE` 仅将本节点从无障碍树中剔除，**不会递归到子节点**——子节点仍会独立参与朗读焦点判定。若需要让"整棵子树"都不被朗读，需对可能被聚焦的子节点也显式设置 `accessibilityRole(NONE)`。
+
+### accessibilityInfo方法
+
+声明组件的无障碍可交互动作。屏幕朗读器聚焦后会播报对应操作提示（如"双击激活"）。
+
+<div class="table-01">
+
+| 参数 | 描述 | 类型 |
+|:---|:---|:---|
+| clickable | 是否可点击 | Boolean |
+| longClickable | 是否可长按 | Boolean |
+
+</div>
+
+**跨端映射：**
+
+| 端 | 底层 API |
+|:---|:---|
+| Android | `AccessibilityNodeInfo.isClickable / isLongClickable` |
+| iOS | `UIAccessibilityTraits.button` 组合 |
+| HarmonyOS | `NODE_ACCESSIBILITY_ACTIONS` = `ARKUI_ACCESSIBILITY_ACTION_CLICK \| ARKUI_ACCESSIBILITY_ACTION_LONG_CLICK` |
+
+### accessibilityAnnounce方法
+
+`DeclarativeBaseView` 上的实例方法，触发屏幕朗读器主动播报指定文本，无论目标 view 是否处于焦点。适合"提交成功""加载完成"这种即时反馈。
+
+**签名：** `fun accessibilityAnnounce(message: String)`
+
+**跨端映射：**
+
+| 端 | 底层 API |
+|:---|:---|
+| Android | `View.announceForAccessibility(message)` |
+| iOS | `UIAccessibility.post(notification: .announcement, argument: message)` |
+| HarmonyOS | `@ohos.accessibility.sendAccessibilityEvent({ type: 'announceForAccessibility', textAnnouncedForAccessibility: message, ... })` |
+
+### accessibilityFocus方法
+
+`DeclarativeBaseView` 上的实例方法，请求将屏幕朗读器的焦点跳转到调用该方法的 view 上。适合"提交出错，跳到错误字段"这种场景。
+
+**签名：** `fun accessibilityFocus()`
+
+**跨端映射：**
+
+| 端 | 底层 API |
+|:---|:---|
+| Android | `sendAccessibilityEvent(TYPE_VIEW_ACCESSIBILITY_FOCUSED)` |
+| iOS | `UIAccessibility.post(notification: .screenChanged, argument: view)` |
+| HarmonyOS | `@ohos.accessibility.sendAccessibilityEvent({ type: 'requestFocusForAccessibility', customId: nodeId, ... })` |
+
+> **鸿蒙注意**：业务方 ArkTS 自定义组件必须在最外层容器应用 `.id(this.renderView.getNodeId())`，`customId` 才能命中目标节点。详见 [鸿蒙自定义组件无障碍接入指南](../../DevGuide/ohos-custom-accessibility.md)。
 
 ### debugName方法
 

@@ -25,7 +25,8 @@ export class KRMyView extends KuiklyRenderBaseView {
   cssMessage: string | null = null;
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
-    throw new Error('Method not implemented.');
+    // 未识别的 method 交给基类（含无障碍 announce/focus 支持）。
+    super.call(method, params, callback);
   }
 
   createArkUIView(): ComponentContent<KuiklyRenderBaseView> {

@@ -19,9 +19,16 @@ import { KRNativeManager } from '../../manager/KRNativeManager';
 import { KRNativeInstance } from '../../manager/KRNativeInstance';
 import { KRColorParser } from '../../utils/KRColorParser';
 import { KRRenderLog } from '../../adapter/KRRenderLog';
+import accessibility from '@ohos.accessibility';
+import { common } from '@kit.AbilityKit';
 
 export const kCssBackgroundColor = 'backgroundColor'
 export const kCssBackgroundImage = 'backgroundImage'
+export const kCssAccessibilityText = 'accessibility'
+export const kCssAccessibilityRole = 'accessibilityRole'
+export const kCssAccessibilityInfo = 'accessibilityInfo'
+const kMethodAccessibilityAnnounce = 'accessibilityAnnounce'
+const kMethodAccessibilityFocus = 'accessibilityFocus'
 
 export interface IKuiklyRenderViewExport {
   init(instanceId: string, viewTag: number, viewType: string): void;
@@ -45,6 +52,11 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
   private viewHeight: number = 0;
   cssBackgroundColor: ResourceColor | null = null;
   cssLinearGradient: LinearGradient | null = null;
+  // 无障碍字段：由 setProp 写入，由业务方 @Component 在 build() 里读取后应用到 ArkTS 修饰器。
+  // 参考：docs/DevGuide/ohos-custom-accessibility.md。
+  cssAccessibilityText: string | null = null;
+  cssAccessibilityRole: string | null = null;
+  cssAccessibilityInfo: string | null = null;
   nodeId: string = '';
 
   getViewWidth(): number {
@@ -106,6 +118,15 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
     } else if (propKey == kCssBackgroundImage) {
       this.setBackgroundImage(propValue as string);
       return true;
+    } else if (propKey == kCssAccessibilityText) {
+      this.cssAccessibilityText = (propValue as string) ?? null;
+      return true;
+    } else if (propKey == kCssAccessibilityRole) {
+      this.cssAccessibilityRole = (propValue as string) ?? null;
+      return true;
+    } else if (propKey == kCssAccessibilityInfo) {
+      this.cssAccessibilityInfo = (propValue as string) ?? null;
+      return true;
     }
 
     return false;
@@ -158,10 +179,106 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
   /**
    * 调用当前View(Node)的实例方法
    * @param method 方法名字
-   * @param params 方法参数 (透传kotlin侧数据, 类型可为string, Array, Int8Array, number)
+   * @param params 方法参数 (透传kotlin侧数据，类型可为string, Array, Int8Array, number)
    * @param callback 闭包回调
+   *
+   * 基类默认实现拦截 `accessibilityAnnounce` / `accessibilityFocus` 两个方法（通过
+   * `@ohos.accessibility.sendAccessibilityEvent` 触发无障碍事件）。子类 override 时，
+   * 对未处理的 method 应调用 `super.call(method, params, callback)` 以避免丢失基础能力。
    */
-  abstract call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void
+  call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
+    if (method === kMethodAccessibilityAnnounce) {
+      this.sendAccessibilityAnnounce((params as string) ?? '');
+      return;
+    }
+    if (method === kMethodAccessibilityFocus) {
+      this.sendAccessibilityFocus();
+      return;
+    }
+  }
+
+  // 取 bundleName：优先从 UIContext.getHostContext() 拿，失败回退到 KRNativeInstance 的 ability context。
+  // 空串会导致 accessibility.sendAccessibilityEvent 抛 401，由 spike 验证。
+  private resolveBundleName(): string {
+    const ctx = (this.getUIContext()?.getHostContext() as common.Context | undefined);
+    const bn = ctx?.applicationInfo?.name;
+    if (bn && bn.length > 0) {
+      return bn;
+    }
+    return '';
+  }
+
+  private sendAccessibilityAnnounce(message: string): void {
+    KuiklyRenderBaseView.postAccessibilityAnnounce(this.resolveBundleName(), message);
+  }
+
+  private sendAccessibilityFocus(): void {
+    KuiklyRenderBaseView.postAccessibilityFocus(this.resolveBundleName(), this.nodeId);
+  }
+
+  /**
+   * 触发一次无障碍主动播报（announceForAccessibility）。
+   *
+   * 与具体 view 实例无关：CAPI 内置组件在 ArkTS 侧没有 view 注册项，可通过 KRNativeInstance
+   * 的全局兜底直接调用本静态方法完成播报。
+   *
+   * @param bundleName 应用包名（accessibility.EventInfo 必填字段，空串会触发 401）
+   * @param message    需要朗读的文本
+   */
+  public static postAccessibilityAnnounce(bundleName: string, message: string): void {
+    if (!bundleName) {
+      KRRenderLog.e('KuiklyRenderBaseView',
+        `accessibilityAnnounce skipped: bundleName is empty, message=${message}`);
+      return;
+    }
+    try {
+      const ev = new accessibility.EventInfo('announceForAccessibility', bundleName, 'common');
+      ev.textAnnouncedForAccessibility = message;
+      accessibility.sendAccessibilityEvent(ev).catch((err: Error) => {
+        KRRenderLog.e('KuiklyRenderBaseView',
+          `accessibilityAnnounce failed: ${JSON.stringify(err)}`);
+      });
+    } catch (e) {
+      KRRenderLog.e('KuiklyRenderBaseView',
+        `accessibilityAnnounce throw: ${JSON.stringify(e)}`);
+    }
+  }
+
+  /**
+   * 触发一次无障碍焦点跳转（requestFocusForAccessibility）。
+   *
+   * @param bundleName 应用包名
+   * @param customId   目标节点的 customId（对应 ArkTS 组件 .id() 或 CAPI 侧 NODE_ID）
+   */
+  public static postAccessibilityFocus(bundleName: string, customId: string): void {
+    if (!bundleName) {
+      KRRenderLog.e('KuiklyRenderBaseView',
+        `accessibilityFocus skipped: bundleName is empty, customId=${customId}`);
+      return;
+    }
+    try {
+      const ev = new accessibility.EventInfo('requestFocusForAccessibility', bundleName, 'common');
+      // customId 需业务方 @Component 最外层绑定 `.id(this.renderView.getNodeId())` 才能命中；
+      // CAPI 组件由 cpp 侧写入 NODE_ID，同样按此值匹配。
+      ev.customId = customId;
+      accessibility.sendAccessibilityEvent(ev).catch((err: Error) => {
+        KRRenderLog.e('KuiklyRenderBaseView',
+          `accessibilityFocus failed: ${JSON.stringify(err)}`);
+      });
+    } catch (e) {
+      KRRenderLog.e('KuiklyRenderBaseView',
+        `accessibilityFocus throw: ${JSON.stringify(e)}`);
+    }
+  }
+
+  /**
+   * 从任意 UIContext 解析 bundleName（供 KRNativeInstance 兜底调用时使用）。
+   */
+  public static resolveBundleNameFrom(uiContext: UIContext | null): string {
+    const ctx = (uiContext?.getHostContext() as common.Context | undefined);
+    const bn = ctx?.applicationInfo?.name;
+    return (bn && bn.length > 0) ? bn : '';
+  }
 
   /**
    * 创建该节点对应的ArkUI

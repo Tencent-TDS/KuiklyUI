@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.structuralEqualityPolicy
 import com.tencent.kuikly.compose.foundation.gestures.snapping.SnapPosition
@@ -73,6 +74,7 @@ import kotlin.math.sign
 import kotlin.ranges.IntRange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
@@ -418,7 +420,19 @@ abstract class PagerState internal constructor(
     }
 
     /** Native setContentOffset(animated=true) snap is in progress. */
-    internal var isSnapAnimating = false
+    internal var isSnapAnimating by mutableStateOf(false)
+
+    /**
+     * Versions native snap/alignment work so an alignment callback from an interrupted snap
+     * cannot settle or clear the state of the newer scroll session.
+     */
+    private var snapSessionId = 0
+
+    private var nativeDragSessionActive = false
+
+    private var pagerScrollInProgressState by mutableStateOf(false)
+
+    private var programmaticScrollMutations = 0
 
     /** Native content offset that the snap animation is settling to. */
     internal var snapTargetContentOffset = 0
@@ -462,6 +476,8 @@ abstract class PagerState internal constructor(
         targetKey: Any? = null,
         desyncPages: Int = 0
     ) {
+        snapSessionId++
+        pagerScrollInProgressState = true
         isSnapAnimating = true
         snapTargetContentOffset = targetContentOffset
         snapStartPageCount = pageCount
@@ -479,6 +495,10 @@ abstract class PagerState internal constructor(
                 "composeOffset=${currentAbsoluteScrollOffset().toInt()} currentPage=$currentPage " +
                 "targetPage=$targetPage targetKey=$targetKey pageCount=$pageCount " +
                 "desyncPages=$desyncPages anchorCorrection=${kuiklyInfo.snapAnchorOffsetCorrection}"
+        }
+        if (hasSnapReachedTarget(kuiklyInfo.contentOffset)) {
+            snapTargetReachedAlignmentRequested = true
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS)
         }
     }
 
@@ -514,6 +534,7 @@ abstract class PagerState internal constructor(
 
     /** Clears drag/animated snap tracking. Call before instant programmatic scroll. */
     internal fun clearSnapAnimationState() {
+        snapSessionId++
         if (isSnapAnimating) {
             pagerSnapDebugLog {
                 "clearSnapState: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
@@ -524,6 +545,9 @@ abstract class PagerState internal constructor(
             }
         }
         isSnapAnimating = false
+        if (programmaticScrollMutations == 0 && !nativeDragSessionActive) {
+            pagerScrollInProgressState = false
+        }
         snapTargetContentOffset = 0
         snapStartPageCount = 0
         snapTargetItemKey = null
@@ -540,6 +564,7 @@ abstract class PagerState internal constructor(
         delayMs: Long,
         layoutSize: Int = currentLayoutMainAxisSize()
     ) {
+        val scheduledSnapSessionId = snapSessionId
         val scheduledOrientation = layoutInfo.orientation
         val scheduledPageSizeWithSpacing = pageSizeWithSpacing
         val scheduledContentOffset = kuiklyInfo.contentOffset
@@ -566,7 +591,8 @@ abstract class PagerState internal constructor(
                     scheduledContentOffset,
                     scheduledComposeOffset,
                     scheduledLayoutGeneration,
-                    scheduledPageCount
+                    scheduledPageCount,
+                    scheduledSnapSessionId
                 )
             }
         }
@@ -626,8 +652,12 @@ abstract class PagerState internal constructor(
         scheduledContentOffset: Int,
         scheduledComposeOffset: Int,
         scheduledLayoutGeneration: Int,
-        scheduledPageCount: Int
+        scheduledPageCount: Int,
+        scheduledSnapSessionId: Int
     ) {
+        if (scheduledSnapSessionId != snapSessionId) {
+            return
+        }
         val contentOffsetInt = scrollableState.kuiklyInfo.contentOffset
 
         if (scheduledLayoutGeneration != alignmentLayoutGeneration) {
@@ -963,7 +993,11 @@ abstract class PagerState internal constructor(
                 "pageCount=$pageCount snapTargetPage=$snapTargetRelocatedPage " +
                 "snapTargetKey=$snapTargetItemKey snapStartDesyncPages=$snapStartDesyncPages"
         }
+        snapSessionId++
         isSnapAnimating = false
+        if (programmaticScrollMutations == 0 && !nativeDragSessionActive) {
+            pagerScrollInProgressState = false
+        }
         snapTargetContentOffset = 0
         snapStartPageCount = 0
         snapTargetItemKey = null
@@ -983,6 +1017,14 @@ abstract class PagerState internal constructor(
         if (!isSnapAnimating || hasSnapReachedTarget(contentOffset)) {
             snapStallAlignmentRetryRequested = false
             return false
+        }
+
+        val isOutsideScrollBounds =
+            contentOffset < minScrollOffset.toInt() || contentOffset > maxScrollOffset.toInt()
+        if (isOutsideScrollBounds) {
+            snapStallAlignmentRetryRequested = false
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+            return true
         }
 
         if (contentOffset != scheduledContentOffset) {
@@ -1093,6 +1135,50 @@ abstract class PagerState internal constructor(
     private var programmaticScrollTargetPage by mutableIntStateOf(-1)
 
     private var settledPageState by mutableIntStateOf(currentPage)
+
+    private var scrollToPageRequestId by mutableIntStateOf(0)
+
+    /**
+     * Native scroll / snap bypasses [scroll], so capture settled page the same way AndroidX does
+     * at the start of a scroll session.
+     */
+    internal fun captureSettledPageIfIdle() {
+        if (!isScrollInProgress) {
+            settledPageState = currentPage
+        }
+    }
+
+    /**
+     * Starts or continues a native scroll session. A user drag supersedes an unfinished native
+     * snap, while keeping the logical session active until the new drag reaches its final target.
+     */
+    internal fun onNativeScroll() {
+        if (!kuiklyInfo.isDragging && !isSnapAnimating && !pagerScrollInProgressState) {
+            return
+        }
+        captureSettledPageIfIdle()
+        if (kuiklyInfo.isDragging && !nativeDragSessionActive) {
+            nativeDragSessionActive = true
+            if (isSnapAnimating) {
+                clearSnapAnimationState()
+            }
+        }
+        pagerScrollInProgressState = true
+    }
+
+    internal fun onNativeScrollEnd() {
+        if (kuiklyInfo.scrollView?.isDragging == true || programmaticScrollMutations != 0) {
+            return
+        }
+        nativeDragSessionActive = false
+        if (!isSnapAnimating) {
+            pagerScrollInProgressState = false
+        }
+    }
+
+    internal fun onNativeDragEnd() {
+        nativeDragSessionActive = false
+    }
 
     /**
      * The page that is currently "settled". This is an animation/gesture unaware page in the sense
@@ -1208,15 +1294,26 @@ abstract class PagerState internal constructor(
     suspend fun scrollToPage(
         page: Int,
         @FloatRange(from = -0.5, to = 0.5) pageOffsetFraction: Float = 0f
-    ) = scroll {
-        clearSnapAnimationState()
-        debugLog { "Scroll from page=$currentPage to page=$page" }
-        awaitScrollDependencies()
+    ) {
         require(pageOffsetFraction in -0.5..0.5) {
             "pageOffsetFraction $pageOffsetFraction is not within the range -0.5 to 0.5"
         }
-        val targetPage = page.coerceInPageRange()
-        snapToItem(targetPage, pageOffsetFraction, forceRemeasure = true)
+        val requestId = ++scrollToPageRequestId
+        awaitScrollDependencies()
+        if (isScrollInProgress) {
+            snapshotFlow {
+                !isScrollInProgress || requestId != scrollToPageRequestId
+            }.first { it }
+        }
+        if (requestId != scrollToPageRequestId) {
+            return
+        }
+        scroll {
+            clearSnapAnimationState()
+            debugLog { "Scroll from page=$currentPage to page=$page" }
+            val targetPage = page.coerceInPageRange()
+            snapToItem(targetPage, pageOffsetFraction, forceRemeasure = true)
+        }
     }
 
 //    /**
@@ -1280,14 +1377,18 @@ abstract class PagerState internal constructor(
         @AndroidXIntRange(from = 0) page: Int,
         @FloatRange(from = -0.5, to = 0.5) pageOffsetFraction: Float = 0.0f
     ) {
+        scrollToPageRequestId++
         clearSnapAnimationState()
         // Cancel any scroll in progress.
-        if (isScrollInProgress) {
+        if (programmaticScrollMutations != 0) {
             pagerLayoutInfoState.value.coroutineScope.launch {
                 stopScroll()
             }
         }
         snapToItem(page.coerceInPageRange(), pageOffsetFraction, forceRemeasure = false)
+        if (programmaticScrollMutations == 0 && !nativeDragSessionActive) {
+            pagerScrollInProgressState = false
+        }
     }
 
     /**
@@ -1312,10 +1413,13 @@ abstract class PagerState internal constructor(
         if (page == currentPage && currentPageOffsetFraction == pageOffsetFraction ||
             pageCount == 0
         ) return
-        awaitScrollDependencies()
         require(pageOffsetFraction in -0.5..0.5) {
             "pageOffsetFraction $pageOffsetFraction is not within the range -0.5 to 0.5"
         }
+        scrollToPageRequestId++
+        awaitScrollDependencies()
+        // Native setContentOffset snap does not go through [scroll]; capture settled page here.
+        captureSettledPageIfIdle()
         val targetPage = page.coerceInPageRange()
         val targetPageOffsetToSnappedPosition =
             (pageOffsetFraction * pageSizeWithSpacing)
@@ -1338,7 +1442,15 @@ abstract class PagerState internal constructor(
             targetValue = finalTargetOffset
         )
 
-        markSnapAnimationStarted(finalTargetOffset.toInt())
+        val targetKey = runCatching {
+            layoutInfo.visiblePagesInfo.firstOrNull { it.index == targetPage }?.key
+        }.getOrNull()
+        markSnapAnimationStarted(
+            targetContentOffset = finalTargetOffset.toInt(),
+            targetPage = targetPage,
+            targetKey = targetKey,
+            desyncPages = 0
+        )
 
         kuiklyInfo.run {
             val targetOffsetDp = if (isVertical()) {
@@ -1367,11 +1479,21 @@ abstract class PagerState internal constructor(
     ) {
         awaitScrollDependencies()
         // will scroll and it's not scrolling already update settled page
-        if (!isScrollInProgress) {
-            settledPageState = currentPage
+        captureSettledPageIfIdle()
+        if (isSnapAnimating) {
+            clearSnapAnimationState()
         }
-        scrollableState.scroll(scrollPriority, block)
-        programmaticScrollTargetPage = -1 // reset animated scroll target page indicator
+        programmaticScrollMutations++
+        pagerScrollInProgressState = true
+        try {
+            scrollableState.scroll(scrollPriority, block)
+        } finally {
+            programmaticScrollMutations--
+            programmaticScrollTargetPage = -1 // reset animated scroll target page indicator
+            if (programmaticScrollMutations == 0 && !isSnapAnimating && !nativeDragSessionActive) {
+                pagerScrollInProgressState = false
+            }
+        }
     }
 
     override fun dispatchRawDelta(delta: Float): Float {
@@ -1379,7 +1501,7 @@ abstract class PagerState internal constructor(
     }
 
     override val isScrollInProgress: Boolean
-        get() = scrollableState.isScrollInProgress
+        get() = pagerScrollInProgressState
 
     final override var canScrollForward: Boolean by mutableStateOf(false)
         private set

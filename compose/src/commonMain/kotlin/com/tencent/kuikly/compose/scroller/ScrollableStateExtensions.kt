@@ -71,6 +71,7 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
             // leaves updateFromMeasureResult unprotected. isSnapAnimating is
             // cleared in the applyMeasureResult_job after FIXING decision.
             scrollableState.kuiklyOnScrollEnd(params)
+            onNativeScrollEnd()
         }
         is DrawerInternalPagerState -> scrollableState.kuiklyOnScrollEnd(params)
         is LazyGridState -> scrollableState.kuiklyOnScrollEnd(params)

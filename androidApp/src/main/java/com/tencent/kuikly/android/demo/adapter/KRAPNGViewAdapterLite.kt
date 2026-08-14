@@ -57,8 +57,7 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
     private val imageView = ImageView(context)
     private val handler = Handler(Looper.getMainLooper())
     private var frames: List<Frame> = emptyList()
-    private var numPlays = 0 // acTL num_plays: 0 = loop forever
-    private var repeatCount = 0 // Kuikly repeatCount: 0 = fall back to file num_plays, N = play N times
+    private var repeatCount = 0 // Kuikly repeatCount: 0 = loop forever (DSL contract), N = play N times
     private var frameIndex = 0
     private var playedLoops = 0
     private var playing = false
@@ -72,8 +71,7 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
             frameIndex++
             if (frameIndex >= frames.size) {
                 playedLoops++
-                val limit = if (repeatCount > 0) repeatCount else numPlays
-                if (limit > 0 && playedLoops >= limit) {
+                if (repeatCount > 0 && playedLoops >= repeatCount) {
                     // Finished: hold on the last frame
                     playing = false
                     frameIndex = frames.size - 1
@@ -150,8 +148,21 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
         buf.position(8) // skip PNG signature
         var ihdr: ByteArray? = null
         var pendingDelayMs = 40L
-        var pendingFirstFrame = false
+        var hasPendingFrame = false
+        // Per spec, one frame's data may span multiple consecutive IDAT/fdAT
+        // chunks, so accumulate into a pending buffer and flush it as one PNG
+        // when the next fcTL (or IEND) arrives.
+        var pendingIdat = java.io.ByteArrayOutputStream()
         val result = arrayListOf<Frame>()
+
+        fun flushFrame() {
+            val frameData = pendingIdat.toByteArray()
+            if (!hasPendingFrame || frameData.isEmpty() || ihdr == null) return
+            result.add(Frame(rebuildPng(ihdr!!, frameData), pendingDelayMs))
+            pendingIdat = java.io.ByteArrayOutputStream()
+            hasPendingFrame = false
+        }
+
         while (buf.remaining() >= 12) {
             val len = buf.int
             if (len < 0 || buf.remaining() < len + 4) break // truncated file, bail out
@@ -163,31 +174,25 @@ private class KRAPNGLiteImageView(context: Context) : IAPNGView {
             buf.int // skip crc
             when (type) {
                 "IHDR" -> ihdr = body
-                "acTL" -> numPlays = ByteBuffer.wrap(body).getInt(4)
                 "fcTL" -> {
+                    flushFrame()
                     val dn = ByteBuffer.wrap(body).getShort(20).toInt()
                     val dd = ByteBuffer.wrap(body).getShort(22).toInt()
                     // Spec: delay_den = 0 means 100; clamp to >= 10ms to avoid a zero-delay spin
                     pendingDelayMs = (dn * 1000L / (if (dd == 0) 100 else dd)).coerceAtLeast(10)
-                    pendingFirstFrame = result.isEmpty()
+                    hasPendingFrame = true
                 }
-                "IDAT" -> {
-                    // IDAT following a fcTL is the first animation frame (the common layout
-                    // where the default image is part of the animation)
-                    if (pendingFirstFrame && ihdr != null) {
-                        result.add(Frame(rebuildPng(ihdr!!, body), pendingDelayMs))
-                        pendingFirstFrame = false
-                    }
-                }
-                "fdAT" -> {
-                    if (ihdr != null && body.size >= 4) {
-                        // fdAT payload: 4-byte sequence number followed by IDAT data
-                        result.add(Frame(rebuildPng(ihdr!!, body.copyOfRange(4, body.size)), pendingDelayMs))
-                    }
+                // IDAT following a fcTL is the first animation frame (the common layout
+                // where the default image is part of the animation)
+                "IDAT" -> if (hasPendingFrame) pendingIdat.write(body)
+                // fdAT payload: 4-byte sequence number followed by IDAT data
+                "fdAT" -> if (hasPendingFrame && body.size >= 4) {
+                    pendingIdat.write(body, 4, body.size - 4)
                 }
                 "IEND" -> break
             }
         }
+        flushFrame()
         return result
     }
 

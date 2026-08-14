@@ -209,8 +209,14 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
 }
 
 - (void)stopAPNGAnimating {
+    // Mirror the demo's KRAPNGViewHandler: report the end-of-playback callback once
+    // on an explicit stop (only when actually animating, so dealloc stays silent).
+    BOOL wasAnimating = self.animating;
     [self p_stopTimer];
     self.animating = NO;
+    if (wasAnimating) {
+        [self p_notifyPlayEnd];
+    }
 }
 
 #pragma mark - private
@@ -218,6 +224,14 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
 - (NSInteger)p_effectivePlayCount {
     if (self.didSetPlayCount) { return self.playCount; } // host explicitly set it (0 = infinite)
     return self.fileNumPlays;                            // otherwise use the file's num_plays
+}
+
+/// Fires the play-end callback. Per framework semantics the APNG `animationEnd`
+/// event must fire once per finished playback — not once per loop.
+- (void)p_notifyPlayEnd {
+    if ([self.delegate respondsToSelector:@selector(apngImageView:playEndLoop:)]) {
+        [self.delegate apngImageView:self playEndLoop:self.playedLoops];
+    }
 }
 
 - (void)p_showFrameAtIndex:(NSUInteger)index {
@@ -242,14 +256,12 @@ static NSArray<KRAPNGLiteFrame *> *KRAPNGLiteParse(NSData *data, NSInteger *outN
     }
     // One loop finished
     self.playedLoops += 1;
-    if ([self.delegate respondsToSelector:@selector(apngImageView:playEndLoop:)]) {
-        [self.delegate apngImageView:self playEndLoop:self.playedLoops];
-    }
     NSInteger maxLoops = [self p_effectivePlayCount];
     if (maxLoops <= 0 || self.playedLoops < (NSUInteger)maxLoops) {
-        [self p_showFrameAtIndex:0]; // start the next loop
+        [self p_showFrameAtIndex:0]; // start the next loop (no end callback mid-playback)
     } else {
         self.animating = NO; // hold the last frame (imageView already shows it)
+        [self p_notifyPlayEnd]; // report once when playback truly finishes
     }
 }
 

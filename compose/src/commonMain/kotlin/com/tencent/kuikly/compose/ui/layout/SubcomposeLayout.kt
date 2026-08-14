@@ -319,10 +319,13 @@ fun SubcomposeLayout(
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
                 kuiklyInfo.contentOffset = offset
                 kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                (scrollableState as? PagerState)?.onNativeDragEnd()
             }
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                (scrollableState as? PagerState)?.onNativeScroll()
 
                 // Reject unexpected native offset jumps (e.g. HarmonyOS HandleCrashTop).
                 // Correct the native side back and skip this event entirely to prevent
@@ -343,7 +346,6 @@ fun SubcomposeLayout(
                 kuiklyInfo.contentOffset = offset
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
                 (scrollableState as? DrawerInternalPagerState)?.onNativeContentOffsetChanged(offset)
-                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
 
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!

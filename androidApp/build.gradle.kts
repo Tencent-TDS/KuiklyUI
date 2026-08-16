@@ -51,4 +51,7 @@ dependencies {
     implementation("com.google.android.exoplayer:exoplayer:2.16.1")
     implementation("com.github.penfeizhou.android.animation:apng:2.25.0")
 
+    // Demo 侧 DebugModule 的回归单测依赖（迁移自 core-render-android 已删除的 KRDebugModuleTest）
+    testImplementation("junit:junit:4.13.2")
+
 }

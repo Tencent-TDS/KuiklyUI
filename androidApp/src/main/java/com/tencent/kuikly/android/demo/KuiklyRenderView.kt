@@ -17,6 +17,7 @@ package com.tencent.kuikly.android.demo
 
 import android.content.Context
 import com.tencent.kuikly.android.demo.module.KRBridgeModule
+import com.tencent.kuikly.android.demo.module.KRDebugModule
 import com.tencent.kuikly.android.demo.module.KRShareModule
 import com.tencent.kuikly.core.render.android.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
@@ -32,6 +33,9 @@ class KuiklyRenderView(context: Context, delegate: KuiklyRenderViewBaseDelegator
             }
             moduleExport(KRShareModule.MODULE_NAME) {
                 KRShareModule()
+            }
+            moduleExport(KRDebugModule.MODULE_NAME) {
+                KRDebugModule()
             }
         }
     }

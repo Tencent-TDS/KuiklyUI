@@ -18,6 +18,8 @@ package com.tencent.kuikly.demo.pages.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberCoroutineScope
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.scrollToTop
 import com.tencent.kuikly.compose.foundation.background
@@ -36,11 +38,16 @@ import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
+import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Card
 import com.tencent.kuikly.compose.material3.CardDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.core.module.Module
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
@@ -65,6 +72,35 @@ internal data class DemoItem(
 @Page("ComposeAllSample")
 internal class ComposeAllSample : ComposeContainer() {
     override fun debugUIInspector(): Boolean = true
+    override fun isDebugLogEnable(): Boolean = true
+
+    override fun createExternalModules(): Map<String, Module>? {
+        // 合并父类返回值，防止未来 ComposeContainer 扩展默认模块时本页注册的模块被覆盖。
+        val modules = (super.createExternalModules()?.toMutableMap() ?: mutableMapOf())
+        modules[DebugModule.MODULE_NAME] = DebugModule()
+        return modules
+    }
+
+    // 记录当前是否正在 trace，用于 pageWillDestroy 兜底收口。
+    // 说明：滚动 trace 的正常收口在 LaunchedEffect 的 500ms 延迟任务里，
+    // 但页面销毁/切走时该任务可能还没执行，会把原生 isTracing 挂住，
+    // 导致下次进页面 startTrace 被短路。这里做一次 finally 语义的兜底。
+    @Volatile
+    private var isTracingForCleanup = false
+
+    override fun pageWillDestroy() {
+        // 无论 LaunchedEffect 的延迟收口是否执行到，都保证原生 stopTrace 至少被调一次。
+        // 平台守卫与 startTrace 保持一致：只在 Android 上有原生实现。
+        if (isTracingForCleanup && pageData.isAndroid) {
+            runCatching {
+                val debug = acquireModule<DebugModule>(DebugModule.MODULE_NAME)
+                debug.stopTrace()
+            }
+            isTracingForCleanup = false
+        }
+        super.pageWillDestroy()
+    }
+
     // 预定义一组美观的Material Design颜色
     private val demoColors =
         listOf(
@@ -183,6 +219,37 @@ internal class ComposeAllSample : ComposeContainer() {
         // 使用抽离出的函数获取演示列表
         val demoList = remember { getDemoItems() }
 
+        // DebugModule：抓取列表滑动区间 Trace（仅 Android 有原生实现，需平台守卫防 iOS/OHOS 崩溃）
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+        LaunchedEffect(listState) {
+            if (!pageData.isAndroid) return@LaunchedEffect
+            val debug = acquireModule<DebugModule>(DebugModule.MODULE_NAME)
+            var stopJob: Job? = null
+            var tracing = false
+            snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+                if (scrolling) {
+                    stopJob?.cancel()
+                    if (!tracing) {
+                        debug.startTrace("list_scroll")
+                        tracing = true
+                        isTracingForCleanup = true
+                    }
+                } else if (tracing) {
+                    stopJob = scope.launch {
+                        delay(500)
+                        if (!listState.isScrollInProgress && tracing) {
+                            val path = debug.stopTrace()
+                            println("DebugModule trace saved: $path")
+                            println("DebugModule eventTrace:\n" + debug.exportPageEventTrace())
+                            tracing = false
+                            isTracingForCleanup = false
+                        }
+                    }
+                }
+            }
+        }
+
         Column(
             modifier =
                 Modifier
@@ -191,6 +258,7 @@ internal class ComposeAllSample : ComposeContainer() {
         ) {
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize().testTag("demo_list"),
                 verticalArrangement = Arrangement.spacedBy(8.dp), // 减小间距
                 contentPadding = PaddingValues(all = 8.dp),

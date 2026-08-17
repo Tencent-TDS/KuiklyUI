@@ -19,7 +19,8 @@ package com.tencent.kuikly.compose.foundation
 import com.tencent.kuikly.compose.foundation.interaction.FocusInteraction
 import com.tencent.kuikly.compose.foundation.interaction.Interaction
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
-//import com.tencent.kuikly.compose.foundation.relocation.scrollIntoView
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewRequester
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewRequesterNode
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.InternalComposeApi
 import com.tencent.kuikly.compose.material3.internal.identityHashCode
@@ -203,6 +204,15 @@ internal class FocusableNode(
     private val focusablePinnableContainer = delegate(FocusablePinnableContainerNode())
     private val focusedBoundsNode = delegate(FocusedBoundsNode())
 
+    // Path B: BringIntoViewRequester for focus-driven bring-into-view.
+    // Aligned with official Focusable.kt:225-229: every focusable gets a requester so that
+    // gaining focus automatically requests the entire node to be brought into view.
+    // If the node is already fully visible, the responder's calculator returns 0 delta (no-op).
+    private val bringIntoViewRequester = BringIntoViewRequester()
+    private val bringIntoViewRequesterNode = delegate(
+        BringIntoViewRequesterNode(bringIntoViewRequester)
+    )
+
     init {
         delegate(FocusTargetModifierNode())
     }
@@ -225,12 +235,14 @@ internal class FocusableNode(
     override fun onFocusEvent(focusState: FocusState) {
         if (this.focusState != focusState) { // focus state changed
             val isFocused = focusState.isFocused
-            // todo pel scrollIntoView
-            /*if (isFocused) {
+            // Path B: when a focusable gains focus, request the entire node be brought into view.
+            // Aligned with official Focusable.kt:242-245.
+            // If the node is already visible, the responder returns 0 delta (no-op).
+            if (isFocused) {
                 coroutineScope.launch {
-                    scrollIntoView()
+                    bringIntoViewRequester.bringIntoView()
                 }
-            }*/
+            }
             if (isAttached) invalidateSemantics()
             focusableInteractionNode.setFocus(isFocused)
             focusedBoundsNode.setFocus(isFocused)
@@ -255,6 +267,8 @@ internal class FocusableNode(
     // TODO(levima) Remove this once delegation can propagate this events on its own
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         focusedBoundsNode.onGloballyPositioned(coordinates)
+        // Forward to requester node so it has up-to-date coordinates for bringIntoView().
+        bringIntoViewRequesterNode.onGloballyPositioned(coordinates)
     }
 }
 

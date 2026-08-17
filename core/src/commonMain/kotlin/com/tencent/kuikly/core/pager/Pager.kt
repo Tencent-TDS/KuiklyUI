@@ -586,6 +586,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_WILL_DESTROY = "pageWillDestroy"
         const val PAGER_EVENT_SET_NEED_LAYOUT = "setNeedLayout"
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
+        // 页面级 IME 事件沿用 pager event 通道，供 Compose 等窗口级消费者复用。
+        const val PAGER_EVENT_IME_INSETS_DID_CHANGED = "imeInsetsDidChanged"
 
         const val PAGER_EVENT_ON_BACK_PRESSED = "onBackPressed"
         const val PAGER_EVENT_ON_FONT_LOADED = "onFontLoaded"
@@ -595,6 +597,9 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val SAFE_AREA_INSETS = "safeAreaInsets"
         const val DENSITY_INFO = "densityInfo"
         const val DENSITY_INFO_KEY_NEW_DENSITY = "newDensity"
+        const val IME_HEIGHT = "height"
+        const val IME_DURATION = "duration"
+        const val IME_CURVE = "curve"
 
         var VERIFY_THREAD
             get() = com.tencent.kuikly.core.utils.VERIFY_THREAD

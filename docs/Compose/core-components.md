@@ -19,7 +19,7 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
   - 网络图片（通过 `rememberAsyncImagePainter("https://...")` 加载远程资源）  
 
 ### 基础容器
-- **Scaffold** - 页面脚手架（支持 TopBar、BottomBar、SnackbarHost 等插槽）
+- **Scaffold** - 页面脚手架（支持 TopBar、BottomBar、SnackbarHost 等插槽；默认 `contentWindowInsets` 已组合系统栏与 IME，内容区自动避让键盘）
 - **Surface** - 基础容器组件，提供背景色、内容色等配置
 
 ### 按钮
@@ -322,6 +322,88 @@ fun TextFieldWithKeyboardHeight() {
 - `Modifier.keyboardHeightChange(callback: (KeyboardParams) -> Unit)` - 监听键盘高度变化
 - `KeyboardParams` 包含 `height`（键盘高度）和 `duration`（动画时长）属性
 
+#### 页面级 IME 避让：`WindowInsets.ime` / `Modifier.imePadding()`
+
+从 phase1 起，Compose DSL 新增了页面级 IME inset 能力，业务不再需要手动监听键盘高度——直接用声明式 API 即可让内容自动避让键盘。
+
+**`Modifier.imePadding()`**：给容器添加等于键盘高度的底部 padding，使其内容自动避开键盘区域。适用于底部输入栏、聊天页等自定义布局。
+
+```kotlin
+@Composable
+fun ChatInputBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .imePadding()  // 键盘弹起时自动把输入栏顶离键盘
+            .padding(12.dp)
+    ) {
+        TextField(value = "", onValueChange = { }, modifier = Modifier.weight(1f))
+        Button(onClick = { }) { Text("发送") }
+    }
+}
+```
+
+**`WindowInsets.ime`**：直接读取当前键盘高度（作为 `WindowInsets`），可用于自定义避让逻辑或调试展示。
+
+```kotlin
+@Composable
+fun ImeAwareLayout() {
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    Text("当前键盘高度: ${imeBottom}")
+}
+```
+
+**Scaffold 默认避让**：`Scaffold` 的 `contentWindowInsets` 默认已组合系统栏与 IME inset，使用 `Scaffold` 的页面无需额外调用 `imePadding()`——`content` lambda 收到的 `innerPadding` 已包含键盘避让。
+
+```kotlin
+@Composable
+fun FormPage() {
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("表单") }) }
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            // 键盘弹起时内容区自动避让，无需手动处理
+            TextField(value = "", onValueChange = { })
+        }
+    }
+}
+```
+
+**与 `keyboardHeightChange` 的关系**：`WindowInsets.ime` / `imePadding()` 是推荐的声明式用法；`keyboardHeightChange` 仍保留兼容，适用于需要手动控制键盘联动动画的复杂场景。
+
+**相关 API**：
+- `WindowInsets.ime` - 页面级 IME inset，返回当前键盘占用高度
+- `WindowInsets.Companion.ime` - 通过 `LocalConfiguration.imeBottomDp` 驱动
+- `Modifier.imePadding()` - 添加等于未消费 IME 底部 inset 的 padding
+- `ScaffoldDefaults.contentWindowInsets` - 默认组合 `systemBarsForVisualComponents ∪ ime`
+
+**参考 Demo**：
+- [`ImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImeInsetDemo.kt)：`imePadding()` 显式用法
+- [`ScaffoldImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ScaffoldImeInsetDemo.kt)：`Scaffold` 默认 IME 避让用法
+
+#### 获焦自动滚入可视区（bring-into-view）
+
+`TextField` 位于 `LazyColumn` 中时，获焦且被键盘遮挡会**自动滚动到键盘上方**，业务无需监听键盘高度手动计算滚动偏移，Android / iOS / HarmonyOS 三端行为一致。
+
+```kotlin
+LazyColumn {
+    items(fields) { field ->
+        TextField(value = field, onValueChange = { })  // 零接入，自动生效
+    }
+}
+```
+
+**行为说明**：
+- 仅保证输入组件**整体完整可见**（部分露出的输入框获焦时也会先滚到完全露出）
+- 已完全可见的输入框获焦**不会**触发滚动
+- 键盘弹起过程中切换焦点，会持续自动滚动
+- 当前仅支持 `LazyColumn` 纵向容器；`ScrollState`/`verticalScroll` 容器暂未覆盖
+- 打字时的光标级跟随滚动（caret 级）暂未实现
+
+如需对任意节点手动触发滚动，可使用公开 API `BringIntoViewRequester`，详见[列表与滚动](list-and-scroll.md)章节。
+
+**与 `imePadding()` 的关系**：`imePadding()` 是页面级布局避让（为内容腾出键盘空间）；bring-into-view 负责在此之上保证**获焦输入框本身**真正滚入可视区，两者自动协同，业务无需手动组合。
+
 #### 占位符设置：`Modifier.placeHolder` / `Modifier.placeholderColor`
 
 用于设置输入框的占位符文本和颜色。
@@ -442,9 +524,11 @@ fun ScrollableWithScrollToTop() {
 - [`TabRowDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TabRowDemo.kt)：`TabRow` / `ScrollableTabRow` / `Tab` 组件示例
 - [`DialogDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/DialogDemo.kt)：`Dialog` 组件示例
 - [`BottomSheetDemo1.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/BottomSheetDemo1.kt)：`ModalBottomSheet` 组件示例
-- [`ScaffoldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ScaffoldDemo.kt)：`Scaffold` 组件示例（包含 TopBar、BottomBar、SnackbarHost 等插槽）
+- [`ScaffoldImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ScaffoldImeInsetDemo.kt)：`Scaffold` 组件示例（包含 TopBar、BottomBar、SnackbarHost 等插槽，默认 IME 避让）
+- [`ImeInsetDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImeInsetDemo.kt)：`WindowInsets.ime` + `imePadding()` 用法示例
 
 ## 注意事项
 
 - **扩展能力使用**：`lineBreakMargin`、`keyboardHeightChange`、`nativeRef` 等扩展能力是 Kuikly 特有的功能，在官方 Compose 中不可用。
+- **IME 避让**：`WindowInsets.ime` 和 `Modifier.imePadding()` 是对齐官方 Compose 的声明式键盘避让能力，推荐优先使用；`Modifier.keyboardHeightChange` 仍保留兼容，适用于需要手动控制键盘联动动画的复杂场景。
 - **原生视图引用**：`nativeRef` 主要用于需要直接操作原生视图的高级场景，如集成第三方原生组件、调用平台特定 API 等。使用时应谨慎，避免破坏 Compose 的声明式特性。

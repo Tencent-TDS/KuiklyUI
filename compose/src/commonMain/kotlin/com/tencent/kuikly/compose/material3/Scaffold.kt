@@ -23,7 +23,9 @@ import com.tencent.kuikly.compose.foundation.layout.calculateEndPadding
 import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
 import com.tencent.kuikly.compose.foundation.layout.consumeWindowInsets
 import com.tencent.kuikly.compose.foundation.layout.exclude
+import com.tencent.kuikly.compose.foundation.layout.ime
 import com.tencent.kuikly.compose.foundation.layout.onConsumedWindowInsetsChanged
+import com.tencent.kuikly.compose.foundation.layout.union
 import com.tencent.kuikly.compose.material3.internal.MutableWindowInsets
 import com.tencent.kuikly.compose.material3.internal.systemBarsForVisualComponents
 import androidx.compose.runtime.Composable
@@ -290,7 +292,11 @@ private fun ScaffoldLayout(
 object ScaffoldDefaults {
     /** Default insets to be used and consumed by the scaffold content slot */
     val contentWindowInsets: WindowInsets
-        @Composable get() = WindowInsets.systemBarsForVisualComponents
+        @Composable get() {
+            // Scaffold 默认同时避让系统栏和软件键盘；IME 部分直接消费页面级键盘当前高度。
+            val imeInsets = WindowInsets.ime
+            return WindowInsets.systemBarsForVisualComponents.union(imeInsets)
+        }
 }
 
 /** The possible positions for a [FloatingActionButton] attached to a [Scaffold]. */

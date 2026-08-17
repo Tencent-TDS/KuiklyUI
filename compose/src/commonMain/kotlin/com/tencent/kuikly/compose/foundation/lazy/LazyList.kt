@@ -24,10 +24,14 @@ import com.tencent.kuikly.compose.foundation.ComposeFoundationFlags
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.checkScrollableContainerConstraints
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
+import com.tencent.kuikly.compose.foundation.gestures.animateScrollBy
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.PaddingValues
+import com.tencent.kuikly.compose.foundation.layout.WindowInsets
+import com.tencent.kuikly.compose.foundation.layout.asPaddingValues
 import com.tencent.kuikly.compose.foundation.layout.calculateEndPadding
 import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
+import com.tencent.kuikly.compose.foundation.layout.ime
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasureScope
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
@@ -35,8 +39,13 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutSemantics
 import com.tencent.kuikly.compose.foundation.lazy.layout.calculateLazyLayoutPinnedIndices
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutBeyondBoundsModifier
+import com.tencent.kuikly.compose.foundation.onFocusedBoundsChanged
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewResponderCoordinator
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewResponderModifierElement
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewResponderNode
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
@@ -87,6 +96,30 @@ internal fun LazyList(
     val coroutineScope = rememberCoroutineScope()
     state.kuiklyInfo.scope = coroutineScope
 
+    // Install BringIntoView responder + FocusedBounds observer (aligned with Scroll.kt's Modifier.scroll).
+    // Focused children (e.g. TextField) will be automatically brought into the visible viewport
+    // when the keyboard appears, or when the user requests it via BringIntoViewRequester.
+    val density = LocalDensity.current
+    val imeBottomPx = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        .let { with(density) { it.toPx() } }
+    val responderCoordinator = remember { BringIntoViewResponderCoordinator() }
+    val bringIntoViewModifier = modifier
+        .then(BringIntoViewResponderModifierElement(
+            nodeFactory = {
+                LazyListStateBringIntoViewResponderNode(
+                    responderCoordinator = responderCoordinator,
+                    imeBottomPx = imeBottomPx,
+                    lazyListState = state,
+                )
+            },
+            nodeUpdater = { node ->
+                node.update(responderCoordinator, imeBottomPx)
+            }
+        ))
+        .onFocusedBoundsChanged { focusedBounds ->
+            responderCoordinator.onFocusedBoundsChanged(focusedBounds)
+        }
+
 //    val graphicsContext = LocalGraphicsContext.current
 //    val stickyHeadersEnabled = !LocalScrollCaptureInProgress.current
 
@@ -111,7 +144,7 @@ internal fun LazyList(
     val orientation = if (isVertical) Orientation.Vertical else Orientation.Horizontal
     @OptIn(ExperimentalComposeUiApi::class)
     LazyLayout(
-        modifier = modifier
+        modifier = bringIntoViewModifier
             .then(state.remeasurementModifier)
             .then(state.awaitLayoutModifier)
             .lazyLayoutSemantics(
@@ -403,5 +436,34 @@ private fun rememberLazyListMeasurePolicy(
         
         state.applyMeasureResult(measureResult, isLookingAhead)
         measureResult
+    }
+}
+
+/**
+ * BringIntoViewResponderNode implementation for [LazyListState] / `LazyColumn` / `LazyRow`.
+ *
+ * Uses [ScrollableState.animateScrollBy] for smooth scrolling. LazyListState implements
+ * [ScrollableState] directly, and the scroll mutation mutex auto-cancels previous animations,
+ * so [stopOngoingScroll] is a no-op.
+ *
+ * Note: pixel-level `animateScrollBy` in a lazy list translates to item-based scroll via
+ * LazyList's internal `scroll` implementation. The current MVP doesn't reverse-map the
+ * focused child's coordinates back to a specific item index, so accuracy is approximate;
+ * the bring-into-view will scroll by the calculated pixel delta and let LazyList decide
+ * the actual item positioning.
+ */
+internal class LazyListStateBringIntoViewResponderNode(
+    responderCoordinator: BringIntoViewResponderCoordinator,
+    imeBottomPx: Float,
+    private val lazyListState: LazyListState,
+) : BringIntoViewResponderNode(responderCoordinator, imeBottomPx) {
+
+    override suspend fun stopOngoingScroll() {
+        // animateScrollBy uses scroll() which auto-cancels previous mutations
+        // via MutatePriority. No explicit stop needed.
+    }
+
+    override suspend fun performScroll(delta: Float) {
+        lazyListState.animateScrollBy(delta)
     }
 }

@@ -219,9 +219,22 @@ class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObs
         val newKeyboardHeight = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val insets = rootView.rootWindowInsets
             val imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom
-            val navHeight = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-            // 只有当键盘弹出时（imeHeight > 0），才尝试减去导航栏高度
-            if (imeHeight > 0) (imeHeight - navHeight).coerceAtLeast(0) else 0
+            if (imeHeight > 0) {
+                // 动态计算页面内容区底边到窗口底边的距离，而不是固定减去导航栏高度：
+                // - 沉浸式页面：contentView 底边 == 窗口底边，gap 为 0，上报完整 imeHeight
+                // - 非沉浸式页面：contentView 停在导航栏上方，gap == 导航栏高度，上报 imeHeight - gap
+                // 已知限制：currentWindowMetrics.bounds 基于当前窗口，getLocationOnScreen 基于整屏，
+                // 分屏/多窗口模式下两者基准错位，pageBottomGap 可能算偏。全屏场景正确；
+                // 若后续支持分屏，需统一基准（如都用窗口内相对坐标）。
+                val windowBottom = activity.windowManager.currentWindowMetrics.bounds.bottom
+                val contentLoc = IntArray(2)
+                rootView.getLocationOnScreen(contentLoc)
+                val contentBottom = contentLoc[1] + rootView.height
+                val pageBottomGap = (windowBottom - contentBottom).coerceAtLeast(0)
+                (imeHeight - pageBottomGap).coerceAtLeast(0)
+            } else {
+                0
+            }
         } else {
             0
         }

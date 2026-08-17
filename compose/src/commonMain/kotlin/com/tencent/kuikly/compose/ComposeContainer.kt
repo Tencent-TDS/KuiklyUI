@@ -288,6 +288,12 @@ open class ComposeContainer :
             val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
             val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
             configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
+        } else if (pagerEvent == PAGER_EVENT_IME_INSETS_DID_CHANGED) {
+            configuration?.onImeInsetsChanged(
+                height = eventData.optDouble(IME_HEIGHT),
+                duration = eventData.optDouble(IME_DURATION),
+                curve = eventData.optInt(IME_CURVE, 0)
+            )
         }
     }
 

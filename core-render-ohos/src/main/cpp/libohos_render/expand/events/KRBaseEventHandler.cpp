@@ -207,7 +207,7 @@ bool KRBaseEventHandler::FireOnPanCallback(const std::shared_ptr<KRGestureEventD
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyState] = NewKRRenderValue(state);
+    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
     pan_event_callback_(NewKRRenderValue(params));
     return true;
 }

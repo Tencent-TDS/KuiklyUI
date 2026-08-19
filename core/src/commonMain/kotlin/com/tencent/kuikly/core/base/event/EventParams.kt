@@ -174,8 +174,8 @@ data class PinchGestureParams(
     val pageX: Float,  // 捏合中心点在根视图Page下的坐标X
     val pageY: Float,  // 捏合中心点在根视图Page下的坐标Y
     val scale: Float, // 缩放倍数
-    val velocity: Float = 0f, // 缩放倍数变化速率(倍/秒)，与iOS UIPinchGestureRecognizer.velocity语义一致
-    val state: String // "start" | "move" | "end"
+    val state: String, // "start" | "move" | "end"
+    val velocity: Float = 0f // 缩放倍数变化速率(倍/秒)，与iOS UIPinchGestureRecognizer.velocity语义一致
 ) {
     companion object {
         fun decode(params: Any?): PinchGestureParams {
@@ -187,7 +187,7 @@ data class PinchGestureParams(
             val pageX = tempParams.optDouble("pageX").toFloat()
             val pageY = tempParams.optDouble("pageY").toFloat()
             val state = tempParams.optString("state")
-            return PinchGestureParams(x, y, pageX, pageY, scale, velocity, state)
+            return PinchGestureParams(x, y, pageX, pageY, scale, state, velocity)
         }
     }
     inline val isStart get() = state == "start"

@@ -144,6 +144,22 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
     }
 }
 
+void KRRenderView::SendEvent(std::string event_name, const KRAnyValue &data) {
+    bool need_sync = syncSendEvent(event_name);
+    SendEvent(std::move(event_name), data, need_sync);
+}
+
+void KRRenderView::SendEvent(std::string event_name, const KRAnyValue &data, bool sync) {
+    if (core_) {
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
+        return core_->SendEvent(event_name, data, sync);
+    }
+}
+
 bool KRRenderView::syncSendEvent(const std::string &event_name) {
     // 与 ETS 侧常量保持一致：'onBackPressed'
     if (event_name == "onBackPressed") {

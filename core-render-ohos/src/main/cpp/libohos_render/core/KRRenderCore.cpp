@@ -74,6 +74,8 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     renderView_ = renderView;
     context_ = context;
     defaultNullValue_ = KRRenderValue::Make();
+    // instanceId 生命周期与 Core 一致：缓存 KRRenderValue，避免每次 CallKotlin 重新 Make/toCValue
+    instanceIdValue_ = KRRenderValue::Make(context_->InstanceId());
     uiScheduler_ = std::make_shared<KRUIScheduler>(this);
     contextHandler_ = IKRRenderNativeContextHandler::CreateContextHandler(context);
     // 注册kotlin call native回调（走onCallNative接口）
@@ -104,7 +106,8 @@ void KRRenderCore::DidInit() {
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
     KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
         auto page_name = KRRenderValue::Make(strongSelf->context_->PageName());
-        auto page_data = KRRenderValue::Make(strongSelf->context_->PageData()->toString());
+        // Pass PageData as structured Map (NATIVE_JSON) — avoid toString() + Kotlin parse.
+        auto page_data = strongSelf->context_->PageData();
         auto null_arg = strongSelf->defaultNullValue_;
         strongSelf->notifyInitState(KRInitState::kStateInitContextStart);
         strongSelf->contextHandler_->InitContext();
@@ -126,16 +129,43 @@ void KRRenderCore::SendEvent(std::string event_name, const std::string &json_dat
     if (auto rv = renderView_.lock()) {
         needSync = rv->syncSendEvent(event_name);
     }
-    SendEvent(event_name, json_data, needSync);
+    SendEvent(std::move(event_name), json_data, needSync);
 }
 
 void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data, bool need_sync) {
-    auto task = [self = shared_from_this(), need_sync, event_name, json_data] {
+    // Legacy string API: parse into Map once so CallKotlin gets NATIVE_JSON (lazy),
+    // matching FireViewEvent structured payloads.
+    KRAnyValue data;
+    if (json_data.empty()) {
+        data = KRRenderValue::Make(KRRenderValue::Map{});
+    } else {
+        auto as_str = KRRenderValue::Make(json_data);
+        data = KRRenderValue::Make(as_str->toMap());
+    }
+    SendEvent(std::move(event_name), data, need_sync);
+}
+
+void KRRenderCore::SendEvent(std::string event_name, const KRAnyValue &data) {
+    bool needSync = false;
+    if (auto rv = renderView_.lock()) {
+        needSync = rv->syncSendEvent(event_name);
+    }
+    SendEvent(std::move(event_name), data, needSync);
+}
+
+void KRRenderCore::SendEvent(std::string event_name, const KRAnyValue &data, bool need_sync) {
+    auto task = [self = shared_from_this(), need_sync, event_name, data] {
         auto event = KRRenderValue::Make(event_name);
-        auto data = KRRenderValue::Make(json_data);
+        auto payload = data;
+        if (!payload) {
+            payload = KRRenderValue::Make(KRRenderValue::Map{});
+        } else if (payload->isString()) {
+            // Defensive: if a string slipped through, promote to Map for lazy bridge.
+            payload = KRRenderValue::Make(payload->toMap());
+        }
         auto nullValue = self->defaultNullValue_;
-        self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
-                               nullValue, nullValue);
+        self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, payload,
+                               nullValue, nullValue, nullValue);
         if (need_sync) {
             self->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
         }
@@ -434,8 +464,7 @@ void KRRenderCore::WillPerformUITasksWithScheduler() {  // 运行在 context 线
 
 void KRRenderCore::CallKotlinMethod(const KuiklyRenderContextMethod &method, const KRAnyValue &arg1, const KRAnyValue &arg2,
                                     const KRAnyValue &arg3, const KRAnyValue &arg4, const KRAnyValue &arg5) {
-    auto arg0 = KRRenderValue::Make(context_->InstanceId());
-    contextHandler_->Call(method, arg0, arg1, arg2, arg3, arg4, arg5);
+    contextHandler_->Call(method, instanceIdValue_, arg1, arg2, arg3, arg4, arg5);
 }
 
 void KRRenderCore::notifyInitState(KRInitState state) {

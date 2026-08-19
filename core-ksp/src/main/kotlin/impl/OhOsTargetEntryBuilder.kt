@@ -54,6 +54,51 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
     private fun createInitKuiklyMethod(
         pagesAnnotations: List<PageInfo>,
     ): FunSpec {
+        val dispatchBody = """
+            |when (methodId) {
+            |    KotlinMethod.CREATE_INSTANCE -> {
+            |        val instanceId = arg0.asString()
+            |        val nativeBridge = NativeBridge()
+            |        nativeBridge.callNativeCallback = { mid, a0, a1, a2, a3, a4, a5 ->
+            |            callNative(mid, a0, a1, a2, a3, a4, a5)
+            |        }
+            |        BridgeManager.registerNativeBridge(instanceId, nativeBridge)
+            |        BridgeManager.callKotlinMethod(methodId, instanceId, arg1.toAny(), arg2.toAny(), null, null, null)
+            |    }
+            |    KotlinMethod.LAYOUT_VIEW -> {
+            |        BridgeManager.callKotlinMethod(methodId, arg0.toAny(), null, null, null, null, null)
+            |    }
+            |    KotlinMethod.FIRE_VIEW_EVENT -> {
+            |        BridgeManager.callKotlinMethod(methodId, arg0.toAny(), arg1.toAny(), arg2.toAny(), arg3.toAny(), null, null)
+            |    }
+            |    KotlinMethod.FIRE_CALLBACK, KotlinMethod.UPDATE_INSTANCE, KotlinMethod.DESTROY_INSTANCE -> {
+            |        BridgeManager.callKotlinMethod(methodId, arg0.toAny(), arg1.toAny(), arg2.toAny(), null, null, null)
+            |    }
+            |    else -> {
+            |        BridgeManager.callKotlinMethod(
+            |            methodId, arg0.toAny(), arg1.toAny(), arg2.toAny(), arg3.toAny(), arg4.toAny(), arg5.toAny()
+            |        )
+            |    }
+            |}
+        """.trimMargin()
+
+        val callBody = if (catchException) {
+            """
+                return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
+                    try {
+                        $dispatchBody
+                    } catch (t: Throwable) {
+                        ExceptionTracker.notifyKuiklyException(t)
+                    }
+                })
+            """.trimIndent()
+        } else {
+            """
+                return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
+                    $dispatchBody
+                })
+            """.trimIndent()
+        }
         return FunSpec.builder("initKuikly")
             .addAnnotations(createCFuncAnnotations())
             .returns(Int::class)
@@ -63,38 +108,7 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             )
             .addRegisterPageRouteStatement(pagesAnnotations)
             .addStatement("}\n")
-            .addStatement("""
-                return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
-                            val callKotlinClosure = {
-                                if (methodId == KotlinMethod.CREATE_INSTANCE) {
-                                    val nativeBridge = NativeBridge()
-                                    nativeBridge.callNativeCallback = { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
-                                        callNative(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
-                                    }
-                                    BridgeManager.registerNativeBridge(arg0.asString(), nativeBridge)
-                                }
-                                BridgeManager.callKotlinMethod(
-                                     methodId,
-                                     arg0.toAny(),
-                                     arg1.toAny(),
-                                     arg2.toAny(),
-                                     arg3.toAny(),
-                                     arg4.toAny(),
-                                     arg5.toAny()
-                                )
-                            }
-                             
-                            if (BridgeManager.catchException){
-                                try {
-                                    callKotlinClosure()
-                                } catch(t: Throwable){
-                                    ExceptionTracker.notifyKuiklyException(t)
-                                }
-                            }else{
-                                callKotlinClosure()
-                            }
-                })
-            """.trimIndent())
+            .addStatement(callBody)
             .build()
     }
 

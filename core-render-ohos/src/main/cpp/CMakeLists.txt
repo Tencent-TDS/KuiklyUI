@@ -80,6 +80,7 @@ set(SOURCE_SET
         libohos_render/expand/components/hover/KRHoverView.cpp
         libohos_render/expand/components/canvas/KRCanvasView.cpp
         libohos_render/export/IKRRenderViewExport.cpp
+        libohos_render/export/IKRRenderModuleExport.cpp
         libohos_render/expand/modules/codec/codec.c
         libohos_render/expand/modules/codec/md5.c
         libohos_render/expand/modules/codec/sha256.c
@@ -92,6 +93,7 @@ set(SOURCE_SET
         libohos_render/utils/KRURIHelper.cpp
         libohos_render/utils/KRBase64Util.cpp
         libohos_render/utils/KRJSONObject.cpp
+        libohos_render/foundation/type/KRLazyCJsonBridge.cpp
         libohos_render/utils/KRStringUtil.cpp
         libohos_render/utils/KRViewUtil.cpp
         libohos_render/utils/KRThreadChecker.cpp
@@ -116,6 +118,14 @@ set(SOURCE_SET
         libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.cpp
         libohos_render/expand/modules/preferences/KROhPreferences.cpp
 )
+
+# Test-only CallKotlinPerfTestModule: compile only for Debug.
+# Release uses RelWithDebInfo (defines NDEBUG); .h/.cpp also #ifndef NDEBUG.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND SOURCE_SET
+            libohos_render/expand/modules/performance/CallKotlinPerfTestModule.cpp
+    )
+endif()
 
 add_library(kuikly SHARED ${SOURCE_SET})
 target_compile_options(kuikly PRIVATE

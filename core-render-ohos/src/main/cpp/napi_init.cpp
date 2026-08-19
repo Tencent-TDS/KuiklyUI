@@ -17,6 +17,7 @@
 #include <cstdint>
 #include "libohos_render/expand/modules/back_press/KRBackPressModule.h"
 #include "libohos_render/foundation/KRCallbackData.h"
+#include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/manager/KRRenderManager.h"
@@ -151,7 +152,8 @@ static napi_value ArkTSOnSendEvent(napi_env env, napi_callback_info info) {
 
     std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
     auto event = kuikly::util::getNApiArgsStdString(env, args[1]);
-    auto data = kuikly::util::getNApiArgsStdString(env, args[2]);
+    // Prefer structured napi value (Record/Array) → Map → NATIVE_JSON; strings still work.
+    auto data = KRRenderValue::Make(env, args[2]);
     auto renderView = KRRenderManager::GetInstance().GetRenderView(instance_id);
     if (renderView != nullptr) {
         renderView->SendEvent(event, data);
@@ -172,7 +174,7 @@ static napi_value ArkTSOnSendEventSync(napi_env env, napi_callback_info info) {
 
     std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
     auto event = kuikly::util::getNApiArgsStdString(env, args[1]);
-    auto data = kuikly::util::getNApiArgsStdString(env, args[2]);
+    auto data = KRRenderValue::Make(env, args[2]);
     bool sync = kuikly::util::getNApiArgsBool(env, args[3]);
     auto renderView = KRRenderManager::GetInstance().GetRenderView(instance_id);
     if (renderView != nullptr) {

@@ -71,10 +71,13 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
     /**
      * 发送页面事件到kotlin侧
      * @param event_name 事件名
-     * @param json_data json数据字符串）
+     * @param json_data json数据字符串（会解析为 Map 再走 lazy NATIVE_JSON）
      */
     void SendEvent(std::string event_name, const std::string &json_data);
     void SendEvent(std::string event_name, const std::string &json_data, bool need_sync);
+    /** Prefer structured data (Map) — toCValue → NATIVE_JSON without stringify. */
+    void SendEvent(std::string event_name, const KRAnyValue &data);
+    void SendEvent(std::string event_name, const KRAnyValue &data, bool need_sync);
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
@@ -141,6 +144,8 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
     std::shared_ptr<IKRRenderLayer> renderLayerHandler_;
     /** 默认NUll值 */
     std::shared_ptr<KRRenderValue> defaultNullValue_;
+    /** 缓存的 instanceId KRRenderValue，避免每次 CallKotlinMethod 重新 Make+toCValue */
+    std::shared_ptr<KRRenderValue> instanceIdValue_;
     /** 正在从主线程同步任务到context线程 */
     bool syncingPerformTaskMainThreadToContextThread = false;
 

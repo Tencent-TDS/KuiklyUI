@@ -139,40 +139,22 @@ class IKRRenderModuleExport : public std::enable_shared_from_this<IKRRenderModul
      * 注册Module创建器
      * @param creator
      */
-    static void RegisterModuleCreator(const std::string &module_name, const KRModuleCreator &creator) {
-        GetRegisterModuleCreator()[module_name] = creator;
-    }
+    static void RegisterModuleCreator(const std::string &module_name, const KRModuleCreator &creator);
 
     /**
      * 注册通用转发ArkTS层Module创建器
      * @param creator
      */
-    static void RegisterForwardArkTSModuleCreator(const KRModuleCreator &creator) {
-        RegisterModuleCreator(std::string(FOAWARD_ARTKS_MODULE_NAME), creator);
-    }
+    static void RegisterForwardArkTSModuleCreator(const KRModuleCreator &creator);
 
     /**
      * 指定ModuleName生成Module
      * @param module_name
      * @return 新的Module实例
      */
-    static std::shared_ptr<IKRRenderModuleExport> CreateModule(const std::string &module_name) {
-        auto it = GetRegisterModuleCreator().find(module_name);
-        if (it != GetRegisterModuleCreator().end()) {
-            return it->second();
-        } else {  // 使用通用Module，转发到ArkTS层Module
-            it = GetRegisterModuleCreator().find(std::string(FOAWARD_ARTKS_MODULE_NAME));
-            if (it != GetRegisterModuleCreator().end()) {
-                return it->second();
-            }
-        }
-        return nullptr;
-    }
+    static std::shared_ptr<IKRRenderModuleExport> CreateModule(const std::string &module_name);
 
-    static std::unordered_map<std::string, KRModuleCreator> &GetRegisterModuleCreator() {
-        static std::unordered_map<std::string, KRModuleCreator> gRegisterModuleCreator;
-        return gRegisterModuleCreator;
-    }
+    static std::unordered_map<std::string, KRModuleCreator> &GetRegisterModuleCreator();
 
     static KRModuleCreator &GetOrSetForwardArkTModuleCreator(KRModuleCreator module_creator) {
         static KRModuleCreator gForwardArkTSModuleCreator;

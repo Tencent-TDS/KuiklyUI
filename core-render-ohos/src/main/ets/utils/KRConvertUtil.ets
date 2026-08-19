@@ -30,15 +30,14 @@ export class KRConvertUtil {
       return null
     }
     if (Array.isArray(value)) {
-      if (KRConvertUtil.hasByteArrayElement(value as KRArray)) {
-        return value as KRArray
-      } else {
-        return JSON.stringify(value);
-      }
+      // Keep ArrayBuffer-bearing arrays as-is; pass other arrays through as
+      // structured values (C++ → NATIVE_JSON) instead of JSON.stringify.
+      return value as KRArray
     } else if (value instanceof ArrayBuffer) {
       return value;
     } else if (typeof value === 'object') {
-      return JSON.stringify(value);
+      // Pass Record through — Native builds Map → lazy NATIVE_JSON for Update/Create.
+      return value as KRValue;
     } else {
       return value as KRValue;
     }

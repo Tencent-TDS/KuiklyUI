@@ -62,7 +62,7 @@ object PagerManager {
     fun createPager(
         pagerId: String,
         url: String,
-        pagerData: String
+        pagerData: Any?
     ) {
         val pageTrace = PageCreateTrace()
         val pagerName = pageNameFromUrl(url)
@@ -78,15 +78,15 @@ object PagerManager {
             pagerMap[pagerId] = pager
             pager.pageName = pagerName
             pager.setPageTrace(pageTrace)
-            pager.onCreatePager(pagerId, JSONObject(pagerData))
+            pager.onCreatePager(pagerId, toBridgeJSONObject(pagerData) ?: JSONObject())
         } else {
             reactiveObserverMap.remove(pagerId)
             throw PagerNotFoundException("[createPager]: pager 未注册. pagerName: $pagerName")
         }
     }
 
-    fun firePagerEvent(pagerId: String, event: String, data: String) {
-        pagerMap[pagerId]?.onReceivePagerEvent(event, JSONObject(data))
+    fun firePagerEvent(pagerId: String, event: String, data: Any?) {
+        pagerMap[pagerId]?.onReceivePagerEvent(event, toBridgeJSONObject(data) ?: JSONObject())
     }
 
     fun destroyPager(pagerId: String) {
@@ -96,15 +96,30 @@ object PagerManager {
         reactiveObserverMap.remove(pagerId)
     }
 
-    fun fireViewEvent(pagerId: String, viewRef: Int, event: String, data: String?) {
-        var dataObject: JSONObject? = null
-        data?.also {
-            dataObject = JSONObject(it)
+    /**
+     * [data] is a JSON [String] or [JSONObject] (OHOS NATIVE_JSON / iOS
+     * NSDictionary already wrapped at the platform callKotlin entry).
+     */
+    fun fireViewEvent(pagerId: String, viewRef: Int, event: String, data: Any?) {
+        pagerMap[pagerId]?.onViewEvent(viewRef, event, toBridgeJSONObject(data))
+    }
+
+    /**
+     * Normalize Native/Kotlin bridge payload to [JSONObject].
+     * Platform collections are converted before BridgeManager
+     * (OHOS toAny / iOS toKotlinBridgeArg).
+     */
+    private fun toBridgeJSONObject(data: Any?): JSONObject? {
+        return when (data) {
+            null -> null
+            is JSONObject -> data
+            is String -> if (data.isEmpty()) null else JSONObject(data) // TODO: what if it's NOT a JSON string?
+            else -> null
         }
-        pagerMap[pagerId]?.onViewEvent(viewRef, event, dataObject)
     }
 
     fun fireCallBack(pagerId: String, functionRef: GlobalFunctionRef, data: Any? = null) {
+        // Structured payloads arrive as JSONObject (lazy) or legacy JSON String.
         GlobalFunctions.invokeFunction(pagerId, functionRef, data)
     }
 

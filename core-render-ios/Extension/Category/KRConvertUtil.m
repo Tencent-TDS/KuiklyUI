@@ -766,9 +766,9 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 }
 
 + (id)nativeObjectToKotlinObject:(id)ocObject {
-    if ([ocObject isKindOfClass:[NSDictionary class]] || [KRConvertUtil hr_isJsonArray:ocObject] ) {
-        return  [KRConvertUtil hr_dictionaryToJSON:ocObject];
-    }
+    // Pass NSDictionary / JSON NSArray through. Kotlin entry wraps NSDictionary
+    // via toKotlinBridgeArg → LazyNSDictionaryMap (OHOS: NATIVE_JSON → toAny).
+    // Scalars / NSString unchanged.
     return ocObject;
 }
 

@@ -29,6 +29,10 @@
 #include "libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.h"
 #include "libohos_render/expand/modules/file/KRFileModule.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
+// CallKotlinPerfTestModule: debug/test only — header is empty under NDEBUG.
+#ifndef NDEBUG
+#include "libohos_render/expand/modules/performance/CallKotlinPerfTestModule.h"
+#endif
 
 #endif  // CORE_RENDER_OHOS_MODULESREGISTERENTRY_H
 
@@ -74,4 +78,11 @@ static void ModulesRegisterEntry() {
     IKRRenderModuleExport::RegisterModuleCreator(kuikly::module::KRFileModule::MODULE_NAME, [] {
         return std::make_shared<kuikly::module::KRFileModule>();
     });
+
+#ifndef NDEBUG
+    // Demo/test-only callKotlin interop bench — omitted when NDEBUG (release).
+    IKRRenderModuleExport::RegisterModuleCreator(kuikly::module::CallKotlinPerfTestModule::MODULE_NAME, [] {
+        return std::make_shared<kuikly::module::CallKotlinPerfTestModule>();
+    });
+#endif  // !NDEBUG — CallKotlinPerfTestModule registration
 }

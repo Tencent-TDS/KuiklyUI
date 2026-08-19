@@ -12,12 +12,18 @@ else()
     message(FATAL_ERROR "PACKAGE_FIND_FILE not found. 请检查CMake构建环境")
 endif()
 
+set(KUIKLY_RENDER_CPP_ROOT ${KUIKLY_ENTRY_ROOT_PATH}/../../../../../core-render-ohos/src/main/cpp)
+
 set(SOURCE_SET
         napi_init.cpp
 )
 
 add_library(kuikly_entry SHARED ${SOURCE_SET})
-include_directories(${KUIKLY_ENTRY_ROOT_PATH} ${KUIKLY_ENTRY_ROOT_PATH}/include)
+include_directories(
+        ${KUIKLY_ENTRY_ROOT_PATH}
+        ${KUIKLY_ENTRY_ROOT_PATH}/include
+        ${KUIKLY_RENDER_CPP_ROOT}
+)
 
 # Kuikly SDK
 add_library(kuikly_render ALIAS render::kuikly)

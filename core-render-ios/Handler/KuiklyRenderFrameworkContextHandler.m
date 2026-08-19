@@ -98,6 +98,8 @@
         (method == KuiklyRenderContextMethodFireCallback || method == KuiklyRenderContextMethodLayoutView)) {
         return ;
     }
+    // All methods: pass collections through (no NSJSONSerialization). Kotlin
+    // entry wraps NSDictionary as lazy JSONObject before BridgeManager.
     NSMutableArray * arguments = [[NSMutableArray alloc] initWithCapacity:6];
     for (id arg in args) {
         id ele = [KRConvertUtil nativeObjectToKotlinObject:arg];

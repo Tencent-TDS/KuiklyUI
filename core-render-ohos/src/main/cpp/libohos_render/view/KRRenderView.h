@@ -41,6 +41,8 @@ class KRRenderView : public IKRRenderView {
      */
     void SendEvent(std::string event_name, const std::string &json_data) override;
     void SendEvent(std::string event_name, const std::string &json_data, bool sync) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data, bool sync) override;
     
     /**
      * 是否需要同步发送事件

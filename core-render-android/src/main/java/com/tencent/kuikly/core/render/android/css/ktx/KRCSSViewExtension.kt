@@ -612,6 +612,9 @@ fun View.hasEventListener(type: Int): Boolean {
  * 重置事件监听
  */
 fun View.resetEventListener() {
+    // 必须先清理手势状态再移除监听器，否则 pinch 进行中的
+    // requestDisallowInterceptTouchEvent(true) 不会被复位，父容器将永久无法滚动
+    getViewData<KRCSSGestureDetector>(KRCSSGestureDetector.GESTURE_TAG)?.cleanup()
     setOnTouchListener(null)
     removeViewData<Any>(KRCSSGestureDetector.GESTURE_TAG)
 }

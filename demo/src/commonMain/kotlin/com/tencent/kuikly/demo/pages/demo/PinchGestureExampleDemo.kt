@@ -95,6 +95,7 @@ internal class PinchGestureExampleDemo : BasePager() {
     private var scaleText: String by observable("scale: -")
     private var focusText: String by observable("focus: -")
     private var translateText: String by observable("translate: -")
+    private var velocityText: String by observable("velocity: -")
     private var pageCenterText: String by observable("pageCenter: -")
 
     /** 校验scale是否为累计语义: 若为增量语义，该区间会持续贴在1.0附近抖动 */
@@ -115,6 +116,12 @@ internal class PinchGestureExampleDemo : BasePager() {
     private var panStartPageY: Float = 0f
     private var panStartTranslateX: Float = 0f
     private var panStartTranslateY: Float = 0f
+
+    // ---- 示例一: pinch 双指平移 ----
+    // pinch 的焦点 pageX/pageY 是屏幕坐标(不受组件 scale 影响)，
+    // 用它派生平移可避免 unscaled 坐标随 scale 变化导致的反馈抖动。
+    private var pinchStartPageX: Float = 0f
+    private var pinchStartPageY: Float = 0f
 
     // ---- 示例二: 以宽高承载缩放 ----
 
@@ -183,6 +190,14 @@ internal class PinchGestureExampleDemo : BasePager() {
                         attr {
                             text(ctx.translateText)
                             color(Color.WHITE)
+                            fontSize(14f)
+                            marginTop(6f)
+                        }
+                    }
+                    Text {
+                        attr {
+                            text(ctx.velocityText)
+                            color(Color(0xFF9AD1FFL))
                             fontSize(14f)
                             marginTop(6f)
                         }
@@ -283,7 +298,7 @@ internal class PinchGestureExampleDemo : BasePager() {
 
                         event {
                             pinch { params ->
-                                ctx.onPinch(params.state, params.x, params.y, params.scale)
+                                ctx.onPinch(params.state, params.x, params.y, params.scale, params.velocity, params.pageX, params.pageY)
                                 ctx.pageCenterText =
                                     "pageCenter: (${ctx.format(params.pageX)}, ${ctx.format(params.pageY)})"
                                 ctx.gestureLogText = "最近手势: pinch(${params.state})"
@@ -381,13 +396,18 @@ internal class PinchGestureExampleDemo : BasePager() {
      * @param x 捏合中心点在组件内的 x(dp)
      * @param y 捏合中心点在组件内的 y(dp)
      * @param rawScale 框架回调的缩放倍数(相对手势起点的累计值)
+     * @param velocity 缩放倍数变化速率(倍/秒)，用于观察松手时的惯性趋势
+     * @param pageX 捏合中心点在页面坐标系的x(屏幕坐标，不受组件scale影响)
+     * @param pageY 捏合中心点在页面坐标系的y
      */
-    private fun onPinch(state: String, x: Float, y: Float, rawScale: Float) {
+    private fun onPinch(state: String, x: Float, y: Float, rawScale: Float, velocity: Float, pageX: Float, pageY: Float) {
         if (state == STATE_START) {
             // 手势开始: 固化基准与焦点，整个手势内不再变化
             startScale = baseScale
             focusX = x
             focusY = y
+            pinchStartPageX = pageX
+            pinchStartPageY = pageY
             minRawScale = rawScale
             maxRawScale = rawScale
         } else {
@@ -402,18 +422,28 @@ internal class PinchGestureExampleDemo : BasePager() {
         // 累计倍数 × 上次手势结束时的基准，并夹紧到允许范围
         val scale = (startScale * rawScale).coerceIn(MIN_SCALE, MAX_SCALE)
 
-        // t = t0 + (s0 − s)·(p0 − c)
+        // t = t0 + (s0 − s)·(f0 − c) + (pageX − startPageX)
+        //
+        // 第一项 (s0 − s)·(f0 − c): 缩放补偿，保持初始焦点 f0 屏幕位置不变
+        // 第二项 (pageX − startPageX): 平移补偿，双指在屏幕上的位移(pageX 是屏幕坐标，
+        //   不受组件自身 scale 变化影响，避免 unscaled 坐标反馈抖动)
         // 注: 此处使用夹紧后的实际 scale 参与计算，保证到达边界时不跳变
         //（代价是边界处焦点会缓慢漂移，demo 可接受）
         val deltaScale = startScale - scale
         currentScale = scale
-        translateX = baseTranslateX + deltaScale * (focusX - CENTER)
-        translateY = baseTranslateY + deltaScale * (focusY - CENTER)
+        translateX = baseTranslateX + deltaScale * (focusX - CENTER) + (pageX - pinchStartPageX)
+        translateY = baseTranslateY + deltaScale * (focusY - CENTER) + (pageY - pinchStartPageY)
+        // 防止图片飘逸: translate 钳制在 ±半个图片视觉尺寸内，
+        // 手指移出组件导致坐标跳变时图片不会飞走
+        val maxOffset = IMAGE_SIZE * scale * 0.5f
+        translateX = translateX.coerceIn(-maxOffset, maxOffset)
+        translateY = translateY.coerceIn(-maxOffset, maxOffset)
 
         stateText = "state: $state"
         scaleText = "scale(回调原值): ${format(rawScale)}   实际渲染: ${format(scale)}"
-        focusText = "focus: (${format(focusX)}, ${format(focusY)})"
+        focusText = "focus: (${format(x)}, ${format(y)})"
         translateText = "translate: (${format(translateX)}, ${format(translateY)})"
+        velocityText = "velocity: ${format(velocity)} 倍/秒"
         rawScaleRangeText =
             "本次手势 scale 区间: ${format(minRawScale)} ~ ${format(maxRawScale)}"
 
@@ -449,6 +479,9 @@ internal class PinchGestureExampleDemo : BasePager() {
             else -> {
                 translateX = panStartTranslateX + (pageX - panStartPageX)
                 translateY = panStartTranslateY + (pageY - panStartPageY)
+                val panMaxOffset = IMAGE_SIZE * currentScale * 0.5f
+                translateX = translateX.coerceIn(-panMaxOffset, panMaxOffset)
+                translateY = translateY.coerceIn(-panMaxOffset, panMaxOffset)
                 translateText = "translate: (${format(translateX)}, ${format(translateY)})"
             }
         }
@@ -481,6 +514,7 @@ internal class PinchGestureExampleDemo : BasePager() {
         scaleText = "scale: -"
         focusText = "focus: -"
         translateText = "translate: -"
+        velocityText = "velocity: -"
         pageCenterText = "pageCenter: -"
         rawScaleRangeText = "本次手势 scale 区间: -"
         gestureLogText = "最近手势: -"
@@ -488,6 +522,8 @@ internal class PinchGestureExampleDemo : BasePager() {
         panStartPageY = 0f
         panStartTranslateX = 0f
         panStartTranslateY = 0f
+        pinchStartPageX = 0f
+        pinchStartPageY = 0f
         imageWidth = IMAGE_SIZE
         imageHeight = IMAGE_SIZE
         sizeScale = 1f

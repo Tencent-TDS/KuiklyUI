@@ -75,6 +75,11 @@ class KRCSSGestureDetector(
      */
     private var hasDisallowInterceptForPinch = false
 
+    /** 上次的缩放倍数与时间戳，用于计算 velocity(倍/秒) */
+    private var prevPinchScale = 0f
+    private var prevPinchTimeMs = 0L
+    private var lastPinchVelocity = 0f
+
     /**
      * 处理捏合手势。
      * @return 是否消费了事件
@@ -147,11 +152,15 @@ class KRCSSGestureDetector(
         }
 
         listener.updatePinchRawOffset(ev)
+        prevPinchScale = 1f
+        prevPinchTimeMs = 0L
+        lastPinchVelocity = 0f
         listener.dispatchPinchEvent(
             KRCSSGestureListener.EVENT_STATE_START,
             lastPinchFocusX,
             lastPinchFocusY,
-            1f
+            1f,
+            0f
         )
         return true
     }
@@ -174,11 +183,23 @@ class KRCSSGestureDetector(
         lastPinchFocusY = (ev.getY(index1) + ev.getY(index2)) * 0.5f
 
         listener.updatePinchRawOffset(ev)
+        // 计算 velocity: scale 变化率(倍/秒)，与 iOS UIPinchGestureRecognizer.velocity 语义一致
+        val nowMs = System.currentTimeMillis()
+        if (prevPinchTimeMs > 0 && nowMs > prevPinchTimeMs) {
+            val dt = (nowMs - prevPinchTimeMs) / 1000.0
+            if (dt > 0) {
+                lastPinchVelocity = ((lastPinchScale - prevPinchScale) / dt).toFloat()
+            }
+        }
+        prevPinchScale = lastPinchScale
+        prevPinchTimeMs = nowMs
+
         listener.dispatchPinchEvent(
             KRCSSGestureListener.EVENT_STATE_MOVE,
             lastPinchFocusX,
             lastPinchFocusY,
-            lastPinchScale
+            lastPinchScale,
+            lastPinchVelocity
         )
         return true
     }
@@ -192,7 +213,8 @@ class KRCSSGestureDetector(
             KRCSSGestureListener.EVENT_STATE_END,
             lastPinchFocusX,
             lastPinchFocusY,
-            lastPinchScale
+            lastPinchScale,
+            lastPinchVelocity
         )
     }
 
@@ -207,6 +229,22 @@ class KRCSSGestureDetector(
             hasDisallowInterceptForPinch = false
             disallowParentInterceptEvent(false)
         }
+    }
+
+    /**
+     * 清理所有手势状态，用于视图复用或销毁时调用。
+     *
+     * 必须在移除 OnTouchListener 之前调用，否则:
+     * - pinch 进行中的 requestDisallowInterceptTouchEvent(true) 不会被复位，父容器永久无法滚动
+     * - isPinchEventHappening / isPanEventHappening 状态残留，可能导致后续手势逻辑异常
+     */
+    fun cleanup() {
+        if (listener.isPinchEventHappening) {
+            endPinch()
+        }
+        releasePinchInterceptIfNeeded()
+        listener.isPanEventHappening = false
+        listener.isLongPressEventHappening = false
     }
 
     /**

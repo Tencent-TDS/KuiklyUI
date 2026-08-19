@@ -92,10 +92,43 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
 #if !TARGET_OS_OSX // [macOS] 无 UIPinchGestureRecognizer 对应实现，暂不支持pinch
 @property (nonatomic, strong) UIPinchGestureRecognizer *css_pinchGR;
-/// 捏合期间被临时禁止滚动的祖先ScrollView，手势结束后恢复
-@property (nonatomic, weak) UIScrollView *css_pinchLockedScrollView;
+@property (nonatomic, strong) CSSPinchGestureDelegate *css_pinchDelegate;
+/// 捏合期间被临时禁止滚动的祖先ScrollView列表(weak引用，避免循环引用)，手势结束后恢复
+@property (nonatomic, strong) NSPointerArray *css_pinchLockedScrollViews;
 #endif
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
+
+@end
+
+/// pinch 手势优先级委托: 在双指触及时要求祖先 ScrollView 的 pan 手势等待 pinch 失败，
+/// 从根本上消除「ScrollView pan 抢先 Began → 取消内容触摸 → pinch 中断」的竞争窗口。
+///
+/// 使用 delegate 方法而非 requireGestureRecognizerToFail: 是因为后者会给所有滚动
+/// 增加延迟(单指滑动也需等 pinch 超时)，而 delegate 方式仅在 numberOfTouches >= 2 时
+/// 才要求优先，单指滚动零延迟。
+@interface CSSPinchGestureDelegate : NSObject <UIGestureRecognizerDelegate>
+@end
+
+@implementation CSSPinchGestureDelegate
+
+/// 当 pinch 已有 2+ 指时，要求祖先 ScrollView 的 pan 等待 pinch 失败后才能 Began。
+/// 单指时返回 NO，ScrollView 的 pan 可立即响应，无延迟。
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
+shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    if (![gestureRecognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+        return NO;
+    }
+    // 仅对祖先 ScrollView 的 pan 手势生效
+    if (![otherGestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+        return NO;
+    }
+    UIView *otherView = otherGestureRecognizer.view;
+    if (![otherView isKindOfClass:[UIScrollView class]]) {
+        return NO;
+    }
+    // 仅在双指触及后才要求优先，避免影响单指滚动的响应速度
+    return gestureRecognizer.numberOfTouches >= 2;
+}
 
 @end
 
@@ -913,12 +946,20 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     objc_setAssociatedObject(self, @selector(css_pinchGR), css_pinchGR, OBJC_ASSOCIATION_RETAIN);
 }
 
-- (UIScrollView *)css_pinchLockedScrollView {
-    return objc_getAssociatedObject(self, @selector(css_pinchLockedScrollView));
+- (CSSPinchGestureDelegate *)css_pinchDelegate {
+    return objc_getAssociatedObject(self, @selector(css_pinchDelegate));
 }
 
-- (void)setCss_pinchLockedScrollView:(UIScrollView *)css_pinchLockedScrollView {
-    objc_setAssociatedObject(self, @selector(css_pinchLockedScrollView), css_pinchLockedScrollView, OBJC_ASSOCIATION_ASSIGN);
+- (void)setCss_pinchDelegate:(CSSPinchGestureDelegate *)css_pinchDelegate {
+    objc_setAssociatedObject(self, @selector(css_pinchDelegate), css_pinchDelegate, OBJC_ASSOCIATION_RETAIN);
+}
+
+- (NSPointerArray *)css_pinchLockedScrollViews {
+    return objc_getAssociatedObject(self, @selector(css_pinchLockedScrollViews));
+}
+
+- (void)setCss_pinchLockedScrollViews:(NSPointerArray *)css_pinchLockedScrollViews {
+    objc_setAssociatedObject(self, @selector(css_pinchLockedScrollViews), css_pinchLockedScrollViews, OBJC_ASSOCIATION_RETAIN);
 }
 #endif
 
@@ -1048,6 +1089,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         if (css_pinch != nil) {
             self.css_pinchGR = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(css_onPinchWithSender:)];
+            // 设置委托: 双指触及时要求祖先ScrollView的pan等待pinch失败，消除竞争窗口
+            if (!self.css_pinchDelegate) {
+                self.css_pinchDelegate = [[CSSPinchGestureDelegate alloc] init];
+            }
+            self.css_pinchGR.delegate = self.css_pinchDelegate;
             [self addGestureRecognizer:self.css_pinchGR];
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
@@ -1206,11 +1252,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         @(UIGestureRecognizerStateChanged): @"move",
     };
 
-    // 捏合期间临时禁止祖先ScrollView滚动。
+    // 双重保护: 委托层(2指时要求ScrollView pan等待pinch失败) + 运行时锁定(禁止scrollEnabled)。
     //
-    // UIScrollView 的 touchesShouldCancelInContentView: 对非UIControl子视图默认返回YES，
-    // 一旦其开始滚动便会取消本视图上的触摸，导致捏合手势中断。
-    // 此处与 Android 侧 requestDisallowInterceptTouchEvent(true) 的意图一致。
+    // 委托层解决竞争窗口: 在pinch进入Began之前，ScrollView的pan不会抢先。
+    // 运行时锁定作为兜底: 若委托时序存在边界情况，pinch Began时仍会禁用所有祖先ScrollView的滚动。
+    // 与 Android 侧 requestDisallowInterceptTouchEvent(true) 的意图一致。
     if (sender.state == UIGestureRecognizerStateBegan) {
         [self css_lockAncestorScrollViewForPinch];
     } else if (sender.state == UIGestureRecognizerStateEnded ||
@@ -1230,38 +1276,49 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         @"pageY": @(pageLocation.y),
         // UIPinchGestureRecognizer.scale本身即为相对手势开始时的累计倍数，与PinchGestureParams.scale语义一致
         @"scale": @(sender.scale),
+        // 缩放倍数变化速率(倍/秒)，用于实现松手后的惯性动画
+        @"velocity": @(sender.velocity),
     };
     if (self.css_pinch) {
         self.css_pinch(param);
     }
 }
 
-/// 向上查找最近的祖先ScrollView并禁止其滚动，避免其取消本视图触摸而中断捏合
+/// 向上查找所有祖先ScrollView并禁止其滚动，避免任一层级取消本视图触摸而中断捏合
 - (void)css_lockAncestorScrollViewForPinch {
-    if (self.css_pinchLockedScrollView) { // 已锁定，避免重复处理
+    if (self.css_pinchLockedScrollViews.count > 0) { // 已锁定，避免重复处理
         return;
     }
+    NSPointerArray *lockedViews = [NSPointerArray weakObjectsPointerArray];
     UIView *superView = self.superview;
     while (superView) {
         if ([superView isKindOfClass:[UIScrollView class]]) {
             UIScrollView *scrollView = (UIScrollView *)superView;
             if (scrollView.isScrollEnabled) {
                 scrollView.scrollEnabled = NO;
-                self.css_pinchLockedScrollView = scrollView;
+                [lockedViews addPointer:(__bridge void *)scrollView];
             }
-            return;
         }
         superView = superView.superview;
     }
+    if (lockedViews.count > 0) {
+        self.css_pinchLockedScrollViews = lockedViews;
+    }
 }
 
-/// 恢复此前被禁止滚动的祖先ScrollView
+/// 恢复此前被禁止滚动的所有祖先ScrollView
 - (void)css_unlockAncestorScrollViewForPinch {
-    UIScrollView *scrollView = self.css_pinchLockedScrollView;
-    if (scrollView) {
-        scrollView.scrollEnabled = YES;
-        self.css_pinchLockedScrollView = nil;
+    NSPointerArray *lockedViews = self.css_pinchLockedScrollViews;
+    if (lockedViews.count == 0) {
+        return;
     }
+    for (NSUInteger i = 0; i < lockedViews.count; i++) {
+        void *ptr = [lockedViews pointerAtIndex:i];
+        if (!ptr) { continue; } // weak 引用可能已随 ScrollView 释放而置空
+        UIScrollView *scrollView = (__bridge UIScrollView *)ptr;
+        scrollView.scrollEnabled = YES;
+    }
+    self.css_pinchLockedScrollViews = nil;
 }
 #endif
 

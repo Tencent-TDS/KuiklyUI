@@ -289,8 +289,9 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
      * @param focusX 捏合中心点在view局部坐标系下的x
      * @param focusY 捏合中心点在view局部坐标系下的y
      * @param scale 相对手势开始时的累计缩放倍数
+     * @param velocity 缩放倍数变化速率(倍/秒)，与iOS UIPinchGestureRecognizer.velocity语义一致
      */
-    fun dispatchPinchEvent(state: String, focusX: Float, focusY: Float, scale: Float) {
+    fun dispatchPinchEvent(state: String, focusX: Float, focusY: Float, scale: Float, velocity: Float) {
         dispatchEvent(
             TYPE_PINCH, mapOf(
                 KRViewConst.X to kuiklyContext.toDpF(focusX),
@@ -298,7 +299,8 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
                 EVENT_STATE to state,
                 PAGE_X to kuiklyContext.toDpF(focusX + pinchRawOffsetX),
                 PAGE_Y to kuiklyContext.toDpF(focusY + pinchRawOffsetY),
-                SCALE to scale
+                SCALE to scale,
+                VELOCITY to velocity
             )
         )
     }
@@ -332,6 +334,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         private const val PAGE_X = "pageX"
         private const val PAGE_Y = "pageY"
         private const val SCALE = "scale"
+        private const val VELOCITY = "velocity"
         const val EVENT_STATE_START = "start"
         internal const val EVENT_STATE_MOVE = "move"
         internal const val EVENT_STATE_END = "end"

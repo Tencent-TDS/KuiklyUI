@@ -74,6 +74,9 @@ class KRBaseEventHandler : public std::enable_shared_from_this<KRBaseEventHandle
     std::shared_ptr<KRConfig> kr_config_;
     bool has_capture_rule_ = false;
     bool is_long_press_happening = false;
+    // pinch velocity 跟踪状态
+    float prev_pinch_scale_ = 0.0f;
+    int64_t prev_pinch_time_ns_ = 0;
 };
 
 class KRArkTSBaseEventHandler : public KRBaseEventHandler {

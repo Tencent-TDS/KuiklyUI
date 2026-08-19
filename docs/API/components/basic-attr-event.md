@@ -1266,6 +1266,7 @@ internal class PanEventPage : BasePager() {
 | pageX   | 捏合中心点相对于页面的坐标x  | Float |
 | pageY   | 捏合中心点相对于页面的坐标y  | Float |
 | scale | 相对手势开始时的累计缩放倍数，手势开始时为1.0  | Float |
+| velocity | 缩放倍数变化速率(倍/秒)，可用于实现松手后的惯性动画 | Float |
 | state | 捏合状态："start", "move", "end" | String |
 
 </div>

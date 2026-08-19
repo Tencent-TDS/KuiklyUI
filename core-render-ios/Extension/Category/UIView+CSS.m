@@ -79,6 +79,9 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @end
 
 
+
+@class CSSPinchGestureDelegate;
+
 @interface UIView() <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;

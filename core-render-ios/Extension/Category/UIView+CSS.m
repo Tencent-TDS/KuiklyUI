@@ -103,6 +103,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @end
 
+#if !TARGET_OS_OSX // [macOS] pinch 委托依赖 UIPinchGestureRecognizer，macOS 不编译
 /// pinch 手势优先级委托: 在双指触及时要求祖先 ScrollView 的 pan 手势等待 pinch 失败，
 /// 从根本上消除「ScrollView pan 抢先 Began → 取消内容触摸 → pinch 中断」的竞争窗口。
 ///
@@ -134,6 +135,7 @@ shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRec
 }
 
 @end
+#endif // [macOS]
 
 @implementation UIView (CSS)
 

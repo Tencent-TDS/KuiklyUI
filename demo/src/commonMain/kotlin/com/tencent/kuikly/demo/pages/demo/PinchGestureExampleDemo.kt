@@ -434,12 +434,12 @@ internal class PinchGestureExampleDemo : BasePager() {
             // 第二项 (pageX − startPageX): 平移补偿，双指在屏幕上的位移(pageX 是屏幕坐标，
             //   不受组件自身 scale 变化影响，避免 unscaled 坐标反馈抖动)
             // 注: 此处使用夹紧后的实际 scale 参与计算，保证到达边界时不跳变
-            //（代价是边界处焦点会缓慢漂移，demo 可接受）
-          val deltaScale = startScale - scale
-           // 平滑死区: 过滤非对称捏合导致的质心微移(通常 < 3dp)，
-           // 保留有意的双指平移，消除放大时的轻微抖动
-           val panX = smoothDeadZone(pageX - pinchStartPageX, PINCH_PAN_DEAD_ZONE)
-           val panY = smoothDeadZone(pageY - pinchStartPageY, PINCH_PAN_DEAD_ZONE)
+           //（代价是边界处焦点会缓慢漂移，demo 可接受）
+            val deltaScale = startScale - scale
+            // 平滑死区: 过滤非对称捏合导致的质心微移(通常 < 3dp)，
+            // 保留有意的双指平移，消除放大时的轻微抖动
+            val panX = smoothDeadZone(pageX - pinchStartPageX, PINCH_PAN_DEAD_ZONE)
+            val panY = smoothDeadZone(pageY - pinchStartPageY, PINCH_PAN_DEAD_ZONE)
             // 防止图片飘逸: translate 钳制在 ±半个图片视觉尺寸内
             val maxOffset = IMAGE_SIZE * scale * 0.5f
             val tx = (baseTranslateX + deltaScale * (focusX - CENTER) + panX).coerceIn(-maxOffset, maxOffset)
@@ -485,10 +485,11 @@ internal class PinchGestureExampleDemo : BasePager() {
                 baseTranslateY = translateY
             }
 
-           STATE_CANCEL -> {
-               // pan 被取消(如第二指落下导致 pinch 接管)，回退到 pan 起手前位置
+            STATE_CANCEL -> {
+                // pan 被取消(如第二指落下导致 pinch 接管)，回退到 pan 起手前位置
                 transformState = transformState.copy(tx = panStartTranslateX, ty = panStartTranslateY)
-           }
+                translateText = "translate: (${format(panStartTranslateX)}, ${format(panStartTranslateY)})"
+            }
 
             else -> {
                 val panMaxOffset = IMAGE_SIZE * currentScale * 0.5f

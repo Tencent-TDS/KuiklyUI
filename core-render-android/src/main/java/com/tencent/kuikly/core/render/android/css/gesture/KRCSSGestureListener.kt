@@ -158,7 +158,9 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
 
     fun onCancel(e: MotionEvent) {
         if (isPanEventHappening) {
-            onPanEnd(e)
+            // pan 被 pinch 接管时补发 cancel 而非 end，避免 demo 侧在 STATE_END
+            // 固化 translate 导致「捏合变拖拽」。与 iOS 侧 Failed→"cancel" 对齐。
+            dispatchPanEvent(MotionEvent.ACTION_CANCEL, e)
         }
         isPanEventHappening = false
     }
@@ -319,6 +321,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         return when (action) {
             MotionEvent.ACTION_DOWN -> EVENT_STATE_START
             MotionEvent.ACTION_MOVE -> EVENT_STATE_MOVE
+            MotionEvent.ACTION_CANCEL -> EVENT_STATE_CANCEL
             else -> EVENT_STATE_END
         }
     }
@@ -338,6 +341,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         const val EVENT_STATE_START = "start"
         internal const val EVENT_STATE_MOVE = "move"
         internal const val EVENT_STATE_END = "end"
+        internal const val EVENT_STATE_CANCEL = "cancel"
         internal const val IS_CANCEL = "isCancel"
     }
 

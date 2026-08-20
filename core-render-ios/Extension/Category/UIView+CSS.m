@@ -1216,20 +1216,43 @@ shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRec
 }
 
 - (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point{
-    UIView *root = nil;
+    return [self convertPoint:point toView:[self kr_renderRootView]];
+}
+
+/// 返回渲染根视图(render root)。找不到时返回 nil，调用方可退回 window/自身坐标。
+- (nullable UIView *)kr_renderRootView {
     if ([self respondsToSelector:@selector(hr_rootView)]){
-        root = [self performSelector:@selector(hr_rootView)];
+        return [self performSelector:@selector(hr_rootView)];
     } else if ([self.superview respondsToSelector:@selector(hr_rootView)]){
-        root = [self.superview performSelector:@selector(hr_rootView)];
+        return [self.superview performSelector:@selector(hr_rootView)];
     }
-    
-    return [self convertPoint:point toView:root];
+    return nil;
 }
 
 - (void)css_onPanWithSender:(UIPanGestureRecognizer *)sender {
+    // pinch 进行中时抑制 pan 的 start/move 回调，与 Android 侧 onScroll 中
+    // if (isPinchEventHappening) return false 对齐。
+    // 解决「先放一指 → pan 抢先 Began → 第二指落下 → pinch 接管，pan 位移残留」。
+    //
+    // 注意: 仅抑制 Began/Changed。Cancelled/Failed/Ended 必须放行，否则第二指落下
+    // 使 pan 被取消时，demo 侧收不到 cancel，无法回退 pan 起手前的位移，
+    // 残留的 move 位移会表现为「捏合变拖拽」。
+    #if !TARGET_OS_OSX
+    if ([objc_getAssociatedObject(self, KRPinchActiveKey) boolValue] &&
+        (sender.state == UIGestureRecognizerStateBegan ||
+         sender.state == UIGestureRecognizerStateChanged)) {
+        return;
+    }
+    #endif
     NSDictionary *config = @{
         @(UIGestureRecognizerStateBegan): @"start",
         @(UIGestureRecognizerStateChanged): @"move",
+        // Failed/Cancelled 映射为 cancel，区别于正常结束的 end。
+        // Failed 场景: 同时注册了 pinch 时 pan 被限制为单指(maximumNumberOfTouches=1)，
+        // 第二指落下导致 pan Failed → pinch 接管。此时不应固化 translate，
+        // demo 侧收到 cancel 会回退到 pan 起手前的位置，消除「捏合变拖拽」。
+        @(UIGestureRecognizerStateCancelled): @"cancel",
+        @(UIGestureRecognizerStateFailed): @"cancel",
     };
     
     CGPoint location = [sender locationInView:self];
@@ -1251,6 +1274,10 @@ shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRec
 }
 
 #if !TARGET_OS_OSX // [macOS] 无 UIPinchGestureRecognizer 对应实现，暂不支持pinch
+static void *KRPinchLastLocationKey = &KRPinchLastLocationKey;
+static void *KRPinchLastPageLocationKey = &KRPinchLastPageLocationKey;
+static void *KRPinchActiveKey = &KRPinchActiveKey;
+
 - (void)css_onPinchWithSender:(UIPinchGestureRecognizer *)sender {
     NSDictionary *config = @{
         @(UIGestureRecognizerStateBegan): @"start",
@@ -1264,15 +1291,63 @@ shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRec
     // 与 Android 侧 requestDisallowInterceptTouchEvent(true) 的意图一致。
     if (sender.state == UIGestureRecognizerStateBegan) {
         [self css_lockAncestorScrollViewForPinch];
+        // 标记 pinch 激活，pan handler 检测到此标志时直接跳过(不派发 pan 回调)，
+        // 与 Android 侧 onScroll 中 if (isPinchEventHappening) return false 对齐。
+        // 消除「先放一指 pan 抢先 Began → 第二指落下 pinch 接管，pan 的位移残留」。
+        objc_setAssociatedObject(self, KRPinchActiveKey, @YES, OBJC_ASSOCIATION_RETAIN);
     } else if (sender.state == UIGestureRecognizerStateEnded ||
                sender.state == UIGestureRecognizerStateCancelled ||
                sender.state == UIGestureRecognizerStateFailed) {
         [self css_unlockAncestorScrollViewForPinch];
+        objc_setAssociatedObject(self, KRPinchActiveKey, @NO, OBJC_ASSOCIATION_RETAIN);
     }
 
-    // 捏合中心点。手势少于2指时locationInView语义不明确，此处仍取其提供的中心点，与系统行为保持一致
-    CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    // 捏合中心点。
+    // 手势进行中(Began/Changed)正常取 locationInView（双指质心），并缓存供结束时回放。
+    // 手势结束(Ended/Cancelled/Failed)时剩余手指 < 2，locationInView 返回单指位置而非
+    // 双指质心，会导致 x/y/pageX/pageY 跳变。此时回放最后一次 move 的缓存坐标，
+    // 与 Android 端 endPinch() 使用 lastPinchFocusX/Y 的做法一致，消除抬指跳动。
+    //
+    // 额外防护: 抬指瞬间 iOS 可能先发一个 Changed(仅剩1指) 再发 Ended，
+    // 该 Changed 的 locationInView 已跳变为单指位置。若照常缓存会污染缓存，
+    // 导致 Ended 回放的仍是跳变值。因此在 numberOfTouches < 2 时也不缓存、直接回放。
+    BOOL isEndState = (sender.state == UIGestureRecognizerStateEnded ||
+                       sender.state == UIGestureRecognizerStateCancelled ||
+                       sender.state == UIGestureRecognizerStateFailed);
+    BOOL shouldReplayCache = isEndState || sender.numberOfTouches < 2;
+    CGPoint location;
+    CGPoint pageLocation;
+    if (shouldReplayCache) {
+        NSValue *lastLoc = objc_getAssociatedObject(self, KRPinchLastLocationKey);
+        NSValue *lastPageLoc = objc_getAssociatedObject(self, KRPinchLastPageLocationKey);
+        if (lastLoc && lastPageLoc) {
+            [lastLoc getValue:&location];
+            [lastPageLoc getValue:&pageLocation];
+        } else {
+            // 极端情况: start 后直接 end(无 move)，缓存为空，退回系统值
+            location = [sender locationInView:self];
+            pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+        }
+    } else {
+        location = [sender locationInView:self];
+        // pageLocation 直接以渲染根视图坐标取双指质心，绕开 self 自身的 scale 变换。
+        //
+        // 若沿用 [self kr_convertLocalPointToRenderRoot:location]，坐标会经过 self 正在
+        // 逐帧变化的 scale transform 换算: locationInView 先按当前 transform 反算局部点，
+        // convertPoint 再按 transform 正算回根坐标，两次换算基于「正在变化」的 transform，
+        // 放大过程中会引入抖动，传导到 demo 的平移项 (pageX - startPageX) 即表现为「放大轻微抖动」。
+        // 直接向根视图取质心与 Android 侧基于 rawX/rawY(不受组件变换影响)的做法一致。
+        UIView *root = [self kr_renderRootView];
+        if (root) {
+            pageLocation = [sender locationInView:root];
+        } else {
+            pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+        }
+        objc_setAssociatedObject(self, KRPinchLastLocationKey,
+                                 [NSValue valueWithCGPoint:location], OBJC_ASSOCIATION_RETAIN);
+        objc_setAssociatedObject(self, KRPinchLastPageLocationKey,
+                                 [NSValue valueWithCGPoint:pageLocation], OBJC_ASSOCIATION_RETAIN);
+    }
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),

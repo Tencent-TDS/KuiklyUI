@@ -67,12 +67,13 @@ internal class PinchGestureExampleDemo : BasePager() {
 
     // ---- 示例一: 渲染状态 ----
 
-    /** 当前缩放倍数 */
-    private var currentScale: Float by observable(1f)
-
-    /** 当前平移量(dp)，用于补偿缩放引起的焦点位移 */
-    private var translateX: Float by observable(0f)
-    private var translateY: Float by observable(0f)
+    // scale/translate 合并为单个 observable，避免连续赋值触发多次 transform 重算
+    // （ObservableProperties.setValue 立即 fireObserverFn，中间态 scale↔translate 不一致导致抖动）
+    private data class TransformState(val scale: Float = 1f, val tx: Float = 0f, val ty: Float = 0f)
+    private var transformState: TransformState by observable(TransformState())
+    private val currentScale get() = transformState.scale
+    private val translateX get() = transformState.tx
+    private val translateY get() = transformState.ty
 
     // ---- 示例一: 手势基准(上次手势结束时固化) ----
 
@@ -422,25 +423,33 @@ internal class PinchGestureExampleDemo : BasePager() {
         // 累计倍数 × 上次手势结束时的基准，并夹紧到允许范围
         val scale = (startScale * rawScale).coerceIn(MIN_SCALE, MAX_SCALE)
 
-        // t = t0 + (s0 − s)·(f0 − c) + (pageX − startPageX)
-        //
-        // 第一项 (s0 − s)·(f0 − c): 缩放补偿，保持初始焦点 f0 屏幕位置不变
-        // 第二项 (pageX − startPageX): 平移补偿，双指在屏幕上的位移(pageX 是屏幕坐标，
-        //   不受组件自身 scale 变化影响，避免 unscaled 坐标反馈抖动)
-        // 注: 此处使用夹紧后的实际 scale 参与计算，保证到达边界时不跳变
-        //（代价是边界处焦点会缓慢漂移，demo 可接受）
-        val deltaScale = startScale - scale
-        currentScale = scale
-        translateX = baseTranslateX + deltaScale * (focusX - CENTER) + (pageX - pinchStartPageX)
-        translateY = baseTranslateY + deltaScale * (focusY - CENTER) + (pageY - pinchStartPageY)
-        // 防止图片飘逸: translate 钳制在 ±半个图片视觉尺寸内，
-        // 手指移出组件导致坐标跳变时图片不会飞走
-        val maxOffset = IMAGE_SIZE * scale * 0.5f
-        translateX = translateX.coerceIn(-maxOffset, maxOffset)
-        translateY = translateY.coerceIn(-maxOffset, maxOffset)
+        // END 时 pageX/pageY 可能因抬指导致捏合中心跳变(剩余手指数 < 2，
+        // locationInView 返回单指位置而非双指质心)。
+        // 此时不重算 translate/scale，直接沿用最后一次 move 的值，消除抬指跳动。
+        // iOS 端已做缓存回放(UIView+CSS.m)，此处为 demo 层的兜底防护。
+        if (state != STATE_END) {
+            // t = t0 + (s0 − s)·(f0 − c) + (pageX − startPageX)
+            //
+            // 第一项 (s0 − s)·(f0 − c): 缩放补偿，保持初始焦点 f0 屏幕位置不变
+            // 第二项 (pageX − startPageX): 平移补偿，双指在屏幕上的位移(pageX 是屏幕坐标，
+            //   不受组件自身 scale 变化影响，避免 unscaled 坐标反馈抖动)
+            // 注: 此处使用夹紧后的实际 scale 参与计算，保证到达边界时不跳变
+            //（代价是边界处焦点会缓慢漂移，demo 可接受）
+          val deltaScale = startScale - scale
+           // 平滑死区: 过滤非对称捏合导致的质心微移(通常 < 3dp)，
+           // 保留有意的双指平移，消除放大时的轻微抖动
+           val panX = smoothDeadZone(pageX - pinchStartPageX, PINCH_PAN_DEAD_ZONE)
+           val panY = smoothDeadZone(pageY - pinchStartPageY, PINCH_PAN_DEAD_ZONE)
+            // 防止图片飘逸: translate 钳制在 ±半个图片视觉尺寸内
+            val maxOffset = IMAGE_SIZE * scale * 0.5f
+            val tx = (baseTranslateX + deltaScale * (focusX - CENTER) + panX).coerceIn(-maxOffset, maxOffset)
+            val ty = (baseTranslateY + deltaScale * (focusY - CENTER) + panY).coerceIn(-maxOffset, maxOffset)
+            // 单次赋值合并 scale+translate，只触发一次 transform 重算(消除中间态抖动)
+            transformState = TransformState(scale, tx, ty)
+        }
 
         stateText = "state: $state"
-        scaleText = "scale(回调原值): ${format(rawScale)}   实际渲染: ${format(scale)}"
+        scaleText = "scale(回调原值): ${format(rawScale)}   实际渲染: ${format(currentScale)}"
         focusText = "focus: (${format(x)}, ${format(y)})"
         translateText = "translate: (${format(translateX)}, ${format(translateY)})"
         velocityText = "velocity: ${format(velocity)} 倍/秒"
@@ -476,13 +485,17 @@ internal class PinchGestureExampleDemo : BasePager() {
                 baseTranslateY = translateY
             }
 
+           STATE_CANCEL -> {
+               // pan 被取消(如第二指落下导致 pinch 接管)，回退到 pan 起手前位置
+                transformState = transformState.copy(tx = panStartTranslateX, ty = panStartTranslateY)
+           }
+
             else -> {
-                translateX = panStartTranslateX + (pageX - panStartPageX)
-                translateY = panStartTranslateY + (pageY - panStartPageY)
                 val panMaxOffset = IMAGE_SIZE * currentScale * 0.5f
-                translateX = translateX.coerceIn(-panMaxOffset, panMaxOffset)
-                translateY = translateY.coerceIn(-panMaxOffset, panMaxOffset)
-                translateText = "translate: (${format(translateX)}, ${format(translateY)})"
+                val tx = (panStartTranslateX + (pageX - panStartPageX)).coerceIn(-panMaxOffset, panMaxOffset)
+                val ty = (panStartTranslateY + (pageY - panStartPageY)).coerceIn(-panMaxOffset, panMaxOffset)
+                transformState = transformState.copy(tx = tx, ty = ty)
+                translateText = "translate: (${format(tx)}, ${format(ty)})"
             }
         }
     }
@@ -491,11 +504,9 @@ internal class PinchGestureExampleDemo : BasePager() {
     private fun onClick() {
         val targetScale = if (baseScale > 1f + SCALE_EPSILON) 1f else CLICK_ZOOM_SCALE
         baseScale = targetScale
-        currentScale = targetScale
         baseTranslateX = 0f
         baseTranslateY = 0f
-        translateX = 0f
-        translateY = 0f
+        transformState = TransformState(targetScale, 0f, 0f)
         scaleText = "scale: 单击切换至 ${format(targetScale)}"
         translateText = "translate: (0.00, 0.00)"
     }
@@ -507,9 +518,7 @@ internal class PinchGestureExampleDemo : BasePager() {
         startScale = 1f
         focusX = CENTER
         focusY = CENTER
-        currentScale = 1f
-        translateX = 0f
-        translateY = 0f
+        transformState = TransformState(1f, 0f, 0f)
         stateText = "已重置，等待双指捏合"
         scaleText = "scale: -"
         focusText = "focus: -"
@@ -536,6 +545,13 @@ internal class PinchGestureExampleDemo : BasePager() {
         return "$intPart.${decPart.toString().padStart(2, '0')}"
     }
 
+    /** 平滑死区: |value| <= threshold 时返回 0，超过阈值后平滑过渡(无跳变) */
+    private fun smoothDeadZone(value: Float, threshold: Float): Float {
+        val absVal = kotlin.math.abs(value)
+        if (absVal <= threshold) return 0f
+        return kotlin.math.sign(value) * (absVal - threshold)
+    }
+
     companion object {
         private const val MIN_SCALE = 0.5f
         private const val MAX_SCALE = 4f
@@ -546,6 +562,10 @@ internal class PinchGestureExampleDemo : BasePager() {
 
         private const val STATE_START = "start"
         private const val STATE_END = "end"
+        private const val STATE_CANCEL = "cancel"
+
+        /** pinch 质心平移死区(dp)，过滤非对称捏合的质心微移 */
+        private const val PINCH_PAN_DEAD_ZONE = 3f
 
         /** 单击切换到的放大倍数 */
         private const val CLICK_ZOOM_SCALE = 2f

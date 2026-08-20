@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
+import com.tencent.kuikly.compose.scroller.AndroidBackgroundAlignmentState
 import com.tencent.kuikly.compose.ui.node.StickyHeaderCacheManager
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.core.layout.Frame
@@ -155,6 +156,8 @@ class KuiklyScrollInfo {
      * size is already exact via [ScrollState.maxValue] + viewport.
      */
     var skipExpandStartSize: Boolean = false
+
+    internal val androidBackgroundAlignmentState = AndroidBackgroundAlignmentState()
 
     /**
      * Sticky Header Position Cache Manager

@@ -27,6 +27,8 @@
 #include <string>
 #include <thread>
 
+#include "libohos_render/foundation/thread/KRSizedThread.h"
+
 // KRThread：基于自建 uv_loop_t 的工作线程。
 // 关键约束（HarmonyOS libuv）：
 //   * uv_loop_init / uv_run / 所有非线程安全 uv_* 接口必须在 loop 线程；
@@ -105,7 +107,7 @@ class KRThread {
     void StartTimerInLoop(std::function<void()> task, int delayMs);
 
     // ---- 线程与 loop ----
-    std::thread m_workerThread;
+    KRSizedThread m_workerThread;
     std::thread::id m_workerThreadId;
     uv_loop_t m_loop{};
     uv_async_t m_async{};

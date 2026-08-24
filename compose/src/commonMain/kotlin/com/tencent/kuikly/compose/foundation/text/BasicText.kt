@@ -26,17 +26,10 @@ import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.KuiklyApplier
 import com.tencent.kuikly.compose.foundation.text.modifiers.TextStringRichElement
 import com.tencent.kuikly.compose.material3.EmptyInlineContent
-import com.tencent.kuikly.compose.resources.toKuiklyFontFamily
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
-import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.ColorProducer
-import com.tencent.kuikly.compose.ui.graphics.LinearGradient
-import com.tencent.kuikly.compose.ui.graphics.Shadow
-import com.tencent.kuikly.compose.ui.graphics.SolidColor
-import com.tencent.kuikly.compose.ui.graphics.isSpecified
 import com.tencent.kuikly.compose.ui.layout.Layout
 import com.tencent.kuikly.compose.ui.layout.Measurable
 import com.tencent.kuikly.compose.ui.layout.MeasurePolicy
@@ -49,34 +42,15 @@ import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
-import com.tencent.kuikly.compose.ui.text.LinkAnnotation
-import com.tencent.kuikly.compose.ui.text.SpanStyle
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
 import com.tencent.kuikly.compose.ui.text.TextStyle
-import com.tencent.kuikly.compose.ui.text.font.FontFamily
-import com.tencent.kuikly.compose.ui.text.font.FontListFontFamily
-import com.tencent.kuikly.compose.ui.text.font.FontStyle
-import com.tencent.kuikly.compose.ui.text.font.FontWeight
-import com.tencent.kuikly.compose.ui.text.font.GenericFontFamily
 import com.tencent.kuikly.compose.ui.text.resolveDefaults
-import com.tencent.kuikly.compose.ui.text.style.TextAlign
-import com.tencent.kuikly.compose.ui.text.style.TextDecoration
-import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.Constraints
-import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
-import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
-import com.tencent.kuikly.compose.extension.scaleToDensity
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
-import com.tencent.kuikly.core.views.ISpan
-import com.tencent.kuikly.core.views.PlaceholderSpan
-import com.tencent.kuikly.core.views.RichTextAttr
 import com.tencent.kuikly.core.views.RichTextView
-import com.tencent.kuikly.core.views.TextAttr
-import com.tencent.kuikly.core.views.TextConst
-import com.tencent.kuikly.core.views.TextSpan
 import kotlin.math.floor
 
 /**
@@ -217,6 +191,7 @@ private fun _BasicText(
             overflow,
             softWrap,
             maxLines,
+            minLines,
             onTextLayout,
             inlineContent,
             modifier,
@@ -256,6 +231,7 @@ private fun LayoutWithLinksAndInlineContent(
                 overflow = overflow,
                 softWrap = softWrap,
                 maxLines = maxLines,
+                minLines = minLines,
                 onTextLayout = { result ->
                     // 获取 placeholder 的位置信息
                     measuredPlaceholderPositions.value = result.placeholderRects
@@ -331,6 +307,7 @@ private fun BasicTextWithNoInlinContent(
     overflow: TextOverflow,
     softWrap: Boolean,
     maxLines: Int,
+    minLines: Int,
     onTextLayout: ((TextLayoutResult) -> Unit)?,
     inlineContent: Map<String, InlineTextContent>,
     modifier: Modifier,
@@ -357,13 +334,22 @@ private fun BasicTextWithNoInlinContent(
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
+        minLines = minLines,
         onTextLayout = onTextLayout,
         inlineContent = inlineContent,
         fontSizeScale = fontSizeScale,
         fontWeightScale = fontWeightScale
     )
 
-    val materializedModifier = currentComposer.materialize(modifier then textElement)
+    val materializedModifier = currentComposer.materialize(
+        modifier
+            .heightInLines(
+                textStyle = finalStyle,
+                minLines = minLines,
+                maxLines = maxLines
+            )
+            .then(textElement)
+    )
 
     ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
         factory = {

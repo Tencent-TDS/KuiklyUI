@@ -39,6 +39,12 @@ internal class CustomViewExamplePage : BasePager() {
                         backgroundColor(0xff999999)
                         message("hello this is My view")
                     }
+                    event{
+                        click { println("my view clicked") }
+                        tap { params ->
+                            println("tap params: $params")
+                        }
+                    }
                 }
                 MyDemoCustom {
                     attr {

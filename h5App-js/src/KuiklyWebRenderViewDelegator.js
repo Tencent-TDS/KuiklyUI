@@ -102,6 +102,54 @@ export class KuiklyWebRenderViewDelegator {
   }
 
   /**
+   * Get exported Kotlin callback invoke bridge function.
+   * @private
+   * @returns {Function|null}
+   */
+  _getInvokeKuiklyRenderCallbackBridge() {
+    const renderWebModule = this._getRenderWebModule();
+    if (renderWebModule.runtime.web && renderWebModule.runtime.web.expand && typeof renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback;
+    }
+    if (renderWebModule.runtime.expand && typeof renderWebModule.runtime.expand.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.expand.invokeKuiklyRenderCallback;
+    }
+    return null;
+  }
+
+  /**
+   * Invoke Kuikly callback via exported Kotlin bridge.
+   * Falls back to direct function call when callback is a plain JS function.
+   * @param {*} callback
+   * @param {*} result
+   * @returns {boolean}
+   */
+  invokeKuiklyRenderCallback(callback, result) {
+    if (!callback) {
+      return false;
+    }
+    const invokeBridge = this._getInvokeKuiklyRenderCallbackBridge();
+    if (typeof invokeBridge === 'function') {
+      try {
+        return !!invokeBridge(callback, result);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (typeof callback === 'function') {
+      try {
+        callback(result);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Create delegate implementation for Kotlin
    * @private
    */

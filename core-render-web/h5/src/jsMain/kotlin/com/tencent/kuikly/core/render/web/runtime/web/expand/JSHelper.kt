@@ -5,6 +5,7 @@ package com.tencent.kuikly.core.render.web.runtime.web.expand
 import kotlin.js.JsExport
 import kotlin.js.JsName
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
+import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.ktx.setCommonProp
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
@@ -48,6 +49,22 @@ fun jsObjectToMap(jsObject: dynamic, keys: Array<String>): MutableMap<String, An
 @JsName("setCommonProp")
 fun setCommonPropForJs(element: Element, key: String, value: Any): Boolean {
     return element.setCommonProp(key, value)
+}
+
+/**
+ * Stable JS bridge for invoking KuiklyRenderCallback.
+ * This avoids JS depending on Kotlin compiler generated internal field names.
+ */
+@JsExport
+@JsName("invokeKuiklyRenderCallback")
+fun invokeKuiklyRenderCallback(callback: dynamic, result: dynamic): Boolean {
+    if (callback == null) {
+        return false
+    }
+    return runCatching {
+        callback.unsafeCast<KuiklyRenderCallback>().invoke(result)
+        true
+    }.getOrElse { false }
 }
 
 /**

@@ -59,11 +59,11 @@ class KuiklyRenderContextHandler : IKuiklyRenderContextHandler {
         args.forEach { arg ->
             when (arg) {
                 is Map<*, *> -> {
-                    argsList.add(arg.unsafeCast<Map<String, Any>>().toJSONObject().toString())
+                    argsList.add(arg.unsafeCast<Map<String, Any?>>().toJSONObject().toString())
                 }
 
                 is List<*> -> {
-                    argsList.add(arg.unsafeCast<List<Any>>().toJSONArray().toString())
+                    argsList.add(arg.unsafeCast<List<Any?>>().toJSONArray().toString())
                 }
 
                 is JSONObject -> {

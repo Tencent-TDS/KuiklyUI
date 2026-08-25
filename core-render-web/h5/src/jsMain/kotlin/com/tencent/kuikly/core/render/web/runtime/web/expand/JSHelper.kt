@@ -33,12 +33,65 @@ fun createSizeI(width: Int, height: Int): SizeI = Pair(width, height)
 fun emptyListForJs(): List<Any> = emptyList()
 
 /**
- * Convert a JS object to a Kotlin Map using FastMutableMap
+ * Convert a JS object to a Kotlin Map.
+ *
+ * Notes:
+ * - This keeps backward compatibility for existing JS calls.
+ * - Nested JS objects/arrays are recursively converted to Kotlin Map/List.
  */
 @JsExport
 @JsName("jsObjectToMap")
-fun jsObjectToMap(jsObject: dynamic, keys: Array<String>): MutableMap<String, Any> {
-    val map = FastMutableMap<String, Any>(jsObject)
+@Suppress("UNUSED_PARAMETER")
+fun jsObjectToMap(jsObject: Any?, keys: Array<String> = emptyArray()): MutableMap<String, Any?> {
+    val converted = jsValueToKotlin(jsObject)
+    return if (converted is MutableMap<*, *>) {
+        converted.unsafeCast<MutableMap<String, Any?>>()
+    } else {
+        FastMutableMap<String, Any?>(js("({})"))
+    }
+}
+
+/**
+ * Convert a JS array to a Kotlin List with recursive conversion.
+ */
+@JsExport
+@JsName("jsArrayToList")
+fun jsArrayToList(jsArray: Array<Any?>): List<Any?> {
+    return jsArray.map { value ->
+        jsValueToKotlin(value)
+    }
+}
+
+/**
+ * Convert a JS value to Kotlin value recursively.
+ * - JS Object => Kotlin MutableMap<String, Any?>
+ * - JS Array  => Kotlin List<Any?>
+ * - Primitive => unchanged
+ */
+@JsExport
+@JsName("jsValueToKotlin")
+fun jsValueToKotlin(value: Any?): Any? {
+    if (value == null) {
+        return null
+    }
+
+    val dynamicValue = value.asDynamic()
+    val jsType = js("typeof dynamicValue") as String
+    if (jsType != "object") {
+        return value
+    }
+
+    val isArray = js("Array.isArray(dynamicValue)") as Boolean
+    if (isArray) {
+        val arrayValue = dynamicValue.unsafeCast<Array<Any?>>()
+        return jsArrayToList(arrayValue)
+    }
+
+    val map = FastMutableMap<String, Any?>(js("({})"))
+    val keys = js("Object.keys(dynamicValue)").unsafeCast<Array<String>>()
+    keys.forEach { key ->
+        map[key] = jsValueToKotlin(dynamicValue[key])
+    }
     return map
 }
 

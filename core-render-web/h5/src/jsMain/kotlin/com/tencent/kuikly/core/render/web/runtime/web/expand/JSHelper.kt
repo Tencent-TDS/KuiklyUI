@@ -8,8 +8,10 @@ import com.tencent.kuikly.core.render.web.collection.FastMutableMap
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.ktx.setCommonProp
+import com.tencent.kuikly.core.render.web.processor.IImageProcessor
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import org.w3c.dom.Element
+import org.w3c.dom.HTMLImageElement
 
 /**
  * JS Interop Helper Functions
@@ -118,6 +120,52 @@ fun invokeKuiklyRenderCallback(callback: dynamic, result: dynamic): Boolean {
         callback.unsafeCast<KuiklyRenderCallback>().invoke(result)
         true
     }.getOrElse { false }
+}
+
+/**
+ * Register a JavaScript image processor with Kuikly.
+ *
+ * Returns true when registration succeeds, false when input is invalid.
+ */
+@JsExport
+@JsName("setImageProcessor")
+fun setImageProcessor(imageProcessor: Any?): Boolean {
+    if (imageProcessor == null) {
+        return false
+    }
+
+    val jsProcessor = imageProcessor.asDynamic()
+    val hasRequiredMethods = js(
+        "typeof jsProcessor.getImageAssetsSource === 'function'" +
+            " && typeof jsProcessor.isSVGFilterSupported === 'function'" +
+            " && typeof jsProcessor.applyTintColor === 'function'"
+    ) as Boolean
+
+    if (!hasRequiredMethods) {
+        return false
+    }
+
+    KuiklyProcessor.imageProcessor = object : IImageProcessor {
+        override fun getImageAssetsSource(src: String): String {
+            return runCatching {
+                jsProcessor.getImageAssetsSource(src).unsafeCast<String>()
+            }.getOrElse { src }
+        }
+
+        override fun isSVGFilterSupported(): Boolean {
+            return runCatching {
+                jsProcessor.isSVGFilterSupported().unsafeCast<Boolean>()
+            }.getOrElse { false }
+        }
+
+        override fun applyTintColor(imageElement: HTMLImageElement, tintColorValue: String, frameHeight: Double) {
+            runCatching {
+                jsProcessor.applyTintColor(imageElement, tintColorValue, frameHeight)
+            }
+        }
+    }
+
+    return true
 }
 
 /**

@@ -534,8 +534,10 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         KuiklyProcessor.richTextProcessor = RichTextProcessor
         // init event processor
         KuiklyProcessor.eventProcessor = EventProcessor
-        // init image processor
-        KuiklyProcessor.imageProcessor = ImageProcessor
+        // init image processor (do not overwrite host-registered processor)
+        if (runCatching { KuiklyProcessor.imageProcessor }.isFailure) {
+            KuiklyProcessor.imageProcessor = ImageProcessor
+        }
         // init list processor
         KuiklyProcessor.listProcessor = ListProcessor
         // init dev environment

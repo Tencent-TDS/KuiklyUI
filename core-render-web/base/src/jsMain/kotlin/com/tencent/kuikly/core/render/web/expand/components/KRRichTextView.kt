@@ -11,6 +11,7 @@ import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.getCSSBackgroundImage
 import com.tencent.kuikly.core.render.web.ktx.height
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.ktx.pxToFloat
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
@@ -185,6 +186,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var strokeColor = ""
     private var measureResult = SizeF(0f, 0f)
     private var hasAppendFloatSpans = false
+    private var currentShadow: IKuiklyRenderShadowExport? = null
+    private val placeholderRectCache = mutableMapOf<Int, String>()
+    private val placeholderRectRetryCount = mutableMapOf<Int, Int>()
+    private val pendingPlaceholderRectRetry = mutableSetOf<Int>()
 
     // Initialize p tag
     private val textEle = kuiklyDocument.createElement(ElementType.P).apply {
@@ -300,6 +305,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     }
 
     override fun setShadow(shadow: IKuiklyRenderShadowExport) {
+        currentShadow = shadow
         super.setShadow(shadow)
 
         if(!this.isRichTextValues()) {
@@ -446,41 +452,84 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
      * Get placeholder span size data
      */
     private fun getPlaceholderSpanRect(index: Int?): String {
-        var rectInfo = "0.0 0.0 0.0 0.0"
-        if (index == null) return rectInfo
+        val defaultRectInfo = "0.0 0.0 0.0 0.0"
+        if (index == null) return defaultRectInfo
 
         // Let the platform-specific processor handle it first (e.g. miniapp).
         // Returns "" when not supported, falling through to DOM-based logic below.
         val processorRect = KuiklyProcessor.richTextProcessor.getPlaceholderSpanRect(index, this)
         if (processorRect.isNotEmpty()) return processorRect
 
-        // Account for float spans prepended when lineBreakMargin is set
-        val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
-        val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
-
-        if (
-            placeholderSpan != null &&
-            placeholderSpan.style.width != "" &&
-            placeholderSpan.style.height != ""
-        ) {
-            // ele may be detached because insertSubRenderView is async;
-            // temporarily attach to body to force a synchronous reflow
-            val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
-            if (!isConnected) {
-                kuiklyDocument.body?.appendChild(ele)
-            }
-
-            // Determine that it is a placeholder span, get size information
-            with(placeholderSpan) {
-                rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
-            }
-
-            if (!isConnected) {
-                kuiklyDocument.body?.removeChild(ele)
+        val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
+        var appendedForMeasure = false
+        if (!isConnected) {
+            val body = kuiklyDocument.body
+            if (body != null) {
+                body.appendChild(ele)
+                appendedForMeasure = true
             }
         }
 
-        return rectInfo
+        try {
+            // Account for float spans prepended when lineBreakMargin is set
+            val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
+            val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
+
+            if (
+                placeholderSpan != null &&
+                placeholderSpan.style.width != "" &&
+                placeholderSpan.style.height != ""
+            ) {
+                // Determine that it is a placeholder span, get size information.
+                // Use local coordinates relative to richText element to avoid world-space offsets.
+                val left = (placeholderSpan.offsetLeft - ele.offsetLeft).toFloat()
+                val top = (placeholderSpan.offsetTop - ele.offsetTop).toFloat()
+                val width = placeholderSpan.offsetWidth.toFloat()
+                val height = placeholderSpan.offsetHeight.toFloat()
+
+                val rectInfo = if (width > 0f && height > 0f) {
+                    "$left $top $width $height"
+                } else {
+                    // Fallback to bounding-rect relative coordinates when offset sizes are not ready.
+                    val containerRect = ele.getBoundingClientRect()
+                    val spanRect = placeholderSpan.getBoundingClientRect()
+                    "${(spanRect.left - containerRect.left).toFloat()} ${(spanRect.top - containerRect.top).toFloat()} ${spanRect.width.toFloat()} ${spanRect.height.toFloat()}"
+                }
+
+                placeholderRectCache[index] = rectInfo
+                placeholderRectRetryCount.remove(index)
+                pendingPlaceholderRectRetry.remove(index)
+                return rectInfo
+            }
+
+            if (!isConnected) {
+                schedulePlaceholderRectRetry(index)
+            }
+            return placeholderRectCache[index] ?: defaultRectInfo
+        } finally {
+            if (appendedForMeasure) {
+                kuiklyDocument.body?.removeChild(ele)
+            }
+        }
+    }
+
+    private fun schedulePlaceholderRectRetry(index: Int) {
+        if (!pendingPlaceholderRectRetry.add(index)) {
+            return
+        }
+
+        kuiklyWindow.setTimeout({
+            pendingPlaceholderRectRetry.remove(index)
+            val retryCount = placeholderRectRetryCount[index] ?: 0
+            if (retryCount >= MAX_PLACEHOLDER_RECT_RETRY_COUNT) {
+                return@setTimeout
+            }
+            placeholderRectRetryCount[index] = retryCount + 1
+            // Trigger a fresh shadow set so core side can re-query spanRect when DOM is connected.
+            currentShadow?.also {
+                setShadow(it)
+            }
+        }, PLACEHOLDER_RECT_RETRY_DELAY)
     }
 
     /**
@@ -514,6 +563,14 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             val usedStrokeWidth = strokeWidth.toDouble() / STROKE_WIDTH_DIVISOR
             ele.style.asDynamic().webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        currentShadow = null
+        placeholderRectCache.clear()
+        placeholderRectRetryCount.clear()
+        pendingPlaceholderRectRetry.clear()
     }
 
     companion object {
@@ -555,5 +612,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         private const val DEFAULT_LINE_SPACING = 1f
         private const val DEFAULT_ELEMENT_FONT_SIZE = 13f
         private const val STROKE_WIDTH_DIVISOR = 4
+        private const val PLACEHOLDER_RECT_RETRY_DELAY = 16
+        private const val MAX_PLACEHOLDER_RECT_RETRY_COUNT = 6
     }
 }

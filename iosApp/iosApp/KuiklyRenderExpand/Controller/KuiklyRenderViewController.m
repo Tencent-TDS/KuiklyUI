@@ -27,8 +27,6 @@
 
 /// TurboDisplay 专属测试页面名称，只有该页面启用 TurboDisplay AOT 渲染
 static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPage";
-/// 挂起Diff测试页面名称
-static NSString * const kTBDeferDiffTestPageName = @"45980";
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -262,7 +260,7 @@ static NSString * const kTBDeferDiffTestPageName = @"45980";
 // 仅允许指定的测试页面走 TurboDisplay 渲染路径
 // 避免新安装无缓存时弹出错误弹窗影响其他业务页面的体验
 - (NSString *)turboDisplayKey {
-    if ([_pageName isEqualToString:kTurboDisplayTestPageName] || [_pageName isEqualToString:kTBDeferDiffTestPageName]) {
+    if ([_pageName isEqualToString:kTurboDisplayTestPageName]) {
         return _pageName;
     }
     return nil;
@@ -273,10 +271,11 @@ static NSString * const kTBDeferDiffTestPageName = @"45980";
         KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
         // Demo 页面支持滚动位置恢复，则需要打开 延迟Diff
         [config enableDelayedDiff];
+    //    [config enableAutoUpdateTurboDisplay];
+    //    [config disablePersistentRealTree];
         return config;
-
+      
     }
-    
     return nil;
 }
 

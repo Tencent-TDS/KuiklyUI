@@ -140,15 +140,7 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
             val viewWidth = it.flexNode.layoutFrame.width
             val viewHeight = it.flexNode.layoutFrame.height
             if (it.renderView != null && !isDragging && viewWidth > 0 && viewHeight > 0) {
-                var offset = 0f
-                if (attr.itemCount == index ) {
-                    offset = 0.1f
-                }
-                if (attr.isHorizontal) {
-                    it.setContentOffset((index + 1)  * viewWidth + offset, 0f, animation)
-                } else {
-                    it.setContentOffset(0f, (index + 1)  * viewHeight + offset, animation)
-                }
+                it.scrollToPageIndex(index + 1, animation)
             }
         }
     }

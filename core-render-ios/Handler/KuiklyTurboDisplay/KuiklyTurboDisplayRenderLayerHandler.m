@@ -140,7 +140,6 @@
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] turboDisplayConfig details:"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 结构感知Diff-DOM: %@", [_config isStructureAwareDiffDOMEnabled] ? @"开启" : @"关闭"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 延迟Diff-View: %@", [_config isDelayedDiffEnabled] ? @"开启" : @"关闭"]];
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 挂起Diff: %@", self.suspendDiffDeclared ? @"开启" : @"关闭"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 自动刷新缓存: %@", [_config isCloseAutoUpdateTurboDisplay] ? @"关闭" : @"开启"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 真实树持久更新: %@", [_config isPersistentRealTreeEnabled] ? @"开启" : @"关闭"]];
         if (_extraCacheContent.length > 0) {

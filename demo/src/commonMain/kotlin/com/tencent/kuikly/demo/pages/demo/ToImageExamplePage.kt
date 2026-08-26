@@ -24,12 +24,14 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.Canvas
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
+import kotlin.math.PI
 
 @Page("ToImageExamplePage")
 internal class ToImageExamplePage : BasePager() {
@@ -86,7 +88,7 @@ internal class ToImageExamplePage : BasePager() {
                         borderRadius(10.0f)
                         border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF90CAF9)))
                         backgroundColor(if (ctx.alternating) Color(0xFFE3F2FD) else Color(0xFFFFFDE7))
-                        height(220.0f)
+                        height(300.0f)
                     }
 
                     Text {
@@ -111,6 +113,54 @@ internal class ToImageExamplePage : BasePager() {
                             marginTop(10.0f)
                             size(140f, 90f)
                             src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
+                        }
+                    }
+
+                    // Small canvas sub-area for verifying canvas-bitmap capture by toImage.
+                    // The canvas draws a red-filled rounded rect, a blue circle and a
+                    // diagonal green line. If the snapshot fails to include canvas bitmap,
+                    // this area will show as an empty rectangle in the result image.
+                    View {
+                        attr {
+                            marginTop(10.0f)
+                            width(180.0f)
+                            height(60.0f)
+                            borderRadius(6.0f)
+                            border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF7E57C2)))
+                            backgroundColor(Color(0xFFF3E5F5))
+                        }
+
+                        Canvas({
+                            attr {
+                                absolutePosition(0f, 0f, 0f, 0f)
+                            }
+                        }) { context, width, height ->
+                            // Red rounded-corner rectangle on the left.
+                            context.beginPath()
+                            context.fillStyle(Color(0xFFE53935))
+                            context.moveTo(4f, 4f)
+                            context.lineTo(width * 0.35f, 4f)
+                            context.lineTo(width * 0.35f, height - 4f)
+                            context.lineTo(4f, height - 4f)
+                            context.lineTo(4f, 4f)
+                            context.fill()
+
+                            // Blue circle in the middle.
+                            context.beginPath()
+                            context.fillStyle(Color(0xFF1E88E5))
+                            val cx = width * 0.55f
+                            val cy = height / 2f
+                            val r = (height / 2f) - 6f
+                            context.arc(cx, cy, r, 0f, (PI * 2f).toFloat(), false)
+                            context.fill()
+
+                            // Green diagonal stroke across the whole area.
+                            context.beginPath()
+                            context.strokeStyle(Color(0xFF43A047))
+                            context.lineWidth(2f)
+                            context.moveTo(width * 0.65f, height - 6f)
+                            context.lineTo(width - 6f, 6f)
+                            context.stroke()
                         }
                     }
                 }

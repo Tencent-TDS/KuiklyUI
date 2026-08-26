@@ -170,22 +170,33 @@ open class KRView : IKuiklyRenderViewExport {
             return
         }
 
-        // Use SVG foreignObject to rasterize current DOM subtree in browser.
-        // Note: cross-origin resources may taint canvas and fail toDataURL.
+        // Rasterize current DOM subtree via SVG foreignObject.
+        // Root cause fixes on top of the naive approach:
+        //   1) Inline computed styles into every cloned node so fonts / line-height /
+        //      white-space are consistent inside foreignObject (avoid last-char wrap).
+        //   2) Pre-fetch cross-origin <img> resources into dataURL so the SVG can render
+        //      them and canvas won't be tainted (avoid broken-image placeholders).
+        //   3) Keep sub-pixel size as float to avoid rounding-induced re-layout.
+        //   4) Snapshot each <canvas> backing store into an <img data:...> replacement
+        //      inside the clone, otherwise cloneNode(true) loses the pixel content.
         val rect = ele.getBoundingClientRect()
-        val width = max(1, rect.width.toInt())
-        val height = max(1, rect.height.toInt())
+        val widthF = if (rect.width > 0.0) rect.width else 1.0
+        val heightF = if (rect.height > 0.0) rect.height else 1.0
         val scale = max(1.0 / sampleSize.toDouble(), 0.01)
-        val outputWidth = max(1, (width * scale).toInt())
-        val outputHeight = max(1, (height * scale).toInt())
+        val outputWidth = max(1, (widthF * scale).toInt())
+        val outputHeight = max(1, (heightF * scale).toInt())
 
         val cloned = ele.cloneNode(true).unsafeCast<HTMLDivElement>()
-        // Ensure cloned root keeps explicit size and has transparent background by default.
-        // Also normalize position-related styles to avoid double-applying frame offsets
-        // inside SVG foreignObject (which would shift content right/down and clip edges).
+        // Inline every node's computed style into the clone.
+        inlineComputedStyleTree(ele, cloned)
+        // Capture each live <canvas> bitmap and replace the empty clone-canvas with
+        // an <img> holding the snapshot dataURL. Must run AFTER inlineComputedStyleTree
+        // so the replacement <img> can inherit the canvas's computed styles.
+        preloadCanvasesAsImage(ele, cloned)
+        // Normalize cloned root to remove outer margin / positioning offsets inside SVG.
         cloned.style.margin = "0"
-        cloned.style.width = "${width}px"
-        cloned.style.height = "${height}px"
+        cloned.style.width = "${widthF}px"
+        cloned.style.height = "${heightF}px"
         cloned.style.setProperty("overflow", "hidden")
         cloned.style.setProperty("position", "relative")
         cloned.style.setProperty("left", "0px")
@@ -195,47 +206,245 @@ open class KRView : IKuiklyRenderViewExport {
         cloned.style.setProperty("transform", "none")
         cloned.style.setProperty("transform-origin", "0 0")
 
-        val serializer: dynamic = js("new XMLSerializer()")
-        val xhtml = serializer.serializeToString(cloned)
-        val svg = """
-            <svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height">
-                <foreignObject width="100%" height="100%">$xhtml</foreignObject>
-            </svg>
-        """.trimIndent()
-        val encodedSvg = kuiklyWindow.asDynamic().encodeURIComponent(svg).unsafeCast<String>()
-        val svgDataUrl = "data:image/svg+xml;charset=utf-8,$encodedSvg"
-
-        val image = kuiklyDocument.createElement(ElementType.IMAGE).unsafeCast<HTMLImageElement>()
-        image.addEventListener("load", { _: Event ->
+        // Preload cross-origin images inside the clone into dataURL, then rasterize.
+        preloadImagesAsDataUrl(cloned) {
             try {
-                val canvas = kuiklyDocument.createElement(ElementType.CANVAS).unsafeCast<HTMLCanvasElement>()
-                canvas.width = outputWidth
-                canvas.height = outputHeight
-                val ctx = canvas.getContext("2d")
-                if (ctx == null) {
-                    callback?.invoke(toImageError("failed to get 2d context"))
+                val serializer: dynamic = js("new XMLSerializer()")
+                val xhtml = serializer.serializeToString(cloned)
+                val svg = """
+                    <svg xmlns="http://www.w3.org/2000/svg" width="$widthF" height="$heightF">
+                        <foreignObject width="100%" height="100%">$xhtml</foreignObject>
+                    </svg>
+                """.trimIndent()
+                val encodedSvg = kuiklyWindow.asDynamic().encodeURIComponent(svg).unsafeCast<String>()
+                val svgDataUrl = "data:image/svg+xml;charset=utf-8,$encodedSvg"
+
+                val image = kuiklyDocument.createElement(ElementType.IMAGE).unsafeCast<HTMLImageElement>()
+                image.addEventListener("load", { _: Event ->
+                    try {
+                        val canvas = kuiklyDocument.createElement(ElementType.CANVAS)
+                            .unsafeCast<HTMLCanvasElement>()
+                        canvas.width = outputWidth
+                        canvas.height = outputHeight
+                        val ctx = canvas.getContext("2d")
+                        if (ctx == null) {
+                            callback?.invoke(toImageError("failed to get 2d context"))
+                        } else {
+                            val ctx2d: dynamic = ctx
+                            ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
+                            val dataUri = canvas.toDataURL("image/png")
+                            if (type == TO_IMAGE_TYPE_CACHE_KEY) {
+                                val cacheKey = buildImageCacheKey()
+                                kuiklyRenderContext
+                                    ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+                                    ?.set(cacheKey, dataUri)
+                                callback?.invoke(toImageSuccess(cacheKey))
+                            } else {
+                                callback?.invoke(toImageSuccess(dataUri))
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        callback?.invoke(toImageError(t.message ?: "toImage render failed"))
+                    }
+                })
+                image.addEventListener("error", { _: Event ->
+                    callback?.invoke(toImageError("toImage load svg failed"))
+                })
+                image.src = svgDataUrl
+            } catch (t: Throwable) {
+                callback?.invoke(toImageError(t.message ?: "toImage serialize failed"))
+            }
+        }
+    }
+
+    /**
+     * Walk the source subtree and copy each node's computed style onto the cloned
+     * counterpart via inline `style.cssText`. This is required because a cloned
+     * node inside SVG `<foreignObject>` loses access to outer document CSS, which
+     * would otherwise cause font/line-height differences and text wrapping drift.
+     */
+    private fun inlineComputedStyleTree(source: dynamic, clone: dynamic) {
+        if (source == null || clone == null) return
+        val srcNodeType = source.nodeType.unsafeCast<Int>()
+        if (srcNodeType != 1) return // ELEMENT_NODE only
+        val computed = kuiklyWindow.asDynamic().getComputedStyle(source)
+        if (computed != null) {
+            val cssText = computed.cssText.unsafeCast<String?>() ?: ""
+            if (cssText.isNotEmpty()) {
+                clone.style.cssText = cssText
+            } else {
+                // Some browsers return empty cssText; fall back to property iteration.
+                val len = computed.length.unsafeCast<Int>()
+                var i = 0
+                while (i < len) {
+                    val prop = computed.item(i).unsafeCast<String>()
+                    val value = computed.getPropertyValue(prop).unsafeCast<String>()
+                    clone.style.setProperty(prop, value)
+                    i++
+                }
+            }
+        }
+        val srcChildren = source.children
+        val cloneChildren = clone.children
+        if (srcChildren == null || cloneChildren == null) return
+        val count = srcChildren.length.unsafeCast<Int>()
+        var idx = 0
+        while (idx < count) {
+            inlineComputedStyleTree(srcChildren[idx], cloneChildren[idx])
+            idx++
+        }
+    }
+
+    /**
+     * For each live <canvas> under [srcRoot], snapshot its backing store to a PNG
+     * dataURL and replace the corresponding empty <canvas> under [cloneRoot] with
+     * an <img> node holding that dataURL. Traversal order matches because
+     * `cloneNode(true)` preserves child order 1:1 with the source subtree.
+     *
+     * If the source canvas is tainted by cross-origin content, `toDataURL(...)`
+     * throws SecurityError. We silently skip such canvases so other content still
+     * renders correctly (that canvas will appear blank in the snapshot).
+     *
+     * This step is synchronous — `toDataURL` on 2D / WebGL canvas returns
+     * immediately. For WebGL specifically the canvas must be created with
+     * `preserveDrawingBuffer: true` or drawn on the same frame, otherwise the
+     * dataURL may be blank; that's a caller-side concern this method cannot fix.
+     */
+    private fun preloadCanvasesAsImage(srcRoot: dynamic, cloneRoot: dynamic) {
+        val srcCanvases = srcRoot.querySelectorAll("canvas")
+        val cloneCanvases = cloneRoot.querySelectorAll("canvas")
+        val total = srcCanvases.length.unsafeCast<Int>()
+        val cloneTotal = cloneCanvases.length.unsafeCast<Int>()
+        if (total == 0 || cloneTotal == 0) return
+        val safeTotal = if (total < cloneTotal) total else cloneTotal
+        var i = 0
+        while (i < safeTotal) {
+            val srcCanvas = srcCanvases[i]
+            val cloneCanvas = cloneCanvases[i]
+            i++
+            if (srcCanvas == null || cloneCanvas == null) continue
+            val parent = cloneCanvas.parentNode
+            if (parent == null) continue
+            val dataUrl: String = try {
+                srcCanvas.toDataURL("image/png").unsafeCast<String>()
+            } catch (_: Throwable) {
+                // Tainted canvas or unsupported context — leave clone canvas as-is.
+                continue
+            }
+            if (dataUrl.isEmpty() || !dataUrl.startsWith("data:")) continue
+
+            // Build an <img> replacement carrying the same visual box as the canvas:
+            //   - Copy computed style (position/size/border/transform/etc.) so it sits
+            //     exactly where the original canvas sat inside foreignObject.
+            //   - Force display:inline-block and object-fit:fill so the bitmap fills
+            //     the box regardless of the canvas's original display mode.
+            val replacement: dynamic = kuiklyDocument.createElement(ElementType.IMAGE)
+            val srcComputed = kuiklyWindow.asDynamic().getComputedStyle(srcCanvas)
+            if (srcComputed != null) {
+                val cssText = srcComputed.cssText.unsafeCast<String?>() ?: ""
+                if (cssText.isNotEmpty()) {
+                    replacement.style.cssText = cssText
                 } else {
-                    val ctx2d: dynamic = ctx
-                    ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
-                    val dataUri = canvas.toDataURL("image/png")
-                    if (type == TO_IMAGE_TYPE_CACHE_KEY) {
-                        val cacheKey = buildImageCacheKey()
-                        kuiklyRenderContext
-                            ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
-                            ?.set(cacheKey, dataUri)
-                        callback?.invoke(toImageSuccess(cacheKey))
-                    } else {
-                        callback?.invoke(toImageSuccess(dataUri))
+                    val len = srcComputed.length.unsafeCast<Int>()
+                    var k = 0
+                    while (k < len) {
+                        val prop = srcComputed.item(k).unsafeCast<String>()
+                        val value = srcComputed.getPropertyValue(prop).unsafeCast<String>()
+                        replacement.style.setProperty(prop, value)
+                        k++
                     }
                 }
-            } catch (t: Throwable) {
-                callback?.invoke(toImageError(t.message ?: "toImage render failed"))
             }
-        })
-        image.addEventListener("error", { _: Event ->
-            callback?.invoke(toImageError("toImage load svg failed"))
-        })
-        image.src = svgDataUrl
+            // Prefer the actual on-screen size over the canvas backing-store size.
+            val srcRect = srcCanvas.getBoundingClientRect()
+            val boxW = srcRect.width.unsafeCast<Double>()
+            val boxH = srcRect.height.unsafeCast<Double>()
+            if (boxW > 0.0) replacement.style.width = "${boxW}px"
+            if (boxH > 0.0) replacement.style.height = "${boxH}px"
+            replacement.style.setProperty("display", "inline-block")
+            replacement.style.setProperty("object-fit", "fill")
+            replacement.setAttribute("src", dataUrl)
+
+            parent.replaceChild(replacement, cloneCanvas)
+        }
+    }
+
+    /**
+     * Find all <img> nodes inside [root] whose src is a remote URL and replace src
+     * with a dataURL fetched via CORS. Falls back to the original src if fetch fails
+     * (that image will still render as broken inside the snapshot, but other content
+     * and canvas security are preserved). Invokes [onDone] after all images settle.
+     */
+    private fun preloadImagesAsDataUrl(root: dynamic, onDone: () -> Unit) {
+        val imgs = root.querySelectorAll("img")
+        val total = imgs.length.unsafeCast<Int>()
+        if (total == 0) {
+            onDone()
+            return
+        }
+        var remaining = total
+        val markDone = {
+            remaining -= 1
+            if (remaining <= 0) onDone()
+        }
+        var i = 0
+        while (i < total) {
+            val img = imgs[i]
+            val src = img.getAttribute("src").unsafeCast<String?>() ?: ""
+            if (src.isEmpty() || src.startsWith("data:")) {
+                markDone()
+            } else {
+                fetchAsDataUrl(src, onSuccess = { dataUrl ->
+                    img.setAttribute("src", dataUrl)
+                    img.removeAttribute("crossorigin")
+                    markDone()
+                }, onError = { _ ->
+                    // Keep original src; snapshot may show a broken image for this node,
+                    // but canvas won't be tainted because SVG will just skip it.
+                    markDone()
+                })
+            }
+            i++
+        }
+    }
+
+    /**
+     * Fetch [url] as blob via CORS and convert to dataURL. All errors are routed to
+     * [onError] with a short reason string so callers can log and decide fallback.
+     */
+    private fun fetchAsDataUrl(
+        url: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        try {
+            val init: dynamic = js("({ mode: 'cors', credentials: 'omit', cache: 'force-cache' })")
+            val promise = kuiklyWindow.asDynamic().fetch(url, init)
+            promise.then({ resp: dynamic ->
+                if (resp == null) {
+                    onError("resp-null")
+                } else if (resp.ok != true) {
+                    val status = resp.status.unsafeCast<Int>()
+                    onError("http-$status")
+                } else {
+                    resp.blob().then({ blob: dynamic ->
+                        val reader: dynamic = js("new FileReader()")
+                        reader.onload = {
+                            val result = reader.result.unsafeCast<String?>()
+                            if (result.isNullOrEmpty()) onError("reader-empty") else onSuccess(result)
+                        }
+                        reader.onerror = { onError("reader-error") }
+                        reader.readAsDataURL(blob)
+                    }, { onError("blob-reject") })
+                }
+                null
+            }, { err: dynamic ->
+                val reason = try { err.message.unsafeCast<String>() } catch (_: Throwable) { "fetch-reject" }
+                onError(reason)
+            })
+        } catch (t: Throwable) {
+            onError(t.message ?: "fetch-throw")
+        }
     }
 
     private fun buildImageCacheKey(): String {

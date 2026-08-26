@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
@@ -37,59 +38,204 @@ internal class ToImageExamplePage : BasePager() {
         private const val TAG = "PerformancePage"
     }
 
-    private var performanceData : String by observable("")
-    private var viewRef : ViewRef<DivView>? = null
-    private var src by observable("")
+    private var snapshotInfo: String by observable("点击按钮开始截图")
+    private var viewRef: ViewRef<DivView>? = null
+    private var snapshotResultSrc by observable("")
     private var alternating by observable(false)
-    private var mode by observable(0)
+
+    private fun runToImageTest(type: DeclarativeBaseView.ImageType, sampleSize: Int, label: String) {
+        alternating = !alternating
+        viewRef?.view?.toImage(type, sampleSize) {
+            val code = it?.optInt("code") ?: -1
+            val data = it?.optString("data") ?: ""
+            val message = it?.optString("message") ?: ""
+            val success = code == 0 && data.isNotEmpty()
+
+            KLog.d(
+                TAG,
+                "toImage[$label], success: $success, code: $code, sampleSize: $sampleSize, data: $data, message: $message"
+            )
+
+            snapshotInfo = "[$label] code=$code, sampleSize=$sampleSize, message=$message"
+            if (success) {
+                snapshotResultSrc = data
+            }
+        }
+    }
 
     override fun body(): ViewBuilder {
         val ctx = this
         return {
             NavBar { attr { title = "ToImage Demo Page" } }
-            View {
-                ref {
-                    ctx.viewRef = it
-                }
-                attr {
-                    padding(5.0f)
-                    margin(10.0f)
-                    borderRadius(12.0f)
-                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFB8C00)))
-                    allCenter()
-                    height(150.0f)
-                    backgroundColor(if(ctx.alternating) Color.BLUE else Color.YELLOW )
-                }
-                Text {
-                    attr {
-                        fontSize(18.0f)
-                        color(Color(0xFFFB8C00))
-                        text("Some Text")
-                    }
-                }
-                Image{
-                    attr{
-                        size(100f, 100f)
-                        src(ctx.src)
 
+            // Big testing zone
+            View {
+                attr {
+                    margin(12.0f)
+                    padding(12.0f)
+                    borderRadius(12.0f)
+                    border(Border(lineWidth = 1.0f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFB8C00)))
+                    backgroundColor(Color(0xFFFFF8E1))
+                }
+
+                // Block 1: Snapshot target area
+                View {
+                    ref { ctx.viewRef = it }
+                    attr {
+                        padding(12.0f)
+                        borderRadius(10.0f)
+                        border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF90CAF9)))
+                        backgroundColor(if (ctx.alternating) Color(0xFFE3F2FD) else Color(0xFFFFFDE7))
+                        height(220.0f)
+                    }
+
+                    Text {
+                        attr {
+                            fontSize(16.0f)
+                            color(Color(0xFF1565C0))
+                            text("待截图区：这里包含文字和图片")
+                        }
+                    }
+
+                    Text {
+                        attr {
+                            marginTop(8.0f)
+                            fontSize(14.0f)
+                            color(Color(0xFF424242))
+                            text("点击下方按钮后，会对当前区域进行 toImage 截图并展示结果")
+                        }
+                    }
+
+                    Image {
+                        attr {
+                            marginTop(10.0f)
+                            size(140f, 90f)
+                            src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
+                        }
                     }
                 }
-                event {
-                    click {
-                        ctx.alternating = !ctx.alternating
-                        ctx.viewRef?.view?.toImage(ImageType.CACHE_KEY, 1){
-                            val success = it?.optInt("code") == 0
-                            val src = it?.optString("data")
-                            val message = it?.optString("message")
-                            KLog.d(TAG, "toImage, success: $success, src: $src, message: $message")
-                            if (src != null) {
-                                ctx.src = src
+
+                // Block 2: Snapshot buttons
+                View {
+                    attr {
+                        marginTop(12.0f)
+                        padding(10.0f)
+                        borderRadius(10.0f)
+                        border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFB0BEC5)))
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+
+                    Text {
+                        attr {
+                            fontSize(15.0f)
+                            color(Color(0xFF37474F))
+                            text("截图按钮")
+                        }
+                    }
+
+                    View {
+                        attr {
+                            marginTop(10.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFF1976D2))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("CACHE_KEY (sampleSize=1)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(DeclarativeBaseView.ImageType.CACHE_KEY, 1, "CACHE_KEY")
+                            }
+                        }
+                    }
+
+                    View {
+                        attr {
+                            marginTop(8.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFF00897B))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("CACHE_KEY (sampleSize=2)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(DeclarativeBaseView.ImageType.CACHE_KEY, 2, "CACHE_KEY")
+                            }
+                        }
+                    }
+
+                    View {
+                        attr {
+                            marginTop(8.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFFF57C00))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("DATA_URI (sampleSize=1)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(DeclarativeBaseView.ImageType.DATA_URI, 1, "DATA_URI")
                             }
                         }
                     }
                 }
-            }
 
+                // Block 3: Snapshot display area
+                View {
+                    attr {
+                        marginTop(12.0f)
+                        padding(10.0f)
+                        borderRadius(10.0f)
+                        border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFFCC80)))
+                        backgroundColor(Color(0xFFFFF3E0))
+                        minHeight(180.0f)
+                    }
+
+                    Text {
+                        attr {
+                            fontSize(15.0f)
+                            color(Color(0xFFE65100))
+                            text("截图展示区")
+                        }
+                    }
+
+                    Image {
+                        attr {
+                            marginTop(10.0f)
+                            size(240f, 130f)
+                            src(ctx.snapshotResultSrc)
+                        }
+                    }
+
+                    Text {
+                        attr {
+                            marginTop(8.0f)
+                            fontSize(12.0f)
+                            color(Color(0xFF6D4C41))
+                            text(ctx.snapshotInfo)
+                        }
+                    }
+                }
+            }
         }
-    }
-}
+    }}

@@ -165,7 +165,6 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
                 }
                 attr {
                     absolutePosition(top = 0f, left = 0f)
-                    zIndex(-1)
                     visibility(false)
                 }
                 creator.invoke(this)

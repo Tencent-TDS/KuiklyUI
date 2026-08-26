@@ -132,6 +132,34 @@ class KRPerformanceManager(
         }
     }
 
+    override fun onInitLayerReadCacheStart() {
+        KuiklyRenderLog.d(TAG, "--onRenderInitLayerReadCacheStart--")
+        monitors.forEach {
+            it.onInitLayerReadCacheStart()
+        }
+    }
+
+    override fun onInitLayerReadCacheFinish() {
+        KuiklyRenderLog.d(TAG, "--onRenderInitLayerReadCacheFinish--")
+        monitors.forEach {
+            it.onInitLayerReadCacheFinish()
+        }
+    }
+
+    override fun onInitLayerRenderCacheStart() {
+        KuiklyRenderLog.d(TAG, "--onRenderInitLayerRenderCacheStart--")
+        monitors.forEach {
+            it.onInitLayerRenderCacheStart()
+        }
+    }
+
+    override fun onInitLayerRenderCacheFinish() {
+        KuiklyRenderLog.d(TAG, "--onRenderInitLayerRenderCacheFinish--")
+        monitors.forEach {
+            it.onInitLayerRenderCacheFinish()
+        }
+    }
+
     override fun onCreateInstanceStart() {
         KuiklyRenderLog.d(TAG, "--onCreatePageStart--")
         monitors.forEach {

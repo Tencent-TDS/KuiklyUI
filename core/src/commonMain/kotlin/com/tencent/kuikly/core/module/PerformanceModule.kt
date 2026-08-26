@@ -116,6 +116,8 @@ data class LaunchData(
     val fetchContextCodeCost: Int,
     val initRenderContextCost: Int,
     val initRenderCoreCost: Int,
+    val initRenderLayerReadCacheCost: Int,
+    val initRenderLayerRenderCacheCost: Int,
     val newPageCost: Int,
     val pageBuildCost: Int,
     val pageLayoutCost: Int,
@@ -132,6 +134,8 @@ data class LaunchData(
         private const val KEY_FETCH_CONTEXT_CODE_COST = "fetchContextCodeCost"
         private const val KEY_INIT_RENDER_CONTEXT_COST = "initRenderContextCost"
         private const val KEY_INIT_RENDER_CORE_COST = "initRenderCoreCost"
+        private const val KEY_INIT_RENDER_LAYER_READ_CACHE_COST = "initRenderLayerReadCacheCost"
+        private const val KEY_INIT_RENDER_LAYER_RENDER_CACHE_COST = "initRenderLayerRenderCacheCost"
         private const val KEY_NEW_PAGE_COST = "newPageCost"
         private const val KEY_PAGE_BUILD_COST = "pageBuildCost"
         private const val KEY_PAGE_LAYOUT_COST = "pageLayoutCost"
@@ -147,6 +151,8 @@ data class LaunchData(
                     fetchContextCodeCost = jsonObject.optInt(KEY_FETCH_CONTEXT_CODE_COST),
                     initRenderContextCost = jsonObject.optInt(KEY_INIT_RENDER_CONTEXT_COST),
                     initRenderCoreCost = jsonObject.optInt(KEY_INIT_RENDER_CORE_COST),
+                    initRenderLayerReadCacheCost = jsonObject.optInt(KEY_INIT_RENDER_LAYER_READ_CACHE_COST),
+                    initRenderLayerRenderCacheCost = jsonObject.optInt(KEY_INIT_RENDER_LAYER_RENDER_CACHE_COST),
                     newPageCost = jsonObject.optInt(KEY_NEW_PAGE_COST),
                     pageBuildCost = jsonObject.optInt(KEY_PAGE_BUILD_COST),
                     pageLayoutCost = jsonObject.optInt(KEY_PAGE_LAYOUT_COST),

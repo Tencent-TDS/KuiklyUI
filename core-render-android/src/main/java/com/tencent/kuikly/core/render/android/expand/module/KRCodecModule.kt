@@ -44,12 +44,7 @@ class KRCodecModule : KuiklyRenderBaseModule() {
     }
 
     fun md5(params: String?): String {
-        val string = params ?: return ""
-        val md = MessageDigest.getInstance("MD5")
-        val digest = md.digest(string.toByteArray())
-        val bigInt = BigInteger(1, digest)
-        val md5Hash32 = bigInt.toString(16).padStart(32, '0')
-        return md5Hash32.substring(8, 24) // 截取中间的16位
+        return KRCodecModule.md5(params)
     }
 
     fun md5With32(params: String?): String {
@@ -114,5 +109,16 @@ class KRCodecModule : KuiklyRenderBaseModule() {
             val string = params ?: return ""
             return Base64.encodeToString(string.toByteArray(), Base64.NO_WRAP)
         }
+
+
+        fun md5(params: String?): String {
+            val string = params ?: return ""
+            val md = MessageDigest.getInstance("MD5")
+            val digest = md.digest(string.toByteArray())
+            val bigInt = BigInteger(1, digest)
+            val md5Hash32 = bigInt.toString(16).padStart(32, '0')
+            return md5Hash32.substring(8, 24) // 截取中间的16位
+        }
+
     }
 }

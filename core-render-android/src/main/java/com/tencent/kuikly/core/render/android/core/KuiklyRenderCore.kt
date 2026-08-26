@@ -21,6 +21,7 @@ import android.util.SparseArray
 import android.view.View
 import com.tencent.kuikly.core.render.android.IKuiklyRenderView
 import com.tencent.kuikly.core.render.android.IKuiklyRenderViewTreeUpdateListener
+import com.tencent.kuikly.core.render.android.KuiklyContextParams
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRExtConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
@@ -44,6 +45,7 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.layer.KuiklyRenderLayerHandler
 import com.tencent.kuikly.core.render.android.layer.IKuiklyRenderLayerHandler
+import com.tencent.kuikly.core.render.android.layer.IKuiklyRenderLayerInitCallback
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreTask
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreUIScheduler
@@ -97,6 +99,7 @@ class KuiklyRenderCore(
         url: String,
         params: Map<String, Any>,
         assetsPath: String?,
+        contextParams: KuiklyContextParams,
         contextInitCallback: IKuiklyRenderContextInitCallback
     ) {
         debugLogEnable = renderView.isDebugLogEnable()
@@ -117,9 +120,7 @@ class KuiklyRenderCore(
             setRenderExceptionListener(exceptionListener)
             setDebugLogEnable(debugLogEnable)
         }
-        renderLayerHandler = KuiklyRenderLayerHandler().apply {
-            init(renderView)
-        }
+        renderLayerHandler = createRenderLayerHandler(renderView, contextParams)
         initNativeMethodRegisters()
         performOnContextQueue {
             val initContextHandlerTracer = KuiklyRenderTracer("initContextHandler")
@@ -127,6 +128,14 @@ class KuiklyRenderCore(
             initContextHandlerTracer.end()
         }
         renderCoreInitTracer.end()
+    }
+
+    override fun didInitCore(initCallback: IKuiklyRenderLayerInitCallback) {
+        renderLayerHandler?.didInit(initCallback)
+    }
+
+    override fun didHitTest() {
+        renderLayerHandler?.didHitTest()
     }
 
     override fun sendEvent(event: String, data: Map<String, Any>, shouldSync: Boolean) {
@@ -161,6 +170,7 @@ class KuiklyRenderCore(
 
     override fun destroy() {
         val destroyTracer = KuiklyRenderTracer("KuiklyRenderCore.destroy")
+        renderLayerHandler?.willDealloc()
         renderLayerHandler?.onDestroy()
         performOnContextQueue {
             val destroyCallKotlinTracer = KuiklyRenderTracer("KuiklyRenderCore.destroy.performOnContextQueue")
@@ -339,11 +349,12 @@ class KuiklyRenderCore(
 
             initCallback.onCreateInstanceStart()
             val tracer = KuiklyRenderTracer("createInstance")
+            val createInstanceParams = renderLayerHandler?.decorateCreateInstanceParams(params)
             call(
                 KuiklyRenderContextMethod.KuiklyRenderContextMethodCreateInstance, listOf(
                     instanceId,
                     url,
-                    params
+                    createInstanceParams
                 )
             )
             tracer.end()
@@ -662,6 +673,16 @@ class KuiklyRenderCore(
      */
     override fun setRenderExceptionListener(listener: IKuiklyRenderExceptionListener) {
         exceptionListener = listener
+    }
+
+    private fun createRenderLayerHandler(renderView: IKuiklyRenderView, contextParams: KuiklyContextParams): IKuiklyRenderLayerHandler {
+        return (renderView as? IKuiklyRenderLayerHandlerProvider)?.createRenderLayerHandler(
+            renderView = renderView,
+            contextParams = contextParams,
+            uiScheduler = uiScheduler
+        ) ?: KuiklyRenderLayerHandler().apply {
+            init(renderView)
+        }
     }
 
     companion object {

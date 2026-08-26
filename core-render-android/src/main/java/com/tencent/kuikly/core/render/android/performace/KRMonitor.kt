@@ -59,6 +59,14 @@ abstract class KRMonitor<T> : IKuiklyRenderViewLifecycleCallback {
 
     override fun onInitContextFinish() {}
 
+    override fun onInitLayerReadCacheStart() {}
+
+    override fun onInitLayerReadCacheFinish() {}
+
+    override fun onInitLayerRenderCacheStart() {}
+
+    override fun onInitLayerRenderCacheFinish() {}
+
     override fun onCreateInstanceStart() {}
 
     override fun onCreateInstanceFinish() {}

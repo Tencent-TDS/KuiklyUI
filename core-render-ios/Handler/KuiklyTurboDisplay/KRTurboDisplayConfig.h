@@ -29,7 +29,6 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
     KRNormalDiffView,       // 不使用延迟 diff（经典模式）
 };
 
-
 /**
  * @brief TurboDisplay 全局配置类
  * 用于配置 TurboDisplay 的各种开关和参数
@@ -44,7 +43,6 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
 /** @brief 延迟 Diff 模式 默认为 KRDelayedDiffModeDisabled（禁用，使用经典模式）*/
 @property (nonatomic, assign) KRDiffViewMode diffViewMode;
 @property (nonatomic, readonly) BOOL isDelayedDiffEnabled;
-
 
 /** @brief 自动刷新 默认为 true（启用，使用经典模式）*/
 @property (nonatomic, assign) BOOL autoUpdateTurboDisplay;

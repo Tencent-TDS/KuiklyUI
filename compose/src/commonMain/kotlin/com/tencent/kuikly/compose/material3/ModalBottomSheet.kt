@@ -17,48 +17,48 @@
 package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.tencent.kuikly.compose.animation.AnimatedVisibility
+import com.tencent.kuikly.compose.animation.core.MutableTransitionState
+import com.tencent.kuikly.compose.animation.core.animate
+import com.tencent.kuikly.compose.animation.core.animateFloatAsState
+import com.tencent.kuikly.compose.animation.core.preferNative
+import com.tencent.kuikly.compose.animation.core.tween
+import com.tencent.kuikly.compose.animation.slideInVertically
+import com.tencent.kuikly.compose.animation.slideOutVertically
 import com.tencent.kuikly.compose.foundation.gestures.detectVerticalDragGestures
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.ColumnScope
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
-import com.tencent.kuikly.compose.ui.unit.Dp
-import com.tencent.kuikly.compose.ui.unit.dp
-import com.tencent.kuikly.compose.ui.window.Dialog
-import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
-import androidx.compose.runtime.remember
-import com.tencent.kuikly.compose.animation.AnimatedVisibility
-import com.tencent.kuikly.compose.animation.slideInVertically
-import com.tencent.kuikly.compose.animation.slideOutVertically
-import androidx.compose.runtime.LaunchedEffect
-import com.tencent.kuikly.compose.animation.core.MutableTransitionState
-import com.tencent.kuikly.compose.ui.window.DefaultScrimColor
-import com.tencent.kuikly.compose.ui.window.KuiklyDialogProperties
-import com.tencent.kuikly.compose.animation.core.animateFloatAsState
-import com.tencent.kuikly.compose.animation.core.tween
-import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.layout.onSizeChanged
-import kotlinx.coroutines.launch
+import com.tencent.kuikly.compose.ui.unit.Dp
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.ui.window.DefaultScrimColor
+import com.tencent.kuikly.compose.ui.window.Dialog
+import com.tencent.kuikly.compose.ui.window.KuiklyDialogProperties
 import kotlinx.coroutines.Job
-import com.tencent.kuikly.compose.animation.core.animate
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
  * A modal bottom sheet that slides up from the bottom of the screen.
- * 
+ *
  * This component provides a modal bottom sheet that slides up from the bottom of the screen,
  * with a background scrim and animation effects. It can be dismissed by tapping the scrim
  * or pressing the back button.
- * 
+ *
  * Parameters:
  * @param visible Controls the visibility of the bottom sheet
  * @param onDismissRequest Callback to be invoked when the bottom sheet needs to be dismissed
@@ -69,15 +69,15 @@ import kotlin.math.roundToInt
  * @param scrimColor Color of the background scrim
  * @param dismissOnDrag Whether the bottom sheet can be dismissed by dragging down. Defaults to false.
  * @param content Content of the bottom sheet
- * 
+ *
  * Example:
  * ```
  * var showBottomSheet by remember { mutableStateOf(false) }
- * 
+ *
  * Button(onClick = { showBottomSheet = true }) {
  *     Text("Show Bottom Sheet")
  * }
- * 
+ *
  * ModalBottomSheet(
  *     visible = showBottomSheet,
  *     onDismissRequest = { showBottomSheet = false },
@@ -109,6 +109,42 @@ fun ModalBottomSheet(
     animationDurationMillis: Int = 250,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    ModalBottomSheet(
+        visible = visible,
+        onDismissRequest = onDismissRequest,
+        preferNativeAnimation = true,
+        modifier = modifier,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        tonalElevation = tonalElevation,
+        scrimColor = scrimColor,
+        dismissOnDrag = dismissOnDrag,
+        dismissThreshold = dismissThreshold,
+        animationDurationMillis = animationDurationMillis,
+        content = content
+    )
+}
+
+/**
+ * Overload that can disable the default Native Render slide animation.
+ *
+ * The scrim, drag handling, layout, lifecycle, and callbacks retain the existing Compose behavior.
+ */
+@Composable
+fun ModalBottomSheet(
+    visible: Boolean,
+    onDismissRequest: () -> Unit,
+    preferNativeAnimation: Boolean,
+    modifier: Modifier = Modifier,
+    containerColor: Color = BottomSheetDefaults.ContainerColor,
+    contentColor: Color = contentColorFor(containerColor),
+    tonalElevation: Dp = 0.dp,
+    scrimColor: Color = BottomSheetDefaults.ScrimColor,
+    dismissOnDrag: Boolean = false,
+    dismissThreshold: Float = 0.25f,
+    animationDurationMillis: Int = 250,
+    content: @Composable ColumnScope.() -> Unit
+) {
     var visibleState = remember { MutableTransitionState(false) }
     val scope = rememberCoroutineScope()
 
@@ -117,23 +153,23 @@ fun ModalBottomSheet(
     var sheetHeight by remember { mutableFloatStateOf(0f) }
     var animationJob by remember { mutableStateOf<Job?>(null) }
 
-    // 优化：让 scrim 的透明度跟随 visibleState.targetState 同步变化
-    // 这样 scrim 会在退出动画开始时就开始淡出，而不是等到动画完成
-    // 使用 targetState 而不是 currentState，这样当 targetState 变为 false 时，scrim 立即开始淡出
+    // 遮罩动画保持原有 Compose 实现。
     val scrimAlpha by animateFloatAsState(
         targetValue = if (visibleState.targetState) 1f else 0f,
-        animationSpec = tween(durationMillis = animationDurationMillis), // 与 slideOutVertically 的默认动画时长保持一致
+        animationSpec = tween(durationMillis = animationDurationMillis),
         label = "scrimAlpha"
     )
 
-    // 根据动画透明度动态计算 scrim 颜色
     val animatedScrimColor = remember(scrimColor, scrimAlpha) {
         scrimColor.copy(alpha = scrimColor.alpha * scrimAlpha)
+    }
+    val slideAnimationSpec = remember(animationDurationMillis, preferNativeAnimation) {
+        val spec = tween<IntOffset>(durationMillis = animationDurationMillis)
+        if (preferNativeAnimation) spec.preferNative() else spec
     }
 
     LaunchedEffect(visible) {
         if (visible && !visibleState.currentState) {
-            // 启动动画
             visibleState.targetState = true
             dragOffset = 0f
         } else if (!visible && visibleState.currentState) {
@@ -143,7 +179,6 @@ fun ModalBottomSheet(
     }
 
     LaunchedEffect(visibleState.isIdle, visibleState.currentState, visibleState.targetState) {
-        // 动画播完，调用onDismissRequest;
         if (visibleState.isIdle && !visibleState.currentState) {
             onDismissRequest.invoke()
         }
@@ -158,18 +193,18 @@ fun ModalBottomSheet(
                 dismissOnBackPress = true,
                 dismissOnClickOutside = true,
                 usePlatformDefaultWidth = false,
-                scrimColor = animatedScrimColor, // 使用动态计算的 scrim 颜色
+                scrimColor = animatedScrimColor,
                 contentAlignment = Alignment.BottomCenter
             )
         ) {
             AnimatedVisibility(
                 visibleState = visibleState,
                 enter = slideInVertically(
-                    animationSpec = tween(durationMillis = animationDurationMillis),
+                    animationSpec = slideAnimationSpec,
                     initialOffsetY = { it },
                 ),
                 exit = slideOutVertically(
-                    animationSpec = tween(durationMillis = animationDurationMillis),
+                    animationSpec = slideAnimationSpec,
                     targetOffsetY = { it },
                 ),
             ) {
@@ -189,20 +224,17 @@ fun ModalBottomSheet(
                                                 animationJob?.cancel()
                                             },
                                             onDragEnd = {
-                                                // 如果拖拽超过阈值，则关闭
-                                                // pointerInputScope 扩展了 Density，可以直接使用 toPx()
                                                 val threshold = if (sheetHeight > 0f) {
                                                     sheetHeight * dismissThreshold
                                                 } else {
                                                     100.dp.toPx()
                                                 }
-                                                
+
                                                 if (dragOffset > threshold) {
                                                     scope.launch {
                                                         visibleState.targetState = false
                                                     }
                                                 } else {
-                                                    // 否则回弹
                                                     animationJob = scope.launch {
                                                         animate(
                                                             initialValue = dragOffset,
@@ -226,7 +258,6 @@ fun ModalBottomSheet(
                                                 }
                                             },
                                             onVerticalDrag = { _, dragAmount ->
-                                                // 更新拖拽偏移量，允许向上回弹但不能小于0
                                                 val newOffset = dragOffset + dragAmount
                                                 dragOffset = newOffset.coerceAtLeast(0f)
                                             }

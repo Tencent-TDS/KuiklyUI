@@ -34,6 +34,8 @@ import com.tencent.kuikly.compose.animation.EnterTransition
 import com.tencent.kuikly.compose.animation.ExitTransition
 import com.tencent.kuikly.compose.animation.fadeIn
 import com.tencent.kuikly.compose.animation.fadeOut
+import com.tencent.kuikly.compose.animation.applyNavHostSlideZIndex
+import com.tencent.kuikly.compose.animation.preferNativeNavHostSlide
 import com.tencent.kuikly.compose.animation.togetherWith
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.ui.Modifier
@@ -85,6 +87,39 @@ fun NavHost(
     popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
         exitTransition,
     builder: NavGraphBuilder.() -> Unit
+) = NavHost(
+    navController = navController,
+    startDestination = startDestination,
+    modifier = modifier,
+    route = route,
+    enterTransition = enterTransition,
+    exitTransition = exitTransition,
+    popEnterTransition = popEnterTransition,
+    popExitTransition = popExitTransition,
+    preferNativeSlideAnimation = true,
+    builder = builder
+)
+
+/**
+ * Variant of [NavHost] that can disable the default Native slide optimization.
+ * Transitions containing scale or layout effects continue to use the Compose animation clock.
+ */
+@Composable
+fun NavHost(
+    navController: NavHostController,
+    startDestination: String,
+    modifier: Modifier = Modifier,
+    route: String? = null,
+    enterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        { fadeIn() },
+    exitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        { fadeOut() },
+    popEnterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        enterTransition,
+    popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        exitTransition,
+    preferNativeSlideAnimation: Boolean,
+    builder: NavGraphBuilder.() -> Unit
 ) {
     NavHost(
         navController,
@@ -95,7 +130,8 @@ fun NavHost(
         enterTransition,
         exitTransition,
         popEnterTransition,
-        popExitTransition
+        popExitTransition,
+        preferNativeSlideAnimation
     )
 }
 
@@ -128,6 +164,32 @@ fun NavHost(
         enterTransition,
     popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
         exitTransition
+) = NavHost(
+    navController = navController,
+    graph = graph,
+    modifier = modifier,
+    enterTransition = enterTransition,
+    exitTransition = exitTransition,
+    popEnterTransition = popEnterTransition,
+    popExitTransition = popExitTransition,
+    preferNativeSlideAnimation = true
+)
+
+/** Variant accepting a pre-built graph and an explicit Native slide switch. */
+@Composable
+fun NavHost(
+    navController: NavHostController,
+    graph: NavGraph,
+    modifier: Modifier = Modifier,
+    enterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        { fadeIn() },
+    exitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        { fadeOut() },
+    popEnterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        enterTransition,
+    popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        exitTransition,
+    preferNativeSlideAnimation: Boolean
 ) {
     // Set the graph on the controller
     navController.graph = graph
@@ -197,10 +259,27 @@ fun NavHost(
                     transitionSpec = {
                         // Use sequenceNumber to determine if this is a pop (back) navigation
                         val isPop = targetState.sequenceNumber < initialState.sequenceNumber
-                        if (isPop) {
+                        val contentTransform = if (isPop) {
                             popEnterTransition(this) togetherWith popExitTransition(this)
                         } else {
                             enterTransition(this) togetherWith exitTransition(this)
+                        }
+                        contentTransform.applyNavHostSlideZIndex(
+                            targetZIndex = targetState.sequenceNumber.toFloat(),
+                            // During push, equal z-index content is placed with the incoming page
+                            // last (and therefore on top). Promote it to its stable stack depth
+                            // only after the transition, so Native never exposes the destination
+                            // before the initial offscreen transform has been applied.
+                            initialTargetZIndex = if (isPop) {
+                                targetState.sequenceNumber.toFloat()
+                            } else {
+                                initialState.sequenceNumber.toFloat()
+                            }
+                        )
+                        if (preferNativeSlideAnimation) {
+                            contentTransform.preferNativeNavHostSlide()
+                        } else {
+                            contentTransform
                         }
                     },
                     contentKey = { it.id }
@@ -299,6 +378,34 @@ fun NavHost(
     popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
         exitTransition,
     builder: NavGraphBuilder.() -> Unit
+): NavHostController = NavHost(
+    startDestination = startDestination,
+    modifier = modifier,
+    route = route,
+    enterTransition = enterTransition,
+    exitTransition = exitTransition,
+    popEnterTransition = popEnterTransition,
+    popExitTransition = popExitTransition,
+    preferNativeSlideAnimation = true,
+    builder = builder
+)
+
+/** Convenience variant with an explicit Native slide switch. */
+@Composable
+fun NavHost(
+    startDestination: String,
+    modifier: Modifier = Modifier,
+    route: String? = null,
+    enterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        { fadeIn() },
+    exitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        { fadeOut() },
+    popEnterTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition) =
+        enterTransition,
+    popExitTransition: (AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition) =
+        exitTransition,
+    preferNativeSlideAnimation: Boolean,
+    builder: NavGraphBuilder.() -> Unit
 ): NavHostController {
 val navController = rememberNavController()
     NavHost(
@@ -310,6 +417,7 @@ val navController = rememberNavController()
         exitTransition = exitTransition,
         popEnterTransition = popEnterTransition,
         popExitTransition = popExitTransition,
+        preferNativeSlideAnimation = preferNativeSlideAnimation,
         builder = builder
     )
     return navController

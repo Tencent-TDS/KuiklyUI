@@ -651,9 +651,9 @@ private fun View.setHRAnimation(animation: String?) {
         }
         else -> {
             val newAnimation = KRCSSAnimation(animation, this, context as? IKuiklyRenderContext)
-            newAnimation.onAnimationEndBlock = { hrAnimation: KRCSSAnimation, finished, propKey, animationKey ->
+            newAnimation.onAnimationEndBlock = { hrAnimation: KRCSSAnimation, isCancel, propKey, animationKey ->
                 animationCompletionBlock?.invoke(mapOf(
-                    "finish" to if (finished) 1 else 0,
+                    "finish" to if (isCancel) 0 else 1,
                     "attr" to propKey,
                     "animationKey" to animationKey
                 ))

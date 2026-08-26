@@ -17,6 +17,8 @@
 package com.tencent.kuikly.compose.ui.platform
 
 import com.tencent.kuikly.compose.extension.approximatelyEqual
+import com.tencent.kuikly.compose.animation.core.NativeAnimationCoordinator
+import com.tencent.kuikly.compose.animation.core.NativeAnimationTrace
 import com.tencent.kuikly.compose.ui.KuiklyPath
 import com.tencent.kuikly.compose.ui.geometry.MutableRect
 import com.tencent.kuikly.compose.ui.geometry.Offset
@@ -155,6 +157,28 @@ internal class RenderNodeLayer(
     private var mutatedFields: Int = 0
 
     override fun updateLayerProperties(scope: ReusableGraphicsLayerScope) {
+        val nativeAnimationCoordinator = NativeAnimationCoordinator.existingForView(view)
+        if (nativeAnimationCoordinator != null && (clip || scope.clip)) {
+            NativeAnimationTrace.log {
+                "graphicsLayer static-clip view=${view?.nativeRef} " +
+                    "previousClip=$clip targetClip=${scope.clip} " +
+                    "previousRoundRect=$roundRect targetRoundRect=${scope.roundRect} " +
+                    "targetTranslation=(${scope.translationX},${scope.translationY})"
+            }
+        }
+        nativeAnimationCoordinator?.registerGraphicsLayerTarget(
+            view = view,
+            previousAlpha = alpha,
+            previousScaleX = scaleX,
+            previousScaleY = scaleY,
+            previousTranslationX = translationX,
+            previousTranslationY = translationY,
+            previousRotationX = rotationX,
+            previousRotationY = rotationY,
+            previousRotationZ = rotationZ,
+            previousTransformOrigin = transformOrigin,
+            target = scope
+        )
         val maybeChangedFields = scope.mutatedFields or mutatedFields
         this.transformOrigin = scope.transformOrigin
         this.translationX = scope.translationX
@@ -235,20 +259,21 @@ internal class RenderNodeLayer(
 
     private fun performDrawLayer(canvas: Canvas) {
         val layerView = view ?: canvas.view
-        if (alpha > 0f) {
-            layerView?.apply {
-                // todo deal with position
-                measuredSize(size.width, size.height)
-                // todo deal with transformOrigin.pivotFractionX, transformOrigin.pivotFractionY
-                translate(translationX, translationY)
-                scale(scaleX, scaleY)
-                rotate(rotationX, rotationY, rotationZ)
+        layerView?.apply {
+            // Layer properties must still be synchronized while transparent. Native enter/exit
+            // animations need the transform at alpha == 0 as their presentation start/end state.
+            measuredSize(size.width, size.height)
+            // todo deal with transformOrigin.pivotFractionX, transformOrigin.pivotFractionY
+            translate(translationX, translationY)
+            scale(scaleX, scaleY)
+            rotate(rotationX, rotationY, rotationZ)
+            alpha(alpha)
+            if (alpha > 0f) {
                 if (shadowElevation > 0f) {
                     // 0.19f is from the Original Compose Multiplatform, which is the default spotShadowAlpha in Android.
                     shadow(shadowElevation, spotShadowColor.copy(alpha = 0.19f * alpha))
                 }
                 // todo renderEffect
-                alpha(alpha)
                 if (clip) {
                     if (outline != null) {
                         val outline = outline!!
@@ -266,9 +291,9 @@ internal class RenderNodeLayer(
                     clip()
                 }
             }
+        }
+        if (alpha > 0f) {
             drawBlock(canvas)
-        } else {
-            layerView?.alpha(0f)
         }
     }
 

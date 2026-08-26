@@ -17,14 +17,16 @@ package com.tencent.kuikly.core.base
 
 class Animation internal constructor() {
     private lateinit var timingFuncType: TimingFuncType
-    private var duration: Float = 0f
+    internal var duration: Float = 0f
     private var animationType = AnimationType.PLAIN
     private var damping: Float = 0f
     private var velocity: Float = 0f
-    private var delay: Float = 0f
+    internal var delay: Float = 0f
     private var repeatForever: Boolean = false
     /// Raw animation curve value, only used for KEYBOARD type animation.
     private var rawCurve: Int? = null
+    /// A single-token, versioned extension. Old renderers safely ignore this trailing token.
+    internal var nativeV2Payload: String? = null
 
     var key: String = ""
 
@@ -41,11 +43,12 @@ class Animation internal constructor() {
     override fun toString(): String {
         val baseString = "${animationType.value} ${timingFuncType.value} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
         // Only append rawCurve for KEYBOARD type to maintain backward compatibility
-        return if (timingFuncType == TimingFuncType.KEYBOARD && rawCurve != null) {
+        val legacyString = if (timingFuncType == TimingFuncType.KEYBOARD && rawCurve != null) {
             "$baseString $rawCurve"
         } else {
             baseString
         }
+        return nativeV2Payload?.let { "$legacyString $it" } ?: legacyString
     }
 
     companion object {
@@ -119,7 +122,6 @@ class Animation internal constructor() {
         ): Animation {
             return createSpring(TimingFuncType.EASE_IN_OUT, durationS, damping, velocity, key = key)
         }
-
 
         /**
          * Create keyboard animation with native iOS keyboard animation curve.

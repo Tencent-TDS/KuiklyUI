@@ -103,6 +103,7 @@ typedef NSUInteger UIViewKeyframeAnimationOptions;
 enum : NSUInteger {
     UIViewAnimationOptionAllowUserInteraction = 1 << 0,
     UIViewAnimationOptionRepeat = 1 << 1,
+    UIViewKeyframeAnimationOptionCalculationModeLinear = 0 << 10,
     UIViewKeyframeAnimationOptionCalculationModeCubicPaced = 0,
     UIViewAnimationOptionCurveEaseInOut = 0 << 16,
     UIViewAnimationOptionCurveEaseIn = 1 << 16,

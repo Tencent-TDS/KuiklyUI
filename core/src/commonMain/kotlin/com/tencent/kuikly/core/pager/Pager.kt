@@ -296,6 +296,14 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         return keyValueMap[key]
     }
 
+    override fun setValueForKey(key: String, value: Any?) {
+        if (value == null) {
+            keyValueMap.remove(key)
+        } else {
+            keyValueMap[key] = value
+        }
+    }
+
     private fun initModule() {
         initCoreModules()
         initExternalModules()

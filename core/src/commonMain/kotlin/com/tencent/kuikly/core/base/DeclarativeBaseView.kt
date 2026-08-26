@@ -239,6 +239,9 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
     open fun setFrameToRenderView(frame: Frame) {
         // 换算相对到真实父亲的坐标系
         renderView?.also {
+            if (stageNativeAnimationFrameIfNeeded()) {
+                return
+            }
             // 设置view的frame之前，传递动画对象
             val animation = getPager().animationManager?.currentLayoutAnimation(nativeRef)
             animation?.run {

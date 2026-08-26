@@ -15,6 +15,7 @@
 
 #import "KuiklyTurboDisplayRenderLayerHandler.h"
 #import "KuiklyRenderLayerHandler.h"
+#import "KuiklyRenderView.h"
 #import "KRTurboDisplayNode.h"
 #import "KuiklyRenderUIScheduler.h"
 #import "KRTurboDisplayCacheManager.h"
@@ -29,6 +30,7 @@
 #import "KRTurboDisplayStateRestorableProtocol.h"
 
 #define ROOT_VIEW_NAME @"RootView"
+
 
 @interface KuiklyTurboDisplayRenderLayerHandler()<KuiklyRenderLayerProtocol>
 /** 原生渲染器 */
@@ -59,6 +61,12 @@
 @property (nonatomic, strong) NSMutableArray<dispatch_block_t> *nextLoopTaskOnMainQueue;
 /** 根视图（弱引用，用于通知来源验证） */
 @property (nonatomic, weak) UIView *rootView;
+/** 挂起 diff 是否已执行完成标志位 */
+@property (nonatomic, assign) BOOL diffSuspended;
+/** 是否启用挂起 diff 标志位） */
+@property (nonatomic, assign) BOOL suspendDiffDeclared;
+/** didInit 是否已执行完（挂起声明迟到防御：此后到达的声明无效） */
+@property (nonatomic, assign) BOOL didInitFinished;
 
 @end
 
@@ -78,7 +86,6 @@
 
 - (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(nonnull NSString *)turboDisplayKey turboDisplayConfig:(KRTurboDisplayConfig * _Nullable)turboDisplayConfig{
     if (self = [super init]) {
-//        [[KRTurboDisplayCacheManager sharedInstance] removeAllTurboDisplayCacheFiles];
         _turboDisplayKey = turboDisplayKey;
         _contextParam = contextParam;
         _rootView = rootView;
@@ -95,7 +102,6 @@
         
         // 新增：在init时机，读取业务自定义的缓存内容；只读取不执行删除
         _extraCacheContent = [[KRTurboDisplayCacheManager sharedInstance] extraCacheContentWithCacheKey:self.turboDisplayCacheKey];
-        NSLog(@"[读出] _extraCacheContent：%@", _extraCacheContent);
 
         // 提前标记 firstScreenTurboDisplay，让 Kotlin 侧 created() 中能拿到正确结果
         // init 早于 didInit（didInit 里 nodeWithCachKey 读完即删，之后文件不再存在），
@@ -119,6 +125,14 @@
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveClearCurrentPageCacheNotification:)
                                                      name:kClearCurrentPageCacheNotificationName object:rootView];
+        // TurboDisplayModuleMethod 业务控制diff时机：执行diff（挂起改为Config静态声明，见didInit）
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(onReceiveExecuteDiffNotification:)
+                                                     name:kExecuteTurboDisplayDiffNotificationName object:rootView];
+        // TurboDisplayModuleMethod 页面声明挂起diff：同步通知（created调用栈内直达，didInit消费）
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(onReceiveSuspendDiffDeclaration:)
+                                                     name:kSuspendTurboDisplayDiffNotificationName object:rootView];
 
         // 【日志】输出初始化信息
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] turboDisplayKey: %@", contextParam.pageName ?: @"unknown"]];
@@ -126,6 +140,7 @@
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] turboDisplayConfig details:"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 结构感知Diff-DOM: %@", [_config isStructureAwareDiffDOMEnabled] ? @"开启" : @"关闭"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 延迟Diff-View: %@", [_config isDelayedDiffEnabled] ? @"开启" : @"关闭"]];
+        [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 挂起Diff: %@", self.suspendDiffDeclared ? @"开启" : @"关闭"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 自动刷新缓存: %@", [_config isCloseAutoUpdateTurboDisplay] ? @"关闭" : @"开启"]];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay]   - 真实树持久更新: %@", [_config isPersistentRealTreeEnabled] ? @"开启" : @"关闭"]];
         if (_extraCacheContent.length > 0) {
@@ -142,18 +157,30 @@
 - (void)didInit {
     // 1.TB缓存读取
     double readBeginTime = CFAbsoluteTimeGetCurrent();
+    [self fireLifecycleEvent:@"onInitLayerReadCacheStart" data:@{}];
+    
     _turboDisplayCacheData = [[KRTurboDisplayCacheManager sharedInstance] nodeWithCachKey:self.turboDisplayCacheKey];
     if ([_turboDisplayCacheData.turboDisplayNode isKindOfClass:[KRTurboDisplayNode class]]) {
         _lazyRendering = YES;                                               // 存在TB缓存，更新懒渲染标志
         _turboDisplayCacheData.extraCacheContent = _extraCacheContent;      // 业务自定义缓存，与TB缓存存储于同一对象
 
-
-
-        // 【日志】缓存读取成功
+        [self fireLifecycleEvent:@"onInitLayerReadCacheFinish" data:@{
+            @"succ": @YES,
+            @"bytes": @(self.turboDisplayCacheData.turboDisplayNodeData.length),
+            @"children": @(self.turboDisplayCacheData.turboDisplayNode.children.count),
+        }];
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] turboDisplay file read successfully"]];
+        
+
+        // 挂起diff：基于挂起 diff 启用标志位更新挂起 diff 执行标志位 diffSuspended，并且启用结构捕捉能力
+        if (self.suspendDiffDeclared) {
+            self.diffSuspended = YES;
+            [_config enableStructureAwareDiffDOM];
+        }
+
     } else {
-        // 【日志】缓存读取失败/不存在
         [KRLogModule logError:[NSString stringWithFormat:@"[TurboDisplay] Error: turboDisplay file read fail"]];
+        [self fireLifecycleEvent:@"onInitLayerReadCacheFinish" data:@{@"succ": @NO}];
         [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 无TB缓存，确保标志位不残留
     }
     double readTurboFileCostTime = (CFAbsoluteTimeGetCurrent() - readBeginTime) * 1000.0;
@@ -161,6 +188,11 @@
     // 2.注入业务真实首屏diff任务，viewDidLoad时机后执行第二次diff-View
     KR_WEAK_SELF
     [_uiScheduler performWhenViewDidLoadWithTask:^{
+        // 启用挂起diff，优先提早执行一次当前缓存的兜底回写
+        if (weakSelf.diffSuspended) {
+            [self rewriteTurboDisplayRootNodeIfNeed];
+            return;
+        }
         // 首帧之后去diff两棵树patch差量渲染指令更新到渲染器
         [weakSelf diffPatchToRenderLayer];
     }];
@@ -170,12 +202,14 @@
         [_uiScheduler markViewDidLoad];
         double renderBeginTime = CFAbsoluteTimeGetCurrent();
         
+        [self fireLifecycleEvent:@"onInitLayerRenderCacheStart" data:@{}];
         [self renderTurboDisplayNodeToRenderLayerWithNode:self.turboDisplayCacheData.turboDisplayNode];     // 加载TB首屏
         [self applyExtraCacheContentToViews];       // 应用额外缓存内容到对应View（如ListView的offset）
         
         UIView *view = (UIView *)[_renderLayerHandler viewWithTag:self.turboDisplayCacheData.turboDisplayNode.children.firstObject.tag];
         [view.superview layoutIfNeeded];            // 为了触发contentViewDidLoad首屏渲染完成
         [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 第一次TB缓存上屏完成，恢复sync事件立即flush
+        [self fireLifecycleEvent:@"onInitLayerRenderCacheFinish" data:@{@"succ": @YES}];
 
         double renderCostTime = (CFAbsoluteTimeGetCurrent() - renderBeginTime) * 1000.0f;
         NSString *log = [NSString stringWithFormat:@"[TurboDisplay] Summary：page_name:%@ turbo_display render cost_time %.2lfms readTurboFileCostTime: %.2lfms :%d", _contextParam.pageName, renderCostTime, readTurboFileCostTime, _lazyRendering];
@@ -184,8 +218,10 @@
     } else {
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] Error: %@ has not turboDisplay file", _contextParam.pageName]];
     }
-   
+    // didInit完成：之后的挂起声明视为迟到，忽略（防御时序契约变化）
+    self.didInitFinished = YES;
 }
+   
 
 
 #pragma mark - KuiklyRenderLayerProtocol
@@ -441,6 +477,10 @@
         // 节点级过滤的 diff 路径（此前置 nil 会使手动刷新落入全量缓存真实树的兜底分支，过滤失效）。
         // 自动更新已由 _closeAutoUpdateTurboDisplay 关闭，保留快照树不会触发额外写盘。
     }
+    // 没有开启挂起diff，但是却还没有触发diff则需要执行此处的兜底diff => 说明业务在KuiklyRenderVC中没有对pageName作以区分
+    if (!self.suspendDiffDeclared && _lazyRendering) {
+        [self diffPatchToRenderLayer];
+    }
 }
 
 #pragma mark - notification
@@ -518,6 +558,44 @@
     self.turboDisplayCacheData = nil;
 }
 
+#pragma mark - suspend diff (挂起diff：由业务executeTurboDisplayDiff触发执行)
+
+// 页面声明挂起diff：created中经Module同步通知到达（早于didInit的挂起判断点）
+- (void)onReceiveSuspendDiffDeclaration:(NSNotification *)notification {
+    // 验证通知来源是否为当前实例关联的 rootView
+    if (notification.object != _rootView) {
+        return;
+    }
+    // 迟到防御：didInit已过，挂起判断已结束，声明无效（时序契约被破坏时暴露日志，静默降级系统时机）
+    if (self.didInitFinished) {
+        [KRLogModule logError:[NSString stringWithFormat:@"[TurboDisplay] suspend diff declaration late (after didInit), ignored, page:%@", _contextParam.pageName]];
+        return;
+    }
+    self.suspendDiffDeclared = YES;
+}
+
+// TurboDisplay生命周期事件（6个，onInitLayer系列）：
+- (void)fireLifecycleEvent:(NSString *)event data:(NSDictionary *)data {
+    [(KuiklyRenderView *)self.rootView sendWithEvent:event data:data];
+}
+
+// 业务执行diff：数据就绪，真实页面接管缓存首屏
+- (void)onReceiveExecuteDiffNotification:(NSNotification *)notification {
+    // 验证通知来源是否为当前实例关联的 rootView
+    if (notification.object != _rootView) {
+        return;
+    }
+    // 幂等保护：未挂起（非挂起模式/无缓存未置位/diff已执行清位）直接忽略
+    // 注：不能用config判断 —— 静态声明无法区分"未执行"与"已执行"
+    if (!self.diffSuspended) {
+        return;
+    }
+    // 受理即清挂起位：拦截diff执行期间重复到达的通知（重复通知在上方幂等检查被拒）
+    self.diffSuspended = NO;
+    // 执行 Diff
+    [self diffPatchToRenderLayer];
+}
+
 #pragma mark - TurboDisplay rendering
 // TurboDisplay首屏渲染到渲染器
 - (void)renderTurboDisplayNodeToRenderLayerWithNode:(KRTurboDisplayNode *)node {
@@ -589,16 +667,27 @@
     
     // 执行业务首屏的 diff-view，根据开关选择模式
     if (self.turboDisplayCacheData.turboDisplayNode && _realRootNode) {
-         
-        if ([_config isDelayedDiffEnabled]) {
+        // 缓存视图与真实视图都就绪：关键更替开始（生命周期事件）
+        [self fireLifecycleEvent:@"onInitLayerRealViewDiffStart" data:@{}];
+
+        if ([_config isDelayedDiffEnabled] || self.suspendDiffDeclared) {
             // 延迟diff
             [KRTurboDisplayDiffPatch delayedDiffPatchToRenderingWithRenderLayer:_renderLayerHandler
                                                                     oldNodeTree:self.turboDisplayCacheData.turboDisplayNode
                                                                     newNodeTree:_realRootNode
                                                                      completion:^{
-                // 回调关闭懒加载标志
+                // 回调关闭懒加载标志，挂起态同点解除
                 self->_lazyRendering = NO;
-                [self rewriteTurboDisplayRootNodeIfNeed];
+                self.diffSuspended = NO;
+
+                // 缓存写入通道按来源严格区分：挂起来源触发diff-DOM采集，普通来源走rewrite兜底
+                if (self.suspendDiffDeclared) {
+                    self.needUpdateNextTurboDisplayRootNode = YES;
+                    [self updateNextTurboDisplayRootNodeIfNeed];
+                } else {
+                    [self rewriteTurboDisplayRootNodeIfNeed];
+                }
+                [self fireLifecycleEvent:@"onInitLayerRealViewDiffFinish" data:@{@"succ": @YES}];
                 self.turboDisplayCacheData = nil;
             }];
         } else {
@@ -609,12 +698,15 @@
                                                               diffPolicy:KRCacheFirstScreenDiff];
             // 同步关闭懒加载标志
             _lazyRendering = NO;
+            self.diffSuspended = NO;
             [self rewriteTurboDisplayRootNodeIfNeed];
+            [self fireLifecycleEvent:@"onInitLayerRealViewDiffFinish" data:@{@"succ": @YES}];
             self.turboDisplayCacheData = nil;
         }
     } else {
         // 兜底
         _lazyRendering = NO;
+        self.diffSuspended = NO;
         [self rewriteTurboDisplayRootNodeIfNeed];
         self.turboDisplayCacheData = nil;
     }
@@ -671,6 +763,11 @@
     }
     assert([NSThread isMainThread]);
     self.needUpdateNextTurboDisplayRootNode = NO;
+
+    // 挂起diff：挂起期间，真实树为中间态（如loading），且快照树尚未就位，禁止diff-DOM刷新缓存
+    if (self.diffSuspended) {
+        return;
+    }
 
     if (_closeAutoUpdateTurboDisplay) {
         return ;

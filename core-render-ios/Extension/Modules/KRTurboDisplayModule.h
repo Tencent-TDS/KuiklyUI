@@ -22,6 +22,10 @@ extern NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName;
 extern NSString *const kCloseTurboDisplayNotificationName;
 /** 清除当前页面TurboDisplay缓存通知 */
 extern NSString *const kClearCurrentPageCacheNotificationName;
+/** 挂起diff的执行通知：执行挂起的首屏Diff（挂起=Config能力门+页面created中suspendTurboDisplayDiff声明，双条件生效） */
+extern NSString *const kExecuteTurboDisplayDiffNotificationName;
+/** 挂起diff的页面声明通知：必须同步派发（声明需早于handler didInit的挂起判断点） */
+extern NSString *const kSuspendTurboDisplayDiffNotificationName;
 
 /*
  * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）

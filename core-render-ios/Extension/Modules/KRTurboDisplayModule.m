@@ -19,6 +19,8 @@
 NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName = @"kSetCurrentUIAsFirstScreenForNextLaunchNotificationName";
 NSString *const kCloseTurboDisplayNotificationName = @"kCloseTurboDisplayNotificationName";
 NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCacheNotificationName";
+NSString *const kExecuteTurboDisplayDiffNotificationName = @"kExecuteTurboDisplayDiffNotificationName";
+NSString *const kSuspendTurboDisplayDiffNotificationName = @"kSuspendTurboDisplayDiffNotificationName";
 
 @implementation KRTurboDisplayModule
 
@@ -64,6 +66,30 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
 - (void)clearCurrentPageCache:(NSDictionary *)args {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kClearCurrentPageCacheNotificationName object:self.hr_rootView userInfo:nil];
+    });
+}
+
+/**
+ * 挂起diff的页面声明(call by kotlin)，无需参数：
+ * 必须同步post（禁止dispatch_async）：声明必须早于handler didInit的挂起判断点，
+ * created()的同步调用栈内直达handler；didInit后到达的声明由handler侧忽略（迟到防御）
+ */
+- (void)suspendTurboDisplayDiff:(NSDictionary *)args {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kSuspendTurboDisplayDiffNotificationName
+                                                        object:self.hr_rootView
+                                                      userInfo:nil];
+}
+
+/**
+ * 挂起diff的执行触发(call by kotlin)，无需参数：
+ * 挂起由页面created中suspendTurboDisplayDiff声明驱动（零Native配置），didInit静态挂起，
+ * 免疫sync事件插队；幂等由Handler侧diffSuspended状态保证（非挂起/已执行的通知在Handler被拒）
+ */
+- (void)executeTurboDisplayDiff:(NSDictionary *)args {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:kExecuteTurboDisplayDiffNotificationName
+                                                            object:self.hr_rootView
+                                                          userInfo:nil];
     });
 }
 

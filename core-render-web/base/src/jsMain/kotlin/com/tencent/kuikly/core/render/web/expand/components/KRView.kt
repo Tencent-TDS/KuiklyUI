@@ -365,7 +365,10 @@ open class KRView : IKuiklyRenderViewExport {
     }
 
     /**
-     * Bind touch event and mouse event based on device type
+     * Bind touch event and mouse event based on device capability first,
+     * then fallback to device type. On modern browsers (including touch-screen
+     * Windows), PointerEvent is the unified channel for mouse / touch / pen,
+     * so prefer it whenever available.
      */
     private fun setTouchEvent() {
         if (isBindTouchEvent) {
@@ -373,11 +376,117 @@ open class KRView : IKuiklyRenderViewExport {
         }
         isBindTouchEvent = true
 
+        val hasPointerEvent = js(
+            "typeof window !== 'undefined' && typeof window.PointerEvent === 'function'"
+        ).unsafeCast<Boolean>()
+
+        if (hasPointerEvent && deviceType != DeviceType.MINIPROGRAM) {
+            bindPointerEvents()
+            return
+        }
+
         when (deviceType) {
             DeviceType.MOBILE -> bindTouchEvents()
             DeviceType.MINIPROGRAM -> bindTouchEvents()
             DeviceType.DESKTOP -> bindMouseEvents()
         }
+    }
+
+    /**
+     * Bind pointer events. Works for mouse, touch and pen on modern browsers,
+     * which is the only reliable channel on touch-screen Windows (Chrome / Edge
+     * may not dispatch synthetic touchstart there).
+     *
+     * PointerEvent inherits from MouseEvent, so we can safely reuse the
+     * existing MouseEvent.toPanEventParams() extension without introducing
+     * a new coordinate path.
+     */
+    private fun bindPointerEvents() {
+        // Pointer down
+        ele.addEventListener("pointerdown", { rawEvent ->
+            val mouseLike = rawEvent.unsafeCast<MouseEvent>()
+            // Capture pointer so we keep receiving move/up even if the finger /
+            // cursor leaves the element bounds during a drag.
+            val pointerId = rawEvent.asDynamic().pointerId
+            if (pointerId != null) {
+                try {
+                    ele.asDynamic().setPointerCapture(pointerId)
+                } catch (_: Throwable) {
+                    // Some environments may throw if pointerId is invalid; ignore.
+                }
+            }
+
+            isMouseDown = true
+            val eventParams = mouseLike.toPanEventParams()
+            val position = ele.getBoundingClientRect()
+            eleX = position.left.toFloat()
+            eleY = position.top.toFloat()
+
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.START
+            )
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_DOWN
+            )
+            panEventCallback?.invoke(params)
+            touchDownEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer move
+        ele.addEventListener("pointermove", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            val mouseLike = rawEvent.unsafeCast<MouseEvent>()
+            val eventParams = mouseLike.toPanEventParams()
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.MOVE
+            )
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_MOVE
+            )
+            panEventCallback?.invoke(params)
+            touchMoveEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer up
+        ele.addEventListener("pointerup", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            isMouseDown = false
+            var params = fastMutableMapOf<String, Any>().apply {
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.STATE, KRStateConst.END)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
+            }
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_UP
+            )
+            panEventCallback?.invoke(params)
+            touchUpEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer cancel (system takes over the pointer, e.g. scroll / gesture)
+        ele.addEventListener("pointercancel", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            isMouseDown = false
+            var params = fastMutableMapOf<String, Any>().apply {
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
+                put(KRParamConst.STATE, KRStateConst.CANCEL)
+            }
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_CANCEL
+            )
+            touchUpEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
     }
 
     /**

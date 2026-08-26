@@ -30,7 +30,9 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.json
+import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Convert Touch parameters to specified format
@@ -179,12 +181,23 @@ open class KRView : IKuiklyRenderViewExport {
         //   3) Keep sub-pixel size as float to avoid rounding-induced re-layout.
         //   4) Snapshot each <canvas> backing store into an <img data:...> replacement
         //      inside the clone, otherwise cloneNode(true) loses the pixel content.
+        //   5) Scale output bitmap by devicePixelRatio (divided by sampleSize) so the
+        //      snapshot stays crisp on Retina/HiDPI screens. Cap final canvas side to
+        //      MAX_CANVAS_SIDE to avoid hitting browser canvas size limits.
         val rect = ele.getBoundingClientRect()
         val widthF = if (rect.width > 0.0) rect.width else 1.0
         val heightF = if (rect.height > 0.0) rect.height else 1.0
-        val scale = max(1.0 / sampleSize.toDouble(), 0.01)
-        val outputWidth = max(1, (widthF * scale).toInt())
-        val outputHeight = max(1, (heightF * scale).toInt())
+        val dprRaw = kuiklyWindow.asDynamic().devicePixelRatio.unsafeCast<Double?>() ?: 1.0
+        val dpr = if (dprRaw > 0.0) dprRaw else 1.0
+        // sampleSize keeps its "down-sample" semantics: 1 = full quality, 2 = half, etc.
+        // Total zoom combines DPR upscale and sampleSize downscale.
+        val zoom = max(dpr / sampleSize.toDouble(), 0.01)
+        val maxSide = 4096.0
+        val rawOutW = widthF * zoom
+        val rawOutH = heightF * zoom
+        val sideFit = min(1.0, min(maxSide / rawOutW, maxSide / rawOutH))
+        val outputWidth = max(1, ceil(rawOutW * sideFit).toInt())
+        val outputHeight = max(1, ceil(rawOutH * sideFit).toInt())
 
         val cloned = ele.cloneNode(true).unsafeCast<HTMLDivElement>()
         // Inline every node's computed style into the clone.
@@ -231,7 +244,15 @@ open class KRView : IKuiklyRenderViewExport {
                             callback?.invoke(toImageError("failed to get 2d context"))
                         } else {
                             val ctx2d: dynamic = ctx
-                            ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
+                            // Use Double coords so browser can rasterize SVG straight
+                            // into the target (possibly upscaled) canvas resolution.
+                            ctx2d.drawImage(
+                                image,
+                                0.0,
+                                0.0,
+                                outputWidth.toDouble(),
+                                outputHeight.toDouble()
+                            )
                             val dataUri = canvas.toDataURL("image/png")
                             if (type == TO_IMAGE_TYPE_CACHE_KEY) {
                                 val cacheKey = buildImageCacheKey()

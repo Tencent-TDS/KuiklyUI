@@ -88,7 +88,7 @@ internal class ToImageExamplePage : BasePager() {
                         borderRadius(10.0f)
                         border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF90CAF9)))
                         backgroundColor(if (ctx.alternating) Color(0xFFE3F2FD) else Color(0xFFFFFDE7))
-                        height(300.0f)
+                        height(180.0f)
                     }
 
                     Text {
@@ -108,59 +108,67 @@ internal class ToImageExamplePage : BasePager() {
                         }
                     }
 
-                    Image {
-                        attr {
-                            marginTop(10.0f)
-                            size(140f, 90f)
-                            src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
-                        }
-                    }
-
-                    // Small canvas sub-area for verifying canvas-bitmap capture by toImage.
-                    // The canvas draws a red-filled rounded rect, a blue circle and a
-                    // diagonal green line. If the snapshot fails to include canvas bitmap,
-                    // this area will show as an empty rectangle in the result image.
+                    // A horizontal row groups the sample image and the small canvas
+                    // sub-area side by side so the target zone height stays compact.
                     View {
                         attr {
                             marginTop(10.0f)
-                            width(180.0f)
-                            height(60.0f)
-                            borderRadius(6.0f)
-                            border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF7E57C2)))
-                            backgroundColor(Color(0xFFF3E5F5))
+                            flexDirectionRow()
                         }
 
-                        Canvas({
+                        Image {
                             attr {
-                                absolutePosition(0f, 0f, 0f, 0f)
+                                size(140f, 90f)
+                                src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
                             }
-                        }) { context, width, height ->
-                            // Red rounded-corner rectangle on the left.
-                            context.beginPath()
-                            context.fillStyle(Color(0xFFE53935))
-                            context.moveTo(4f, 4f)
-                            context.lineTo(width * 0.35f, 4f)
-                            context.lineTo(width * 0.35f, height - 4f)
-                            context.lineTo(4f, height - 4f)
-                            context.lineTo(4f, 4f)
-                            context.fill()
+                        }
 
-                            // Blue circle in the middle.
-                            context.beginPath()
-                            context.fillStyle(Color(0xFF1E88E5))
-                            val cx = width * 0.55f
-                            val cy = height / 2f
-                            val r = (height / 2f) - 6f
-                            context.arc(cx, cy, r, 0f, (PI * 2f).toFloat(), false)
-                            context.fill()
+                        // Small canvas sub-area for verifying canvas-bitmap capture by toImage.
+                        // The canvas draws a red-filled rounded rect, a blue circle and a
+                        // diagonal green line. If the snapshot fails to include canvas bitmap,
+                        // this area will show as an empty rectangle in the result image.
+                        View {
+                            attr {
+                                marginLeft(10.0f)
+                                width(140.0f)
+                                height(90.0f)
+                                borderRadius(6.0f)
+                                border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFF7E57C2)))
+                                backgroundColor(Color(0xFFF3E5F5))
+                            }
 
-                            // Green diagonal stroke across the whole area.
-                            context.beginPath()
-                            context.strokeStyle(Color(0xFF43A047))
-                            context.lineWidth(2f)
-                            context.moveTo(width * 0.65f, height - 6f)
-                            context.lineTo(width - 6f, 6f)
-                            context.stroke()
+                            Canvas({
+                                attr {
+                                    absolutePosition(0f, 0f, 0f, 0f)
+                                }
+                            }) { context, width, height ->
+                                // Red rounded-corner rectangle on the left.
+                                context.beginPath()
+                                context.fillStyle(Color(0xFFE53935))
+                                context.moveTo(4f, 4f)
+                                context.lineTo(width * 0.35f, 4f)
+                                context.lineTo(width * 0.35f, height - 4f)
+                                context.lineTo(4f, height - 4f)
+                                context.lineTo(4f, 4f)
+                                context.fill()
+
+                                // Blue circle in the middle.
+                                context.beginPath()
+                                context.fillStyle(Color(0xFF1E88E5))
+                                val cx = width * 0.55f
+                                val cy = height / 2f
+                                val r = (height / 2f) - 6f
+                                context.arc(cx, cy, r, 0f, (PI * 2f).toFloat(), false)
+                                context.fill()
+
+                                // Green diagonal stroke across the whole area.
+                                context.beginPath()
+                                context.strokeStyle(Color(0xFF43A047))
+                                context.lineWidth(2f)
+                                context.moveTo(width * 0.65f, height - 6f)
+                                context.lineTo(width - 6f, 6f)
+                                context.stroke()
+                            }
                         }
                     }
                 }
@@ -248,6 +256,28 @@ internal class ToImageExamplePage : BasePager() {
                             }
                         }
                     }
+
+                    View {
+                        attr {
+                            marginTop(8.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFF8E24AA))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("DATA_URI (sampleSize=2)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(DeclarativeBaseView.ImageType.DATA_URI, 2, "DATA_URI")
+                            }
+                        }
+                    }
                 }
 
                 // Block 3: Snapshot display area
@@ -272,7 +302,12 @@ internal class ToImageExamplePage : BasePager() {
                     Image {
                         attr {
                             marginTop(10.0f)
-                            size(240f, 130f)
+                            // Match the snapshot target's on-screen aspect ratio so the
+                            // result image does not look squashed. Both this Image and
+                            // the target View share the same parent width, so using the
+                            // same height (180) with flex(1f) keeps proportions aligned.
+                            flex(1f)
+                            height(180.0f)
                             src(ctx.snapshotResultSrc)
                         }
                     }

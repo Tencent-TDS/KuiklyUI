@@ -50,6 +50,8 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
                     pageItemWidth(ctx.attr.pageItemWidth)
                     pageItemHeight(ctx.attr.pageItemHeight)
                     defaultPageIndex(ctx.attr.defaultPageIndex + (if (ctx.attr.itemCount > 1) 1 else 0))
+                    // 首屏额外多加载两个 item（前后），避免默认页落在首屏宽度不足被循环归位逻辑误判回 0
+                    firstContentLoadMaxIndex(ctx.attr.defaultPageIndex + (if (ctx.attr.itemCount > 1) 1 else 0) + 2)
                     pageDirection(ctx.attr.isHorizontal)
                     showScrollerIndicator(false)
                     keepItemAlive = true

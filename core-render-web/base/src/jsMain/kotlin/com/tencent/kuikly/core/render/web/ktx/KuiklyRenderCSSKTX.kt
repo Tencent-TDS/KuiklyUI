@@ -444,9 +444,13 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
         // was not fired (e.g. when the target value equals the current computed value, or
         // when the animation was interrupted). Clear the residual attribute here to ensure
         // the new inline frame takes effect immediately.
-        val animAttr = ele.getAttribute(KRAttrConst.ANIMATION) ?: ""
-        if (animAttr.isNotEmpty() && ele.hrAnimation == null) {
-            ele.setAttribute(KRAttrConst.ANIMATION, "")
+        // Note: use dynamic + JS typeof check to avoid Kotlin's charSequenceLength on
+        // non-string values returned by getAttribute in mini-app environments.
+        if (ele.hrAnimation == null && jsTypeOf(dynamicElement.getAttribute) == KRJsTypeConst.FUNCTION) {
+            val animAttr: dynamic = ele.getAttribute(KRAttrConst.ANIMATION)
+            if (jsTypeOf(animAttr) == KRJsTypeConst.STRING && animAttr.length.unsafeCast<Int>() > 0) {
+                ele.setAttribute(KRAttrConst.ANIMATION, "")
+            }
         }
     }
 

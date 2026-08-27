@@ -436,6 +436,19 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
         // Set here, directly return
         return true
     }
+    if (key == KRCssConst.FRAME) {
+        // FIX: If there is no active animation (hrAnimation is null) but the element still has
+        // a residual `animation` attribute referencing an old kuikly-animation CSS rule,
+        // this old rule (which contains `!important`) will override the inline style we're
+        // about to set. This can happen when a previous transition's `transitionend` event
+        // was not fired (e.g. when the target value equals the current computed value, or
+        // when the animation was interrupted). Clear the residual attribute here to ensure
+        // the new inline frame takes effect immediately.
+        val animAttr = ele.getAttribute(KRAttrConst.ANIMATION) ?: ""
+        if (animAttr.isNotEmpty() && ele.hrAnimation == null) {
+            ele.setAttribute(KRAttrConst.ANIMATION, "")
+        }
+    }
 
     // Otherwise use unified setting method
     val result = propHandlers[key]?.invoke(ele.style, value, ele) ?: false

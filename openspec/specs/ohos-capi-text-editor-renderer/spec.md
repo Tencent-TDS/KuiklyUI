@@ -130,7 +130,8 @@ TBD.
 - **THEN** SHALL 默认注册 `NODE_TEXT_EDITOR_ON_DID_CHANGE` 事件（TEXT_EDITOR 无 `ON_CHANGE` 专属事件）
 - **AND** 由于 `ON_DID_CHANGE` 的 payload 不包含文本，回调内 SHALL 主动调 `OH_ArkUI_TextEditorStyledStringController_GetStyledString` 读全文后再触发业务 `textDidChange`
 - **AND** 其他事件（focus / blur / submit / will-change / paste）SHALL 在对应 `setProp` 的事件回调非空时**按需注册**，避免无用回调
-- **AND** `inputFocus` / `inputBlur` SHALL 使用通用的 `NODE_ON_FOCUS` / `NODE_ON_BLUR`（TEXT_EDITOR 未提供专属 focus / blur 事件）
+- **AND** `inputFocus` SHALL 使用通用的 `NODE_ON_FOCUS`
+- **AND** `inputBlur` SHALL 由 `NODE_TEXT_EDITOR_ON_EDITING_CHANGE` 的「编辑停止」分支驱动（程序化 `NODE_FOCUS_STATUS` 变化不派发 `NODE_ON_BLUR`），`NODE_ON_BLUR` 仅作兜底
 
 #### Scenario: inputReturn（Field 单行）
 
@@ -171,6 +172,7 @@ TBD.
 - **THEN** 以下方法 SHALL 被支持：
   - `focus` → 节点进入编辑态（触发 `inputFocus`）
   - `blur` → 节点离开编辑态（触发 `inputBlur`）
+  - `focusWithoutKeyboard` → 节点获焦但键盘全程不出现（`NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS` + blur→refocus 状态机）
   - `setText` → 替换节点文本内容；等价于调 `UpdateContentText`
   - `getCursorIndex` → 回传当前光标位置（UTF-16 index）通过 callback 返回 `{cursorIndex: N}`
   - `setCursorIndex` → 将光标设置到指定 UTF-16 index
@@ -251,3 +253,36 @@ TBD.
 - **WHEN** `DidInit()` 首次被触发
 - **THEN** SHALL 通过 `static bool logged` 保护的方式打印一次日志："KRTextEditorFieldView initialized (ARKUI_NODE_TEXT_EDITOR, apiVersion=X)"
 - **AND** 后续创建 SHALL 不再重复打印
+
+### Requirement: 保焦点收键盘（focusWithoutKeyboard）
+
+`KRTextEditorFieldView` / `KRTextEditorAreaView` SHALL 支持 `focusWithoutKeyboard` 方法：节点获得焦点但系统键盘全程不出现。
+
+#### Scenario: 键盘抑制属性
+
+- **GIVEN** 设备 API ≥ 24（SDK 提供 `NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS`，@since 24）
+- **WHEN** `FocusWithoutKeyboard()` 被调用
+- **THEN** SHALL 将节点属性设为 `EnableKeyboardOnFocus(node, false)`
+
+#### Scenario: 已聚焦时收起键盘并恢复焦点
+
+- **WHEN** `FocusWithoutKeyboard()` 被调用且节点已聚焦
+- **THEN** SHALL 置 `pending_refocus_after_blur_` 标记并程序化 `UpdateFocusStatus(false)` 收起键盘
+- **AND** 收到 `NODE_TEXT_EDITOR_ON_EDITING_CHANGE`（编辑停止）后 SHALL 重新 `UpdateFocusStatus(true)` 恢复焦点
+
+#### Scenario: 未聚焦时直接免键盘获焦
+
+- **WHEN** `FocusWithoutKeyboard()` 被调用且节点未聚焦
+- **THEN** SHALL 直接 `UpdateFocusStatus(true)` 获焦（键盘抑制属性已生效，键盘不出现）
+
+#### Scenario: Focus 恢复键盘
+
+- **WHEN** 免键盘态下收到 `focus` 方法
+- **THEN** SHALL 恢复 `EnableKeyboardOnFocus(node, true)` 并走 blur→refocus 路径让键盘重新出现
+
+#### Scenario: 编辑停止事件三分支
+
+- **WHEN** `NODE_TEXT_EDITOR_ON_EDITING_CHANGE` 收到编辑停止（data[0].i32 = 0）
+- **THEN** 若 `pending_refocus_after_blur_` 为真 SHALL 走恢复焦点分支
+- **AND** 若 150ms 窗口内组件销毁 SHALL 走 teardown 分支不恢复
+- **AND** 真实停止编辑 SHALL 上抛 `inputBlur`（附带修复 Compose 收不到 blur 的问题）

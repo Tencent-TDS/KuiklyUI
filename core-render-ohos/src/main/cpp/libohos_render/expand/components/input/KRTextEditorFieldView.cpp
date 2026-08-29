@@ -108,6 +108,11 @@ void KRTextEditorFieldView::DidInit() {
     RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_COPY);
     RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_WILL_CHANGE);
     RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_PASTE);
+    // 编辑态开始/停止事件（@since 24，data[0].i32=1/0）。
+    // 实测（真机日志）：TEXT_EDITOR 上程序化 NODE_FOCUS_STATUS=0 只会原生失焦，
+    // 不派发 NODE_ON_BLUR；而 ON_EDITING_CHANGE 在「编辑停止」（含程序化 blur、
+    // StopEditing、IME 卸载）时可靠触发，是状态机正确的驱动信号源。
+    RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_EDITING_CHANGE);
 
     // 首次应用 typing style（字体色、字号、字重、对齐）
     kuikly::text_editor::ApplyTypingStyle(state_);
@@ -386,6 +391,9 @@ void KRTextEditorFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEven
         case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_DID_CHANGE:
             OnTextDidChanged(event);
             break;
+        case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_EDITING_CHANGE:
+            OnEditingChange(event);
+            break;
         case ArkUI_NodeEventType::NODE_ON_FOCUS:
             OnInputFocus(event);
             break;
@@ -424,6 +432,8 @@ void KRTextEditorFieldView::CallMethod(const std::string &method, const KRAnyVal
         Focus();
     } else if (kuikly::util::isEqual(method, kMethodBlur)) {
         Blur();
+    } else if (kuikly::util::isEqual(method, kMethodFocusWithoutKeyboard)) {
+        FocusWithoutKeyboard();
     } else if (kuikly::util::isEqual(method, kMethodSetText)) {
         SetContentText(params->toString());
     } else if (kuikly::util::isEqual(method, kMethodGetCursorIndex)) {
@@ -505,7 +515,23 @@ void KRTextEditorFieldView::SetSelectionStartPosition(uint32_t index) {
 
 void KRTextEditorFieldView::Focus() {
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
-    kuikly::text_editor::UpdateFocusStatus(GetNode(), true);
+    // 对齐老 KRTextFieldView::Focus：
+    // 先恢复「获焦即弹键盘」（hide 后点 show 恢复键盘的链路依赖此属性为 1）
+    kuikly::text_editor::UpdateEnableKeyboardOnFocus(GetNode(), true);
+    if (is_node_focused_) {
+        // 已聚焦场景（如 hide 后点 show 恢复键盘）：
+        // 直接设置 status=1 是 no-op，键盘不会弹起。
+        // 通过 Blur → ON_BLUR 事件驱动 refocus 强制刷新焦点状态，
+        // 配合上方已恢复的 ENABLE_KEYBOARD_ON_FOCUS=1，refocus 时键盘正常弹起。
+        pending_refocus_after_blur_ = true;
+        awaiting_teardown_blur_ = false;
+        // 注意：不走 Blur()（StopEditing 优先，不保证触发 ON_BLUR，状态机会卡死），
+        // 直接用 NODE_FOCUS_STATUS=0 真失焦，驱动状态机
+        is_node_focused_ = false;   // 双保险：ON_BLUR 不可靠，同步复位防状态位腐烂
+        kuikly::text_editor::UpdateFocusStatus(GetNode(), false);
+    } else {
+        kuikly::text_editor::UpdateFocusStatus(GetNode(), true);
+    }
 #endif
 }
 
@@ -516,6 +542,45 @@ void KRTextEditorFieldView::Blur() {
         OH_ArkUI_TextEditorStyledStringController_StopEditing(state_.controller_);
     } else {
         kuikly::text_editor::UpdateFocusStatus(GetNode(), false);
+    }
+#endif
+}
+
+void KRTextEditorFieldView::ScheduleRefocus(bool arm_awaiting_teardown) {
+    KRMainThread::RunOnMainThreadForNextLoop(
+        [weakSelf = weak_from_this(), arm_awaiting_teardown] {
+            auto s = std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+            if (!s) {
+                return;
+            }
+            s->last_refocus_ts_ = std::chrono::steady_clock::now();
+            kuikly::text_editor::UpdateFocusStatus(s->GetNode(), true);
+            if (arm_awaiting_teardown) {
+                s->awaiting_teardown_blur_ = true;   // 仅 refocus#1 arm，等待 IME 拆卸尾部 blur
+            }
+        });
+}
+
+void KRTextEditorFieldView::FocusWithoutKeyboard() {
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+    // 与老 KRTextFieldView::FocusWithoutKeyBoard 完全对齐：
+    // 「获焦 + 软键盘全程不出现」的自包含命令。
+    //
+    // SDK native_node.h @since 24 提供 NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS
+    // （程序化获焦时是否拉起输入法），与老组件方案同构，无需 StopEditing 变通。
+    kuikly::text_editor::UpdateEnableKeyboardOnFocus(GetNode(), false);
+    if (is_node_focused_) {
+        // 已聚焦：blur → ON_BLUR → refocus，收键盘但保持焦点。
+        // 打标记：Blur 触发的 ON_BLUR 提交后，由 OnInputBlur 在下一帧负责 refocus，
+        // 保证「blur 已提交再获焦」，消除固定定时带来的异步竞态（焦点/键盘一起消失）。
+        pending_refocus_after_blur_ = true;
+        awaiting_teardown_blur_ = false;   // 复位：每次重新开始两步 refocus 流程
+        // 同上：不走 Blur()（StopEditing 不保证触发 ON_BLUR），直接 NODE_FOCUS_STATUS=0
+        is_node_focused_ = false;   // 双保险：ON_BLUR 不可靠，同步复位防状态位腐烂
+        kuikly::text_editor::UpdateFocusStatus(GetNode(), false);
+    } else {
+        // 未聚焦：直接聚焦，属性已为 0（ENABLE_KEYBOARD_ON_FOCUS=0），键盘不会弹出
+        kuikly::text_editor::UpdateFocusStatus(GetNode(), true);
     }
 #endif
 }
@@ -609,6 +674,8 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
 
 void KRTextEditorFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
     (void)event;
+    is_node_focused_ = true;    // 维护原生焦点状态：focus 即获焦
+    pending_refocus_after_blur_ = false;   // 防御：已获焦则无需再 pending refocus（避免 Blur 空操作时 pending 卡死）
     if (state_.input_focus_callback_) {
         KRRenderValueMap map;
         // 上抛 raw 而非 flat（与 textDidChange 一致），避免业务拿到带占位空格的字符串。
@@ -619,11 +686,48 @@ void KRTextEditorFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
 
 void KRTextEditorFieldView::OnInputBlur(ArkUI_NodeEvent *event) {
     (void)event;
+    // 兜底信号：真机日志证实 TEXT_EDITOR 上程序化 NODE_FOCUS_STATUS=0 不派发本事件，
+    // 状态机主驱动已迁移至 OnEditingChange。此处仅防御性复位，不参与状态机流转，
+    // 避免与 EDITING_CHANGE 双触发导致重复调度/重复上抛。
+    is_node_focused_ = false;
+}
+
+void KRTextEditorFieldView::OnEditingChange(ArkUI_NodeEvent *event) {
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+    // data[0].i32：1=编辑开始（获焦+IME 接管） 0=编辑停止（blur/StopEditing/IME 卸载）
+    // ArkUI_NodeComponentEvent 只有定长数组 data[MAX_COMPONENT_EVENT_ARG_NUM]，无长度字段
+    auto *component_event = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event);
+    int32_t editing = component_event ? component_event->data[0].i32 : 0;
+    if (editing == 1) {
+        is_node_focused_ = true;
+        return;
+    }
+    // ===== editing=0：编辑停止，接管原 ON_BLUR 三分支状态机 =====
+    auto now = std::chrono::steady_clock::now();
+    long since_refocus_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - last_refocus_ts_).count();
+    is_node_focused_ = false;
+    // 1) 我们主动 blur 触发的首次停止：调度 refocus#1，并 arm 等待 IME 拆卸尾部停止
+    if (pending_refocus_after_blur_) {
+        pending_refocus_after_blur_ = false;
+        ScheduleRefocus(true);
+        return;
+    }
+    // 2) refocus#1 后的 IME 拆卸尾部停止（150ms 窗口内）：补夺一次焦点，不再 arm
+    if (awaiting_teardown_blur_ && since_refocus_ms < 150) {
+        awaiting_teardown_blur_ = false;
+        ScheduleRefocus(false);
+        return;
+    }
+    // 3) 超窗口或流程外的真实编辑停止：复位 + 正常上抛 inputBlur
+    //    （附带修复：此前 TEXT_EDITOR 上 Compose 从未收到过 inputBlur 的问题）
+    awaiting_teardown_blur_ = false;
     if (state_.input_blur_callback_) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(state_.cached_text_);
         state_.input_blur_callback_(NewKRRenderValue(map));
     }
+#endif
 }
 
 void KRTextEditorFieldView::OnInputReturn(ArkUI_NodeEvent *event) {

@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_KRTEXTEDITORFIELDVIEW_H
 #define CORE_RENDER_OHOS_KRTEXTEDITORFIELDVIEW_H
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 
@@ -62,6 +63,16 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
 
     kuikly::text_editor::KRTextEditorState state_;
 
+    // 「保焦点关键盘」状态机（与老 KRTextFieldView 完全对齐，属性换用 TEXT_EDITOR 专属
+    // NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS，@since 24 与组件同版本）：
+    // is_node_focused_：由 ON_FOCUS / ON_BLUR 事件维护的节点焦点状态位
+    // pending_refocus_after_blur_：主动 Blur 后等待 ON_BLUR 落地再于下一帧 refocus（两步流程）
+    // awaiting_teardown_blur_：refocus#1 后等待 IME 拆卸尾部 blur（150ms 窗口内补夺焦点）
+    bool is_node_focused_ = false;
+    bool pending_refocus_after_blur_ = false;
+    bool awaiting_teardown_blur_ = false;
+    std::chrono::steady_clock::time_point last_refocus_ts_;
+
     // controller 首次绑定（DidInit 里调用）
     void InitControllerIfNeeded();
 
@@ -77,6 +88,12 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     // Focus/Blur
     void Focus();
     void Blur();
+    // 获焦但键盘全程不出现（对齐老 KRTextFieldView::FocusWithoutKeyBoard 的跨端语义）。
+    // 实现：NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS=0 + blur→refocus 状态机，
+    // 与老组件同构；详见各实现处注释。
+    void FocusWithoutKeyboard();
+    // 两步 refocus 调度：下一帧 refocus，arm 控制是否等待 IME 拆卸尾部 blur
+    void ScheduleRefocus(bool arm_awaiting_teardown);
     void GetCursorIndex(const KRRenderCallback &callback);
     void SetCursorIndex(uint32_t index);
 
@@ -96,6 +113,10 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     void OnTextDidChanged(ArkUI_NodeEvent *event);
     void OnInputFocus(ArkUI_NodeEvent *event);
     void OnInputBlur(ArkUI_NodeEvent *event);
+    // 编辑态变化（NODE_TEXT_EDITOR_ON_EDITING_CHANGE, @since 24, data[0].i32=1/0）。
+    // TEXT_EDITOR 上程序化 NODE_FOCUS_STATUS=0 不派发 NODE_ON_BLUR（真机日志证实），
+    // 状态机由本事件驱动：editing=0 走原三分支（pending refocus / teardown / 真实停止上抛 blur）。
+    void OnEditingChange(ArkUI_NodeEvent *event);
     void OnInputReturn(ArkUI_NodeEvent *event);
     void OnWillChangeText(ArkUI_NodeEvent *event);
     void OnPasteText(ArkUI_NodeEvent *event);

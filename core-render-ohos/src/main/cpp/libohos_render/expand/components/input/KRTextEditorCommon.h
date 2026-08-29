@@ -282,6 +282,7 @@ static constexpr const char *kTextInputState = "textInputState";
 
 static constexpr const char kMethodFocus[] = "focus";
 static constexpr const char kMethodBlur[] = "blur";
+static constexpr const char kMethodFocusWithoutKeyboard[] = "focusWithoutKeyboard";
 static constexpr const char kMethodSetText[] = "setText";
 static constexpr const char kMethodGetCursorIndex[] = "getCursorIndex";
 static constexpr const char kMethodSetCursorIndex[] = "setCursorIndex";
@@ -769,6 +770,15 @@ inline void UpdateSingleLine(ArkUI_NodeHandle node, bool single_line) {
     ArkUI_NumberValue value = {.i32 = single_line ? 1 : 0};
     ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_EDITOR_SINGLE_LINE, &item);
+}
+
+// 节点级属性：EnableKeyboardOnFocus（@since 24，TEXT_EDITOR 专属 enum，勿与 TEXT_INPUT 版混用）
+// 程序化获焦（非点击）时是否拉起输入法——与老组件 NODE_TEXT_INPUT_ENABLE_KEYBOARD_ON_FOCUS 同语义，
+// 是「获焦不弹键盘」能力在 TEXT_EDITOR 上的等价开关。
+inline void UpdateEnableKeyboardOnFocus(ArkUI_NodeHandle node, bool enable) {
+    ArkUI_NumberValue value = {.i32 = enable ? 1 : 0};
+    ArkUI_AttributeItem item = {&value, 1};
+    kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_EDITOR_ENABLE_KEYBOARD_ON_FOCUS, &item);
 }
 
 // Focus / Blur：使用通用 NODE_FOCUS_STATUS。

@@ -293,16 +293,24 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
      *
      * @param type 截图类型
      * @param sampleSize 采样率，取值大于或等于1，默认1
+     * @param scale 输出放大倍数，默认1.0；仅H5平台生效，其它平台会忽略该参数。
+     *              取值范围建议 (0, 3.0]，超过浏览器 Canvas 极限时会被内部兜底约束。
      * @param callback 格式：{ code: Int, data: String?, message: String? }，
      * code：0成功，非0失败；
      * data：缓存key（可用于Image的src）或base64串或文件path，仅成功有该字段；
      * message：错误信息，仅失败有该字段。
      */
-    fun toImage(type: ImageType, sampleSize: Int = 1, callback: CallbackFn) {
+    fun toImage(
+        type: ImageType,
+        sampleSize: Int = 1,
+        scale: Float = 1.0f,
+        callback: CallbackFn
+    ) {
         performTaskWhenRenderViewDidLoad {
             val params = JSONObject()
                 .put("type", type.value)
                 .put("sampleSize", max(1, sampleSize))
+                .put("scale", max(0.01f, scale).toDouble())
                 .toString()
             renderView?.callMethod("toImage", params, callback)
         }

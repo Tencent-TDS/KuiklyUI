@@ -166,6 +166,9 @@ open class KRView : IKuiklyRenderViewExport {
         val json = JSONObject(params ?: "{}")
         val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
         val sampleSize = max(1, json.optInt(TO_IMAGE_PARAM_SAMPLE_SIZE, 1))
+        // H5-only extension: additional upscale factor on top of DPR / sampleSize.
+        // Other platforms simply ignore this field.
+        val scale = max(MIN_TO_IMAGE_SCALE, json.optDouble(TO_IMAGE_PARAM_SCALE, 1.0))
 
         if (type == TO_IMAGE_TYPE_FILE) {
             callback?.invoke(toImageError("FILE is not supported on H5"))
@@ -190,12 +193,12 @@ open class KRView : IKuiklyRenderViewExport {
         val dprRaw = kuiklyWindow.asDynamic().devicePixelRatio.unsafeCast<Double?>() ?: 1.0
         val dpr = if (dprRaw > 0.0) dprRaw else 1.0
         // sampleSize keeps its "down-sample" semantics: 1 = full quality, 2 = half, etc.
-        // Total zoom combines DPR upscale and sampleSize downscale.
-        val zoom = max(dpr / sampleSize.toDouble(), 0.01)
-        val maxSide = 4096.0
+        // scale is an H5-only extra upscale factor requested by the caller (default 1.0).
+        // Total zoom combines DPR upscale, caller-requested scale, and sampleSize downscale.
+        val zoom = max(dpr * scale / sampleSize.toDouble(), MIN_TO_IMAGE_ZOOM)
         val rawOutW = widthF * zoom
         val rawOutH = heightF * zoom
-        val sideFit = min(1.0, min(maxSide / rawOutW, maxSide / rawOutH))
+        val sideFit = min(1.0, min(MAX_CANVAS_SIDE / rawOutW, MAX_CANVAS_SIDE / rawOutH))
         val outputWidth = max(1, ceil(rawOutW * sideFit).toInt())
         val outputHeight = max(1, ceil(rawOutH * sideFit).toInt())
 
@@ -996,6 +999,18 @@ open class KRView : IKuiklyRenderViewExport {
 
         private const val TO_IMAGE_PARAM_TYPE = "type"
         private const val TO_IMAGE_PARAM_SAMPLE_SIZE = "sampleSize"
+        private const val TO_IMAGE_PARAM_SCALE = "scale"
+
+        // Upper bound of a single side of the output canvas. Most browsers cap
+        // canvas dimensions around 8192~16384 px; 4096 is a safe cross-browser
+        // ceiling that also keeps memory usage reasonable for large scale values.
+        private const val MAX_CANVAS_SIDE = 4096.0
+        // Lower bound for the combined zoom factor to guarantee we never end up
+        // with a zero-sized canvas even for weird inputs (scale=0 / dpr=0).
+        private const val MIN_TO_IMAGE_ZOOM = 0.01
+        // Minimum allowed caller-supplied scale. 0 or negative would collapse the
+        // output to nothing; guard here so the caller doesn't have to.
+        private const val MIN_TO_IMAGE_SCALE = 0.01
 
         private const val TO_IMAGE_TYPE_CACHE_KEY = "cacheKey"
         private const val TO_IMAGE_TYPE_DATA_URI = "dataUri"

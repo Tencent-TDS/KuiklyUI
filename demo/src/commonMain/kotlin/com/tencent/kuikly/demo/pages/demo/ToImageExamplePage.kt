@@ -45,9 +45,14 @@ internal class ToImageExamplePage : BasePager() {
     private var snapshotResultSrc by observable("")
     private var alternating by observable(false)
 
-    private fun runToImageTest(type: DeclarativeBaseView.ImageType, sampleSize: Int, label: String) {
+    private fun runToImageTest(
+        type: DeclarativeBaseView.ImageType,
+        sampleSize: Int,
+        label: String,
+        scale: Float = 1.0f
+    ) {
         alternating = !alternating
-        viewRef?.view?.toImage(type, sampleSize) {
+        viewRef?.view?.toImage(type, sampleSize, scale) {
             val code = it?.optInt("code") ?: -1
             val data = it?.optString("data") ?: ""
             val message = it?.optString("message") ?: ""
@@ -55,10 +60,10 @@ internal class ToImageExamplePage : BasePager() {
 
             KLog.d(
                 TAG,
-                "toImage[$label], success: $success, code: $code, sampleSize: $sampleSize, data: $data, message: $message"
+                "toImage[$label], success: $success, code: $code, sampleSize: $sampleSize, scale: $scale, data: $data, message: $message"
             )
 
-            snapshotInfo = "[$label] code=$code, sampleSize=$sampleSize, message=$message"
+            snapshotInfo = "[$label] code=$code, sampleSize=$sampleSize, scale=$scale, message=$message"
             if (success) {
                 snapshotResultSrc = data
             }
@@ -275,6 +280,63 @@ internal class ToImageExamplePage : BasePager() {
                         event {
                             click {
                                 ctx.runToImageTest(DeclarativeBaseView.ImageType.DATA_URI, 2, "DATA_URI")
+                            }
+                        }
+                    }
+
+                    // H5-only: caller-requested upscale factor. Default 1.0 keeps behavior
+                    // identical to before. Larger values yield a higher-resolution snapshot
+                    // (bounded internally by MAX_CANVAS_SIDE).
+                    View {
+                        attr {
+                            marginTop(8.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFF3949AB))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("DATA_URI (scale=2.0)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(
+                                    DeclarativeBaseView.ImageType.DATA_URI,
+                                    1,
+                                    "DATA_URI-scale2",
+                                    2.0f
+                                )
+                            }
+                        }
+                    }
+
+                    View {
+                        attr {
+                            marginTop(8.0f)
+                            padding(10.0f)
+                            borderRadius(8.0f)
+                            allCenter()
+                            backgroundColor(Color(0xFFD81B60))
+                        }
+                        Text {
+                            attr {
+                                fontSize(14.0f)
+                                color(Color.WHITE)
+                                text("DATA_URI (scale=3.0)")
+                            }
+                        }
+                        event {
+                            click {
+                                ctx.runToImageTest(
+                                    DeclarativeBaseView.ImageType.DATA_URI,
+                                    1,
+                                    "DATA_URI-scale3",
+                                    3.0f
+                                )
                             }
                         }
                     }

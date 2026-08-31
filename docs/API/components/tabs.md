@@ -36,6 +36,8 @@
 
 指示条按比例滚动（默认行为）
 
+> 当使用该模式时，如果关联列表同时设置了默认项（如`defaultPageIndex`）并且希望首屏首次渲染时Tabs也能正确联动到对应的default item，需要将关联List/PageList的`firstContentLoadMaxIndex`设置为列表总数量，避免首屏分批加载导致初始位置关联不准确。
+
 ## 事件
 
 支持所有[Scroller事件](./scroller.md#事件)

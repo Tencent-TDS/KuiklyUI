@@ -28,7 +28,7 @@ import com.tencent.kuikly.core.views.InputSpans
 import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.demo.pages.base.BasePager
 
-@Page("4444")
+@Page("InputSpanPage")
 internal class InputSpanPager : BasePager() {
 
     var spans by observable(InputSpans())

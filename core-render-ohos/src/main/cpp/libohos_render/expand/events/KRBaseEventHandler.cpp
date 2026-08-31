@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/expand/events/KRBaseEventHandler.h"
+#include <chrono>
 
 #include <arkui/native_node.h>
 #include "libohos_render/expand/events/KREventDispatchCenter.h"
@@ -36,6 +37,7 @@ constexpr char kParamKeyState[] = "state";
 constexpr char kStartState[] = "start";
 constexpr char kEndState[] = "end";
 constexpr char kParamKeyScale[] = "scale";
+constexpr char kParamKeyVelocity[] = "velocity";
 constexpr char kParamKeyIsCancel[] = "isCancel";
 
 KRBaseEventHandler::KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config) : kr_config_(kr_config) {}
@@ -182,7 +184,7 @@ bool KRBaseEventHandler::FireOnLongPressCallback(const std::shared_ptr<KRGesture
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
+    params[kParamKeyState] = NewKRRenderValue(state);
     params[kParamKeyIsCancel] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionType(gesture_event_data->gesture_event_) == GESTURE_EVENT_ACTION_CANCEL);
     long_press_callback_(NewKRRenderValue(params));
     return true;
@@ -222,20 +224,41 @@ bool KRBaseEventHandler::FireOnPinchCallback(const std::shared_ptr<KRGestureEven
         return false;
     }
 
+    float scale = kuikly::util::GetArkUIGesturePinchScale(gesture_event_data->gesture_event_);
+    std::string state = kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_);
+
+    // 计算 velocity: scale 变化率(倍/秒)，与 iOS UIPinchGestureRecognizer.velocity 语义一致
+    auto now = std::chrono::steady_clock::now();
+    auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+    float velocity = 0.0f;
+    if (state == "start") {
+        // 新手势开始: 重置跟踪基准
+        prev_pinch_scale_ = scale;
+        prev_pinch_time_ns_ = now_ns;
+    } else if (prev_pinch_time_ns_ > 0 && now_ns > prev_pinch_time_ns_) {
+        double dt = (now_ns - prev_pinch_time_ns_) / 1e9;
+        if (dt > 0) {
+            velocity = static_cast<float>((scale - prev_pinch_scale_) / dt);
+        }
+        prev_pinch_scale_ = scale;
+        prev_pinch_time_ns_ = now_ns;
+    }
+
     KRRenderValueMap params;
     params[kParamKeyX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.x));
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyScale] = NewKRRenderValue(kuikly::util::GetArkUIGesturePinchScale(gesture_event_data->gesture_event_));
-    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
+    params[kParamKeyScale] = NewKRRenderValue(scale);
+    params[kParamKeyVelocity] = NewKRRenderValue(velocity);
+    params[kParamKeyState] = NewKRRenderValue(state);
     pinch_event_callback_(NewKRRenderValue(params));
     return true;
 }
 
 bool KRBaseEventHandler::HasTouchEvent() {
     return click_callback_ != nullptr || double_click_callback_ != nullptr || pan_event_callback_ != nullptr ||
-           long_press_callback_ != nullptr;
+           long_press_callback_ != nullptr || pinch_event_callback_ != nullptr;
 }
 
 bool KRBaseEventHandler::SetCaptureRule(const std::shared_ptr<IKRRenderViewExport> &view_export,

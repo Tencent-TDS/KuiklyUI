@@ -58,6 +58,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_longPress;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_pan;
+@property (nonatomic, strong, nullable) KuiklyRenderCallback css_pinch;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_animationCompletion;
 /// 在列表中是否可以允许滑动
 @property (nonatomic, assign) BOOL kr_canCancelInScrollView;

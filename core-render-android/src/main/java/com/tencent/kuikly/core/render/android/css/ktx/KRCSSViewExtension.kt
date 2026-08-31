@@ -201,6 +201,10 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             addEventListener(KRCSSGestureListener.TYPE_PAN, value as KuiklyRenderCallback)
             true
         }
+        KRCssConst.PINCH -> {
+            addEventListener(KRCSSGestureListener.TYPE_PINCH, value as KuiklyRenderCallback)
+            true
+        }
         KRCssConst.ANIMATION_COMPLETION_BLOCK -> {
             animationCompletionBlock = value as KuiklyRenderCallback
             true
@@ -344,6 +348,9 @@ fun View.resetCommonProp(propKey: String): Boolean {
         KRCssConst.PAN -> {
             resetEventListener()
             return true
+        }
+        KRCssConst.PINCH -> {
+            resetEventListener()
         }
         KRCssConst.ANIMATION -> {
             setHRAnimation(null)
@@ -649,6 +656,9 @@ fun View.hasEventListener(type: Int): Boolean {
  * 重置事件监听
  */
 fun View.resetEventListener() {
+    // 必须先清理手势状态再移除监听器，否则 pinch 进行中的
+    // requestDisallowInterceptTouchEvent(true) 不会被复位，父容器将永久无法滚动
+    getViewData<KRCSSGestureDetector>(KRCSSGestureDetector.GESTURE_TAG)?.cleanup()
     setOnTouchListener(null)
     removeViewData<Any>(KRCSSGestureDetector.GESTURE_TAG)
 }

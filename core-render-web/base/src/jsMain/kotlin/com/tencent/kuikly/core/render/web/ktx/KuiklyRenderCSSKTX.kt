@@ -437,7 +437,23 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
         return true
     }
     if (key == KRCssConst.FRAME) {
-        // FIX: If there is no active animation (hrAnimation is null) but the element still has
+        // FIX 1: If element has a pending kuikly-animation (executeAnimationId != 0) but
+        // no active hrAnimation on this call chain, it means a previous animation was just
+        // committed (via commitAnimation -> getAnimationJson -> setTimeout) and the actual
+        // style write is scheduled ~10ms later. In this window, if we let flex layout's
+        // auto-sync `setFrame` (which reaches here) directly write style.left/top/width/height,
+        // it will:
+        //   - overwrite the animation start state prematurely
+        //   - cause the pending executeAnimation's transition to become no-op (oldValue==newValue)
+        //   - trigger a residual browser transition to jump the element instantly
+        // Skip the direct write here; the pending executeAnimation will apply the correct
+        // target values 10ms later with proper transition.
+        val pendingAnimId: dynamic = dynamicElement.executeAnimationId
+        if (jsTypeOf(pendingAnimId) == "number" && pendingAnimId.unsafeCast<Int>() != 0) {
+            return true
+        }
+
+        // FIX 2: If there is no active animation (hrAnimation is null) but the element still has
         // a residual `animation` attribute referencing an old kuikly-animation CSS rule,
         // this old rule (which contains `!important`) will override the inline style we're
         // about to set. This can happen when a previous transition's `transitionend` event

@@ -19,6 +19,7 @@
 #include <arkui/native_gesture.h>
 #include <arkui/native_type.h>
 #include <functional>
+#include <string>
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/utils/KREventUtil.h"
 
@@ -33,15 +34,37 @@ enum class KRGestureEventType {
 
 struct KRGestureEventData {
  public:
-    explicit KRGestureEventData(ArkUI_GestureEvent *event) : gesture_event_(event) {
-        gesture_event_point_ = kuikly::util::GetArkUIGestureEventPoint(event);
-        gesture_event_window_point_ = kuikly::util::GetArkUIGestureEventWindowPoint(event);
+    explicit KRGestureEventData(ArkUI_GestureEvent *event) {
+        if (event) {
+            // 在手势回调当帧把所有需要的字段深拷贝出来，之后不再依赖
+            // event 指针。ArkUI 的 ArkUI_GestureEvent 由系统管理，回调返回后
+            // 即可能被回收/复用，跨生命周期持有裸指针会在延迟任务中踩野指针。
+            gesture_event_point_ = kuikly::util::GetArkUIGestureEventPoint(event);
+            gesture_event_window_point_ = kuikly::util::GetArkUIGestureEventWindowPoint(event);
+            action_type_ = kuikly::util::GetArkUIGestureActionType(event);
+            scale_ = kuikly::util::GetArkUIGesturePinchScale(event);
+        }
+    }
+
+    // 以下访问器均读构造时深拷贝的字段，不触碰任何悬空指针。
+    ArkUI_GestureEventActionType GetActionType() const { return action_type_; }
+
+    float GetScale() const { return scale_; }
+
+    std::string GetActionState() const {
+        if (action_type_ == GESTURE_EVENT_ACTION_ACCEPT) {
+            return "start";
+        } else if (action_type_ == GESTURE_EVENT_ACTION_UPDATE) {
+            return "move";
+        }
+        return "end";
     }
 
  public:
     KRPoint gesture_event_point_;
     KRPoint gesture_event_window_point_;
-    ArkUI_GestureEvent *gesture_event_;
+    ArkUI_GestureEventActionType action_type_ = GESTURE_EVENT_ACTION_CANCEL;
+    float scale_ = 1.0f;
 };
 
 using KRGestureEventCallback = std::function<void(const ArkUI_NodeHandle node_handle,

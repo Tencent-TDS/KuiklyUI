@@ -163,16 +163,27 @@ void KRTapGestureEventHandler::OnGestureEvent(ArkUI_GestureEvent *event) {
     auto action_type = kuikly::util::GetArkUIGestureActionType(event);
     if (register_double_tap_event_) {
         if (action_type == GESTURE_EVENT_ACTION_ACCEPT) {
+            // 当帧深拷贝事件数据，之后不再依赖悬空的 ArkUI_GestureEvent*。
             tap_event_data_ = std::make_shared<KRGestureEventData>(event);
             current_tap_count_++;
             if (current_tap_count_ == 1) {
                 last_tap_down_time_stamp_ = CurrentTimeStamp();
+                // 用 weak_from_this 取代裸 this 捕获：250ms 延迟任务可能在 view 卸载、
+                // handler 已销毁后才执行，弱引用 lock 失败即直接丢弃，避免访问悬空 this。
+                auto weak_self = weak_from_this();
                 KRMainThread::RunOnMainThread(
-                    [this, event] {
-                        if (current_tap_count_ == 1) {
-                            gesture_callback_(node_, tap_event_data_, KRGestureEventType::kClick);
+                    [weak_self] {
+                        // weak_from_this() 返回基类 weak_ptr，需 downcast 到派生类才能访问
+                        // current_tap_count_ / tap_event_data_ / Reset() 及 protected 成员 node_ / gesture_callback_；
+                        // 此处 lambda 位于 KRTapGestureEventHandler 成员函数作用域内，对派生类对象拥有访问权限。
+                        auto self = std::dynamic_pointer_cast<KRTapGestureEventHandler>(weak_self.lock());
+                        if (!self) {
+                            return;
                         }
-                        Reset();
+                        if (self->current_tap_count_ == 1) {
+                            self->gesture_callback_(self->node_, self->tap_event_data_, KRGestureEventType::kClick);
+                        }
+                        self->Reset();
                     },
                     250);
             } else if (current_tap_count_ == 2) {

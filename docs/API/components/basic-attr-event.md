@@ -1616,7 +1616,6 @@ internal class AppearPercentageEventPage : BasePager() {
 |:----------|:-------------------------|:------| 
 | type        | 截图类型 | ImageType |
 | sampleSize | 采样率，取值大于或等于1，默认1 | Int |
-| scale | 输出放大倍数，默认1.0，取值建议 (0, 3.0]。**仅 H5 平台生效**，其它平台会忽略此参数。用于在原有 DPR/采样率基础上再放大输出图片分辨率；实际输出边长会被浏览器 Canvas 上限（4096px）兜底 | Float |
 | callback | 回调函数，格式：{ code: Int, data: String?, message: String? } | CallbackFn |
 
 </div>
@@ -1715,9 +1714,42 @@ internal class ToImageExamplePage : BasePager() {
 
 - 使用 `ref` 获取View引用，然后调用 `toImage` 方法
 - `sampleSize` 参数用于控制图片质量，值越大图片越小但处理更快
-- `scale` 参数（仅 H5 生效）用于**放大**输出图片分辨率，默认 1.0；例如业务需要更清晰的截图可以传 2.0 或 3.0。像素数会随 `scale²` 增长，请按需使用
 - 回调函数中需要检查 `code` 字段判断是否成功
 - 成功时，`data` 字段包含图片数据（根据 `type` 参数不同，可能是缓存key、base64字符串或文件路径）
 - **重要：** 使用 `CACHE_KEY` 模式时，缓存生命周期跟随页面，多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
 
 :::
+
+### toImageScaled方法<Badge text="仅 H5" type="warn"/>
+
+获取View截图，与 [toImage](#toimage方法) 相似，但使用**输出放大倍数**代替采样率。适用于业务需要得到更高分辨率截图的场景。
+
+> 目前仅 H5 平台实现；其它平台调用会回调失败。
+
+<div class="table-01">
+
+| 参数        | 描述 | 类型    |
+|:----------|:-------------------------|:------| 
+| type        | 截图类型，同 [toImage](#toimage方法) | ImageType |
+| scale | 输出放大倍数，默认 1.0，取值建议 (0, 3.0]。值越大输出图片越大、越清晰；实际输出边长会被浏览器 Canvas 上限（4096px）兜底 | Float |
+| callback | 回调函数，格式：{ code: Int, data: String?, message: String? } | CallbackFn |
+
+</div>
+
+**示例：**
+
+```kotlin
+ctx.viewRef?.view?.toImageScaled(DeclarativeBaseView.ImageType.DATA_URI, 2.0f) {
+    val success = it?.optInt("code") == 0
+    val imageSrc = it?.optString("data")
+    if (success && imageSrc != null) {
+        ctx.src = imageSrc
+    }
+}
+```
+
+**说明：**
+
+- `scale` 参数在当前屏幕 DPR 基础上额外放大，例如 `scale=2.0` 会得到 2× 于屏幕密度的位图；像素数会随 `scale²` 增长，请按需使用
+- 当 `scale` 过大导致输出边长超过 4096px 时，H5 内部会自动等比例收敛，不会抛错
+- `CACHE_KEY` 模式的缓存管理规则与 [toImage](#toimage方法) 一致

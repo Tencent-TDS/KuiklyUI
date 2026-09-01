@@ -45,14 +45,9 @@ internal class ToImageExamplePage : BasePager() {
     private var snapshotResultSrc by observable("")
     private var alternating by observable(false)
 
-    private fun runToImageTest(
-        type: DeclarativeBaseView.ImageType,
-        sampleSize: Int,
-        label: String,
-        scale: Float = 1.0f
-    ) {
+    private fun runToImageTest(type: DeclarativeBaseView.ImageType, sampleSize: Int, label: String) {
         alternating = !alternating
-        viewRef?.view?.toImage(type, sampleSize, scale) {
+        viewRef?.view?.toImage(type, sampleSize) {
             val code = it?.optInt("code") ?: -1
             val data = it?.optString("data") ?: ""
             val message = it?.optString("message") ?: ""
@@ -60,10 +55,36 @@ internal class ToImageExamplePage : BasePager() {
 
             KLog.d(
                 TAG,
-                "toImage[$label], success: $success, code: $code, sampleSize: $sampleSize, scale: $scale, data: $data, message: $message"
+                "toImage[$label], success: $success, code: $code, sampleSize: $sampleSize, data: $data, message: $message"
             )
 
-            snapshotInfo = "[$label] code=$code, sampleSize=$sampleSize, scale=$scale, message=$message"
+            snapshotInfo = "[$label] code=$code, sampleSize=$sampleSize, message=$message"
+            if (success) {
+                snapshotResultSrc = data
+            }
+        }
+    }
+
+    // H5-only: verify the new toImageScaled API which supports an output
+    // upscale factor instead of sampleSize.
+    private fun runToImageScaledTest(
+        type: DeclarativeBaseView.ImageType,
+        scale: Float,
+        label: String
+    ) {
+        alternating = !alternating
+        viewRef?.view?.toImageScaled(type, scale) {
+            val code = it?.optInt("code") ?: -1
+            val data = it?.optString("data") ?: ""
+            val message = it?.optString("message") ?: ""
+            val success = code == 0 && data.isNotEmpty()
+
+            KLog.d(
+                TAG,
+                "toImageScaled[$label], success: $success, code: $code, scale: $scale, data: $data, message: $message"
+            )
+
+            snapshotInfo = "[$label] code=$code, scale=$scale, message=$message"
             if (success) {
                 snapshotResultSrc = data
             }
@@ -284,8 +305,9 @@ internal class ToImageExamplePage : BasePager() {
                         }
                     }
 
-                    // H5-only: caller-requested upscale factor. Default 1.0 keeps behavior
-                    // identical to before. Larger values yield a higher-resolution snapshot
+                    // H5-only: caller-requested upscale factor via the new
+                    // toImageScaled API. Default 1.0 keeps behavior identical to
+                    // toImage. Larger values yield a higher-resolution snapshot
                     // (bounded internally by MAX_CANVAS_SIDE).
                     View {
                         attr {
@@ -299,16 +321,15 @@ internal class ToImageExamplePage : BasePager() {
                             attr {
                                 fontSize(14.0f)
                                 color(Color.WHITE)
-                                text("DATA_URI (scale=2.0)")
+                                text("toImageScaled DATA_URI (scale=2.0)")
                             }
                         }
                         event {
                             click {
-                                ctx.runToImageTest(
+                                ctx.runToImageScaledTest(
                                     DeclarativeBaseView.ImageType.DATA_URI,
-                                    1,
-                                    "DATA_URI-scale2",
-                                    2.0f
+                                    2.0f,
+                                    "Scaled-DATA_URI-2x"
                                 )
                             }
                         }
@@ -326,16 +347,15 @@ internal class ToImageExamplePage : BasePager() {
                             attr {
                                 fontSize(14.0f)
                                 color(Color.WHITE)
-                                text("DATA_URI (scale=3.0)")
+                                text("toImageScaled DATA_URI (scale=3.0)")
                             }
                         }
                         event {
                             click {
-                                ctx.runToImageTest(
+                                ctx.runToImageScaledTest(
                                     DeclarativeBaseView.ImageType.DATA_URI,
-                                    1,
-                                    "DATA_URI-scale3",
-                                    3.0f
+                                    3.0f,
+                                    "Scaled-DATA_URI-3x"
                                 )
                             }
                         }

@@ -158,6 +158,10 @@ open class KRView : IKuiklyRenderViewExport {
                 toImage(params, callback)
                 null
             }
+            TO_IMAGE_SCALED -> {
+                toImageScaled(params, callback)
+                null
+            }
             else -> super.call(method, params, callback)
         }
     }
@@ -166,10 +170,33 @@ open class KRView : IKuiklyRenderViewExport {
         val json = JSONObject(params ?: "{}")
         val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
         val sampleSize = max(1, json.optInt(TO_IMAGE_PARAM_SAMPLE_SIZE, 1))
-        // H5-only extension: additional upscale factor on top of DPR / sampleSize.
-        // Other platforms simply ignore this field.
-        val scale = max(MIN_TO_IMAGE_SCALE, json.optDouble(TO_IMAGE_PARAM_SCALE, 1.0))
+        // Convert sampleSize (down-sample) into an equivalent scale factor and
+        // reuse the same rasterization pipeline as toImageScaled.
+        val scale = 1.0 / sampleSize.toDouble()
+        renderToImage(type, scale, callback)
+    }
 
+    /**
+     * H5-only entry that takes a caller-requested upscale factor instead of
+     * sampleSize. Larger scale => higher-resolution snapshot, bounded by
+     * [MAX_CANVAS_SIDE] internally.
+     */
+    private fun toImageScaled(params: String?, callback: KuiklyRenderCallback?) {
+        val json = JSONObject(params ?: "{}")
+        val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
+        val scale = max(MIN_TO_IMAGE_SCALE, json.optDouble(TO_IMAGE_PARAM_SCALE, 1.0))
+        renderToImage(type, scale, callback)
+    }
+
+    /**
+     * Core rasterization used by both [toImage] and [toImageScaled].
+     *
+     * @param type   one of [TO_IMAGE_TYPE_CACHE_KEY] / [TO_IMAGE_TYPE_DATA_URI] / [TO_IMAGE_TYPE_FILE]
+     * @param scale  extra size factor applied on top of devicePixelRatio.
+     *               `1.0` = same visual density as the screen; `2.0` = 2x larger bitmap; etc.
+     *               For the sampleSize semantics used by [toImage], pass `1 / sampleSize`.
+     */
+    private fun renderToImage(type: String, scale: Double, callback: KuiklyRenderCallback?) {
         if (type == TO_IMAGE_TYPE_FILE) {
             callback?.invoke(toImageError("FILE is not supported on H5"))
             return
@@ -184,18 +211,17 @@ open class KRView : IKuiklyRenderViewExport {
         //   3) Keep sub-pixel size as float to avoid rounding-induced re-layout.
         //   4) Snapshot each <canvas> backing store into an <img data:...> replacement
         //      inside the clone, otherwise cloneNode(true) loses the pixel content.
-        //   5) Scale output bitmap by devicePixelRatio (divided by sampleSize) so the
-        //      snapshot stays crisp on Retina/HiDPI screens. Cap final canvas side to
-        //      MAX_CANVAS_SIDE to avoid hitting browser canvas size limits.
+        //   5) Scale output bitmap by devicePixelRatio (multiplied by the caller-
+        //      requested scale factor) so the snapshot stays crisp on Retina/HiDPI
+        //      screens. Cap final canvas side to MAX_CANVAS_SIDE to avoid hitting
+        //      browser canvas size limits.
         val rect = ele.getBoundingClientRect()
         val widthF = if (rect.width > 0.0) rect.width else 1.0
         val heightF = if (rect.height > 0.0) rect.height else 1.0
         val dprRaw = kuiklyWindow.asDynamic().devicePixelRatio.unsafeCast<Double?>() ?: 1.0
         val dpr = if (dprRaw > 0.0) dprRaw else 1.0
-        // sampleSize keeps its "down-sample" semantics: 1 = full quality, 2 = half, etc.
-        // scale is an H5-only extra upscale factor requested by the caller (default 1.0).
-        // Total zoom combines DPR upscale, caller-requested scale, and sampleSize downscale.
-        val zoom = max(dpr * scale / sampleSize.toDouble(), MIN_TO_IMAGE_ZOOM)
+        // Total zoom = DPR upscale x caller-requested scale.
+        val zoom = max(dpr * scale, MIN_TO_IMAGE_ZOOM)
         val rawOutW = widthF * zoom
         val rawOutH = heightF * zoom
         val sideFit = min(1.0, min(MAX_CANVAS_SIDE / rawOutW, MAX_CANVAS_SIDE / rawOutH))
@@ -996,6 +1022,7 @@ open class KRView : IKuiklyRenderViewExport {
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
         private const val BRING_TO_FRONT = "bringToFront"
         private const val TO_IMAGE = "toImage"
+        private const val TO_IMAGE_SCALED = "toImageScaled"
 
         private const val TO_IMAGE_PARAM_TYPE = "type"
         private const val TO_IMAGE_PARAM_SAMPLE_SIZE = "sampleSize"

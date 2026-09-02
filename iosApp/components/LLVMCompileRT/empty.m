@@ -13,10 +13,5 @@
  * limitations under the License.
  */
 
-//
-//  Use this file to import your target's public headers that you would like to expose to Swift.
-//
-
-#import "KuiklyRenderViewController.h"
-#import "RootViewController.h"
-#import "KRLLVMProfileDump.h"
+// Placeholder so CocoaPods accepts the pod; linking is done via OTHER_LDFLAGS.
+void LLVMCompileRT_placeholder(void) {}

@@ -50,6 +50,11 @@ proto/**/*.kt
 /core-ksp/bin/
 .build
 
+## LLVM PGO / Machine Outliner local artifacts
+/demo/llvmProfile/*.profdata
+/demo/llvmProfile/profraw/*.profraw
+/iosApp/components/LLVMCompileRT/*.a
+
 ## Profiler / tool logs
 /logs/
 /iosApp/logs/

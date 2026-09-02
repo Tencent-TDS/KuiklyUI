@@ -13,10 +13,15 @@
  * limitations under the License.
  */
 
-//
-//  Use this file to import your target's public headers that you would like to expose to Swift.
-//
+#import <Foundation/Foundation.h>
 
-#import "KuiklyRenderViewController.h"
-#import "RootViewController.h"
-#import "KRLLVMProfileDump.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void KRLLVMProfileSetFilename(const char *path);
+void KRLLVMProfileDump(void);
+
+#ifdef __cplusplus
+}
+#endif

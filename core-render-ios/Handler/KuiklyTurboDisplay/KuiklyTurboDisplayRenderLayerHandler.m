@@ -436,7 +436,10 @@
         _closeAutoUpdateTurboDisplay = YES;
         [_config closeAutoUpdateTurboDisplay];
         
-        _nextTurboDisplayRootNode = nil;
+        // 【修复】不再丢弃快照树：保留基础状态参照，使手势后的手动刷新
+        // setCurrentUIAsFirstScreenForNextLaunch 仍走受 turboDisplayAutoUpdateEnable
+        // 节点级过滤的 diff 路径（此前置 nil 会使手动刷新落入全量缓存真实树的兜底分支，过滤失效）。
+        // 自动更新已由 _closeAutoUpdateTurboDisplay 关闭，保留快照树不会触发额外写盘。
     }
 }
 
@@ -456,6 +459,20 @@
     if (![_config isPersistentRealTreeEnabled]) {
         return;
     }
+    // 【修复】先基于快照树做一次 diff-DOM（受 turboDisplayAutoUpdateEnable 节点级过滤）：
+    // 未被禁用采集的子树同步到最新状态，被禁用的子树保持基础状态。
+    // 直接调用 DiffPatch，绕过 updateNextTurboDisplayRootNodeIfNeed 的
+    // _closeAutoUpdateTurboDisplay 守卫与 _needUpdateNextTurboDisplayRootNode 标志位守卫（手动刷新需无条件 diff）
+    if (_nextTurboDisplayRootNode) {
+        [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode
+                                                 fromNodeTree:_realRootNode
+                                                       config:_config];
+    } else {
+        // 兜底：快照树尚未初始化（viewDidLoad 前 diffPatchToRenderLayer 未执行时极早期调用），
+        // 无基础状态参照，以当前真实树为快照（保持原手动采集当前 UI 语义）
+        _nextTurboDisplayRootNode = [_realRootNode deepCopy];
+    }
+
     // 业务手动强制刷新，与自动刷新相斥，因此默认执行自动刷新关闭
     _closeAutoUpdateTurboDisplay = YES;
     [_config closeAutoUpdateTurboDisplay];
@@ -473,7 +490,8 @@
         }
     }
 
-    [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:[_realRootNode deepCopy]
+    // 【修复】缓存快照树而非真实树
+    [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:[_nextTurboDisplayRootNode deepCopy]
                                                           cacheKey:self.turboDisplayCacheKey
                                                  extraCacheContent:extraCacheContent];
     
@@ -493,13 +511,11 @@
     if (notification.object != _rootView) {
         return;
     }
+    // 【修复】清除缓存 = 仅抹除已存在的缓存（磁盘文件 + 内存副本），不改采集机制状态：
+    // 快照树与自动更新保持运行，后续状态变化由自动采集重建新缓存，
+    // 使业务可将 clearCurrentPageCache 作为"重新开始存储"的先行处理手段。
     [[KRTurboDisplayCacheManager sharedInstance] removeCacheWithKey:self.turboDisplayCacheKey];
     self.turboDisplayCacheData = nil;
-    _nextTurboDisplayRootNode = nil;
-    
-    // 缓存清除后，可开启自动更新
-    _closeAutoUpdateTurboDisplay = YES;
-    [_config closeAutoUpdateTurboDisplay];
 }
 
 #pragma mark - TurboDisplay rendering

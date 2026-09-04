@@ -232,7 +232,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     NSLineBreakMode lineBreakMode = [KRConvertUtil NSLineBreakMode:_props[@"lineBreakMode"]];
     CGFloat lineBreakMargin = [KRConvertUtil CGFloat:_props[@"lineBreakMargin"]];
     CGFloat lineHeight = [KRConvertUtil CGFloat:_props[@"lineHeight"]];
-    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMarin:lineBreakMargin lineHeight:lineHeight];
+    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMargin:lineBreakMargin lineHeight:lineHeight];
 
     // 渐变色延迟应用：需在布局完成后获取总尺寸，才能绘制跨行连续的渐变效果
     if (_pendingGradients.count > 0) {

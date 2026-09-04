@@ -49,6 +49,8 @@ extern "C" {
 extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
 extern OH_Drawing_Array* OH_Drawing_TypographyGetTextLines(OH_Drawing_Typography* typography) __attribute__((weak));
 extern void OH_Drawing_DestroyTextLines(OH_Drawing_Array* lines) __attribute__((weak));
+// 超行判定接口（API 11+ 提供），需 weak 声明避免链接期 undefined reference
+extern bool OH_Drawing_TypographyDidExceedMaxLines(OH_Drawing_Typography*) __attribute__((weak));
 // 垂直对齐接口的弱符号声明（系统 API 20+ 提供，低版本系统该符号为 nullptr）
 extern void OH_Drawing_SetTypographyVerticalAlignment(OH_Drawing_TypographyStyle* style,
                                                       OH_Drawing_TextVerticalAlignment alignment) __attribute__((weak));
@@ -99,6 +101,9 @@ void KRRichTextShadow::SetProp(const std::string &prop_key, const KRAnyValue &pr
     props_[prop_key] = prop_value;
 }
 
+// 前置声明：定义位于本文件后方，Call 中需使用
+static KRAnyValue GetKRValue(const char *key, const KRRenderValue::Map &map0, const KRRenderValue::Map &map1);
+
 /**
  * 调用 shadow 对象方法
  * @param method_name
@@ -109,7 +114,14 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
     if (kuikly::util::isEqual(method_name, "spanRect")) {  // 调用获取placeholder span位置方法
         return SpanRect(NewKRRenderValue(params)->toInt());
     } else if(method_name == "isLineBreakMargin"){
-        return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
+        // 与 Android 语义对齐（KRRichTextView.kt: 超行且 lineBreakMargin != 0 才触发）。
+        // 注意：不能依赖 OH_Drawing_DestroyTextLines 等 TextLines 弱符号做门控——
+        // 该符号在 API 14 以下系统为 nullptr，会导致事件永不触发；
+        // did_exceed_max_lines_ 使用的 OH_Drawing_TypographyDidExceedMaxLines 为 SDK 强符号，全版本可用。
+        const float lineBreakMargin = GetKRValue("lineBreakMargin", props_, props_)->toFloat();
+        // DidExceedMaxLines() 为本类成员函数（KRRichTextShadow.h:193），返回 did_exceed_max_lines_，非未定义符号。
+        const bool fired = DidExceedMaxLines() && lineBreakMargin > 0;
+        return NewKRRenderValue(fired ? "1" : "0");
     }
     return KRRenderValue::Make(nullptr);
 }
@@ -121,7 +133,8 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
  * @return
  */
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
-    if(StyledStringEnabled()){
+    const bool useStyledString = StyledStringEnabled();
+    if(useStyledString){
         KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
         return sz;
     }else{
@@ -194,6 +207,8 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     // 拷贝一份 shared_ptr，保证 lambda 在主线程执行期间该 typography 不会被
     // context 线程后续的 ReleaseLastTypography()/重新 BuildTextTypography()
     // 释放掉。
+    // 渲染同步用 context_thread_typography_：方案B 迭代末尾已将其更新为截断重排后的最终排版，
+    // 故主线程拿到的就是截断版，测量与渲染一致（review 疑虑点，已核实无需改）。
     auto typography = context_thread_typography_;
     auto offsetY = context_thread_drawOffsetY_;
     auto offsetX = context_thread_drawOffsetX_;
@@ -330,7 +345,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     span_offsets_.clear();
     placeholder_index_map_.clear();
     image_draw_records_.clear();
-    KRRenderValue::Array spans = values_;
+    KRRenderValue::Array spans = lbm_override_spans_ ? *lbm_override_spans_ : values_;
     if (spans.empty()) {
         spans.push_back(KRRenderValue::Make(props_));
     }
@@ -351,7 +366,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     // "PlaceholderSpan + 父节点 ImageView" 链路，不需要本机制接管图片绘制。
     {
         std::string processor_name = GetKRValue("textPostProcessor", props_, props_)->toString();
-        if (!processor_name.empty()) {
+        if (!processor_name.empty() && lbm_override_spans_ == nullptr) {
             KRRenderValue::Array expanded;
             expanded.reserve(spans.size());
             for (const auto &span : spans) {
@@ -421,6 +436,10 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     auto lineBreakMode = kuikly::util::ConvertToTextBreakMode(lineBreakModeStr);
     if (numberOfLines == 0) {
         numberOfLines = 10000;
+    }
+    const int origNumberOfLines = numberOfLines;
+    if (lbm_maxlines_override_ > 0) {
+        numberOfLines = lbm_maxlines_override_;
     }
     auto self = shared_from_this();
     double dpi = KRConfig::GetDpi();
@@ -571,10 +590,13 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             if (lineBreakModeStr == "clip") {
                 ellipsis = "";
             }
+            if (lbm_disable_ellipsis_) {
+                ellipsis = "";
+            }
             OH_Drawing_SetTypographyTextEllipsis(typoStyle, ellipsis);
 
             OH_Drawing_WordBreakType workBreak = WORD_BREAK_TYPE_BREAK_WORD;
-            if (numberOfLines == 1) {
+            if (numberOfLines == 1 && !lbm_disable_ellipsis_) {
                 workBreak = WORD_BREAK_TYPE_BREAK_ALL;
             }
             OH_Drawing_SetTypographyTextWordBreakType(typoStyle, workBreak);
@@ -664,6 +686,9 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         OH_Drawing_TypographySetIndents(typography_raw, 2, indents);
     }
     double maxWidth = constraint_width * dpi;
+    if (lbm_width_override_px_ >= 0) {
+        maxWidth = lbm_width_override_px_;
+    }
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
@@ -687,9 +712,243 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         OH_Drawing_DestroyTypographyStyle(typoStyle);
     }
     text_content_ = text_content;
+    // ===== lineBreakMargin 末行右侧留白（方案B）=====
+    // 仅顶层调用、超行、设了 margin 且有真实行数限制时进入；通过"自递归重排"实现：
+    // Pass1(本次,全宽) 已排完 → 取末行起点 startN → 单行测量尾部在 (全宽-margin) 下可容纳的码元 k
+    // → 把文本截断到 startN+k 并在末尾补… → Pass2 全宽关省略号重排（前 N-1 行不变，末行右侧空出 margin）。
+    if (lbm_override_spans_ == nullptr) {
+        const float lineBreakMargin = GetKRValue("lineBreakMargin", props_, props_)->toFloat();
+        if (did_exceed_max_lines_ && lineBreakMargin > 0 && origNumberOfLines >= 1 &&
+            origNumberOfLines < 10000) {
+            // 【方案B 自递归的共享成员复用约定】下方"单行测量 tail 求 k"与"截断重排"两次递归会反复改写
+            // 本对象的 context_thread_typography_ / did_exceed_max_lines_ / text_lines_ / image_draw_records_ 等
+            // 共享成员。正确性依赖固定执行顺序：①单行测量仅经 measTypo 局部量取 k；②截断重排最后执行，其成员
+            // 值即最终值，且末尾强制置 did_exceed_max_lines_=true 兜底。故：测量/截断两阶段间勿插入其它成员写入，
+            // 也不要在递归期间于其他线程读取上述中间态成员（typography 仅在迭代结束后被主线程取用）。
+            auto spanIsPlaceholder = [&](const KRRenderValue::Map &m) -> bool {
+                return GetKRValue("placeholderWidth", m, m)->toDouble() != 0;
+            };
+            auto spanTextOf = [&](const KRRenderValue::Map &m) -> std::string {
+                auto t = GetKRValue("value", m, m)->toString();
+                if (t.empty()) {
+                    t = GetKRValue("text", m, m)->toString();
+                }
+                return t;
+            };
+            // 判断 UTF-8 续字节(10xxxxxx)。鸿蒙 OH_Drawing_TypographyGetLineTextRange 返回的是
+            // UTF-8 字节偏移（非 UTF-16 码元），spans 累加口径必须统一为字节，否则中文场景 startN 越界。
+            auto isUtf8Cont = [](unsigned char b) -> bool { return (b & 0xC0) == 0x80; };
+            // span 的 UTF-8 字节长度。placeholder 按 U+FFFC(UTF-8: EF BF BC) 计 3 字节。
+            auto spanByteLen = [&](const KRRenderValue::Map &m) -> int {
+                if (spanIsPlaceholder(m)) {
+                    return 3;
+                }
+                return (int)spanTextOf(m).size();
+            };
+            // 截断点向下对齐到字符边界（保留完整字符，不切断多字节中文）
+            auto alignUtf8Down = [&](const std::string &s, int pos) -> int {
+                if (pos > (int)s.size()) {
+                    pos = (int)s.size();
+                }
+                while (pos > 0 && isUtf8Cont((unsigned char)s[pos])) {
+                    pos--;
+                }
+                return pos;
+            };
+            // 起点向上对齐到字符边界（不以半个字符开头）
+            auto alignUtf8Up = [&](const std::string &s, int pos) -> int {
+                while (pos < (int)s.size() && isUtf8Cont((unsigned char)s[pos])) {
+                    pos++;
+                }
+                return pos;
+            };
+            // 末行起点（UTF-8 字节偏移，与系统 GetLineTextRange 口径一致）
+            int startN = -1;
+            if (auto r = OH_Drawing_TypographyGetLineTextRange(typography_raw, origNumberOfLines - 1, true)) {
+                startN = (int)OH_Drawing_GetStartFromRange(r);
+            }
+            // 从字节偏移 from 起拼接 spans 文本（与 makeTail/makeTruncated 的 UTF-8 字节口径一致）
+            auto spansTextFrom = [&](int from) -> std::string {
+                std::string out;
+                int acc = 0;
+                for (auto &sp : spans) {
+                    auto m = sp->toMap();
+                    int len = spanByteLen(m);
+                    if (acc + len <= from) { acc += len; continue; }
+                    if (!spanIsPlaceholder(m)) { out += spanTextOf(m); }
+                    acc += len;
+                }
+                return out;
+            };
+            // 返回 curCut 处末字符的截断点（退一个完整字符的起始字节），供卡死兜底精确退格
+            auto cutBackOneChar = [&](int curCut) -> int {
+                std::string t = spansTextFrom(startN);
+                if (t.empty()) {
+                    return curCut - 1;
+                }
+                int rel = curCut - startN;
+                if (rel > (int)t.size()) {
+                    rel = (int)t.size();
+                }
+                int prev = 0, i = 0;  // prev=上一个完整字符起点(相对 startN)
+                while (i < rel) {
+                    prev = i;
+                    i++;
+                    while (i < rel && isUtf8Cont((unsigned char)t[i])) { i++; }  // 跳过续字节
+                }
+                return startN + prev;
+            };
+            // 从 startN（UTF-8 字节）起截取尾部 spans（用于单行测量）
+            auto makeTail = [&](int from) -> KRRenderValue::Array {
+                KRRenderValue::Array out;
+                int acc = 0;
+                for (auto &sp : spans) {
+                    auto m = sp->toMap();
+                    int len = spanByteLen(m);
+                    if (acc + len <= from) {
+                        acc += len;
+                        continue;
+                    }
+                    if (acc >= from) {
+                        out.push_back(sp);
+                    } else if (spanIsPlaceholder(m)) {
+                        out.push_back(sp);
+                    } else {
+                        std::string txt = spanTextOf(m);
+                        int off = alignUtf8Up(txt, from - acc);  // 起点对齐字符边界
+                        if (off < (int)txt.size()) {
+                            std::string kept = txt.substr(off);
+                            auto nm = m;
+                            nm["value"] = NewKRRenderValue(kept);
+                            nm["text"] = NewKRRenderValue(kept);
+                            out.push_back(KRRenderValue::Make(nm));
+                        }
+                    }
+                    acc += len;
+                }
+                return out;
+            };
+            // 截断到 cut（UTF-8 字节），并在末尾文本 span 追加省略号
+            auto makeTruncated = [&](int cut) -> KRRenderValue::Array {
+                KRRenderValue::Array out;
+                int acc = 0;
+                for (auto &sp : spans) {
+                    auto m = sp->toMap();
+                    int len = spanByteLen(m);
+                    if (acc + len <= cut) {
+                        out.push_back(sp);
+                        acc += len;
+                        continue;
+                    }
+                    int keep = cut - acc;
+                    if (keep > 0 && !spanIsPlaceholder(m)) {
+                        std::string txt = spanTextOf(m);
+                        keep = alignUtf8Down(txt, keep);  // 截断点对齐，保留完整字符
+                        if (keep > 0) {
+                            std::string kept = txt.substr(0, keep);
+                            auto nm = m;
+                            nm["value"] = NewKRRenderValue(kept);
+                            nm["text"] = NewKRRenderValue(kept);
+                            out.push_back(KRRenderValue::Make(nm));
+                        }
+                    } else if (keep > 0 && spanIsPlaceholder(m)) {
+                        out.push_back(sp);
+                    }
+                    break;
+                }
+                for (int i = (int)out.size() - 1; i >= 0; --i) {
+                    auto m = out[i]->toMap();
+                    if (spanIsPlaceholder(m)) {
+                        continue;
+                    }
+                    auto t = spanTextOf(m) + "…";
+                    m["value"] = NewKRRenderValue(t);
+                    m["text"] = NewKRRenderValue(t);
+                    out[i] = KRRenderValue::Make(m);
+                    break;
+                }
+                return out;
+            };
+
+            if (startN >= 0) {
+                KRRenderValue::Array tailSpans = makeTail(startN);
+                const double reservedWidthPx = maxWidth - (double)lineBreakMargin * dpi;
+                int k = -1;
+                if (reservedWidthPx > 0 && !tailSpans.empty()) {
+                    lbm_override_spans_ = &tailSpans;
+                    lbm_maxlines_override_ = 1;
+                    lbm_disable_ellipsis_ = true;
+                    lbm_width_override_px_ = reservedWidthPx;
+                    BuildTextTypography(constraint_width, constraint_height);  // 递归：单行测量
+                    lbm_override_spans_ = nullptr;
+                    lbm_maxlines_override_ = -1;
+                    lbm_disable_ellipsis_ = false;
+                    lbm_width_override_px_ = -1;
+                    if (auto measTypo = context_thread_typography_.get()) {
+                        if (auto r0 = OH_Drawing_TypographyGetLineTextRange(measTypo, 0, true)) {
+                            k = (int)OH_Drawing_GetEndFromRange(r0);
+                        }
+                    }
+                }
+                if (k > 0) {
+                    // 迭代校正：初始 cut=startN+k 可能因测量口径/"…"宽度导致末行仍超出 reservedW，
+                    // 此时按 (reservedW/lastLineW) 比例回退 cut 重排，直到末行落进预留宽度。
+                    // epsilon 容差避免"仅超零点几 px 却多截一字"(过截)；卡死时强制退一个完整字符(避免欠截压"展开")。
+                    const double kLbmEpsilon = 2.0;                          // 收敛容差(px)
+                    int curCut = startN + k;
+                    double prevLastW = -1;
+                    for (int iter = 0; iter < 6; ++iter) {
+                        KRRenderValue::Array truncSpans = makeTruncated(curCut);
+                        if (truncSpans.empty()) {
+                            break;
+                        }
+                        lbm_override_spans_ = &truncSpans;
+                        lbm_maxlines_override_ = origNumberOfLines;
+                        lbm_disable_ellipsis_ = true;
+                        lbm_width_override_px_ = maxWidth;
+                        auto finalTypo = BuildTextTypography(constraint_width, constraint_height);  // 递归：截断重排
+                        lbm_override_spans_ = nullptr;
+                        lbm_maxlines_override_ = -1;
+                        lbm_disable_ellipsis_ = false;
+                        lbm_width_override_px_ = -1;
+                        did_exceed_max_lines_ = true;  // 确属超行截断，事件仍应触发
+                        typography_raw = finalTypo;
+                        // 末行实际渲染宽度（含已追加的 …）。lastLineW≤reservedW 即右侧真正空出 margin；
+                        // rightBlank=maxW-lastLineW 为末行右侧空出的像素（业务"展开"可用空间）。
+                        double lastLineW = (finalTypo != nullptr)
+                            ? OH_Drawing_TypographyGetLineWidth(finalTypo, origNumberOfLines - 1) : -1;
+                        // 收敛判定：lastLineW≤reservedW+ε 即达标(容差避免仅超零点几 px 再多截)，或已无可再截。
+                        if (lastLineW <= reservedWidthPx + kLbmEpsilon || curCut <= startN + 1 || lastLineW <= 0) {
+                            break;
+                        }
+                        // 仍欠截(末行>reservedW+ε)：按比例回退；若宽度未下降(被字符边界对齐吃掉)，
+                        // 强制退一个完整字符(按真实末字符宽度，中文3/英文1字节)，确保继续逼近、避免欠截卡死压"展开"。
+                        const int tailLen = curCut - startN;
+                        int newTailLen = (int)((double)tailLen * reservedWidthPx / lastLineW);
+                        if (newTailLen >= tailLen) {
+                            newTailLen = tailLen - 1;
+                        }
+                        if (prevLastW > 0 && lastLineW >= prevLastW - 0.5) {
+                            newTailLen = cutBackOneChar(curCut) - startN;  // 卡死：退到上一个完整字符边界
+                        }
+                        if (newTailLen >= tailLen) {
+                            newTailLen = tailLen - 1;
+                        }
+                        if (newTailLen < 1) {
+                            newTailLen = 1;
+                        }
+                        prevLastW = lastLineW;
+                        curCut = startN + newTailLen;
+                    }
+                }
+            }
+        }
+    }
     // 触发 image span 异步预加载（决策 3C）。当 image_draw_records_ 为空（业务未注册
-    // PostProcessor / 全是文本）时本方法立即返回，零开销。
-    TriggerImagePrefetchIfNeed();
+    // PostProcessor / 全是文本）时本方法立即返回，零开销。递归重排调用不重复触发。
+    if (lbm_override_spans_ == nullptr) {
+        TriggerImagePrefetchIfNeed();
+    }
     return typography_raw;
 }
 

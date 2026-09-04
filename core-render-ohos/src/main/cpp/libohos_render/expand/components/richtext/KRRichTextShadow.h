@@ -277,6 +277,12 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
     bool did_exceed_max_lines_ = false;
+    // lineBreakMargin 末行右侧留白（方案B）：自递归重排时的临时上下文。
+    // lbm_override_spans_ 非空表示"内部重排调用"——跳过 PostProcessor 与末行留白编排。
+    const KRRenderValue::Array *lbm_override_spans_ = nullptr;
+    int lbm_maxlines_override_ = -1;      // >0 时覆盖 maxLines
+    bool lbm_disable_ellipsis_ = false;   // true 时强制关闭省略号（末行文本已手动截断+…）
+    double lbm_width_override_px_ = -1;   // >=0 时覆盖排版宽度(px)
     // 持有 typography 的两个槽位：
     //  - main_thread_typography_:    主线程使用（Paint/SpanIndex 等）；
     //  - context_thread_typography_: context 线程使用（Layout/SpanRect 计算）。

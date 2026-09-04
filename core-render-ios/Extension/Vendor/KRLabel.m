@@ -112,26 +112,31 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 #pragma mark - public
 
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode{
-    return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMarin:0];
+    return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMargin:0];
 }
 
-+ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin {
-    return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMarin:0 lineHeight:0];
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMargin:(CGFloat)margin {
+    return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMargin:0 lineHeight:0];
 }
 
-+ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight {
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMargin:(CGFloat)margin lineHeight:(CGFloat)lineHeight {
     attString = [attString isKindOfClass:[NSAttributedString class]] ? attString : [[NSAttributedString alloc] initWithString:@""];
     NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:[attString copy]];
     textStorage.hr_hasAttachmentViews = attString.hr_hasAttachmentViews;
     KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage lineHeight:lineHeight];
-    textRender.lineBreakMargin = marin;
+    textRender.lineBreakMargin = margin;
     textRender.maximumNumberOfLines = lines;
     textRender.lineBreakMode = mode;
     CGSize fitSize = [textRender textSizeWithRenderWidth:size.width];
-    if (marin > 0 && lines) {
+    if (margin > 0 && lines) {
+        // 直接比较行数,避免 ceil 取整后高度撞等导致 lineBreakMargin 有概率失效(iOS 14/15 重灾区)
+        textRender.maximumNumberOfLines = lines;
+        NSUInteger limitedLines = [textRender kr_countLinesWithRenderWidth:size.width];
         textRender.maximumNumberOfLines = 0;
-        CGSize newSize = [textRender textSizeWithRenderWidth:size.width];
-        textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);
+        [textRender kr_invalidateLayout];   // 强制重排:确保 full 数出真实行数(修复部分机型不重排导致 isBreakLine 恒 0)
+        NSUInteger fullLines = [textRender kr_countLinesWithRenderWidth:size.width];
+        // 限行版已达上限(maxLines)且完整版行数更多 → 确属超行截断
+        textRender.isBreakLine = (limitedLines >= lines) && (fullLines > limitedLines);
         textRender.maximumNumberOfLines = lines;//复原
     }
     
@@ -359,6 +364,43 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     CGSize res = CGSizeMake(ceil(textSize.width), ceil(textSize.height));
     return  res;
 }
+
+/// 统计当前排版下可见行数(受 maximumNumberOfLines 约束)。
+/// 用于 lineBreakMargin 超行判定:避免 size ceil 取整在边界撞等导致失效。
+- (NSUInteger)kr_countLinesWithRenderWidth:(CGFloat)renderWidth {
+    if (!_textStorageOnRender) {
+        return 0;
+    }
+    // NaN 与任何值比较均为 false，会穿透 <=0 判断，需显式拦截（与 setSize: 的 NaN 防御一致）
+    if (isnan(renderWidth) || renderWidth <= 0) {
+        return 0;  // 非法宽度直接返回0，避免 TextKit 对非法容器宽度排版异常
+    }
+    _textContainer.size = CGSizeMake(renderWidth, MAXFLOAT);
+#if TARGET_OS_OSX // [macOS NSLayoutManager needs explicit layout trigger
+    [_layoutManager ensureLayoutForTextContainer:_textContainer];
+#endif // macOS]
+    NSRange glyphRange = [self visibleGlyphRange];
+    if (glyphRange.location == NSNotFound) {
+        return 0;
+    }
+    __block NSUInteger lineCount = 0;
+    [_layoutManager enumerateLineFragmentsForGlyphRange:glyphRange
+                                             usingBlock:^(CGRect rect, CGRect usedRect, NSTextContainer * _Nonnull textContainer, NSRange gr, BOOL * _Nonnull stop) {
+        lineCount++;
+    }];
+    return lineCount;
+}
+
+/// 强制 layoutManager 重新排版。NSTextContainer.maximumNumberOfLines 变更不会自动触发重排,
+/// 且 size 未变化时也不重排,导致 glyphRange 命中限行缓存 → full 行数恒==limited、isBreakLine 误判 0。
+- (void)kr_invalidateLayout {
+    if (!_textStorageOnRender) {
+        return;
+    }
+    [_layoutManager invalidateLayoutForCharacterRange:NSMakeRange(0, _textStorageOnRender.length) actualCharacterRange:NULL];
+    [_layoutManager ensureLayoutForTextContainer:_textContainer];
+}
+
 #pragma mark -  draw text
 
 

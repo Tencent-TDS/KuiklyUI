@@ -38,8 +38,8 @@ extern NSString *const KRBGAttributeKey;
  * note：任意线程都可以调用该方法，一般用于 子线程 执行
  */
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode;
-+ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin;
-+ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight;
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMargin:(CGFloat)margin;
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMargin:(CGFloat)margin lineHeight:(CGFloat)lineHeight;
 
 @end
 
@@ -87,6 +87,13 @@ extern NSString *const KRBGAttributeKey;
 - (CGRect)boundingRectForGlyphRange:(NSRange)glyphRange ;
 - (CGSize)textSizeWithRenderWidth:(CGFloat)renderWidth;
 - (NSInteger)characterIndexForPoint:(CGPoint)point;
+
+/// 统计当前排版下可见行数(受 maximumNumberOfLines 约束),用于 lineBreakMargin 超行判定
+- (NSUInteger)kr_countLinesWithRenderWidth:(CGFloat)renderWidth;
+
+/// 强制重新排版(修复部分机型 maximumNumberOfLines 变更不触发 layoutManager 重排,
+/// 导致 lineBreakMargin 的 full 行数命中缓存恒==limited、isBreakLine 误判为 0)
+- (void)kr_invalidateLayout;
 
 /**
  draw text at point

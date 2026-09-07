@@ -200,9 +200,7 @@ NS_ASSUME_NONNULL_END
         _pageData = pageData;
         
         // 实例化Kuikly委托者类
-        // ⚠️ 注意：必须使用 KuiklyRenderViewControllerDelegator
-        //    不要使用 KuiklyRenderViewControllerBaseDelegator
-        _delegator = [[KuiklyRenderViewControllerDelegator alloc] initWithPageName:pageName pageData:pageData];
+        _delegator = [[KuiklyRenderViewControllerBaseDelegator alloc] initWithPageName:pageName pageData:pageData];
         
         _delegator.delegate = self;
     }
@@ -258,7 +256,7 @@ NS_ASSUME_NONNULL_END
     return mParam;
 }
 
-#pragma mark - KuiklyRenderViewControllerDelegatorDelegate
+#pragma mark - KuiklyRenderViewControllerBaseDelegatorDelegate
 
 // 创建等待加载视图
 - (UIView *)createLoadingView {
@@ -299,8 +297,7 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 ::: warning 重要提示
-必须使用 **KuiklyRenderViewControllerDelegator** 类，  
-<span style="color: #d32f2f;">不要使用 KuiklyRenderViewControllerBaseDelegator</span>，否则会导致功能异常。
+必须使用 **KuiklyRenderViewControllerBaseDelegator** 类。
 :::
 
 

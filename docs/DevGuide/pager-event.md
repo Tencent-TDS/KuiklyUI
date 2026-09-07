@@ -18,10 +18,10 @@ kuiklyRenderViewDelegator.sendEvent("test", mapOf(
 
 ### iOS侧发送事件
 
-在Kuikly容器中，调用``KuiklyRenderViewControllerDelegator.sendWithEvent``发送页面事件给Kuikly
+在Kuikly容器中，调用``KuiklyRenderViewControllerBaseDelegator.sendWithEvent``发送页面事件给Kuikly
 
 ```objc
-@property (nonatomic, strong) KuiklyRenderViewControllerDelegator *delegator;
+@property (nonatomic, strong) KuiklyRenderViewControllerBaseDelegator *delegator;
 
 ...
 // 在合适的时机, 调用

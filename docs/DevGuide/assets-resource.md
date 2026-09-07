@@ -150,10 +150,10 @@ class KRImageAdapter(val context: Context) : IKRImageAdapter {
 （2）iOS
 
 * framework产物模式，默认会从mainBundle加载图片，无需适配
-* 动态化产物模式，需要传递图片资源的本地路径给到sdk，需要实现KuiklyRenderViewControllerDelegatorDelegate的该接口
+* 动态化产物模式，需要传递图片资源的本地路径给到sdk，需要实现KuiklyRenderViewControllerBaseDelegatorDelegate的该接口
 
 ```oc
-@protocol KuiklyRenderViewControllerDelegatorDelegate
+@protocol KuiklyRenderViewControllerBaseDelegatorDelegate
 
 /*
  * @breif assetsPathUrl assert资源在动态化产物模式下，由于是后下载，故通过该路径来传递assert资源的路径。注意该目录下，应该有common目录，和对应的pagename目录

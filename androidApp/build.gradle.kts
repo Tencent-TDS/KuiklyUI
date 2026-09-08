@@ -6,6 +6,11 @@ plugins {
 android {
     compileSdk = 34
     namespace = "com.tencent.kuikly.android.demo"
+    // AGP 8.0 起 BuildConfig 默认不再生成，业务代码用到了需显式开启
+    // （AGP 7.4 同样支持该配置且默认开启，故不影响 2.1.21 分支）
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId = "com.tencent.kuikly.android.demo"
         minSdk = 24

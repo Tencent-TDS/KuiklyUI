@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.utils.urlParams
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
@@ -192,78 +193,108 @@ internal class RouterPage : BasePager() {
                 }
             }
 
-            View {
+            Scroller {
                 attr {
-                    allCenter()
-                    margin(20f)
+                    flex(1f)
                 }
-                Text {
+                View {
                     attr {
-                        fontSize(20f)
-                        text("APP原型Demo")
-                        textDecorationUnderLine()
-                        backgroundLinearGradient(
-                            Direction.TO_RIGHT,
-                            ColorStop(Color(0xFFAD37FE), 0f),
-                            ColorStop(Color(0xFF23D3FD), 1f)
-                        )
+                        allCenter()
+                        margin(20f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(20f)
+                            text("APP原型Demo")
+                            textDecorationUnderLine()
+                            backgroundLinearGradient(
+                                Direction.TO_RIGHT,
+                                ColorStop(Color(0xFFAD37FE), 0f),
+                                ColorStop(Color(0xFF23D3FD), 1f)
+                            )
+                        }
+                    }
+                    event {
+                        click {
+                            ctx.jumpPage("AppTabPage")
+                        }
                     }
                 }
-                event {
-                    click {
-                        ctx.jumpPage("AppTabPage")
+
+                View {
+                    attr {
+                        allCenter()
+                        margin(20f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(20f)
+                            text("Demo案例-Kuikly语法")
+                            textDecorationUnderLine()
+                            backgroundLinearGradient(
+                                Direction.TO_RIGHT,
+                                ColorStop(Color(0xFFAD37FE), 0f),
+                                ColorStop(Color(0xFF23D3FD), 1f)
+                            )
+
+                        }
+                    }
+                    event {
+                        click {
+                            ctx.jumpPage("ExampleIndexPage")
+                        }
+                    }
+                }
+
+                View {
+                    attr {
+                        allCenter()
+                        margin(20f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(20f)
+                            text("Demo案例-Compose语法")
+                            textDecorationUnderLine()
+                            backgroundLinearGradient(
+                                Direction.TO_RIGHT,
+                                ColorStop(Color(0xFFAD37FE), 0f),
+                                ColorStop(Color(0xFF23D3FD), 1f)
+                            )
+                        }
+                    }
+                    event {
+                        click {
+                            ctx.jumpPage("ComposeAllSample")
+                        }
+                    }
+                }
+
+                View {
+                    attr {
+                        allCenter()
+                        margin(20f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(20f)
+                            text("Demo案例-折叠屏Demo")
+                            textDecorationUnderLine()
+                            backgroundLinearGradient(
+                                Direction.TO_RIGHT,
+                                ColorStop(Color(0xFFAD37FE), 0f),
+                                ColorStop(Color(0xFF23D3FD), 1f)
+                            )
+                        }
+                    }
+                    event {
+                        click {
+                            ctx.jumpPage("FoldSplitDemoHub")
+                        }
                     }
                 }
             }
 
-            View {
-                attr {
-                    allCenter()
-                    margin(20f)
-                }
-                Text {
-                    attr {
-                        fontSize(20f)
-                        text("Demo案例-Kuikly语法")
-                        textDecorationUnderLine()
-                        backgroundLinearGradient(
-                            Direction.TO_RIGHT,
-                            ColorStop(Color(0xFFAD37FE), 0f),
-                            ColorStop(Color(0xFF23D3FD), 1f)
-                        )
-
-                    }
-                }
-                event {
-                    click {
-                        ctx.jumpPage("ExampleIndexPage")
-                    }
-                }
-            }
-
-            View {
-                attr {
-                    allCenter()
-                    margin(20f)
-                }
-                Text {
-                    attr {
-                        fontSize(20f)
-                        text("Demo案例-Compose语法")
-                        textDecorationUnderLine()
-                        backgroundLinearGradient(
-                            Direction.TO_RIGHT,
-                            ColorStop(Color(0xFFAD37FE), 0f),
-                            ColorStop(Color(0xFF23D3FD), 1f)
-                        )
-                    }
-                }
-                event {
-                    click {
-                        ctx.jumpPage("ComposeAllSample")
-                    }
-                }
-            }
         }
 
     }

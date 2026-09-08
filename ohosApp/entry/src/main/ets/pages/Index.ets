@@ -22,6 +22,7 @@ import router from '@ohos.router';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ContextCodeHandler } from '../kuikly/ContextCodeHandler';
 import { AppKRRenderManager } from '../kuikly/adapters/AppKRRenderManager';
+import { LaunchParams } from '../kuikly/LaunchParams';
 
 @Entry
 @Component
@@ -50,7 +51,7 @@ struct Index {
   aboutToAppear(): void {
     AppKRRenderManager.getInstance().initIfNeed();
     const params = router.getParams() as Record<string, Object>;
-    this.pageName = params?.pageName as string;
+    this.pageName = (params?.pageName as string) || LaunchParams.pageName || null;
     this.pageData = (params?.pageData as KRRecord | null) ?? {};
     if (this.contextCodeHandler.isNeedGetContextCode(params)) {
       this.contextCodeHandler.handleGetContextCode(getContext(), params, (contextCode) => {

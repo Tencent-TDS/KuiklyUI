@@ -89,9 +89,11 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 
 
 #define KRWeakSelf __weak typeof(self) weakSelf = self;
-@interface KuiklyRenderViewController()<KuiklyRenderViewControllerBaseDelegatorDelegate>
+@interface KuiklyRenderViewController()<KuiklyRenderViewControllerBaseDelegatorDelegate, UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) KuiklyRenderViewControllerBaseDelegator *delegator;
+@property (nonatomic, strong) UIScreenEdgePanGestureRecognizer *kuiklyBackGestureRecognizer;
+@property (nonatomic, assign) BOOL isHandlingKuiklyBackGesture;
 
 @end
 
@@ -112,7 +114,7 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
         [_delegator.performanceManager setMonitorType:KRMonitorType_ALL];
         _delegator.delegate = self;
         [_delegator addDelegatorLifeCycleListener:_delegatorProxy];
-        
+
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleKuiklyException:) name:kKuiklyFatalExceptionNotification object:nil];
     }
     return self;
@@ -134,9 +136,14 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
     [super viewDidLoad];
     
     self.fd_prefersNavigationBarHidden = YES;
+    // Kuikly 页面可能还有页面内导航层级，不能让 FD 全屏返回直接 pop VC。
+    // 统一改由左缘手势在提交时询问 Kotlin：Kotlin 消费则页面内退层，
+    // 未消费才交还 UINavigationController。
+    self.fd_interactivePopDisabled = YES;
     self.view.backgroundColor = [UIColor whiteColor];
     [_delegator viewDidLoadWithView:self.view];
     [self.navigationController setNavigationBarHidden:YES animated:NO];
+    [self p_installKuiklyBackGesture];
 
 }
 
@@ -166,7 +173,7 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 - (void)viewDidDisappear:(BOOL)animated {
     [super viewDidDisappear:animated];
     [_delegator viewDidDisappear];
-    
+
     KRPerformanceManager *manager = [_delegator performanceManager];
     NSDictionary *startTimes = manager.stageStartTimes;
     NSDictionary *durations = manager.stageDurations;
@@ -210,6 +217,57 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 }
 
 #pragma mark - private
+
+- (void)p_installKuiklyBackGesture {
+    UIRectEdge edge = [UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft
+                      ? UIRectEdgeRight
+                      : UIRectEdgeLeft;
+    UIScreenEdgePanGestureRecognizer *gestureRecognizer =
+            [[UIScreenEdgePanGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleKuiklyBackGesture:)];
+    gestureRecognizer.edges = edge;
+    gestureRecognizer.delegate = self;
+    [self.view addGestureRecognizer:gestureRecognizer];
+    self.kuiklyBackGestureRecognizer = gestureRecognizer;
+}
+
+- (void)p_handleKuiklyBackGesture:(UIScreenEdgePanGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer.state != UIGestureRecognizerStateEnded || self.isHandlingKuiklyBackGesture) {
+        return;
+    }
+
+    BOOL isRightToLeft =
+            [UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft;
+    CGFloat direction = isRightToLeft ? -1.0 : 1.0;
+    CGFloat translation = [gestureRecognizer translationInView:self.view].x * direction;
+    CGFloat velocity = [gestureRecognizer velocityInView:self.view].x * direction;
+    CGFloat requiredTranslation = MIN(120.0, MAX(60.0, CGRectGetWidth(self.view.bounds) * 0.18));
+    if (translation < requiredTranslation && velocity < 500.0) {
+        return;
+    }
+
+    self.isHandlingKuiklyBackGesture = YES;
+    KRWeakSelf;
+    [self.delegator onBackPressedWithCompletion:^(BOOL consumed) {
+        weakSelf.isHandlingKuiklyBackGesture = NO;
+        if (consumed) {
+            return;
+        }
+        UINavigationController *navigationController = weakSelf.navigationController;
+        if (navigationController.viewControllers.count > 1) {
+            [navigationController popViewControllerAnimated:YES];
+        } else if (navigationController.presentingViewController) {
+            [navigationController dismissViewControllerAnimated:YES completion:nil];
+        }
+    }];
+}
+
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer != self.kuiklyBackGestureRecognizer || self.isHandlingKuiklyBackGesture) {
+        return NO;
+    }
+    UINavigationController *navigationController = self.navigationController;
+    return navigationController.viewControllers.count > 1 || navigationController.presentingViewController != nil;
+}
 
 - (NSDictionary *)p_mergeExtParamsWithOriditalParam:(NSDictionary *)pageParam {
     NSMutableDictionary *mParam = [(pageParam ?: @{}) mutableCopy];

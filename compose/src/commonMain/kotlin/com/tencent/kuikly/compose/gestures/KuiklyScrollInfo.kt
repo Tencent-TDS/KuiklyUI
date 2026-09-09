@@ -85,6 +85,14 @@ class KuiklyScrollInfo {
     var realContentSize: Int? = null
 
     /**
+     * Clear the pinned exact size so the next scroll can recompute it
+     * after a real layout change.
+     */
+    internal fun clearExactContentSize() {
+        realContentSize = null
+    }
+
+    /**
      * Whether the offset has deviation
      */
     var offsetDirty = false

@@ -230,13 +230,16 @@ private fun rememberLazyGridMeasurePolicy(
             }.spacing
         }
         val spaceBetweenLines = spaceBetweenLinesDp.roundToPx()
+        if (state.slotsPerLine > 0 && state.slotsPerLine != slotsPerLine) {
+            state.kuiklyInfo.clearExactContentSize()
+        }
         val itemsCount = itemProvider.itemCount
 
         if (state.kuiklyInfo.cachedTotalItems > 0) {
             if (itemsCount < state.kuiklyInfo.cachedTotalItems) {
                 state.kuiklyInfo.offsetDirty = true
             } else if (itemsCount > state.kuiklyInfo.cachedTotalItems) {
-                state.kuiklyInfo.realContentSize = null
+                state.kuiklyInfo.clearExactContentSize()
                 state.tryExpandStartSizeNoScroll()
             }
         }
@@ -247,6 +250,19 @@ private fun rememberLazyGridMeasurePolicy(
             containerConstraints.maxHeight - totalVerticalPadding
         } else {
             containerConstraints.maxWidth - totalHorizontalPadding
+        }
+        val prevViewport = if (isVertical) {
+            state.layoutInfo.viewportSize.height
+        } else {
+            state.layoutInfo.viewportSize.width
+        }
+        val newViewport = if (isVertical) {
+            containerConstraints.maxHeight
+        } else {
+            containerConstraints.maxWidth
+        }
+        if (prevViewport > 0 && prevViewport != newViewport) {
+            state.kuiklyInfo.clearExactContentSize()
         }
         val visualItemOffset = if (!reverseLayout || mainAxisAvailableSize > 0) {
             IntOffset(startPadding, topPadding)
@@ -322,7 +338,7 @@ private fun rememberLazyGridMeasurePolicy(
                 val oldLineHeight = state.kuiklyInfo.itemMainSpaceCache[lineKey]
                 // 行高度扩大了
                 if ((oldLineHeight ?: 0) < lineResult.mainAxisSizeWithSpacings && !state.isScrollInProgress) {
-                    state.kuiklyInfo.realContentSize = null
+                    state.kuiklyInfo.clearExactContentSize()
                     state.tryExpandStartSizeNoScroll()
                 }
                 state.kuiklyInfo.itemMainSpaceCache[lineKey] = lineResult.mainAxisSizeWithSpacings

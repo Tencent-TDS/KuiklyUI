@@ -239,7 +239,7 @@ internal class LazyStaggeredGridMeasureContext(
             val oldItemHeight = state.kuiklyInfo.itemMainSpaceCache[itemKey]
             // Item height has expanded
             if ((oldItemHeight ?: 0) < itemResult.mainAxisSizeWithSpacings && !state.isScrollInProgress) {
-                state.kuiklyInfo.realContentSize = null
+                state.kuiklyInfo.clearExactContentSize()
                 state.tryExpandStartSizeNoScroll()
             }
             state.kuiklyInfo.itemMainSpaceCache[itemKey] = itemResult.mainAxisSizeWithSpacings
@@ -251,6 +251,12 @@ internal class LazyStaggeredGridMeasureContext(
     val laneInfo = state.laneInfo
 
     val laneCount = resolvedSlots.sizes.size
+
+    init {
+        if (state.laneCount > 0 && state.laneCount != laneCount) {
+            state.kuiklyInfo.clearExactContentSize()
+        }
+    }
 
     fun LazyStaggeredGridItemProvider.isFullSpan(itemIndex: Int): Boolean =
         spanProvider.isFullSpan(itemIndex)
@@ -284,7 +290,7 @@ private fun LazyStaggeredGridMeasureContext.measure(
             if (itemCount < state.kuiklyInfo.cachedTotalItems) {
                 state.kuiklyInfo.offsetDirty = true
             } else if (itemCount > state.kuiklyInfo.cachedTotalItems) {
-                state.kuiklyInfo.realContentSize = null
+                state.kuiklyInfo.clearExactContentSize()
                 state.tryExpandStartSizeNoScroll()
             }
         }

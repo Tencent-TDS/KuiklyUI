@@ -7,10 +7,8 @@ cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit
 
 java -version
 
-CONFIG_FILE="publish/compatible/2.3.10.yaml"
-
-# 兼容性替换
-java publish/FileReplacer.java replace "$CONFIG_FILE"
+# 注：Gradle 8.9 / gradle.properties 的 AGP8 属性移除等兼容性改动
+# 已随「默认版本升级到 2.3.10」直接固化进仓库文件，不再需要 FileReplacer 运行时替换。
 
 MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
@@ -35,9 +33,6 @@ else
   KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
   GRADLE_RUN_STATUS=$?
 fi
-
-# 兼容性还原
-java publish/FileReplacer.java restore "$CONFIG_FILE"
 
 if [ $GRADLE_RUN_STATUS -eq 0 ]; then
   exit 0

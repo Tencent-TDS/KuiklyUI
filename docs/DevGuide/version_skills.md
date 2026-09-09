@@ -62,6 +62,27 @@ Android Studio是目前Android开发最常用的集成开发环境（IDE），�
 | 2.3.10         | 8.6.0 | 2.3.4         | 8.9    |
 | 2.1.21         | 8.5.0 | 2.1.21-2.0.1  | 8.7    |
 | 2.0.21         | 8.5.0 | 2.0.21-1.0.27 | 8.7    |
+
+::::tip Kotlin 2.3.10 环境要求
+接入 Kotlin 2.3.10 制品需满足：
+
+- **JDK 17**（Gradle 8.9 的硬性要求，JDK 11 无法运行）
+- **Gradle 8.7+**（AGP 8.6.0 的最低要求，推荐 8.9）
+- **KSP 2.3.4**：自 KSP2 起版本号与 Kotlin 解耦，不再形如 `2.1.21-2.0.1`
+
+::::
+
+::::warning Kotlin 2.3 移除的构建脚本写法
+若业务工程自行编写 KMP 构建脚本，Kotlin 2.3 起以下写法已失效，需改用 `compilerOptions` DSL：
+
+| 已移除 | 替代写法 |
+|:---|:---|
+| `jvmTarget = "1.8"` / `"17"` | `compilerOptions { jvmTarget.set(JvmTarget.JVM_1_8) }` |
+| `moduleName = "..."`（JS） | `outputModuleName.set("...")` |
+| `outputFileName = "..."`（webpack） | `mainOutputFileName.set("...")` |
+| `kotlinOptions { freeCompilerArgs += ... }` | `compilerOptions.configure { freeCompilerArgs.addAll(...) }` |
+
+::::
 | 2.0.21-KBA-010 | 8.5.0 | 2.0.21-1.0.27 | 8.7    |
 | 1.9.22         | 7.4.2 | 1.9.22-1.0.17 | 7.5.1  |
 | 1.8.21         | 7.4.2 | 1.8.21-1.0.11 | 7.5.1  |
@@ -116,6 +137,7 @@ JDK版本除了设备环境的需要适配，对于Android Studio本身自带的
 
 | kotlin         | AGP   | ksp           | Gradle |
 |:---------------|:------|:--------------|--------|
+| 2.3.10         | 8.6.0 | 2.3.4         | 8.9    |
 | 2.1.21         | 7.4.2 | 2.1.21-2.0.1  | 7.6.3  |
 | 2.0.21         | 7.4.2 | 2.0.21-1.0.27 | 7.6.3  |
 | 2.0.21-KBA-010 | 7.4.2 | 2.0.21-1.0.27 | 8.0    |

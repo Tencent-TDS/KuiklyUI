@@ -21,6 +21,10 @@ NS_ASSUME_NONNULL_BEGIN
 extern NSString *const KuiklyIndexAttributeName;
 @interface KRRichTextView : KRLabel<KuiklyRenderViewExportProtocol>
 
+/// 主动预热 info.plist（UIAppFonts）中声明的自定义字体。
+/// 框架已在 +load 中自动调用一次；业务若运行期动态修改了 UIAppFonts，可再次调用。
++ (void)warmupInfoPlistFonts;
+
 @end
 
 @interface KRRichTextShadow : NSObject<KuiklyRenderShadowProtocol>

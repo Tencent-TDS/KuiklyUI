@@ -41,11 +41,14 @@ static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
         _warmedKeys = [NSMutableSet set];
         _residentFonts = [NSMutableSet set];
         _lockQueue = dispatch_queue_create("com.tencent.kuikly.fontwarmup.lock", DISPATCH_QUEUE_SERIAL);
+#if !TARGET_OS_OSX
         // 收到内存告警时清空预热缓存，释放对 UIFont 的强引用，避免 residentFonts 只增不减。
+        // 内存告警通知为 UIKit 专有，macOS 无此机制，故条件编译隔离。
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(p_onMemoryWarning)
                                                      name:UIApplicationDidReceiveMemoryWarningNotification
                                                    object:nil];
+#endif
     }
     return self;
 }

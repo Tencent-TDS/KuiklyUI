@@ -1,7 +1,7 @@
 /*
  * Tencent is pleased to support the open source community by making KuiklyUI
  * available.
- * Copyright (C) 2025 Tencent. All rights reserved.
+ * Copyright (C) 2026 Tencent. All rights reserved.
  * Licensed under the License of KuiklyUI;
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,18 +13,7 @@
  * limitations under the License.
  */
 
-#ifndef CORE_RENDER_OHOS_KRRENDEREXECUTEMODE_H
-#define CORE_RENDER_OHOS_KRRENDEREXECUTEMODE_H
-
-class KRRenderExecuteMode {
- public:
-    explicit KRRenderExecuteMode(int mode);
-    virtual bool IsContextSyncInit() = 0;  // ContextHandler是否同步初始化
-    virtual int ModeToCoreValue() = 0;     //  render mode映射到Core的对应值
-    int GetMode();
-
- private:
-    int mode_ = 0;  //  运行模式
-};
-
-#endif  // CORE_RENDER_OHOS_KRRENDEREXECUTEMODE_H
+/** Ability onCreate 收到的启动参数，供 Index 在 router params 为空时回退使用。 */
+export class LaunchParams {
+  static pageName: string = ''
+}

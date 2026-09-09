@@ -271,7 +271,7 @@ private fun rememberLazyListMeasurePolicy(
             if (itemsCount < state.kuiklyInfo.cachedTotalItems) {
                 state.kuiklyInfo.offsetDirty = true
             } else if (itemsCount > state.kuiklyInfo.cachedTotalItems) {
-                state.kuiklyInfo.realContentSize = null
+                state.kuiklyInfo.clearExactContentSize()
                 state.tryExpandStartSizeNoScroll()
             }
         }
@@ -282,6 +282,19 @@ private fun rememberLazyListMeasurePolicy(
             containerConstraints.maxHeight - totalVerticalPadding
         } else {
             containerConstraints.maxWidth - totalHorizontalPadding
+        }
+        val prevViewport = if (isVertical) {
+            state.layoutInfo.viewportSize.height
+        } else {
+            state.layoutInfo.viewportSize.width
+        }
+        val newViewport = if (isVertical) {
+            containerConstraints.maxHeight
+        } else {
+            containerConstraints.maxWidth
+        }
+        if (prevViewport > 0 && prevViewport != newViewport) {
+            state.kuiklyInfo.clearExactContentSize()
         }
         val visualItemOffset = if (!reverseLayout || mainAxisAvailableSize > 0) {
             IntOffset(startPadding, topPadding)
@@ -332,7 +345,7 @@ private fun rememberLazyListMeasurePolicy(
                 val oldHeight = state.kuiklyInfo.itemMainSpaceCache[itemResult.key]
                 // 高度扩大了
                 if ((oldHeight ?: 0) < itemResult.mainAxisSizeWithSpacings && !state.isScrollInProgress ) {
-                    state.kuiklyInfo.realContentSize = null
+                    state.kuiklyInfo.clearExactContentSize()
                     state.tryExpandStartSizeNoScroll()
                 }
                 state.kuiklyInfo.itemMainSpaceCache[itemResult.key] = itemResult.mainAxisSizeWithSpacings

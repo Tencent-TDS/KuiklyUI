@@ -17,7 +17,8 @@
 #define CORE_RENDER_OHOS_KRRENDERCONTEXTPARAMS_H
 
 #include <string>
-#include "libohos_render/context/KRRenderNativeMode.h"
+#include "libohos_render/context/KRRenderExecuteMode.h"
+#include "libohos_render/core/KRRenderFactories.h"
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 
@@ -27,26 +28,14 @@
 class KRRenderContextParams {
  public:
     KRRenderContextParams(const std::string &page_name, const std::shared_ptr<KRRenderValue> &page_data,
-                          const std::string &instance_id, const std::string &configJsonStr) {
+                          const std::string &instance_id, const std::string &configJsonStr,
+                          const std::string &context_code, int execute_mode) {
         this->page_name_ = page_name;
         this->instance_id_ = instance_id;
         this->page_data_ = page_data;
         this->config_ = std::make_shared<KRConfig>(configJsonStr);
-
-        auto page_data_map = this->page_data_->toMap();
-        int page_data_mode = page_data_map["executeMode"]->toInt();
-        std::unordered_map<int, KRRenderExecuteModeCreator> mode_creator_register =
-            KRRenderExecuteMode::GetExecuteModeCreatorRegister();
-        if (mode_creator_register.find(page_data_mode) != mode_creator_register.end()) {
-            auto creator = mode_creator_register[page_data_mode];
-            execute_mode_ = creator();
-        } else {
-            std::shared_ptr<KRRenderExecuteMode> defaultMode = std::make_shared<KRRenderNativeMode>();
-            if (defaultMode->GetMode() == page_data_mode) {
-                execute_mode_ = defaultMode;
-            }
-        }
-        context_code_ = page_data_map["contextCode"]->toString();
+        this->context_code_ = context_code;
+        this->execute_mode_ = kuikly::ExecuteModeFactory::Create(execute_mode);
     }
     const std::string &PageName() const {
         return page_name_;

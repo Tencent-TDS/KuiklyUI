@@ -722,9 +722,9 @@ export class KRNativeRenderController {
     // 初始下发基线快照（deviceWidth/deviceHeight 初值来自物理屏幕 screenSize）
     let configJson = this.createConfigJson(new KRSize(this.viewRect.width, this.viewRect.height));
 
-    render.onInitRenderView(this.instanceId, this.pageName, pageData, this.viewRect.width, this.viewRect.height,
-      configJson
-      , this.uiContext, this.uiContext?.getHostContext()?.resourceManager);
+    render.onInitRenderView(this.instanceId, this.pageName, this.contextCode, this.executeMode.mode, pageData,
+      this.viewRect.width, this.viewRect.height, configJson, this.uiContext,
+      this.uiContext?.getHostContext()?.resourceManager);
     this.runLazyTasksOnce();
   }
 
@@ -816,8 +816,6 @@ export class KRNativeRenderController {
     pageData[KRNativeBuild] = 2;
     pageData[KRAppVersionKey] = versionName;
     pageData[KRPlatformKey] = 'ohos';
-    pageData[KRExecuteMode] = this.executeMode.mode;
-    pageData[KRContextCode] = this.contextCode;
     pageData[KRDensity] = this.getWindowActiveDensity();
     pageData[KRFeature] = {
       "box_shadow_fill" : 1

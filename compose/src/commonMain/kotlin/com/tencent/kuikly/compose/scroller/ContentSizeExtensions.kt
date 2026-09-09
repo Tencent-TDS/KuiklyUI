@@ -40,6 +40,7 @@ import kotlin.math.roundToInt
  * Calculate content size
  */
 internal fun ScrollableState.calculateContentSize(): Int {
+    val previousExact = kuiklyInfo.realContentSize
     kuiklyInfo.realContentSize = null
     val density = kuiklyInfo.getDensity()
     val minSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
@@ -62,8 +63,15 @@ internal fun ScrollableState.calculateContentSize(): Int {
         val viewportDelta = viewportSize - composeViewport
         // Compensate for contentPadding which does not affect viewportSize but is excluded from totalContentSize
         val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).roundToInt()
-        kuiklyInfo.realContentSize = realContentSize + viewportDelta + contentPaddingCompensation
-        return kuiklyInfo.realContentSize!!
+        var exact = realContentSize + viewportDelta + contentPaddingCompensation
+        // lastItem.offset is viewport-relative. After a fling reaches the last item,
+        // a stale offset can inflate contentSize and skip native bounce.
+        // Measure clears the pin when layout actually changes.
+        if (previousExact != null && exact > previousExact && this.isLazyListOrGrid()) {
+            exact = previousExact
+        }
+        kuiklyInfo.realContentSize = exact
+        return exact
     }
 
     val bottomOffset = kuiklyInfo.composeOffset.toInt() + viewportSize
@@ -347,4 +355,8 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             }
         }
     }
+}
+
+private fun ScrollableState.isLazyListOrGrid(): Boolean {
+    return this is LazyListState || this is LazyGridState || this is LazyStaggeredGridState
 }

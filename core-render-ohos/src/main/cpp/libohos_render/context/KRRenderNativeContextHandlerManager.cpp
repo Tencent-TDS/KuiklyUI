@@ -15,37 +15,14 @@
 
 #include "libohos_render/context/KRRenderNativeContextHandlerManager.h"
 
-#include "libohos_render/context/DefaultRenderNativeContextHandler.h"
+#include "libohos_render/core/KRRenderFactories.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
 extern CallKotlin callKotlin_;
 
-void KRRenderNativeContextHandlerManager::SetContextHandlerCreator(const KRRenderContextHandlerCreator &creator) {
-    creator_ = creator;
-}
-
 std::shared_ptr<IKRRenderNativeContextHandler> KRRenderNativeContextHandlerManager::CreateContextHandler(
     const std::shared_ptr<KRRenderContextParams> &context_params) {
-    KRRenderContextHandlerCreator creator_;
-    if (context_params->ExecuteMode()) {
-        std::unordered_map<int, KRRenderContextHandlerCreator> context_creator_register =
-            GetContextHandlerCreatorRegister();
-        int param_mode = context_params->ExecuteMode()->GetMode();
-        if (context_creator_register.find(param_mode) != context_creator_register.end()) {
-            creator_ = context_creator_register[param_mode];  //  优先使用自定义注册的创建器
-        } else if (auto native_mode = dynamic_cast<KRRenderNativeMode *>(context_params->ExecuteMode().get())) {
-            auto context_handler_register = [](const std::shared_ptr<KRRenderContextParams> &context_params)
-                -> std::shared_ptr<IKRRenderNativeContextHandler> {
-                return std::make_shared<DefaultRenderNativeContextHandler>();
-            };
-            creator_ = context_handler_register;
-        }
-    }
-    if (creator_) {
-        return creator_(context_params);
-    } else {
-        throw std::runtime_error("Custom execute mode, contextHandler must be registered");
-    }
+    return kuikly::ContextHandlerFactory::CreateContextHandler(context_params);
 }
 
 void KRRenderNativeContextHandlerManager::RegisterContextHandler(

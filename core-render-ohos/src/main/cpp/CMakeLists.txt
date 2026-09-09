@@ -26,11 +26,11 @@ set(SOURCE_SET
         libohos_render/context/DefaultRenderNativeContextHandler.cpp
         libohos_render/context/KRRenderExecuteMode.cpp
         libohos_render/context/KRRenderNativeMode.cpp
-        libohos_render/context/KRRenderExecuteModeWrapper.cpp
         libohos_render/adapter/KRRenderAdapterManager.cpp
         libohos_render/manager/KRArkTSManager.cpp
         libohos_render/manager/KRSnapshotManager.cpp
         libohos_render/core/KRRenderCore.cpp
+        libohos_render/core/KRRenderFactoriesDefault.cpp
         libohos_render/expand/modules/network/KRNetworkModule.cpp
         libohos_render/expand/components/apng/KRApngView.cpp
         libohos_render/expand/components/apng/ApngParser.cpp
@@ -116,6 +116,8 @@ set(SOURCE_SET
         libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.cpp
         libohos_render/expand/modules/preferences/KROhPreferences.cpp
 )
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/extra.cmake" OPTIONAL)
 
 add_library(kuikly SHARED ${SOURCE_SET})
 target_compile_options(kuikly PRIVATE

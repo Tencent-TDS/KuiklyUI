@@ -57,9 +57,6 @@ enum class KuiklyRenderNativeMethod {
 class IKRRenderNativeContextHandler;
 class KRRenderContextParams;
 
-using KRRenderContextHandlerCreator =
-    std::function<std::shared_ptr<IKRRenderNativeContextHandler>(const std::shared_ptr<KRRenderContextParams> &)>;
-
 class ICallNativeCallback {
  public:
     ICallNativeCallback() {}
@@ -97,8 +94,6 @@ class IKRRenderNativeContextHandler : public std::enable_shared_from_this<IKRRen
                                              const KRRenderCValue &arg3, const KRRenderCValue &arg4,
                                              const KRRenderCValue &arg5);
     
-    static void SetContextHandlerCreator(const KRRenderContextHandlerCreator &creator);
-
     static std::shared_ptr<IKRRenderNativeContextHandler>
     CreateContextHandler(const std::shared_ptr<KRRenderContextParams> &context_params);
 

@@ -783,8 +783,10 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
-    // 边界回弹、惯性滚动时一律不运行更新
-    if (self.isZoomBouncing || self.isDecelerating) {
+    // 边界回弹、惯性滚动时一律不运行更新。
+    // isZoomBouncing 在 macOS 兼容类 KRUIScrollView 上未实现，需用 respondsToSelector 保护，避免 unrecognized selector 崩溃。
+    BOOL zoomBouncing = [self respondsToSelector:@selector(isZoomBouncing)] && [self isZoomBouncing];
+    if (zoomBouncing || self.isDecelerating) {
         return self.contentInset;
     }
     // 放行程序化更新、拖拽时、双指捏放时的Offset变化，并且让inset去响应

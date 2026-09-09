@@ -28,6 +28,7 @@
 #include <multimedia/image_framework/image/image_source_native.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 
+#include <cmath>
 #include <codecvt>
 #include <thread>
 #include <unordered_set>
@@ -110,6 +111,9 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
         return SpanRect(NewKRRenderValue(params)->toInt());
     } else if(method_name == "isLineBreakMargin"){
         return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
+    } else if (method_name == "relayoutToWidth") {
+        RelayoutToWidth(NewKRRenderValue(params)->toFloat());
+        return KRRenderValue::Make(nullptr);
     }
     return KRRenderValue::Make(nullptr);
 }
@@ -121,8 +125,10 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
  * @return
  */
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
+    context_thread_constraint_height_ = static_cast<float>(constraint_height);
     if(StyledStringEnabled()){
         KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
+        context_thread_layout_width_ = static_cast<float>(constraint_width);
         return sz;
     }else{
         SetParagraph(nullptr);
@@ -130,6 +136,30 @@ KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double
     ReleaseLastTypography();
     BuildTextTypography(constraint_width, constraint_height);
     return context_measure_size_;
+}
+
+void KRRichTextShadow::RelayoutToWidth(float width_vp) {
+    if (width_vp <= 0) {
+        return;
+    }
+    constexpr float kLayoutWidthEpsilonVp = 1.0f;
+    if (context_thread_layout_width_ > 0 &&
+        std::fabs(width_vp - context_thread_layout_width_) <= kLayoutWidthEpsilonVp) {
+        return;
+    }
+    double constraint_height = context_thread_constraint_height_;
+    if (StyledStringEnabled()) {
+        CalculateRenderViewSizeWithStyledString(width_vp, constraint_height);
+        context_thread_layout_width_ = width_vp;
+        return;
+    }
+    // 左对齐时字形从 x=0 起排，约束宽大于节点宽不会把字画到框外。
+    if (context_thread_text_align_ == TEXT_ALIGN_LEFT) {
+        return;
+    }
+    SetParagraph(nullptr);
+    ReleaseLastTypography();
+    BuildTextTypography(width_vp, constraint_height);
 }
 
 KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height) {
@@ -665,6 +695,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
+    context_thread_layout_width_ = static_cast<float>(constraint_width);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(typography_raw);
@@ -706,6 +737,7 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
+    context_thread_layout_width_ = -1.0f;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====

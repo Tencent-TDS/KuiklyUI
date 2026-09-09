@@ -27,6 +27,7 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.base.toInt
+import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.FlexPositionType
@@ -132,6 +133,9 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         if (!flexNode.styleMinHeight.isUndefined()) {
             size = heightLayoutSize(size, width, flexNode.styleMinHeight)
         }
+        if (!shouldSkipOhosRelayoutToNodeWidth(size.width, cWidth)) {
+            shadow?.relayoutToWidthIfNeeded(cWidth, size.width)
+        }
         didLayout = true
 
         updateShadow()
@@ -150,6 +154,13 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
                 }
             }
         }
+    }
+
+    private fun shouldSkipOhosRelayoutToNodeWidth(nodeWidth: Float, constraintWidth: Float): Boolean {
+        if (!flexNode.styleWidth.isUndefined()) {
+            return false
+        }
+        return flexNode.widthStretchedToMeasureConstraint() && nodeWidth < constraintWidth
     }
 
     private fun canSyncToRenderView(propKey: String): Boolean {
@@ -559,6 +570,19 @@ object TextConst {
     const val PLACEHOLDER_COLOR = "placeholderColor"
     const val SELECTION_COLOR = "selectionColor"
     const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
+}
+
+internal fun FlexNode.widthStretchedToMeasureConstraint(): Boolean {
+    if (positionType != FlexPositionType.RELATIVE) {
+        return false
+    }
+    val parentNode = parent ?: return false
+    val direction = parentNode.flexDirection
+    if (direction != FlexDirection.COLUMN && direction != FlexDirection.COLUMN_REVERSE) {
+        return false
+    }
+    val align = if (alignSelf == FlexAlign.AUTO) parentNode.alignItems else alignSelf
+    return align == FlexAlign.STRETCH
 }
 
 enum class TextAlign(val value: String) {

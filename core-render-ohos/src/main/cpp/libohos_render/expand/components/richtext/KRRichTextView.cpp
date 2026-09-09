@@ -201,9 +201,8 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto frameWidth = GetFrame().width;
     // 不要在绘制期对已 Layout 的 Typography 再 TypographyLayout：HarmonyOS 6 上
     // 同一对象二次 Layout 不是幂等的（flex+textAlignRight 多行中文漏字）。
-    // 测量已按约束宽 Layout，并带上 textAlign；旋转/分屏等真实改宽由 Yoga
-    // 重新测量 + SetShadow 交付新对象。框宽真变且尚未重测时的重建，应在
-    // context 线程做，不能在这里原地 Layout。
+    // 测量按约束宽 Layout；若 Kotlin 算出的节点宽与约束宽不同，context 线程
+    // relayoutToWidth 会创建新对象，再经 SetShadow 交给主线程。
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

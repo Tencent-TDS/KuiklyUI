@@ -189,7 +189,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRSize MainMeasureSize() {
         return main_measure_size_;
     }
-    
+
     bool DidExceedMaxLines(){
         return did_exceed_max_lines_;
     }
@@ -294,6 +294,9 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 
     KRSize context_measure_size_;
     KRSize main_measure_size_;
+    // TypographyLayout 使用的约束宽（vp）。与 context_measure_size_.width（最长行）分离。
+    float context_thread_layout_width_ = -1.0f;
+    float context_thread_constraint_height_ = -1.0f;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
     std::shared_ptr<KRParagraph> paragraph_;
@@ -318,6 +321,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
      * 使用，生命周期由 context_thread_typography_ 管理）。
      */
     OH_Drawing_Typography *BuildTextTypography(double constraint_width, double constraint_height);
+    /**
+     * context 线程：若最终节点宽与第一次排版约束宽不同，按最终宽创建新 Typography。
+     * 不要对旧对象再次 TypographyLayout。
+     */
+    void RelayoutToWidth(float width_vp);
 
     void ReleaseLastTypography();
     /**

@@ -224,6 +224,9 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         if (!flexNode.styleMinHeight.isUndefined()) {
             size = heightLayoutSize(size, width, flexNode.styleMinHeight)
         }
+        if (!shouldSkipOhosRelayoutToNodeWidth(size.width, cWidth)) {
+            shadow?.relayoutToWidthIfNeeded(cWidth, size.width)
+        }
         didLayout = true
         if (shadow?.calculateFromCache != true) {
             renderView?.setShadow()
@@ -244,6 +247,13 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
                 }
             }
         }
+    }
+
+    private fun shouldSkipOhosRelayoutToNodeWidth(nodeWidth: Float, constraintWidth: Float): Boolean {
+        if (!flexNode.styleWidth.isUndefined()) {
+            return false
+        }
+        return flexNode.widthStretchedToMeasureConstraint() && nodeWidth < constraintWidth
     }
 
     fun buildValuesPropValue(): String {

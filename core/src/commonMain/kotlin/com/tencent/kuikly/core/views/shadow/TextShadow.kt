@@ -17,6 +17,8 @@ package com.tencent.kuikly.core.views.shadow
 
 import com.tencent.kuikly.core.base.Shadow
 import com.tencent.kuikly.core.base.Size
+import com.tencent.kuikly.core.manager.PagerManager
+import kotlin.math.abs
 
 open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
     pagerId, viewRef,
@@ -53,6 +55,24 @@ open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
         return size
     }
 
+    /**
+     * OHOS V1：Yoga 最终节点宽若与第一次排版约束宽不同，在 context 线程按节点宽
+     * 创建新 Typography。不要改 lastWidth 缓存，以免每帧都重新测自然宽。
+     */
+    fun relayoutToWidthIfNeeded(constraintWidth: Float, nodeWidth: Float) {
+        val pager = PagerManager.getPager(pagerId)
+        if (!pager.pageData.isOhOs) {
+            return
+        }
+        if (nodeWidth <= 0f) {
+            return
+        }
+        if (abs(nodeWidth - constraintWidth) <= LAYOUT_WIDTH_EPSILON_VP) {
+            return
+        }
+        callMethod(SHADOW_METHOD_RELAYOUT_TO_WIDTH, nodeWidth.toString())
+    }
+
     fun markDirty() {
         if (isDirty) {
             return
@@ -63,5 +83,10 @@ open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
 
     private fun markNotDirty() {
         isDirty = false
+    }
+
+    companion object {
+        private const val LAYOUT_WIDTH_EPSILON_VP = 1f
+        private const val SHADOW_METHOD_RELAYOUT_TO_WIDTH = "relayoutToWidth"
     }
 }

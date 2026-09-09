@@ -110,9 +110,9 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
     // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
     // OnForegroundDraw 路径下能被绘制——因为 V2 的 StyledString 是交给 ArkUI 节点直接
     // 渲染，SDK 当前没暴露插入图片绘制 hook 的入口。这个判定已收敛到
-    // shadow->StyledStringEnabled()（含 image span 时返 false），本处只读一个结果。
-    bool use_styled_string = textShadow && textShadow->StyledStringEnabled();
-    bool has_image_span = textShadow && textShadow->HasImageSpans();
+    // context 线程已把 StyledString / image span 状态随 Typography 一起快照到主线程。
+    bool use_styled_string = textShadow && textShadow->MainThreadStyledStringEnabled();
+    bool has_image_span = textShadow && textShadow->MainThreadHasImageSpans();
     if(use_styled_string){
         ArkUI_AttributeItem item;
         if(std::shared_ptr<KRParagraph> paragraph = std::dynamic_pointer_cast<KRRichTextShadow>(shadow)->GetParagraph()){
@@ -158,7 +158,6 @@ void KRRichTextView::DidRemoveFromParentView() {
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
     paragraph_ = nullptr;
-    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -196,27 +195,12 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         return;
     }
     double drawOffsetY = richTextShadow->DrawOffsetY();
-    OH_Drawing_TextAlign textAlign = richTextShadow->TextAlign();
-    auto textTypoSize = richTextShadow->MainMeasureSize();
     // 在容器前景上绘制额外图形，实现图形显示在子组件之上。
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    bool needReLayout = false;
-    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
-        needReLayout = true;
-    }
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
-        needReLayout = true;
-    }
-    if (needReLayout) {
-        auto dpi = KRConfig::GetDpi();
-        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        last_draw_frame_width_ = frameWidth;
-        if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();
-        }
-    }
+    // Typography 已在 context 线程按最终 frame 宽度构建。绘制期不能对同一对象再次
+    // TypographyLayout；HarmonyOS 6 上该重入会破坏多行中文的 glyph run。
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();
@@ -694,9 +678,9 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     paragraph_info.width_ = frame.width;
     paragraph_info.height_ = frame.height;
 
-    std::string text_content = textShadow->GetTextContent();
+    std::string text_content = textShadow->MainThreadTextContent();
     paragraph_info.text_content_ = text_content;
-    paragraph_info.span_offsets_ = textShadow->span_offsets_;
+    paragraph_info.span_offsets_ = textShadow->MainThreadSpanOffsets();
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
         KRLineInfo line_info;

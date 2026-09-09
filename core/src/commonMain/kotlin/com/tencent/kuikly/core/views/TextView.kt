@@ -135,6 +135,7 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         didLayout = true
 
         updateShadow()
+        scheduleOhosTypographyRelayout()
         measureOutput.width = size?.width ?: 0f
         measureOutput.height = size?.height ?: 0f
         tryFireLineBreakMarginEvent()
@@ -143,10 +144,27 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
     private fun tryFireLineBreakMarginEvent() {
         if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
             getPager().addTaskWhenPagerDidCalculateLayout {
-                val isLineBreakMargin =
-                    shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
-                if (isLineBreakMargin) {
-                    onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+                if (!flexNode.isDirty) {
+                    val isLineBreakMargin =
+                        shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                    if (isLineBreakMargin) {
+                        onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun scheduleOhosTypographyRelayout() {
+        val pager = getPager()
+        if (!pager.pageData.isOhOs) {
+            return
+        }
+        pager.addTaskWhenPagerDidCalculateLayout {
+            shadow?.relayoutToWidthIfNeeded(flexNode.layoutFrame.width)?.let { heightChanged ->
+                renderView?.setShadow()
+                if (heightChanged && flexNode.styleHeight.isUndefined()) {
+                    flexNode.markDirty()
                 }
             }
         }

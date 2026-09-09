@@ -140,7 +140,7 @@ KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double
 }
 
 bool KRRichTextShadow::RelayoutToWidth(float width_vp) {
-    constexpr float kLayoutWidthEpsilonVp = 1.0f;
+    constexpr float kLayoutWidthEpsilonVp = 0.01f;
     if (width_vp <= 0 || StyledStringEnabled() || !context_thread_typography_) {
         return false;
     }
@@ -149,7 +149,7 @@ bool KRRichTextShadow::RelayoutToWidth(float width_vp) {
         return false;
     }
     if (context_thread_text_align_ == TEXT_ALIGN_LEFT &&
-        width_vp + kLayoutWidthEpsilonVp >= context_measure_size_.width &&
+        width_vp >= context_measure_size_.width &&
         width_vp <= context_thread_layout_width_ + kLayoutWidthEpsilonVp) {
         return false;
     }

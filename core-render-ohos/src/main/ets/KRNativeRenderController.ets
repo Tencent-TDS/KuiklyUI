@@ -100,20 +100,10 @@ enum KRBackPressConsumedState {
   NotConsumed
 }
 
-/** safeArea 纠偏：页面与屏幕尺寸匹配容差（dp） */
+/** safeArea 纠偏：浮点尺寸比较容差（dp） */
 const KRSafeAreaMatchToleranceDp = 1.0;
-/** safeArea 纠偏：真实安全区不可能超过页面对应轴的比例，超出即判定为系统注入的异常值 */
-const KRSafeAreaMaxReasonableFraction = 0.25;
-
-/** safeArea 纠偏结果载体（仅内部使用） */
-class KRSafeAreaResolution {
-  top: number = 0;
-  left: number = 0;
-  bottom: number = 0;
-  right: number = 0;
-  correctedHorizontal: boolean = false;
-  correctedBottom: boolean = false;
-}
+/** safeArea 纠偏：变化量等式判定容差（dp） */
+const KRSafeAreaDeltaEps = 0.1;
 
 /** 全局递增实例ID */
 let gGlobalInstanceId = 0;
@@ -155,12 +145,12 @@ export class KRNativeRenderController {
    * SizeChanged 执行时机是否需提前至 onSizeChanged 而非 onAreaChanged，以避免页面 Size 变化时出现白屏
    */
   private sizeChangeHandledByOnSizeChange: boolean = false;
-  /** safeArea 纠偏：上次屏幕短边（dp），用于检测物理显示设备变化并重置 bottom 缓存 */
-  private safeAreaResolverScreenShort: number = 0;
-  /** safeArea 纠偏：上次屏幕长边（dp） */
-  private safeAreaResolverScreenLong: number = 0;
-  /** safeArea 纠偏：最近一次可靠的 bottom 安全区值（dp），异常帧丢弃后兜底，避免导航条区域闪一帧 */
-  private safeAreaLastReliableBottom: number | null = null;
+  /** 上一帧窗口尺寸：突变帧注入检测（判据B）需要窗口变化量 */
+  private prevWindowRect: KRRect | null = null;
+  /** 上一帧 safeAreaRect：判据B的还原基准（稳态帧不会被注入，天然可靠） */
+  private lastSafeAreaRect: KRRect | null = null;
+  /** 最近一次「viewRect 与 windowRect 同朝向」时换算出的 insets（判据A兜底值） */
+  private lastTrustedInsets: string | null = null;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -199,18 +189,13 @@ export class KRNativeRenderController {
     const w = params.width / density;
     const h = params.height / density;
 
-    // 同步更新窗口尺寸缓存：旋转/分屏后 windowRect 需跟随变化，
-    // 否则 notifySizeChange 下发的 deviceWidth/deviceHeight 会冻结在初始竖屏值，
-    // Compose Configuration.screenWidthDp/screenHeightDp 不跟随旋转（BUG-1）
+    // windowRect 是 deviceWidth/Height 唯一数据源，必须跟随窗口更新，否则旋转后 Compose 屏幕尺寸冻结；
+    // prevWindowRect 保留旧值，供判据B计算窗口变化量
+    this.prevWindowRect = this.windowRect;
     this.windowRect = new KRRect(0, 0, w, h);
-    // 修复BUG-1原理：windowRect 是 deviceWidth/Height 的唯一数据源，必须与窗口同步更新，
-    // 否则 Compose Configuration.screenWidthDp/screenHeightDp 冻结在初始朝向
-    KRRenderLog.i('Rotation', `windowRect synced: ${w.toFixed(1)}x${h.toFixed(1)} (deviceWidth/Height source updated)`);
 
     this.notifyWindowSizeChanged(w, h);
-    // 同步刷新 safeArea 数据但不下发（详见 refreshSafeAreaSync 注释）：
-    // 原始 doUpdateSafeArea() 走 setTimeout(0)，会晚于 onAreaChange/其他下发通道，
-    // 用「旧 viewRect + 新 safeAreaRect」算出错配 insets（实测 bottom=534.9/right=502.0）
+    // 同步刷新 safeArea（不走 setTimeout），避免与布局回调竞争产生「旧 viewRect − 新 safeAreaRect」错配
     this.refreshSafeAreaSync();
   };
   private avoidAreaListener: Callback<AvoidAreaChangeParams> = (params: AvoidAreaChangeParams) => {
@@ -225,28 +210,83 @@ export class KRNativeRenderController {
   };
 
   /**
-   * 同步刷新 safeAreaRect 缓存，但不触发下发。
-   * 仅用于 windowSizeChange：doUpdateSafeArea() 走 setTimeout(0)，存在与其他下发通道的时序竞争；
-   * 此法让 safeAreaRect 与 windowRect 在同一时刻就绪，错配窗口由 L1 纠偏兜底。
+   * 同步刷新 safeAreaRect 但不下发：让 safeAreaRect 与 windowRect 同帧就绪，
+   * 消除 setTimeout(0) 与布局回调的时序竞争，等 viewRect 同朝向后由布局链路统一下发。
    */
   private refreshSafeAreaSync(): void {
     if (this.imeMode || this.windowClass == null) {
       return;
     }
-    // 取消排队中的去抖任务：本次已同步取到最新值，避免稍后重复赋值与重复下发
+    // 同步已取到最新值，取消排队中的去抖任务，避免稍后重复赋值
     if (this.updateSafeInsetsHandler > 0) {
       clearTimeout(this.updateSafeInsetsHandler);
       this.updateSafeInsetsHandler = 0;
     }
     try {
       const synced = this.getSafeAreaRect(this.windowClass);
-      this.onSafeAreaInsetsChanged(synced, false);
-      // 修复时序错配原理：safeAreaRect 与 windowRect 同帧就绪且不下发，
-      // 避免 setTimeout(0) 到期时用「旧 viewRect − 新 safeAreaRect」算出错配 insets
-      KRRenderLog.i('Rotation', `safeArea synced in-place (no notify): ${synced.width.toFixed(1)}x${synced.height.toFixed(1)}@(${synced.x.toFixed(1)},${synced.y.toFixed(1)})`);
+      const corrected = this.correctInjectedSafeArea(synced);
+      this.onSafeAreaInsetsChanged(corrected, false);
     } catch (e) {
       KRRenderLog.e('Window', `Error obtaining safearea, code:${e.code}`);
     }
+  }
+
+  /** 将 safeAreaRect（x/y/width/height）按给定窗口尺寸换算为 [top,left,bottom,right] 侧值 */
+  private sideInsetsOf(rect: KRRect, winW: number, winH: number): number[] {
+    const sides: number[] = [0, 0, 0, 0];
+    sides[0] = rect.y;
+    sides[1] = rect.x;
+    sides[2] = winH - rect.y - rect.height;
+    sides[3] = winW - rect.x - rect.width;
+    return sides;
+  }
+
+  /**
+   * 判据B（兜底）：注入的机理是系统把「窗口尺寸变化量」错塞进 safeArea，故注入侧必满足
+   * |本帧侧值−上帧侧值| == |本帧窗口−上帧窗口|（同轴，0.1dp）——基于 bug 机理而非数值分布判定，无比例假设；
+   * 真实安全区变化（键盘/状态栏显隐）不会与窗口变化量精确等值，且仅突变帧进入本函数，稳态帧天然跳过，故不误伤。
+   */
+  private correctInjectedSafeArea(newRect: KRRect): KRRect {
+    const prevWin = this.prevWindowRect;
+    const curWin = this.windowRect;
+    const prevSafe = this.lastSafeAreaRect;
+    this.lastSafeAreaRect = newRect;
+    if (prevWin == null || curWin == null || prevSafe == null) {
+      return newRect;
+    }
+    const deltaW = Math.abs(curWin.width - prevWin.width);
+    const deltaH = Math.abs(curWin.height - prevWin.height);
+    const oldSides = this.sideInsetsOf(prevSafe, prevWin.width, prevWin.height);
+    const newSides = this.sideInsetsOf(newRect, curWin.width, curWin.height);
+    // top/left/bottom/right 分别锚定窗口高/宽轴
+    const windowDeltas = [deltaH, deltaW, deltaH, deltaW];
+    let corrected = false;
+    for (let i = 0; i < 4; i++) {
+      if (windowDeltas[i] < KRSafeAreaMatchToleranceDp) {
+        continue; // 该轴窗口没变化，不存在注入，也不该动真实值
+      }
+      const sideDelta = Math.abs(newSides[i] - oldSides[i]);
+      if (Math.abs(sideDelta - windowDeltas[i]) < KRSafeAreaDeltaEps) {
+        newSides[i] = oldSides[i];
+        corrected = true;
+      }
+    }
+    if (!corrected) {
+      return newRect;
+    }
+    return new KRRect(newSides[1], newSides[0],
+      curWin.width - newSides[1] - newSides[3],
+      curWin.height - newSides[0] - newSides[2]);
+  }
+
+  /** 判据A：viewRect 与 windowRect 朝向一致性（短边对短边、长边对长边），异朝向相减必然产生轴差量级假值 */
+  private sameOrientation(a: KRRect, b: KRRect): boolean {
+    const aShort = Math.min(a.width, a.height);
+    const aLong = Math.max(a.width, a.height);
+    const bShort = Math.min(b.width, b.height);
+    const bLong = Math.max(b.width, b.height);
+    return Math.abs(aShort - bShort) < KRSafeAreaMatchToleranceDp &&
+      Math.abs(aLong - bLong) < KRSafeAreaMatchToleranceDp;
   }
 
   private doUpdateSafeArea() {
@@ -296,7 +336,6 @@ export class KRNativeRenderController {
       this.windowClass = window.findWindow(uiContext.getWindowName());
     } catch (e) {
       KRRenderLog.e(`window`, `findWindow, stack: ${e}`);
-      return;
     }
     this.densityPixels = this.getWindowActiveDensity();
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
@@ -326,18 +365,13 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      try {
-        const winRect = this.windowClass!.getWindowProperties().windowRect;
-        this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
-        this.windowId = this.windowClass!.getWindowProperties().id + "";
-        KRNativeManager.getInstance().onLastWindow(this.windowClass!);
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
-        this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
-        this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
-      }
-      catch (e) {
-        KRRenderLog.e('Window', `Error obtaining window, stack:${e}`);
-      }
+      const winRect = this.windowClass!.getWindowProperties().windowRect;
+      this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
+      this.windowId = this.windowClass!.getWindowProperties().id + "";
+      KRNativeManager.getInstance().onLastWindow(this.windowClass!);
+      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+      this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
+      this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
     }
   }
 
@@ -399,15 +433,6 @@ export class KRNativeRenderController {
       data['fontSizeScale'] = 1
     }
     data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
-    try {
-      if (config.fontId) {
-        data['fontId'] = config.fontId;
-      }
-    } catch (e) {
-      const err = e as BusinessError;
-      KRRenderLog.e('Configuration',
-        `read config.fontId failed (requires API 14+), code=${err?.code}, message=${err?.message}`);
-    }
 
     const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
     if (instance){
@@ -422,11 +447,8 @@ export class KRNativeRenderController {
   }
 
   /**
-   * 更新 safeAreaRect。
-   * @param notify 是否立即触发 notifySizeChange，默认 true。
-   *   windowSizeChange 场景必须传 false：此刻 ArkUI 尚未重新布局，viewRect 仍是旧朝向，
-   *   立即下发会用「旧 viewRect − 新 safeAreaRect」算出错配 insets。
-   *   正确做法是只更新数据，等 viewRect 更新到同一朝向后再统一下发。
+   * 更新 safeAreaRect；notify=false 仅存不下发（windowSizeChange 专用）：
+   * 此刻 ArkUI 尚未布局、viewRect 仍是旧朝向，立即下发必产生错配 insets。
    */
   onSafeAreaInsetsChanged(rect: KRRect, notify: boolean = true) {
     this.safeAreaRect = rect;
@@ -443,129 +465,19 @@ export class KRNativeRenderController {
     if (this.safeAreaRect == null || this.viewRect == null) {
       return '0 0 0 0';
     }
+    // 判据A（核心）：viewRect 与 windowRect 异朝向时换算必携带轴差假值（结构决定），
+    // 此时返回最近一次同朝向的可信 insets，等 viewRect 同朝向后自然恢复换算
+    const win = this.windowRect;
+    const oriented = win != null && this.sameOrientation(this.viewRect, win);
+    if (win != null && !oriented) {
+      return this.lastTrustedInsets ?? '0 0 0 0';
+    }
     const left = Math.max(0, this.safeAreaRect.x - this.viewRect.x);
     const right = Math.max(0, this.viewRect.width - this.safeAreaRect.width - left);
     const top = Math.max(0, this.safeAreaRect.y - this.viewRect.y);
     const bottom = Math.max(0, this.viewRect.height - this.safeAreaRect.height - top);
-    const resolved = this.resolveSafeAreaInsets(top, left, bottom, right);
-    return `${resolved.top} ${resolved.left} ${resolved.bottom} ${resolved.right}`;
-  }
-
-  /**
-   * 鸿蒙 safeArea 注入纠偏（自业务 OhosRotationSafeArea.kt 下沉，业务侧可择机移除自有实现）。
-   *
-   * 鸿蒙在窗口尺寸突变（旋转 / 分屏 / 折叠）的一瞬间，会把「窗口尺寸变化量」错误地注入
-   * safeAreaInsets，两种注入形态分开处理：
-   * - 旋转：页面尺寸仍铺满屏幕（仅轴序颠倒），注入值恰好是页面两轴差值，按差值扣减可还原真实安全区
-   *   （实测竖转横 bottom=534.9 = 轴差502.0 + 真实导航条32.9，扣减后完全还原）。
-   * - 分屏 / 多窗口：页面只是屏幕的一部分，注入值等于窗口尺寸变化量，无法从当前帧推算，
-   *   只能按「真实安全区不可能超过该轴 25%」判据丢弃被注入的一侧，保留另一侧真实的挖孔/圆角安全区。
-   *
-   * bottom 异常帧被丢弃后会落到 0，用最近一次可靠值兜底，等待系统下发正确安全区，
-   * 避免底部导航条区域闪一帧。
-   */
-  private resolveSafeAreaInsets(top: number, left: number, bottom: number, right: number): KRSafeAreaResolution {
-    const result = new KRSafeAreaResolution();
-    result.top = top;
-    result.left = left;
-    result.bottom = bottom;
-    result.right = right;
-    const vr = this.viewRect;
-    if (vr == null) {
-      return result;
-    }
-    const pageWidth = vr.width;
-    const pageHeight = vr.height;
-    // 屏幕物理尺寸（dp）：分屏 / 多窗口下窗口尺寸 ≠ 屏幕尺寸，必须用真实屏幕尺寸判定页面是否铺满
-    let screenShort = 0.0;
-    let screenLong = 0.0;
-    try {
-      const d = display.getDefaultDisplaySync();
-      const density = d.densityPixels;
-      const sw = d.width / density;
-      const sh = d.height / density;
-      screenShort = Math.min(sw, sh);
-      screenLong = Math.max(sw, sh);
-    } catch (e) {
-      return result;
-    }
-    const pageShort = Math.min(pageWidth, pageHeight);
-    const pageLong = Math.max(pageWidth, pageHeight);
-    // 页面铺满屏幕（任意朝向）⟺ 短边、长边分别与屏幕一致
-    const pageMatchesScreen = Math.abs(pageShort - screenShort) < KRSafeAreaMatchToleranceDp &&
-      Math.abs(pageLong - screenLong) < KRSafeAreaMatchToleranceDp;
-    const axisDelta = Math.abs(pageWidth - pageHeight);
-    const hasAxisDelta = axisDelta >= KRSafeAreaMatchToleranceDp;
-    const horizontalAbnormal = left + right > pageWidth * KRSafeAreaMaxReasonableFraction;
-    const bottomAbnormal = bottom > pageHeight * KRSafeAreaMaxReasonableFraction;
-
-    const correctRotationHorizontal = pageMatchesScreen && hasAxisDelta && horizontalAbnormal;
-    const correctRotationBottom = pageMatchesScreen && hasAxisDelta && bottomAbnormal;
-    const dropWindowHorizontal = !pageMatchesScreen && horizontalAbnormal;
-    const dropWindowBottom = !pageMatchesScreen && bottomAbnormal;
-    result.correctedHorizontal = correctRotationHorizontal || dropWindowHorizontal;
-    result.correctedBottom = correctRotationBottom || dropWindowBottom;
-
-    // 横向纠偏
-    if (correctRotationHorizontal) {
-      // 旋转形态：从较大一侧（注入侧）开始扣减轴差，剩余部分再从另一侧扣（clamp 0）
-      if (left >= right) {
-        const primaryReduction = Math.min(left, axisDelta);
-        const remainingDelta = axisDelta - primaryReduction;
-        result.left = left - primaryReduction;
-        result.right = Math.max(0, right - remainingDelta);
-      } else {
-        const primaryReduction = Math.min(right, axisDelta);
-        const remainingDelta = axisDelta - primaryReduction;
-        result.right = right - primaryReduction;
-        result.left = Math.max(0, left - remainingDelta);
-      }
-    } else if (dropWindowHorizontal) {
-      // 分屏形态：注入只落在单侧（较大一侧），丢弃它并保留另一侧；保留侧若也超阈值则一并丢弃
-      const maxReasonable = pageWidth * KRSafeAreaMaxReasonableFraction;
-      if (left >= right) {
-        result.left = 0;
-        result.right = right > maxReasonable ? 0 : right;
-      } else {
-        result.right = 0;
-        result.left = left > maxReasonable ? 0 : left;
-      }
-    }
-    // 底部纠偏
-    if (correctRotationBottom) {
-      result.bottom = Math.max(0, bottom - axisDelta);
-    } else if (dropWindowBottom) {
-      result.bottom = 0;
-    }
-
-    // 屏幕物理尺寸变化（折叠 / 外接屏）时重置 bottom 缓存
-    if (this.safeAreaResolverScreenShort > 0 &&
-      (Math.abs(this.safeAreaResolverScreenShort - screenShort) >= KRSafeAreaMatchToleranceDp ||
-        Math.abs(this.safeAreaResolverScreenLong - screenLong) >= KRSafeAreaMatchToleranceDp)) {
-      this.safeAreaLastReliableBottom = null;
-    }
-    this.safeAreaResolverScreenShort = screenShort;
-    this.safeAreaResolverScreenLong = screenLong;
-
-    // 攒可靠 bottom：合理范围内的正值（<= 该轴 25%）即可信，横竖屏共用一份缓存。
-    // 注入值必然超出 25% 阈值，不会进入该分支，无需按形态区分。
-    if (result.bottom > 0 && result.bottom <= pageHeight * KRSafeAreaMaxReasonableFraction) {
-      this.safeAreaLastReliableBottom = result.bottom;
-    }
-    // 异常帧 bottom 落 0 时用缓存兜底
-    const cachedBottom = this.safeAreaLastReliableBottom;
-    if ((result.correctedHorizontal || result.correctedBottom) &&
-      result.bottom < KRSafeAreaMatchToleranceDp && cachedBottom != null) {
-      result.bottom = cachedBottom;
-    }
-    // L1纠偏原理日志：仅在注入发生时输出（正确帧零噪音）。
-    // 旋转形态=轴差扣减还原真实值；分屏形态=25%阈值丢弃注入侧；bottom=0 时用最近可靠值兜底
-    if (result.correctedHorizontal || result.correctedBottom) {
-      KRRenderLog.i('Rotation',
-        `safeArea injected-value corrected: (${top.toFixed(1)},${left.toFixed(1)},${bottom.toFixed(1)},${right.toFixed(1)}) -> ` +
-        `(${result.top.toFixed(1)},${result.left.toFixed(1)},${result.bottom.toFixed(1)},${result.right.toFixed(1)}) ` +
-        `[axisDelta=${axisDelta.toFixed(1)}, mode=${pageMatchesScreen ? 'rotation' : 'window'}]`);
-    }
+    const result = `${top} ${left} ${bottom} ${right}`;
+    this.lastTrustedInsets = result;
     return result;
   }
 
@@ -580,18 +492,12 @@ export class KRNativeRenderController {
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
-    // 修复旋转后 deviceWidth/deviceHeight 冻结：
-    // 下发当前窗口尺寸，Kotlin 侧 PagerData.updateRootViewSize 收到 key 后会同步更新，
-    // Compose Configuration.screenWidthDp/screenHeightDp 随之跟随旋转互换（BUG-1）
+    // 随事件下发最新窗口尺寸，Kotlin 侧 PagerData 收到后同步更新，
+    // Compose screenWidthDp/screenHeightDp 随之跟随旋转互换，否则冻结在初始朝向
     if (this.windowRect != null) {
       data[KRDeviceWidthKey] = this.windowRect.width;
       data[KRDeviceHeightKey] = this.windowRect.height;
     }
-    // 下发锚点：一行记录 Kotlin 实际收到的全部数据（size + 纠偏后 insets + 同步策略）
-    KRRenderLog.i('Rotation',
-      `notifySizeChange: ${this.viewRect.width.toFixed(1)}x${this.viewRect.height.toFixed(1)} ` +
-      `insets[${data[KRSafeAreaInsets]}] device=${data[KRDeviceWidthKey]}x${data[KRDeviceHeightKey]} ` +
-      `sync=${this.syncSendEvent(KRRootViewSizeDidChangedEventKey)}`);
     this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
 
     this.runKRRenderTask(() => {
@@ -643,12 +549,10 @@ export class KRNativeRenderController {
     }
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
     if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
-      // 提前更新 viewRect 尺寸（globalPosition 会在后续 onAreaChange 中更新）
+      // onSizeChange 是布局前回调：提前更新 viewRect 使后续下发必然使用「新 viewRect − 新 safeAreaRect」，
+      // 关闭与 safeArea 刷新之间的错配窗口
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
-      // 修复错配窗口期原理：onSizeChange 是布局前回调，早于 avoidAreaChange 的 setTimeout(0) 到期；
-      // 此处更新 viewRect 后，该次到期的下发必然用「新 viewRect − 新 safeAreaRect」，不再错配
-      KRRenderLog.i('Rotation', `viewRect pre-updated to ${newWidth.toFixed(1)}x${newHeight.toFixed(1)} (layout-before callback)`);
       this.runKRRenderTask(() => {
         render.onRenderViewSizeChanged(this.instanceId, newWidth, newHeight);
       });
@@ -983,7 +887,6 @@ export class KRNativeRenderController {
     handle(data.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR));
     const result = new KRRect(px2vp(insets.left), px2vp(insets.top), px2vp(insets.right - insets.left),
       px2vp(insets.bottom - insets.top));
-    console.log(`getSafeAreaRect safeAreaInsets: ${result.x}, ${result.y}, ${result.width}, ${result.height}`);
     return result;
   }
 

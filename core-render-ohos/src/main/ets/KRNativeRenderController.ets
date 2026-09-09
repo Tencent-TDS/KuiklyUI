@@ -336,6 +336,7 @@ export class KRNativeRenderController {
       this.windowClass = window.findWindow(uiContext.getWindowName());
     } catch (e) {
       KRRenderLog.e(`window`, `findWindow, stack: ${e}`);
+      return;
     }
     this.densityPixels = this.getWindowActiveDensity();
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
@@ -365,13 +366,17 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      const winRect = this.windowClass!.getWindowProperties().windowRect;
-      this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
-      this.windowId = this.windowClass!.getWindowProperties().id + "";
-      KRNativeManager.getInstance().onLastWindow(this.windowClass!);
-      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
-      this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
-      this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+      try {
+        const winRect = this.windowClass!.getWindowProperties().windowRect;
+        this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
+        this.windowId = this.windowClass!.getWindowProperties().id + "";
+        KRNativeManager.getInstance().onLastWindow(this.windowClass!);
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+        this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
+        this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+      } catch (e) {
+        KRRenderLog.e('Window', `Error obtaining window, stack:${e}`);
+      }
     }
   }
 
@@ -433,6 +438,15 @@ export class KRNativeRenderController {
       data['fontSizeScale'] = 1
     }
     data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
+    try {
+      if (config.fontId) {
+        data['fontId'] = config.fontId;
+      }
+    } catch (e) {
+      const err = e as BusinessError;
+      KRRenderLog.e('Configuration',
+        `read config.fontId failed (requires API 14+), code=${err?.code}, message=${err?.message}`);
+    }
 
     const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
     if (instance){

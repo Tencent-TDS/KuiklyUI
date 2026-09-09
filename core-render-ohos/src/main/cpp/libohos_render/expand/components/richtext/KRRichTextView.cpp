@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <codecvt>
+#include <cmath>
 #include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
@@ -105,6 +106,7 @@ void KRRichTextView::DidInit() {
 
 void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &shadow) {
     shadow_ = shadow;
+    last_draw_frame_width_ = -1.0;
 
     auto textShadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow);
     // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
@@ -196,27 +198,32 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         return;
     }
     double drawOffsetY = richTextShadow->DrawOffsetY();
-    OH_Drawing_TextAlign textAlign = richTextShadow->TextAlign();
-    auto textTypoSize = richTextShadow->MainMeasureSize();
     // 在容器前景上绘制额外图形，实现图形显示在子组件之上。
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
+    // 用排版约束宽（TypographyLayout 的 maxWidth）和最终 frame 比较，对齐 Android
+    // StaticLayout.width vs layoutParams.width。不要用 GetLongestLine()，也不要因为
+    // textAlign != LEFT 就重排：右对齐已在第一次 BuildTextTypography 里设置。
+    constexpr float kLayoutWidthEpsilonVp = 1.0f;
     bool needReLayout = false;
-    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
+    auto layoutWidth = richTextShadow->MainThreadLayoutWidth();
+    if (layoutWidth > 0 && fabs(layoutWidth - frameWidth) > kLayoutWidthEpsilonVp) {
         needReLayout = true;
     }
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
+    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > kLayoutWidthEpsilonVp) {
         needReLayout = true;
     }
     if (needReLayout) {
-        auto dpi = KRConfig::GetDpi();
-        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        last_draw_frame_width_ = frameWidth;
-        if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();
+        KRTypographyHandle rebuilt =
+            richTextShadow->RelayoutExactly(frameWidth, GetFrame().height);
+        if (rebuilt) {
+            textTypoHandle = rebuilt;
+            textTypo = rebuilt.get();
+            drawOffsetY = richTextShadow->DrawOffsetY();
         }
     }
+    last_draw_frame_width_ = frameWidth;
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

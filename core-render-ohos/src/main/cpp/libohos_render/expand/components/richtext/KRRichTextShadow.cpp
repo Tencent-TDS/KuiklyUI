@@ -199,13 +199,15 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto offsetX = context_thread_drawOffsetX_;
     auto measure_size = context_measure_size_;
     auto text_align = context_thread_text_align_;
-    return [self, typography, offsetY, offsetX, measure_size, text_align] {
+    auto layout_width = context_thread_layout_width_;
+    return [self, typography, offsetY, offsetX, measure_size, text_align, layout_width] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
         shadow->main_thread_drawOffsetX_ = offsetX;
         shadow->main_thread_text_align_ = text_align;
         shadow->main_measure_size_ = measure_size;
+        shadow->main_thread_layout_width_ = layout_width;
     };
 }
 
@@ -665,6 +667,8 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
+    // 记录本次排版约束宽。回报 Yoga 的仍是最长行；绘制重排判定必须用这个约束宽。
+    context_thread_layout_width_ = static_cast<float>(constraint_width);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(typography_raw);
@@ -706,6 +710,25 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
+    context_thread_layout_width_ = -1.0f;
+}
+
+KRTypographyHandle KRRichTextShadow::RelayoutExactly(float width_vp, float height_vp) {
+    if (width_vp <= 0.f) {
+        return KRTypographyHandle();
+    }
+    // 拆掉已 format 的对象再按最终框宽重建，对齐 Android new StaticLayout(EXACTLY)。
+    ReleaseLastTypography();
+    if (BuildTextTypography(static_cast<double>(width_vp), static_cast<double>(height_vp)) == nullptr) {
+        return KRTypographyHandle();
+    }
+    SetMainThreadTypography(context_thread_typography_);
+    main_thread_drawOffsetY_ = context_thread_drawOffsetY_;
+    main_thread_drawOffsetX_ = context_thread_drawOffsetX_;
+    main_thread_text_align_ = context_thread_text_align_;
+    main_measure_size_ = context_measure_size_;
+    main_thread_layout_width_ = width_vp;
+    return main_thread_typography_;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====

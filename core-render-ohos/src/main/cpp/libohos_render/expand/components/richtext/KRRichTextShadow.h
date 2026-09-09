@@ -199,12 +199,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         return main_thread_layout_width_;
     }
 
-    /**
-     * 按最终节点宽度重建 Typography（对齐 Android measureLayoutExactly）。
-     * HarmonyOS 6 对已 Layout 对象再次 TypographyLayout 不是幂等的，不能原地重排。
-     */
-    KRTypographyHandle RelayoutExactly(float width_vp, float height_vp);
-    
+    /** 仅主线程：绘制期原地 Layout 后同步已使用的约束宽，避免每帧重复 Layout。 */
+    void SetMainThreadLayoutWidth(float width_vp) {
+        main_thread_layout_width_ = width_vp;
+    }
+
     bool DidExceedMaxLines(){
         return did_exceed_max_lines_;
     }

@@ -215,13 +215,12 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         needReLayout = true;
     }
     if (needReLayout) {
-        KRTypographyHandle rebuilt =
-            richTextShadow->RelayoutExactly(frameWidth, GetFrame().height);
-        if (rebuilt) {
-            textTypoHandle = rebuilt;
-            textTypo = rebuilt.get();
-            drawOffsetY = richTextShadow->DrawOffsetY();
-        }
+        // 框宽相对测量约束确实变了：只对主线程已持有的 typography 原地 Layout。
+        // 不要在绘制回调里 BuildTextTypography（会写 context_thread_*，且会跑
+        // PostProcessor / 字体注册）。完整重建应留在 context 线程。
+        auto dpi = KRConfig::GetDpi();
+        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
+        richTextShadow->SetMainThreadLayoutWidth(frameWidth);
     }
     last_draw_frame_width_ = frameWidth;
 

@@ -713,24 +713,6 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_layout_width_ = -1.0f;
 }
 
-KRTypographyHandle KRRichTextShadow::RelayoutExactly(float width_vp, float height_vp) {
-    if (width_vp <= 0.f) {
-        return KRTypographyHandle();
-    }
-    // 拆掉已 format 的对象再按最终框宽重建，对齐 Android new StaticLayout(EXACTLY)。
-    ReleaseLastTypography();
-    if (BuildTextTypography(static_cast<double>(width_vp), static_cast<double>(height_vp)) == nullptr) {
-        return KRTypographyHandle();
-    }
-    SetMainThreadTypography(context_thread_typography_);
-    main_thread_drawOffsetY_ = context_thread_drawOffsetY_;
-    main_thread_drawOffsetX_ = context_thread_drawOffsetX_;
-    main_thread_text_align_ = context_thread_text_align_;
-    main_measure_size_ = context_measure_size_;
-    main_thread_layout_width_ = width_vp;
-    return main_thread_typography_;
-}
-
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====
 // 在 BuildTextTypography 末尾被调用：遍历 image_draw_records_，对每个 uri 调用
 // KRCustomEmojiPixmapCache::Prefetch。缓存 / 去重 / 后台解码 / 主线程回调都由

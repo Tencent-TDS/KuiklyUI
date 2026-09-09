@@ -16,7 +16,6 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <codecvt>
-#include <cmath>
 #include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>

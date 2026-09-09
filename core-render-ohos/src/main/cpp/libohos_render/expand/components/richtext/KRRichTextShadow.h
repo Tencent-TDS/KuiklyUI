@@ -189,7 +189,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRSize MainMeasureSize() {
         return main_measure_size_;
     }
-
+    
     bool DidExceedMaxLines(){
         return did_exceed_max_lines_;
     }

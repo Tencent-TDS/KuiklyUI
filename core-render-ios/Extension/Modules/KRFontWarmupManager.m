@@ -41,8 +41,24 @@ static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
         _warmedKeys = [NSMutableSet set];
         _residentFonts = [NSMutableSet set];
         _lockQueue = dispatch_queue_create("com.tencent.kuikly.fontwarmup.lock", DISPATCH_QUEUE_SERIAL);
+        // 收到内存告警时清空预热缓存，释放对 UIFont 的强引用，避免 residentFonts 只增不减。
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(p_onMemoryWarning)
+                                                     name:UIApplicationDidReceiveMemoryWarningNotification
+                                                   object:nil];
     }
     return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)p_onMemoryWarning {
+    // invalidateAllFonts 限定主线程访问，这里统一派发到主线程执行。
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self invalidateAllFonts];
+    });
 }
 
 + (NSString *)keyForFont:(UIFont *)font {
@@ -98,7 +114,25 @@ static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
     if (!fonts.count) {
         return;
     }
-    NSArray<UIFont *> *copy = [fonts copy];
+    // UIFont: 是 Context 线程的高频测量路径，这里先用线程安全的 p_isWarmed: 过滤掉已预热字体，
+    // 避免即便字体早已预热仍每次都向主队列投递 async block。
+    NSMutableArray<UIFont *> *pending = nil;
+    for (UIFont *font in fonts) {
+        if (![font isKindOfClass:[UIFont class]]) {
+            continue;
+        }
+        if ([self p_isWarmed:font]) {
+            continue;
+        }
+        if (!pending) {
+            pending = [NSMutableArray array];
+        }
+        [pending addObject:font];
+    }
+    if (!pending.count) {
+        return;
+    }
+    NSArray<UIFont *> *copy = [pending copy];
     dispatch_async(dispatch_get_main_queue(), ^{
         [self warmupFonts:copy];
     });

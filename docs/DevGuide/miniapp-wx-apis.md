@@ -79,7 +79,7 @@ Kuikly 提供**三种**使用微信小程序 API 的姿势，按业务需求选�
 
 ### 3.2 前置：引入 `core-wx` 依赖并在使用页面注册 Module
 
-从 `1.9.22` / `2.0.21` / `2.1.21` 版本起，所有 WX Module 封装放在独立模块 **`core-wx`** 里。`core-wx` 的 target 矩阵与 `:core` 对齐（android / iOS / macOS / js(IR) 全平台产物），所以业务可以在 **`commonMain`** 里条件使用——无论 `WXButton {}` 组件 还是 `registerWXModules()` 都可以直接从 commonMain import 进来；在非小程序平台运行时，WX 组件会自动降级为普通 view，`registerWXModules()` 则是 no-op，不会 crash。
+从 `1.9.22` / `2.0.21` / `2.1.21` / `2.3.10` 版本起，所有 WX Module 封装放在独立模块 **`core-wx`** 里。`core-wx` 的 target 矩阵与 `:core` 对齐（android / iOS / macOS / js(IR) 全平台产物），所以业务可以在 **`commonMain`** 里条件使用——无论 `WXButton {}` 组件 还是 `registerWXModules()` 都可以直接从 commonMain import 进来；在非小程序平台运行时，WX 组件会自动降级为普通 view，`registerWXModules()` 则是 no-op，不会 crash。
 
 > 🎯 **不需要 WX 能力的业务无需任何改动**——`:core` 本身完全不依赖 `:core-wx`，只有业务主动 `implementation(project(":core-wx"))` / `implementation("com.tencent.kuikly-open:core-wx:...")` 才会把这些类拉进来，因此对不用 WX 的项目来说产物零膨胀。
 
@@ -102,7 +102,7 @@ kotlin {
 
 如果业务**只在 jsMain 里**用到 WX（例如页面只针对小程序平台专门编写），也完全可以只挂到 `jsMain`，进一步降低产物体积。
 
-> ℹ️ 只有 `1.9.22` / `2.0.21` / `2.1.21` 这三个 Kotlin 版本会发布 `core-wx`。老版本（1.3.10 ~ 1.8.21）不发布 `core-wx`，业务若需要在老 Kotlin 版本下使用 WX 封装，请将 Kotlin 升级到 1.9.22 及以上。
+> ℹ️ 只有 `1.9.22` / `2.0.21` / `2.1.21` / `2.3.10` 这四个 Kotlin 版本会发布 `core-wx`。老版本（1.3.10 ~ 1.8.21）不发布 `core-wx`，业务若需要在老 Kotlin 版本下使用 WX 封装，请将 Kotlin 升级到 1.9.22 及以上。
 
 **步骤 2：在需要用到 WX Module 的页面里一行代码注册**
 

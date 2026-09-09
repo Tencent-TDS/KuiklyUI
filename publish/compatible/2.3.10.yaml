@@ -12,3 +12,15 @@ files:
     replacements:
       - from: android.disableAutomaticComponentCreation=true
         to: #android.disableAutomaticComponentCreation=true
+
+  # podspec 版本号带 Kotlin 版本后缀，发布 2.3.10 制品时需同步切换
+  # （2.1.21 适配时同样处理，见 commit 4fe0082a）
+  - path: core/core.podspec
+    replacements:
+      - from: 2.0.0-2.1.21-SNAPSHOT
+        to: 2.0.0-2.3.10-SNAPSHOT
+
+  - path: core-annotations/core_annotations.podspec
+    replacements:
+      - from: 2.0.0-2.1.21-SNAPSHOT
+        to: 2.0.0-2.3.10-SNAPSHOT

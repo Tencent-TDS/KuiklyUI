@@ -199,11 +199,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         return main_thread_layout_width_;
     }
 
-    /** 仅主线程：绘制期原地 Layout 后同步已使用的约束宽，避免每帧重复 Layout。 */
-    void SetMainThreadLayoutWidth(float width_vp) {
-        main_thread_layout_width_ = width_vp;
-    }
-
     bool DidExceedMaxLines(){
         return did_exceed_max_lines_;
     }

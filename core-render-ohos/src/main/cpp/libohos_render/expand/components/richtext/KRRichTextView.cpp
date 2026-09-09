@@ -16,7 +16,6 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <codecvt>
-#include <cmath>
 #include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
@@ -106,7 +105,6 @@ void KRRichTextView::DidInit() {
 
 void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &shadow) {
     shadow_ = shadow;
-    last_draw_frame_width_ = -1.0;
 
     auto textShadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow);
     // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
@@ -160,7 +158,6 @@ void KRRichTextView::DidRemoveFromParentView() {
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
     paragraph_ = nullptr;
-    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -202,27 +199,11 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    // 用排版约束宽（TypographyLayout 的 maxWidth）和最终 frame 比较，对齐 Android
-    // StaticLayout.width vs layoutParams.width。不要用 GetLongestLine()，也不要因为
-    // textAlign != LEFT 就重排：右对齐已在第一次 BuildTextTypography 里设置。
-    constexpr float kLayoutWidthEpsilonVp = 1.0f;
-    bool needReLayout = false;
-    auto layoutWidth = richTextShadow->MainThreadLayoutWidth();
-    if (layoutWidth > 0 && fabs(layoutWidth - frameWidth) > kLayoutWidthEpsilonVp) {
-        needReLayout = true;
-    }
-    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > kLayoutWidthEpsilonVp) {
-        needReLayout = true;
-    }
-    if (needReLayout) {
-        // 框宽相对测量约束确实变了：只对主线程已持有的 typography 原地 Layout。
-        // 不要在绘制回调里 BuildTextTypography（会写 context_thread_*，且会跑
-        // PostProcessor / 字体注册）。完整重建应留在 context 线程。
-        auto dpi = KRConfig::GetDpi();
-        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        richTextShadow->SetMainThreadLayoutWidth(frameWidth);
-    }
-    last_draw_frame_width_ = frameWidth;
+    // 不要在绘制期对已 Layout 的 Typography 再 TypographyLayout：HarmonyOS 6 上
+    // 同一对象二次 Layout 不是幂等的（flex+textAlignRight 多行中文漏字）。
+    // 测量已按约束宽 Layout，并带上 textAlign；旋转/分屏等真实改宽由 Yoga
+    // 重新测量 + SetShadow 交付新对象。框宽真变且尚未重测时的重建，应在
+    // context 线程做，不能在这里原地 Layout。
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

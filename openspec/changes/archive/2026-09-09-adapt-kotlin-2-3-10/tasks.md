@@ -1,7 +1,18 @@
 # Tasks — adapt-kotlin-2-3-10
 
+> ⚠️ **本文档来源于内网仓库 `KuiklyUI-Mirror`，同步到本外网仓库仅作留档。读的时候请注意两网边界：**
+>
+> - **§1 ～ §10、§11.1～11.8 描述的是内网分支的状态**，其中以下内容**外网分支不存在、也未同步**：
+>   `core-gradle-plugin` 模块（含 `getKspArguments.kt` 适配）、`apkbuilder`、`ui-tooling`、`demo_sub` 模块、
+>   内网 CI 模板（`job_publish_2.3.10.yaml` / `step_set_build_env_2.3.10.yaml`）、
+>   内网基线 commit `edf9a9c8d` 与 `main_internal` 分支、编译器插件版本化（`kotlin_compiler_2_3` 源码集）。
+> - **§11.9 起为外网分支 `feature/kotlin-2.3.10` 的实际改动与实测数据**，这才是本仓库真实发生的事。
+>
+> 外网模块集合是内网的子集，本轮外网只做了与"默认构建"直接相关的改动。
+
 > 落地 commit：`edf9a9c8d`（分支 `feature/valo_kotlin_2.3_support_latest`，基线 `origin/main_internal@9bc6cf5d0`）
 > 44 files changed, 3772 insertions(+), 13 deletions(-)　删除：0
+> ↑ 该 commit 属于内网仓库，外网仓库中不存在。
 
 ## 0. 进度总览
 

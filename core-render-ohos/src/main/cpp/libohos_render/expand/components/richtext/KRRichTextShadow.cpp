@@ -199,15 +199,13 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto offsetX = context_thread_drawOffsetX_;
     auto measure_size = context_measure_size_;
     auto text_align = context_thread_text_align_;
-    auto layout_width = context_thread_layout_width_;
-    return [self, typography, offsetY, offsetX, measure_size, text_align, layout_width] {
+    return [self, typography, offsetY, offsetX, measure_size, text_align] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
         shadow->main_thread_drawOffsetX_ = offsetX;
         shadow->main_thread_text_align_ = text_align;
         shadow->main_measure_size_ = measure_size;
-        shadow->main_thread_layout_width_ = layout_width;
     };
 }
 
@@ -667,8 +665,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
-    // 记录本次排版约束宽。回报 Yoga 的仍是最长行；绘制重排判定必须用这个约束宽。
-    context_thread_layout_width_ = static_cast<float>(constraint_width);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(typography_raw);
@@ -710,7 +706,6 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
-    context_thread_layout_width_ = -1.0f;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====

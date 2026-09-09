@@ -190,15 +190,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         return main_measure_size_;
     }
 
-    /**
-     * 主线程 typography 最近一次 Layout 使用的宽度（vp）。
-     * 这是排版约束宽，不是 GetLongestLine() 回报给 Yoga 的内容宽。
-     * 绘制是否重排必须用它和 frame.width 比较（对齐 Android StaticLayout.width）。
-     */
-    float MainThreadLayoutWidth() const {
-        return main_thread_layout_width_;
-    }
-
     bool DidExceedMaxLines(){
         return did_exceed_max_lines_;
     }
@@ -303,9 +294,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 
     KRSize context_measure_size_;
     KRSize main_measure_size_;
-    // TypographyLayout 使用的约束宽（vp），与 context_measure_size_.width（最长行）分离。
-    float context_thread_layout_width_ = -1.0f;
-    float main_thread_layout_width_ = -1.0f;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
     std::shared_ptr<KRParagraph> paragraph_;

@@ -120,3 +120,10 @@ fun Modifier.textPostProcessor(processor: String): Modifier = setProp("textPostP
  */
 fun Modifier.autoFocusOnTextInputState(enabled: Boolean): Modifier =
     setProp("autoFocusOnTextInputState", if (enabled) 1 else 0)
+
+/**
+ * 控制滚动条指示器是否显示，仅对可滚动容器（LazyColumn / LazyRow / Scroller 等）生效。
+ * 不设置时默认隐藏（与框架默认行为一致）。
+ */
+fun Modifier.showScrollerIndicator(value: Boolean): Modifier =
+    setProp("showScrollerIndicator", if (value) 1 else 0)

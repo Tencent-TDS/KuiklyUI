@@ -1,5 +1,5 @@
 #!/bin/bash
-# Kotlin 2.3.10 验证脚本（外网 KuiklyUI）
+# Kotlin 2.3.10 验证
 #
 # 说明：本分支默认 Kotlin 版本已升级为 2.3.10，Gradle wrapper 固定 8.9、AGP 8.6.0，
 #      因此不再需要 -c settings.2.3.10.*.gradle.kts、FileReplacer 替换或环境变量注入，

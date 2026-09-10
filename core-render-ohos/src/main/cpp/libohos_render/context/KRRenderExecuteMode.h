@@ -16,25 +16,12 @@
 #ifndef CORE_RENDER_OHOS_KRRENDEREXECUTEMODE_H
 #define CORE_RENDER_OHOS_KRRENDEREXECUTEMODE_H
 
-#include <functional>
-class KRRenderExecuteMode;
-using KRRenderExecuteModeCreator = std::function<std::shared_ptr<KRRenderExecuteMode>()>;
-
 class KRRenderExecuteMode {
  public:
     explicit KRRenderExecuteMode(int mode);
     virtual bool IsContextSyncInit() = 0;  // ContextHandler是否同步初始化
     virtual int ModeToCoreValue() = 0;     //  render mode映射到Core的对应值
     int GetMode();
-
-    //  注册自定义ExecuteMode创建器
-    static void RegisterExecuteModeCreator(const int &mode, const KRRenderExecuteModeCreator &creator) {
-        GetExecuteModeCreatorRegister()[mode] = creator;
-    }
-    static std::unordered_map<int, KRRenderExecuteModeCreator> &GetExecuteModeCreatorRegister() {
-        static std::unordered_map<int, KRRenderExecuteModeCreator> gRegisterExecuteModeCreator;
-        return gRegisterExecuteModeCreator;
-    }
 
  private:
     int mode_ = 0;  //  运行模式

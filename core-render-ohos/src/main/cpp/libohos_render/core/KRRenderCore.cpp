@@ -18,6 +18,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include "libohos_render/core/KRRenderFactories.h"
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
@@ -79,8 +80,7 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     // 注册kotlin call native回调（走onCallNative接口）
     contextHandler_->RegisterCallNative(this);
     contextHandler_->Init(context_);
-    renderLayerHandler_ = std::make_shared<KRRenderLayerHandler>();
-    renderLayerHandler_->Init(renderView, context);
+    renderLayerHandler_ = kuikly::RenderLayerFactory::CreateHandler(renderView, context, uiScheduler_);
 }
 
 bool KRRenderCore::IsSyncCallback(const KRAnyValue &params) {
@@ -104,7 +104,8 @@ void KRRenderCore::DidInit() {
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
     KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
         auto page_name = KRRenderValue::Make(strongSelf->context_->PageName());
-        auto page_data = KRRenderValue::Make(strongSelf->context_->PageData()->toString());
+        auto page_data = kuikly::features::PreparePageDataForKotlin(strongSelf->context_->PageData(),
+                                                                   strongSelf->renderLayerHandler_);
         auto null_arg = strongSelf->defaultNullValue_;
         strongSelf->notifyInitState(KRInitState::kStateInitContextStart);
         strongSelf->contextHandler_->InitContext();

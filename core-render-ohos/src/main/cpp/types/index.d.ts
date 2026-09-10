@@ -30,6 +30,8 @@ export const onDestroyRenderView: (instanceId: string) => number
 export const onInitRenderView: (
   instanceId: string,
   pageName: string,
+  contextCode: string,
+  executeMode: number,
   pageDataJsonStr: string,
   renderViewWidth: number,
   renderViewHeight: number,

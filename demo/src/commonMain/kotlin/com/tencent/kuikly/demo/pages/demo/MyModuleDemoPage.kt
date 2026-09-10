@@ -84,20 +84,22 @@ internal class MyModule : Module() {
 
     /**
      * retDouble: 无参数，同步返回 Native 侧的 Double 值（3.14）。
-     * 注意：同步 JSON 通路(syncToNativeMethod JSONObject 版本)的回传值恒为 String，
-     * 因此此处返回 String("3.14")，由 Demo 页直接展示。
+     * 走 syncToNativeMethod 的 Any? 版本（原子通路）。三端 Native 回传数字的具体类型不一致
+     * （鸿蒙 ArkTS 的 number 恒等于 Double；Android 传 Int；iOS 传 NSNumber(double)），
+     * 因此先 cast 为 Number 再 toDouble() 兼容三端。
      */
-    fun retDouble(): String {
-        return syncToNativeMethod("retDouble", null, null)
+    fun retDouble(): Double {
+        return (syncToNativeMethod("retDouble", arrayOf<Any>(), null) as Number).toDouble()
     }
 
     /**
      * retInt: 无参数，同步返回 Native 侧的 Int 值（314）。
-     * 注意：同步 JSON 通路(syncToNativeMethod JSONObject 版本)的回传值恒为 String，
-     * 因此此处返回 String("314")，由 Demo 页直接展示。
+     * 走 syncToNativeMethod 的 Any? 版本（原子通路）。三端 Native 回传的整数类型不一致
+     * （鸿蒙 ArkTS 的 number 恒等于 Double，即使写 314 到 Kotlin 侧也是 Double；Android 传 Int；
+     * iOS 传 NSNumber(int)），因此先 cast 为 Number 再 toInt() 强转为整数类型。
      */
-    fun retInt(): String {
-        return syncToNativeMethod("retInt", null, null)
+    fun retInt(): Int {
+        return (syncToNativeMethod("retInt", arrayOf<Any>(), null) as Number).toInt()
     }
 
     companion object {
@@ -477,7 +479,8 @@ fontWeightBold()
                     event {
                         click {
                             val module = ctx.acquireModule<MyModule>(MyModule.MODULE_NAME)
-                            ctx.retDoubleResult = module.retDouble().toString()
+                            val d: Double = module.retDouble()
+                            ctx.retDoubleResult = "Double=$d"
                         }
                     }
                 }
@@ -532,7 +535,8 @@ fontWeightBold()
                     event {
                         click {
                             val module = ctx.acquireModule<MyModule>(MyModule.MODULE_NAME)
-                            ctx.retIntResult = module.retInt().toString()
+                            val i: Int = module.retInt()
+                            ctx.retIntResult = "Int=$i"
                         }
                     }
                 }

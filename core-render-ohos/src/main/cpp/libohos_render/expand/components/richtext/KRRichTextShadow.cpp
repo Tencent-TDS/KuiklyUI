@@ -28,6 +28,7 @@
 #include <multimedia/image_framework/image/image_source_native.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 
+#include <cmath>
 #include <codecvt>
 #include <thread>
 #include <unordered_set>
@@ -110,6 +111,11 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
         return SpanRect(NewKRRenderValue(params)->toInt());
     } else if(method_name == "isLineBreakMargin"){
         return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
+    } else if (method_name == "relayoutToWidth") {
+        if (RelayoutToWidth(NewKRRenderValue(params)->toFloat())) {
+            return NewKRRenderValue(kuikly::util::ConvertSizeToString(context_measure_size_));
+        }
+        return NewKRRenderValue("");
     }
     return KRRenderValue::Make(nullptr);
 }
@@ -121,6 +127,7 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
  * @return
  */
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
+    context_thread_constraint_height_ = static_cast<float>(constraint_height);
     if(StyledStringEnabled()){
         KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
         return sz;
@@ -130,6 +137,28 @@ KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double
     ReleaseLastTypography();
     BuildTextTypography(constraint_width, constraint_height);
     return context_measure_size_;
+}
+
+bool KRRichTextShadow::RelayoutToWidth(float width_vp) {
+    constexpr float kLayoutWidthEpsilonVp = 0.01f;
+    if (width_vp <= 0 || StyledStringEnabled() || !context_thread_typography_) {
+        return false;
+    }
+    if (context_thread_layout_width_ > 0 &&
+        std::fabs(width_vp - context_thread_layout_width_) <= kLayoutWidthEpsilonVp) {
+        return false;
+    }
+    if (context_thread_text_align_ == TEXT_ALIGN_LEFT &&
+        width_vp >= context_measure_size_.width &&
+        width_vp <= context_thread_layout_width_ + kLayoutWidthEpsilonVp) {
+        return false;
+    }
+
+    const double constraint_height = context_thread_constraint_height_;
+    auto previous_typography = context_thread_typography_;
+    // 走虚函数，确保 KRGradientRichTextShadow 仍执行其两阶段渐变尺寸计算。
+    CalculateRenderViewSize(width_vp, constraint_height);
+    return context_thread_typography_ && context_thread_typography_ != previous_typography;
 }
 
 KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height) {
@@ -199,13 +228,24 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto offsetX = context_thread_drawOffsetX_;
     auto measure_size = context_measure_size_;
     auto text_align = context_thread_text_align_;
-    return [self, typography, offsetY, offsetX, measure_size, text_align] {
+    auto text_content = text_content_;
+    auto span_offsets = span_offsets_;
+    auto image_draw_records = image_draw_records_;
+    auto did_exceed_max_lines = did_exceed_max_lines_;
+    auto styled_string_enabled = StyledStringEnabled();
+    return [self, typography, offsetY, offsetX, measure_size, text_align, text_content,
+            span_offsets, image_draw_records, did_exceed_max_lines, styled_string_enabled] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
         shadow->main_thread_drawOffsetX_ = offsetX;
         shadow->main_thread_text_align_ = text_align;
         shadow->main_measure_size_ = measure_size;
+        shadow->main_thread_text_content_ = text_content;
+        shadow->main_thread_span_offsets_ = span_offsets;
+        shadow->main_thread_image_draw_records_ = image_draw_records;
+        shadow->main_thread_did_exceed_max_lines_ = did_exceed_max_lines;
+        shadow->main_thread_styled_string_enabled_ = styled_string_enabled;
     };
 }
 
@@ -665,6 +705,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
+    context_thread_layout_width_ = static_cast<float>(constraint_width);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(typography_raw);
@@ -706,6 +747,7 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
+    context_thread_layout_width_ = -1.0f;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====
@@ -792,10 +834,11 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
     if (main_typo_raw == nullptr) {
         return resultIndex;
     }
-    for (int index = 0; index < span_offsets_.size(); ++index) {
-        int lastSpanIndex = std::get<0>(span_offsets_[index]);
-        int lastSpanBegin = std::get<1>(span_offsets_[index]);
-        int lastSpanEnd = std::get<2>(span_offsets_[index]);
+    const auto &span_offsets = main_thread_span_offsets_;
+    for (int index = 0; index < span_offsets.size(); ++index) {
+        int lastSpanIndex = std::get<0>(span_offsets[index]);
+        int lastSpanBegin = std::get<1>(span_offsets[index]);
+        int lastSpanEnd = std::get<2>(span_offsets[index]);
         OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(
             main_typo_raw, lastSpanBegin, lastSpanEnd, RECT_HEIGHT_STYLE_MAX, RECT_WIDTH_STYLE_MAX);
         int n = OH_Drawing_GetSizeOfTextBox(box);

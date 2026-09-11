@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRNapiHandleScope.h"
 
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
@@ -93,9 +94,8 @@ void KRForwardArkTSView::DidMoveToParentView() {
         if (!uiContext) {
             return;
         }
-        napi_handle_scope scope;
         napi_env g_env = KRArkTSManager::GetInstance().GetEnv();
-        napi_open_handle_scope(g_env, &scope);
+        KRNapiHandleScope handle_scope(g_env);
         ArkUI_NodeHandle node = nullptr;
         KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CreateArkUINode,
                                                       KRRenderValue::Make(GetViewTag()),

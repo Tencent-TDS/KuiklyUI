@@ -29,11 +29,9 @@ kotlin {
     }
 
     js(IR) {
-        // Kotlin 2.3 起 moduleName: String 已移除，改用 outputModuleName(Provider API)
         outputModuleName.set(Output.name)
         browser {
             webpackTask {
-                // Kotlin 2.3 起 outputFileName 更名为 mainOutputFileName
                 mainOutputFileName.set("${Output.name}.js") // 最后输出的名字
             }
 

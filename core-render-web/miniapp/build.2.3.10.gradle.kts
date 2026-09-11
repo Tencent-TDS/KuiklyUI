@@ -34,33 +34,44 @@ publishing {
     }
 }
 
-
 kotlin {
     js(IR) {
-        // Kotlin 2.3 起 moduleName: String 已移除，改用 outputModuleName(Provider API)
-        outputModuleName.set("KuiklyCore-render-web-base")
+        outputModuleName.set("KuiklyCore-render-web-miniapp")
         // Output build products that support browser execution
         browser {
             webpackTask {
-                // Kotlin 2.3 起 outputFileName 更名为 mainOutputFileName
-                mainOutputFileName.set("KuiklyCore-render-web-base.js") // Final output name
+                mainOutputFileName.set("KuiklyCore-render-web-miniapp.js") // Final output name
+                // 禁用 webpack 的代码压缩和混淆
+                mode = org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode.DEVELOPMENT
             }
 
             commonWebpackConfig {
                 output?.library = null // Don't export global objects, only export necessary entry functions
+                // 禁用 webpack 优化
+                devtool = null
             }
         }
         // Output executable JS rather than library
         binaries.executable()
-        // Generate type definitions
-        generateTypeScriptDefinitions()
+        
+        // 添加编译选项：禁用成员名称混淆
+        // Kotlin 2.3 中 compilations.all 内 compilerOptions 存在隐式 receiver 歧义，
+        // 改为 target 级 compilerOptions（对所有 compilation 生效，语义等价）
+        compilerOptions {
+            freeCompilerArgs.set(
+                freeCompilerArgs.get() + listOf(
+                    "-Xir-minimized-member-names=false",  // 禁用成员名称混淆
+                    "-Xir-property-lazy-initialization=false"  // 禁用惰性属性初始化优化
+                )
+            )
+        }
     }
 
     sourceSets {
         val jsMain by getting {
             dependencies {
                 // Import js standard library
-                implementation(kotlin("stdlib-js"))
+                api(project(":core-render-web:base"))
             }
         }
     }

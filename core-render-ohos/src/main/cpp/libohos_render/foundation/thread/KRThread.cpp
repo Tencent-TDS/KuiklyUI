@@ -40,7 +40,7 @@ constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 }  // namespace
 
 KRThread::KRThread(const std::string &name) {
-    m_workerThread = std::thread([this, name]() {this->WorkerLoop(name); });
+    m_workerThread = KRSizedThread([this, name]() { this->WorkerLoop(name); });
     pthread_setname_np(m_workerThread.native_handle(), name.c_str());
 
     // 等 worker 线程把 uv_loop_init / uv_async_init 完成后再返回，
@@ -197,7 +197,7 @@ void KRThread::OnAsync() {
             auto fn = std::move(local.front());
             local.pop();
             if (fn) {
-                // 任何未捕获异常都会一路冒到 std::thread 入口触发 std::terminate，
+                // 任何未捕获异常都会一路冒到 worker 线程入口触发 std::terminate，
                 // 同时让 m_taskMutex / m_isExecutingTask 来不及落回干净状态——
                 // 这里不套 C++ catch，为的是让 K/N unhandled hook 能先于 std::terminate
                 // 触发、打出完整 Kotlin 侧崩溃栈（catch 会让 K/N 观察到 "C++ 已处理"

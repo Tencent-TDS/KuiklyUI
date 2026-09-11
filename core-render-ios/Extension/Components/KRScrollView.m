@@ -23,7 +23,6 @@
 #import "KRScrollView+NestedScroll.h"
 #import "NSObject+KR.h"
 #import "KRContentOffsetAnimator.h"
-#import <objc/message.h>
 
 typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
     KRSetContentOffsetAnimationSpring = 0,
@@ -785,14 +784,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
     // 边界回弹、惯性滚动时一律不运行更新。
-    // isZoomBouncing 在 macOS 兼容类 KRUIScrollView 上未声明，直接调用会有编译期 selector 不可见与运行期崩溃问题，
-    // 故用 respondsToSelector 保护 + objc_msgSend 动态发送。
-    SEL zoomBouncingSel = @selector(isZoomBouncing);
-    BOOL zoomBouncing = [self respondsToSelector:zoomBouncingSel] &&
-        ((BOOL (*)(id, SEL))objc_msgSend)(self, zoomBouncingSel);
-    if (zoomBouncing || self.isDecelerating) {
+#if !TARGET_OS_OSX // [macOS]
+    // isZoomBouncing 为 UIScrollView 公开属性；macOS 兼容类 KRUIScrollView 未实现，故编译期隔离。
+    if (self.isZoomBouncing || self.isDecelerating) {
         return self.contentInset;
     }
+#else
+    // macOS 下仅拦截惯性滚动（KRUIScrollView 已实现 isDecelerating）。
+    if (self.isDecelerating) {
+        return self.contentInset;
+    }
+#endif
     // 放行程序化更新、拖拽时、双指捏放时的Offset变化，并且让inset去响应
     if ([_css_directionRow boolValue]) {
         if (contentOffset.x < -self.contentInset.left) {

@@ -108,10 +108,15 @@ bool KRSnapshotManager::SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std
 }
 
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithDataType(
-    napi_env env, napi_value pixelMap, const std::string &path, const std::string &pathUri,
-    ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
+    napi_env env, napi_value pixelMap) {
     struct ResultData resultData;
+    resultData.code = -1;
     NativePixelMap *nativePixelMap = OH_PixelMap_InitNativePixelMap(env, pixelMap);
+    if (nativePixelMap == nullptr) {
+        resultData.message = "ERROR: FAILED TO INITIALIZE PIXELMAP";
+        return resultData;
+    }
+
     OhosPixelMapInfos info;
     OH_PixelMap_GetImageInfo(nativePixelMap, &info);
     struct ImagePacker_Opts_ opts;
@@ -120,10 +125,20 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
 
     size_t size = info.width * info.height * 4;
     uint8_t *outData = reinterpret_cast<uint8_t *>(malloc(size));
+    if (outData == nullptr) {
+        resultData.message = "ERROR: FAILED TO ALLOCATE SNAPSHOT BUFFER";
+        return resultData;
+    }
 
-    napi_value packer;
+    napi_value packer = nullptr;
     OH_ImagePacker_Create(env, &packer);
     ImagePacker_Native *imagePacker = OH_ImagePacker_InitNative(env, packer);
+    if (imagePacker == nullptr) {
+        free(outData);
+        resultData.message = "ERROR: FAILED TO INITIALIZE IMAGE PACKER";
+        return resultData;
+    }
+
     int err = OH_ImagePacker_PackToData(imagePacker, pixelMap, &opts, outData, &size);
     OH_ImagePacker_Release(imagePacker);
     if (err == 0) {
@@ -133,6 +148,8 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
         base64ImageSS << "data:" << opts.format << ";base64," << base64Data;
         resultData.data = base64ImageSS.str();
         resultData.code = 0;
+    } else {
+        resultData.message = "ERROR: FAILED TO ENCODE SNAPSHOT";
     }
     free(outData);
     return resultData;
@@ -228,7 +245,7 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                 napi_value snapshotData = arkTs.GetArrayElement(napiValue.value, 0);
                 KRSnapshotManager::ResultData resultData;
 
-                // 优先根据type分流，而费用 drawableDescriptorPtr 对象判断 file,dataUri,cacheKey 三种模式
+                // DATA_URI 只需要 PixelMap；不要创建不需要的 drawable descriptor。
                 if (type == "file") {
                     napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                     std::string pathStr = arkTs.GetString(path);
@@ -244,6 +261,19 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                                 env, nullptr, pathStr, pathURI, nullptr, weak_view);
                         }
                     }
+                } else if (type == "dataUri") {
+                    napi_value pixelMap = arkTs.GetObjectProperty(snapshotData, "pixelMap");
+                    if (arkTs.IsNull(pixelMap) || arkTs.IsUndefined(pixelMap)) {
+                        resultData.code = -1;
+                        resultData.message = arkTs.GetString(arkTs.GetObjectProperty(snapshotData, "message"));
+                    } else if (auto root = strongView->GetRootView().lock()) {
+                        auto snapshotManager = root->GetSnapshotManager();
+                        resultData = snapshotManager->ProcessSnapshotResultWithDataType(
+                            env, pixelMap);
+                    } else {
+                        resultData.code = -1;
+                        resultData.message = "snapshot root is unavailable";
+                    }
                 } else {
                     napi_value drawableDescriptor = arkTs.GetObjectProperty(snapshotData, "drawableDescriptor");
                     if (arkTs.IsNull(drawableDescriptor) || arkTs.IsUndefined(drawableDescriptor)) {
@@ -258,10 +288,7 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                         std::string pathURI;
                         if (auto root = strongView->GetRootView().lock()) {
                             auto snapshotManager = root->GetSnapshotManager();
-                            if (type == "dataUri") {
-                                resultData = snapshotManager->ProcessSnapshotResultWithDataType(
-                                    env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
-                            } else if (type == "cacheKey") {
+                            if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                                 pathStr = arkTs.GetString(path);
                                 napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
@@ -269,7 +296,14 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                                 resultData = snapshotManager->ProcessSnapshotResultWithCacheKeyType(
                                     env, pixelMap, drawableDescriptor, pathStr, pathURI, drawableDescriptorPtr,
                                     weak_view);
+                                // Ownership is transferred to the snapshot cache.
+                                drawableDescriptorPtr = nullptr;
                             }
+                        }
+                        // cacheKey transfers ownership above. All other paths,
+                        // including unsupported types and a dead root, must dispose it.
+                        if (drawableDescriptorPtr != nullptr) {
+                            OH_ArkUI_DrawableDescriptor_Dispose(drawableDescriptorPtr);
                         }
                     }
                 }

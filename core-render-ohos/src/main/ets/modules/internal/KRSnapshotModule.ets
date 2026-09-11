@@ -67,8 +67,10 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
           }
 
           if (type == 'dataUri') {
-            let drawableDesciptor = new PixelMapDrawableDescriptor(data);
-            resultParam.drawableDescriptor = drawableDesciptor;
+            // DATA_URI is encoded directly from the PixelMap in native code.
+            // Do not create a drawable descriptor here: it is only needed by
+            // the cacheKey path and would otherwise require a separate native
+            // lifetime/Dispose path.
             resultParam.pixelMap = data;
             callback([resultParam, new ArrayBuffer(1)]);
             return;

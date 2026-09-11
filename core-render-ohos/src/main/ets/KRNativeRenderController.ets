@@ -199,7 +199,6 @@ export class KRNativeRenderController {
     this.windowRect = new KRRect(0, 0, w, h);
     // 窗口已变而页面尚未重新测量，viewRect 旧尺寸作废（判据A拦截条件），等布局回调重新确认
     this.viewSyncedByWindow = false;
-    KRRenderLog.i('Rotation', `[Rotation][nfs] windowSizeChange: ${w.toFixed(1)}x${h.toFixed(1)}`);
 
     this.notifyWindowSizeChanged(w, h);
     // 同步刷新 safeArea（不走 setTimeout），避免与布局回调竞争产生「旧 viewRect − 新 safeAreaRect」错配
@@ -287,11 +286,6 @@ export class KRNativeRenderController {
         corrected = true;
       }
     }
-    // 仅窗口突变帧或命中修正时打印明细，稳态帧静默
-    if (corrected || deltaW >= KRSafeAreaMatchToleranceDp || deltaH >= KRSafeAreaMatchToleranceDp) {
-      KRRenderLog.i('Rotation',
-        `[Rotation][nfs] fixB[${source}]: sideDeltas=[${sideDeltas.map(v => v.toFixed(1)).join(',')}] windowDeltas=[${windowDeltas.map(v => v.toFixed(1)).join(',')}] hit=${corrected}`);
-    }
     // 统一以最终入库值登记，供下一帧做同坐标系比较
     const result = corrected
       ? new KRRect(newSides[1], newSides[0],
@@ -335,7 +329,6 @@ export class KRNativeRenderController {
     this.uiAbilityContext = uiAbilityContext;
     this.executeMode = executeMode;
     this.pageName = pageName;
-    KRRenderLog.i('Rotation', `[Rotation][nfs] init page=${pageName} imeMode=${imeMode}`);
     this.pageParams = pageParams;
     this.contextCode = contextCode;
     this.imeMode = imeMode;
@@ -484,8 +477,6 @@ export class KRNativeRenderController {
   onSafeAreaInsetsChanged(rect: KRRect, notify: boolean = true, source: string = 'unknown') {
     const verified = this.correctInjectedSafeArea(rect, source);
     this.safeAreaRect = verified;
-    KRRenderLog.i('Rotation',
-      `[Rotation][nfs] safeArea-in[${source}]: raw(${rect.x.toFixed(1)},${rect.y.toFixed(1)},${rect.width.toFixed(1)}x${rect.height.toFixed(1)}) -> stored(${verified.x.toFixed(1)},${verified.y.toFixed(1)},${verified.width.toFixed(1)}x${verified.height.toFixed(1)})`);
     if (this.didInit) {
       if (notify) {
         this.notifySizeChange();
@@ -502,8 +493,6 @@ export class KRNativeRenderController {
     // 判据A（核心）：窗口变化后页面尚未重新测量（viewSyncedByWindow=false）时，viewRect 仍是旧朝向尺寸，
     // 与新 safeAreaRect 相减必携带轴差假值——此时不换算，返回最近一次页面测量有效时的可信 insets
     if (!this.viewSyncedByWindow) {
-      KRRenderLog.i('Rotation',
-        `[Rotation][nfs] fixA-BLOCK: view not synced with window (view=${this.viewRect.width.toFixed(1)}x${this.viewRect.height.toFixed(1)}) -> reuse [${this.lastTrustedInsets ?? '0 0 0 0'}]`);
       return this.lastTrustedInsets ?? '0 0 0 0';
     }
     const left = Math.max(0, this.safeAreaRect.x - this.viewRect.x);
@@ -512,8 +501,6 @@ export class KRNativeRenderController {
     const bottom = Math.max(0, this.viewRect.height - this.safeAreaRect.height - top);
     const result = `${top} ${left} ${bottom} ${right}`;
     this.lastTrustedInsets = result;
-    KRRenderLog.i('Rotation',
-      `[Rotation][nfs] fixA-PASS: view=${this.viewRect.width.toFixed(1)}x${this.viewRect.height.toFixed(1)}@(${this.viewRect.x.toFixed(1)},${this.viewRect.y.toFixed(1)}) safe=(${this.safeAreaRect.x.toFixed(1)},${this.safeAreaRect.y.toFixed(1)},${this.safeAreaRect.width.toFixed(1)}x${this.safeAreaRect.height.toFixed(1)}) -> [${result}]`);
     return result;
   }
 
@@ -534,8 +521,6 @@ export class KRNativeRenderController {
       data[KRDeviceWidthKey] = this.windowRect.width;
       data[KRDeviceHeightKey] = this.windowRect.height;
     }
-    KRRenderLog.i('Rotation',
-      `[Rotation][nfs] dispatch: insets=[${data[KRSafeAreaInsets]}] view=${this.viewRect.width.toFixed(1)}x${this.viewRect.height.toFixed(1)}@(${this.viewRect.x.toFixed(1)},${this.viewRect.y.toFixed(1)}) win=${this.windowRect != null ? `${this.windowRect.width.toFixed(1)}x${this.windowRect.height.toFixed(1)}` : 'null'}`);
     this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
 
     this.runKRRenderTask(() => {
@@ -567,7 +552,6 @@ export class KRNativeRenderController {
     if (sizeChanged) {
       // 布局系统重新测量了页面尺寸（纯位置滚动不算），viewRect 确认跟随当前窗口（判据A恢复换算）
       this.viewSyncedByWindow = true;
-      KRRenderLog.i('Rotation', `[Rotation][nfs] onAreaChange: view=${newWidth.toFixed(1)}x${newHeight.toFixed(1)} pos=(${(newValue.globalPosition.x as number).toFixed(1)},${(newValue.globalPosition.y as number).toFixed(1)})`);
     }
     if (this.didInit) {
       if (this.sizeChangeHandledByOnSizeChange) {
@@ -594,7 +578,6 @@ export class KRNativeRenderController {
     if (!this.isViewSizeChanged(newWidth, newHeight)) {
       return;
     }
-    KRRenderLog.i('Rotation', `[Rotation][nfs] onSizeChange: view=${newWidth.toFixed(1)}x${newHeight.toFixed(1)}`);
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
     if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
       // onSizeChange 是布局前回调：提前更新 viewRect 使后续下发必然使用「新 viewRect − 新 safeAreaRect」，
@@ -775,7 +758,6 @@ export class KRNativeRenderController {
       this.uiContext?.getHostContext()?.resourceManager);
     this.runLazyTasksOnce();
   }
-
 
   addKuiklyRenderViewLifecycleCallback(callback: IKuiklyRenderViewLifecycleCallback) {
     this.lifecycleCallbacks.push(callback)

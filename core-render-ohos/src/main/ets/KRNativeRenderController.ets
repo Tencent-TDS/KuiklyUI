@@ -100,6 +100,11 @@ enum KRBackPressConsumedState {
   NotConsumed
 }
 
+/** safeArea 纠偏：浮点尺寸比较容差（dp） */
+const KRSafeAreaMatchToleranceDp = 1.0;
+/** safeArea 纠偏：变化量等式判定容差（dp） */
+const KRSafeAreaDeltaEps = 0.1;
+
 /** 全局递增实例ID */
 let gGlobalInstanceId = 0;
 
@@ -140,6 +145,16 @@ export class KRNativeRenderController {
    * SizeChanged 执行时机是否需提前至 onSizeChanged 而非 onAreaChanged，以避免页面 Size 变化时出现白屏
    */
   private sizeChangeHandledByOnSizeChange: boolean = false;
+  /** 上一帧窗口尺寸：突变帧注入检测（判据B）需要窗口变化量 */
+  private prevWindowRect: KRRect | null = null;
+  /** 上一帧 safeAreaRect：判据B的还原基准（稳态帧不会被注入，天然可靠） */
+  private lastSafeAreaRect: KRRect | null = null;
+  /** lastSafeAreaRect 入库时的窗口尺寸：rect 是绝对坐标，解构侧值必须用它自己同朝向的窗口，否则产生假侧值 */
+  private lastSafeAreaWinRect: KRRect | null = null;
+  /** 最近一次「viewRect 与 windowRect 同朝向」时换算出的 insets（判据A兜底值） */
+  private lastTrustedInsets: string | null = null;
+  /** viewRect 是否已跟随当前窗口重新测量：false = 窗口已变而页面未量完（判据A的拦截条件） */
+  private viewSyncedByWindow: boolean = true;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -178,8 +193,16 @@ export class KRNativeRenderController {
     const w = params.width / density;
     const h = params.height / density;
 
+    // windowRect 是 deviceWidth/Height 唯一数据源，必须跟随窗口更新，否则旋转后 Compose 屏幕尺寸冻结；
+    // prevWindowRect 保留旧值，供判据B计算窗口变化量
+    this.prevWindowRect = this.windowRect;
+    this.windowRect = new KRRect(0, 0, w, h);
+    // 窗口已变而页面尚未重新测量，viewRect 旧尺寸作废（判据A拦截条件），等布局回调重新确认
+    this.viewSyncedByWindow = false;
+
     this.notifyWindowSizeChanged(w, h);
-    this.doUpdateSafeArea();
+    // 同步刷新 safeArea（不走 setTimeout），避免与布局回调竞争产生「旧 viewRect − 新 safeAreaRect」错配
+    this.refreshSafeAreaSync();
   };
   private avoidAreaListener: Callback<AvoidAreaChangeParams> = (params: AvoidAreaChangeParams) => {
     if (this.imeMode) {
@@ -192,6 +215,88 @@ export class KRNativeRenderController {
     }
   };
 
+  /**
+   * 同步刷新 safeAreaRect 但不下发：让 safeAreaRect 与 windowRect 同帧就绪，
+   * 消除 setTimeout(0) 与布局回调的时序竞争，等 viewRect 同朝向后由布局链路统一下发。
+   */
+  private refreshSafeAreaSync(): void {
+    if (this.imeMode || this.windowClass == null) {
+      return;
+    }
+    // 同步已取到最新值，取消排队中的去抖任务，避免稍后重复赋值
+    if (this.updateSafeInsetsHandler > 0) {
+      clearTimeout(this.updateSafeInsetsHandler);
+      this.updateSafeInsetsHandler = 0;
+    }
+    try {
+      const synced = this.getSafeAreaRect(this.windowClass);
+      // 判据B已下沉到 onSafeAreaInsetsChanged 入库口统一验货，此处不再单独调用
+      this.onSafeAreaInsetsChanged(synced, false, 'windowSizeChange');
+    } catch (e) {
+      KRRenderLog.e('Window', `Error obtaining safearea, code:${e.code}`);
+    }
+  }
+
+  /** 将 safeAreaRect（x/y/width/height）按给定窗口尺寸换算为 [top,left,bottom,right] 侧值 */
+  private sideInsetsOf(rect: KRRect, winW: number, winH: number): number[] {
+    const sides: number[] = [0, 0, 0, 0];
+    sides[0] = rect.y;
+    sides[1] = rect.x;
+    sides[2] = winH - rect.y - rect.height;
+    sides[3] = winW - rect.x - rect.width;
+    return sides;
+  }
+
+  /**
+   * 判据B（兜底）：注入的机理是系统把「窗口尺寸变化量」错塞进 safeArea，故注入侧必满足
+   * |本帧侧值−上帧侧值| == |本帧窗口−上帧窗口|（同轴，0.1dp）——基于 bug 机理而非数值分布判定，无比例假设；
+   * 真实安全区变化（键盘/状态栏显隐）不会与窗口变化量精确等值，且仅突变帧进入本函数，稳态帧天然跳过，故不误伤。
+   */
+  private correctInjectedSafeArea(newRect: KRRect, source: string): KRRect {
+    const prevWin = this.prevWindowRect;
+    const curWin = this.windowRect;
+    const prevSafe = this.lastSafeAreaRect;
+    const prevSafeWin = this.lastSafeAreaWinRect;
+    if (prevWin == null || curWin == null || prevSafe == null || prevSafeWin == null) {
+      // 首帧无从比较，直接入库并登记其所属窗口尺寸
+      this.lastSafeAreaRect = newRect;
+      this.lastSafeAreaWinRect = curWin != null
+        ? new KRRect(curWin.x, curWin.y, curWin.width, curWin.height) : null;
+      return newRect;
+    }
+    const deltaW = Math.abs(curWin.width - prevWin.width);
+    const deltaH = Math.abs(curWin.height - prevWin.height);
+    // 上帧侧值必须用「上帧 safeAreaRect 自己入库时的窗口」解构——rect 是绝对坐标，
+    // 若借用 prevWindowRect（可能仍是上一朝向）解构新朝向矩形，会解出假侧值，
+    // 使干净值与窗口变化量「精确等值」而被误判成注入（avoidAreaChange 帧误修正的根因）
+    const oldSides = this.sideInsetsOf(prevSafe, prevSafeWin.width, prevSafeWin.height);
+    const newSides = this.sideInsetsOf(newRect, curWin.width, curWin.height);
+    // top/left/bottom/right 分别锚定窗口高/宽轴
+    const windowDeltas = [deltaH, deltaW, deltaH, deltaW];
+    let corrected = false;
+    const sideDeltas: number[] = [0, 0, 0, 0];
+    for (let i = 0; i < 4; i++) {
+      if (windowDeltas[i] < KRSafeAreaMatchToleranceDp) {
+        continue; // 该轴窗口没变化，不存在注入，也不该动真实值
+      }
+      const sideDelta = Math.abs(newSides[i] - oldSides[i]);
+      sideDeltas[i] = sideDelta;
+      if (Math.abs(sideDelta - windowDeltas[i]) < KRSafeAreaDeltaEps) {
+        newSides[i] = oldSides[i];
+        corrected = true;
+      }
+    }
+    // 统一以最终入库值登记，供下一帧做同坐标系比较
+    const result = corrected
+      ? new KRRect(newSides[1], newSides[0],
+          curWin.width - newSides[1] - newSides[3],
+          curWin.height - newSides[0] - newSides[2])
+      : newRect;
+    this.lastSafeAreaRect = result;
+    this.lastSafeAreaWinRect = new KRRect(curWin.x, curWin.y, curWin.width, curWin.height);
+    return result;
+  }
+
   private doUpdateSafeArea() {
     if (this.imeMode) {
       return;
@@ -202,7 +307,7 @@ export class KRNativeRenderController {
     this.updateSafeInsetsHandler = setTimeout(() => {
       this.updateSafeInsetsHandler = 0;
       try {
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!), true, 'avoidAreaChange');
       } catch (e) {
         KRRenderLog.e('Window', `Error obtaining safearea, code:${e.code}`);
       }
@@ -274,11 +379,10 @@ export class KRNativeRenderController {
         this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
         this.windowId = this.windowClass!.getWindowProperties().id + "";
         KRNativeManager.getInstance().onLastWindow(this.windowClass!);
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!), true, 'attach');
         this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
         this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
-      }
-      catch (e) {
+      } catch (e) {
         KRRenderLog.e('Window', `Error obtaining window, stack:${e}`);
       }
     }
@@ -364,10 +468,19 @@ export class KRNativeRenderController {
     render.sendEvent(this.instanceId, KRConfigurationUpdateEventKey, JSON.stringify(data));
   }
 
-  onSafeAreaInsetsChanged(rect: KRRect) {
-    this.safeAreaRect = rect;
+  /**
+   * safeAreaRect 唯一入库口：所有来源（windowSizeChange 同步刷新 / avoidAreaChange 去抖 /
+   * 密度变化 / 初始化）统一过判据B注入检测后再入库，杜绝脏值绕过验货直入缓存。
+   * notify=false 仅存不下发（windowSizeChange 专用）：
+   * 此刻 ArkUI 尚未布局、viewRect 仍是旧朝向，立即下发必产生错配 insets。
+   */
+  onSafeAreaInsetsChanged(rect: KRRect, notify: boolean = true, source: string = 'unknown') {
+    const verified = this.correctInjectedSafeArea(rect, source);
+    this.safeAreaRect = verified;
     if (this.didInit) {
-      this.notifySizeChange();
+      if (notify) {
+        this.notifySizeChange();
+      }
     } else {
       this.doOnAttach();
     }
@@ -377,11 +490,18 @@ export class KRNativeRenderController {
     if (this.safeAreaRect == null || this.viewRect == null) {
       return '0 0 0 0';
     }
+    // 判据A（核心）：窗口变化后页面尚未重新测量（viewSyncedByWindow=false）时，viewRect 仍是旧朝向尺寸，
+    // 与新 safeAreaRect 相减必携带轴差假值——此时不换算，返回最近一次页面测量有效时的可信 insets
+    if (!this.viewSyncedByWindow) {
+      return this.lastTrustedInsets ?? '0 0 0 0';
+    }
     const left = Math.max(0, this.safeAreaRect.x - this.viewRect.x);
     const right = Math.max(0, this.viewRect.width - this.safeAreaRect.width - left);
     const top = Math.max(0, this.safeAreaRect.y - this.viewRect.y);
     const bottom = Math.max(0, this.viewRect.height - this.safeAreaRect.height - top);
-    return `${top} ${left} ${bottom} ${right}`;
+    const result = `${top} ${left} ${bottom} ${right}`;
+    this.lastTrustedInsets = result;
+    return result;
   }
 
   private notifySizeChange(densityInfo: KRRecord | null = null) {
@@ -394,6 +514,12 @@ export class KRNativeRenderController {
     data[KRSafeAreaInsets] = this.encodeSafeAreaInsetsString();
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
+    }
+    // 随事件下发最新窗口尺寸，Kotlin 侧 PagerData 收到后同步更新，
+    // Compose screenWidthDp/screenHeightDp 随之跟随旋转互换，否则冻结在初始朝向
+    if (this.windowRect != null) {
+      data[KRDeviceWidthKey] = this.windowRect.width;
+      data[KRDeviceHeightKey] = this.windowRect.height;
     }
     this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
 
@@ -421,6 +547,12 @@ export class KRNativeRenderController {
       newValue.globalPosition.y as number,
       newWidth,
       newHeight);
+    // 布局回调已到，viewRect 确认跟随当前窗口（判据A恢复换算）
+    this.viewSyncedByWindow = true;
+    if (sizeChanged) {
+      // 布局系统重新测量了页面尺寸（纯位置滚动不算），viewRect 确认跟随当前窗口（判据A恢复换算）
+      this.viewSyncedByWindow = true;
+    }
     if (this.didInit) {
       if (this.sizeChangeHandledByOnSizeChange) {
         // 已在 onSizeChange 中提前处理过，消费标志位，跳过重复执行
@@ -439,6 +571,8 @@ export class KRNativeRenderController {
     if (this.viewRect == null) {
       return;
     }
+    // 布局回调已到，viewRect 确认跟随当前窗口（判据A恢复换算），尺寸是否变化均视为已确认
+    this.viewSyncedByWindow = true;
     const newWidth = newValue.width as number;
     const newHeight = newValue.height as number;
     if (!this.isViewSizeChanged(newWidth, newHeight)) {
@@ -446,7 +580,8 @@ export class KRNativeRenderController {
     }
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
     if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
-      // 提前更新 viewRect 尺寸（globalPosition 会在后续 onAreaChange 中更新）
+      // onSizeChange 是布局前回调：提前更新 viewRect 使后续下发必然使用「新 viewRect − 新 safeAreaRect」，
+      // 关闭与 safeArea 刷新之间的错配窗口
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
       this.runKRRenderTask(() => {
@@ -521,7 +656,7 @@ export class KRNativeRenderController {
     }
     if (this.windowClass) {
       try {
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass));
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass), true, 'densityChanged');
       } catch (e) {
         KRRenderLog.e('Window', `doOnDensityChanged update safearea error code:${e.code}`);
       }
@@ -615,6 +750,7 @@ export class KRNativeRenderController {
     }
     this.didInit = true;
     let pageData = this.createPageParams(this.pageParams, this.viewRect.width, this.viewRect.height);
+    // 初始下发基线快照（deviceWidth/deviceHeight 初值来自物理屏幕 screenSize）
     let configJson = this.createConfigJson(new KRSize(this.viewRect.width, this.viewRect.height));
 
     render.onInitRenderView(this.instanceId, this.pageName, this.contextCode, this.executeMode.mode, pageData,
@@ -622,7 +758,6 @@ export class KRNativeRenderController {
       this.uiContext?.getHostContext()?.resourceManager);
     this.runLazyTasksOnce();
   }
-
 
   addKuiklyRenderViewLifecycleCallback(callback: IKuiklyRenderViewLifecycleCallback) {
     this.lifecycleCallbacks.push(callback)
@@ -780,7 +915,6 @@ export class KRNativeRenderController {
     handle(data.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR));
     const result = new KRRect(px2vp(insets.left), px2vp(insets.top), px2vp(insets.right - insets.left),
       px2vp(insets.bottom - insets.top));
-    console.log(`getSafeAreaRect safeAreaInsets: ${result.x}, ${result.y}, ${result.width}, ${result.height}`);
     return result;
   }
 

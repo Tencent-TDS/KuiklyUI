@@ -670,6 +670,9 @@ open class KRView : IKuiklyRenderViewExport {
     private fun bindPointerEvents() {
         // Pointer down
         ele.addEventListener("pointerdown", { rawEvent ->
+            // Single-pointer mode: ignore any additional fingers/pointers while one is active.
+            if (isMouseDown) return@addEventListener
+
             val mouseLike = rawEvent.unsafeCast<MouseEvent>()
 
             isMouseDown = true
@@ -700,7 +703,7 @@ open class KRView : IKuiklyRenderViewExport {
         ele.addEventListener("pointermove", { rawEvent ->
             if (!isMouseDown) return@addEventListener
             val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
-            if (activePointerId != null && pointerId != null && pointerId != activePointerId) {
+            if (pointerId != activePointerId) {
                 return@addEventListener
             }
 
@@ -739,7 +742,7 @@ open class KRView : IKuiklyRenderViewExport {
         ele.addEventListener("pointerup", { rawEvent ->
             if (!isMouseDown) return@addEventListener
             val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
-            if (activePointerId != null && pointerId != null && pointerId != activePointerId) {
+            if (pointerId != activePointerId) {
                 return@addEventListener
             }
 
@@ -773,7 +776,7 @@ open class KRView : IKuiklyRenderViewExport {
         ele.addEventListener("pointercancel", { rawEvent ->
             if (!isMouseDown) return@addEventListener
             val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
-            if (activePointerId != null && pointerId != null && pointerId != activePointerId) {
+            if (pointerId != activePointerId) {
                 return@addEventListener
             }
 

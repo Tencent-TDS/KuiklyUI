@@ -25,8 +25,8 @@ if [ "$MODULE" = "all" ]; then
   echo "发布方式: $PUBLISH_TASK"
   for m in $MODULES; do
     echo "---- 发布模块: $m ----"
-    run_gradle "$m"
-    if [ $? -ne 0 ]; then
+    # 直接判断命令返回值，而非依赖 $? —— 避免后续在中间插入命令时静默覆盖退出码
+    if ! run_gradle "$m"; then
       echo "发布失败: $m（任务 :$m:$PUBLISH_TASK）"
       GRADLE_RUN_STATUS=1
       break
@@ -35,8 +35,9 @@ if [ "$MODULE" = "all" ]; then
 else
   echo "编译模块: $MODULE"
   echo "发布方式: $PUBLISH_TASK"
-  run_gradle "$MODULE"
-  GRADLE_RUN_STATUS=$?
+  if ! run_gradle "$MODULE"; then
+    GRADLE_RUN_STATUS=1
+  fi
 fi
 
 if [ $GRADLE_RUN_STATUS -eq 0 ]; then

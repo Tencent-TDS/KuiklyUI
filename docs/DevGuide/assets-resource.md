@@ -77,6 +77,9 @@ kotlin {
 
 > 注意：在kotlin2.x版本，使用了compose的模块需要添加compose plugin，但插件会默认修改spec.resources，导致在`build.gradle.kts`设置的不生效，需要在 `gradle.properties` 添加 `compose.ios.resources.sync=false`
 
+> 多模块场景，产物打包只依赖主模块的 podspec，所以只有主模块 cocoapods 设置的 "resources" 路径才会被打包进去
+> 可以修改主模块 `spec.resources = ['src/commonMain/assets/**', 'xxx']` xxx填写其他模块的资源路径（此处不能是上级目录，podspec的限制）
+
 #### 鸿蒙
 鸿蒙会将业务代码编译为so文件，不支持`assets`资源内置打包，需要将资源拷贝到鸿蒙工程的`resfile`目录中，例如：
 ```

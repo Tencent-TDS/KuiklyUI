@@ -28,11 +28,13 @@ OHOS_RENDER_PROJECT_DIR=./ohosApp
 
 TARGET_SO_PATH=$PWD/demo/build/bin/ohosArm64/sharedReleaseShared/libshared.so
 OHO_SO_PROJECT_PATH=$OHOS_RENDER_PROJECT_DIR/entry/libs/arm64-v8a
+mkdir -p $OHO_SO_PROJECT_PATH
 cp $TARGET_SO_PATH $OHO_SO_PROJECT_PATH
 echo "libshared.so: copied from $TARGET_SO_PATH to ohos demo directory: $OHO_SO_PROJECT_PATH"
 
 TARGET_SO_HEADER_PATH=$PWD/demo/build/bin/ohosArm64/sharedReleaseShared/libshared_api.h
 OHO_SO_HEADER_PATH=$OHOS_RENDER_PROJECT_DIR/entry/src/main/cpp/thirdparty/biz_entry
+mkdir -p $OHO_SO_HEADER_PATH
 cp $TARGET_SO_HEADER_PATH $OHO_SO_HEADER_PATH
 echo "libshared_api.h: copied from $TARGET_SO_HEADER_PATH to ohos demo directory: $OHO_SO_HEADER_PATH"
 echo "Copy ops done!"

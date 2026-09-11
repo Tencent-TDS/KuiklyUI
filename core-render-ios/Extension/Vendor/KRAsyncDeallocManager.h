@@ -24,6 +24,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)asyncDeallocWithObject:(id _Nullable)deallocObject;
 
+/// 将对象的释放投递到 Context 线程，保证与 Context 线程上的布局计算串行，
+/// 避免 Global Queue 异步释放 NSTextStorage 中的 UIFont 时与 Context 线程并发产生野指针。
+- (void)asyncDeallocOnContextQueueWithObject:(id _Nullable)deallocObject;
+
 
 @end
 

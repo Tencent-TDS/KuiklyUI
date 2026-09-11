@@ -783,6 +783,19 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
+    // 边界回弹、惯性滚动时一律不运行更新。
+#if !TARGET_OS_OSX // [macOS]
+    // isZoomBouncing 为 UIScrollView 公开属性；macOS 兼容类 KRUIScrollView 未实现，故编译期隔离。
+    if (self.isZoomBouncing || self.isDecelerating) {
+        return self.contentInset;
+    }
+#else
+    // macOS 下仅拦截惯性滚动（KRUIScrollView 已实现 isDecelerating）。
+    if (self.isDecelerating) {
+        return self.contentInset;
+    }
+#endif
+    // 放行程序化更新、拖拽时、双指捏放时的Offset变化，并且让inset去响应
     if ([_css_directionRow boolValue]) {
         if (contentOffset.x < -self.contentInset.left) {
             return UIEdgeInsetsMake(self.contentInset.top, -contentOffset.x, self.contentInset.bottom, self.contentInset.right);

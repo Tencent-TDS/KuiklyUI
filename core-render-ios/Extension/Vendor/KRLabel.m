@@ -374,12 +374,16 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 }
 
 - (void)dealloc{
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textStorageOnRender];
+    // 将 TextKit 对象的释放投递到 Context 线程，保证与 calculateRenderViewSizeWithTag（同样在
+    // Context 线程执行的布局计算）串行，避免 Global Queue 异步释放 NSTextStorage 中的 UIFont 时
+    // 与 Context 线程上正在进行的 NSTextStorage initWithAttributedString → fixFontAttributeInRange
+    // 产生竞态（野指针）。
+    [[KRAsyncDeallocManager shareManager] asyncDeallocOnContextQueueWithObject:_textStorageOnRender];
     if (_textStorage != _textStorageOnRender) {
-        [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textStorage];
+        [[KRAsyncDeallocManager shareManager] asyncDeallocOnContextQueueWithObject:_textStorage];
     }
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_layoutManager];
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textContainer];
+    [[KRAsyncDeallocManager shareManager] asyncDeallocOnContextQueueWithObject:_layoutManager];
+    [[KRAsyncDeallocManager shareManager] asyncDeallocOnContextQueueWithObject:_textContainer];
 
 }
 

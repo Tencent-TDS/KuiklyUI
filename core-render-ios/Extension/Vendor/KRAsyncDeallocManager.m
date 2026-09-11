@@ -14,6 +14,7 @@
  */
 
 #import "KRAsyncDeallocManager.h"
+#import "KuiklyRenderThreadManager.h"
 
 @interface KRAsyncDeallocManager()
 
@@ -47,6 +48,17 @@
 
 - (void)asyncDeallocWithObject:(id)deallocObject{
     [self _asyncDeallocOnDefaultGlobalQueueWithObject:deallocObject];
+}
+
+- (void)asyncDeallocOnContextQueueWithObject:(id)deallocObject{
+    if (deallocObject == nil) {
+        return ;
+    }
+    // 投递到 Context 线程释放：block 强持有该对象，待 Context 线程执行完毕后归零引用计数，
+    // 从而与 Context 线程上的布局计算（fixFontAttributeInRange）串行，避免并发释放 UIFont 产生野指针。
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __attribute__((unused)) id Release_ensure = deallocObject;
+    }];
 }
 
 

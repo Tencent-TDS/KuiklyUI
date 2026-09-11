@@ -14,23 +14,28 @@ MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
 GRADLE_RUN_STATUS=0
 
-if [ "$MODULE" = "all" ]; then
-  echo "编译所有模块 core-annotations、core-ksp、core、core-wx、core-render-android、compose、web:base、web:h5、web:miniapp"
-  echo "发布方式: $PUBLISH_TASK"
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-annotations:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-ksp:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-wx:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-render-android:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :compose:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-render-web:base:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-render-web:h5:$PUBLISH_TASK --stacktrace
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :core-render-web:miniapp:$PUBLISH_TASK --stacktrace
+run_gradle() {
+  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" \
+    ./gradlew -c settings.2.3.10.gradle.kts ":$1:$PUBLISH_TASK" --stacktrace
+}
 
+if [ "$MODULE" = "all" ]; then
+  MODULES="core-annotations core core-ksp core-wx core-render-android compose core-render-web:base core-render-web:h5 core-render-web:miniapp"
+  echo "编译所有模块: $MODULES"
+  echo "发布方式: $PUBLISH_TASK"
+  for m in $MODULES; do
+    echo "---- 发布模块: $m ----"
+    run_gradle "$m"
+    if [ $? -ne 0 ]; then
+      echo "发布失败: $m（任务 :$m:$PUBLISH_TASK）"
+      GRADLE_RUN_STATUS=1
+      break
+    fi
+  done
 else
   echo "编译模块: $MODULE"
   echo "发布方式: $PUBLISH_TASK"
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" ./gradlew -c settings.2.3.10.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
+  run_gradle "$MODULE"
   GRADLE_RUN_STATUS=$?
 fi
 

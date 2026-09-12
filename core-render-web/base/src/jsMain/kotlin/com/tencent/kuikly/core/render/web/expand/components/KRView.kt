@@ -98,6 +98,13 @@ open class KRView : IKuiklyRenderViewExport {
     private var isBindTouchEvent = false
     // Whether mouse is currently pressed (for PC browser support)
     private var isMouseDown = false
+    // Pointer drag start position (relative to current element)
+    private var pointerDownX = 0f
+    private var pointerDownY = 0f
+    // Pointer currently tracked by this view
+    private var activePointerId: Int? = null
+    // Whether current pointer has been captured
+    private var isPointerCaptured = false
     // Current device type (detected once and cached)
     private val deviceType: DeviceType by lazy { DeviceUtils.detectDeviceType() }
     // Pan event callback
@@ -663,19 +670,15 @@ open class KRView : IKuiklyRenderViewExport {
     private fun bindPointerEvents() {
         // Pointer down
         ele.addEventListener("pointerdown", { rawEvent ->
+            // Single-pointer mode: ignore any additional fingers/pointers while one is active.
+            if (isMouseDown) return@addEventListener
+
             val mouseLike = rawEvent.unsafeCast<MouseEvent>()
-            // Capture pointer so we keep receiving move/up even if the finger /
-            // cursor leaves the element bounds during a drag.
-            val pointerId = rawEvent.asDynamic().pointerId
-            if (pointerId != null) {
-                try {
-                    ele.asDynamic().setPointerCapture(pointerId)
-                } catch (_: Throwable) {
-                    // Some environments may throw if pointerId is invalid; ignore.
-                }
-            }
 
             isMouseDown = true
+            isPointerCaptured = false
+            activePointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+
             val eventParams = mouseLike.toPanEventParams()
             val position = ele.getBoundingClientRect()
             eleX = position.left.toFloat()
@@ -685,6 +688,9 @@ open class KRView : IKuiklyRenderViewExport {
                 fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
                 KRStateConst.START
             )
+            // Record pointer down position and defer pointer capture until drag confirmed.
+            pointerDownX = x
+            pointerDownY = y
             params = setSuperTouchEventParams(
                 params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_DOWN
             )
@@ -696,12 +702,34 @@ open class KRView : IKuiklyRenderViewExport {
         // Pointer move
         ele.addEventListener("pointermove", { rawEvent ->
             if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
             val mouseLike = rawEvent.unsafeCast<MouseEvent>()
             val eventParams = mouseLike.toPanEventParams()
             var params = getPanEventParams(
                 fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
                 KRStateConst.MOVE
             )
+
+            // Defer pointer capture until movement exceeds drag threshold.
+            if (!isPointerCaptured && pointerId != null) {
+                val dx = x - pointerDownX
+                val dy = y - pointerDownY
+                val thresholdSq = POINTER_CAPTURE_DRAG_THRESHOLD_PX * POINTER_CAPTURE_DRAG_THRESHOLD_PX
+                val distanceSq = dx * dx + dy * dy
+                if (distanceSq >= thresholdSq) {
+                    try {
+                        ele.asDynamic().setPointerCapture(pointerId)
+                        isPointerCaptured = true
+                    } catch (_: Throwable) {
+                        // Some environments may throw if pointerId is invalid; ignore.
+                    }
+                }
+            }
+
             params = setSuperTouchEventParams(
                 params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_MOVE
             )
@@ -713,7 +741,22 @@ open class KRView : IKuiklyRenderViewExport {
         // Pointer up
         ele.addEventListener("pointerup", { rawEvent ->
             if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
+            if (isPointerCaptured && pointerId != null) {
+                try {
+                    ele.asDynamic().releasePointerCapture(pointerId)
+                } catch (_: Throwable) {
+                    // Some environments may throw if pointerId is invalid; ignore.
+                }
+            }
             isMouseDown = false
+            isPointerCaptured = false
+            activePointerId = null
+
             var params = fastMutableMapOf<String, Any>().apply {
                 put(KRParamConst.X, x)
                 put(KRParamConst.Y, y)
@@ -732,7 +775,22 @@ open class KRView : IKuiklyRenderViewExport {
         // Pointer cancel (system takes over the pointer, e.g. scroll / gesture)
         ele.addEventListener("pointercancel", { rawEvent ->
             if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
+            if (isPointerCaptured && pointerId != null) {
+                try {
+                    ele.asDynamic().releasePointerCapture(pointerId)
+                } catch (_: Throwable) {
+                    // Some environments may throw if pointerId is invalid; ignore.
+                }
+            }
             isMouseDown = false
+            isPointerCaptured = false
+            activePointerId = null
+
             var params = fastMutableMapOf<String, Any>().apply {
                 put(KRParamConst.X, x)
                 put(KRParamConst.Y, y)
@@ -1050,5 +1108,7 @@ open class KRView : IKuiklyRenderViewExport {
         private const val SCREEN_FRAME_REFRESH_TIME = 16
         // Border size ratio threshold
         private const val BORDER_SIZE_RATIO = 5
+        // Pointer movement threshold (px) before treating as drag and capturing pointer.
+        private const val POINTER_CAPTURE_DRAG_THRESHOLD_PX = 6f
     }
 }

@@ -577,14 +577,16 @@ export class KRNativeRenderController {
     if (!this.isViewSizeChanged(newWidth, newHeight)) {
       return;
     }
-    // 尺寸确实被重新测量，viewRect 确认跟随当前窗口（判据A恢复换算）
-    this.viewSyncedByWindow = true;
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
     if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
       // onSizeChange 是布局前回调：提前更新 viewRect 使后续下发必然使用「新 viewRect − 新 safeAreaRect」，
-      // 关闭与 safeArea 刷新之间的错配窗口
+      // 关闭与 safeArea 刷新之间的错配窗口。
+      // 开门（判据A恢复换算）必须与「新尺寸写入」原子完成：先开门后写尺寸（或未写入）会留下
+      // 「门已开、viewRect 仍旧尺寸」的间隙，间隙内的 avoidAreaChange 下发会用旧尺寸换算出怪胎 insets；
+      // syncSendEvent=false 时不在此开门，由 onAreaChange 重建 viewRect 后开门并兜底下发
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
+      this.viewSyncedByWindow = true;
       this.runKRRenderTask(() => {
         render.onRenderViewSizeChanged(this.instanceId, newWidth, newHeight);
       });

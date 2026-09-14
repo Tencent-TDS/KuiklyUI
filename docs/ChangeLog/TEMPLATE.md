@@ -80,7 +80,20 @@
 ### 第 5 步：更新总览与侧边栏（机械）
 
 1. 在 [README.md](./README.md) 版本列表顶部插入本版三链接。
-2. 在 [sidebar/zh.ts](../sidebar/zh.ts) 的 `/ChangeLog` 版本列表中插入本版项：`{ text: "<version>", link: "/ChangeLog/<version>/announcement.md" }`，新版本在最上。
+2. 在 [sidebar/zh.ts](../sidebar/zh.ts) 的 `/ChangeLog` 版本列表中插入本版抽屉项（新版本在最上）：
+
+```ts
+{
+    text: "<version>",
+    collapsible: true,
+    expanded: false,
+    children: [
+        { text: "版本说明", link: "/ChangeLog/<version>/announcement.md" },
+        { text: "变更汇总", link: "/ChangeLog/<version>/changelog.md" },
+        { text: "破坏性与迁移", link: "/ChangeLog/<version>/breaking.md" },
+    ],
+}
+```
 
 ## 三、三份文件骨架
 

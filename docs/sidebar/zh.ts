@@ -288,11 +288,56 @@ export const zhSidebar = sidebar({
             collapsible: false,
             children: [
                 "README.md",
-                { text: "2.27.0", link: "/ChangeLog/2.27.0/announcement.md" },
-                { text: "2.26.0", link: "/ChangeLog/2.26.0/announcement.md" },
-                { text: "2.25.0", link: "/ChangeLog/2.25.0/announcement.md" },
-                { text: "2.24.0", link: "/ChangeLog/2.24.0/announcement.md" },
-                { text: "2.17.0", link: "/ChangeLog/2.17.0/announcement.md" },
+                {
+                    text: "2.27.0",
+                    collapsible: true,
+                    expanded: false,
+                    children: [
+                        { text: "版本说明", link: "/ChangeLog/2.27.0/announcement.md" },
+                        { text: "变更汇总", link: "/ChangeLog/2.27.0/changelog.md" },
+                        { text: "破坏性与迁移", link: "/ChangeLog/2.27.0/breaking.md" },
+                    ],
+                },
+                {
+                    text: "2.26.0",
+                    collapsible: true,
+                    expanded: false,
+                    children: [
+                        { text: "版本说明", link: "/ChangeLog/2.26.0/announcement.md" },
+                        { text: "变更汇总", link: "/ChangeLog/2.26.0/changelog.md" },
+                        { text: "破坏性与迁移", link: "/ChangeLog/2.26.0/breaking.md" },
+                    ],
+                },
+                {
+                    text: "2.25.0",
+                    collapsible: true,
+                    expanded: false,
+                    children: [
+                        { text: "版本说明", link: "/ChangeLog/2.25.0/announcement.md" },
+                        { text: "变更汇总", link: "/ChangeLog/2.25.0/changelog.md" },
+                        { text: "破坏性与迁移", link: "/ChangeLog/2.25.0/breaking.md" },
+                    ],
+                },
+                {
+                    text: "2.24.0",
+                    collapsible: true,
+                    expanded: false,
+                    children: [
+                        { text: "版本说明", link: "/ChangeLog/2.24.0/announcement.md" },
+                        { text: "变更汇总", link: "/ChangeLog/2.24.0/changelog.md" },
+                        { text: "破坏性与迁移", link: "/ChangeLog/2.24.0/breaking.md" },
+                    ],
+                },
+                {
+                    text: "2.17.0",
+                    collapsible: true,
+                    expanded: false,
+                    children: [
+                        { text: "版本说明", link: "/ChangeLog/2.17.0/announcement.md" },
+                        { text: "变更汇总", link: "/ChangeLog/2.17.0/changelog.md" },
+                        { text: "破坏性与迁移", link: "/ChangeLog/2.17.0/breaking.md" },
+                    ],
+                },
             ],
         },
     ]

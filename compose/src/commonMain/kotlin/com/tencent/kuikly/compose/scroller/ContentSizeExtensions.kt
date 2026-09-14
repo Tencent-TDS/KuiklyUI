@@ -67,8 +67,13 @@ internal fun ScrollableState.calculateContentSize(): Int {
         // lastItem.offset is viewport-relative. After a fling reaches the last item,
         // a stale offset can inflate contentSize and skip native bounce.
         // Measure clears the pin when layout actually changes.
+        // After a programmatic jump, composeOffset can already exceed the pinned size;
+        // that pin is stale and must be released. At the true end, composeOffset is
+        // clamped to exact-viewport, so it never exceeds previousExact and the pin holds.
         if (previousExact != null && exact > previousExact && this.isLazyListOrGrid()) {
-            exact = previousExact
+            if (kuiklyInfo.composeOffset.toInt() <= previousExact) {
+                exact = previousExact
+            }
         }
         kuiklyInfo.realContentSize = exact
         return exact

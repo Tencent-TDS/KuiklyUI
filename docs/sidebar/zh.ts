@@ -280,5 +280,15 @@ export const zhSidebar = sidebar({
     ],
     "/QA": [
         "kuikly-qa.md", "kuikly-example.md"
+    ],
+    "/ChangeLog": [
+        {
+            text: "",
+            prefix: "/ChangeLog",
+            collapsible: false,
+            children: [
+                "README.md",
+            ],
+        },
     ]
 });

@@ -77,9 +77,10 @@
 全部未命中：写「本版无破坏性变更」+ 扫描依据（compare 链接、commit 数量、业务能力面核对结果）。
 注意：Release 列表不标注破坏性（如 2.27.0 的 #1426），判定必须结合代码 diff。
 
-### 第 5 步：更新总览（机械）
+### 第 5 步：更新总览与侧边栏（机械）
 
-在 [README.md](./README.md) 版本列表顶部插入本版三链接。
+1. 在 [README.md](./README.md) 版本列表顶部插入本版三链接。
+2. 在 [sidebar/zh.ts](../sidebar/zh.ts) 的 `/ChangeLog` 版本列表中插入本版项：`{ text: "<version>", link: "/ChangeLog/<version>/announcement.md" }`，新版本在最上。
 
 ## 三、三份文件骨架
 

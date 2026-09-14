@@ -288,6 +288,11 @@ export const zhSidebar = sidebar({
             collapsible: false,
             children: [
                 "README.md",
+                { text: "2.27.0", link: "/ChangeLog/2.27.0/announcement.md" },
+                { text: "2.26.0", link: "/ChangeLog/2.26.0/announcement.md" },
+                { text: "2.25.0", link: "/ChangeLog/2.25.0/announcement.md" },
+                { text: "2.24.0", link: "/ChangeLog/2.24.0/announcement.md" },
+                { text: "2.17.0", link: "/ChangeLog/2.17.0/announcement.md" },
             ],
         },
     ]

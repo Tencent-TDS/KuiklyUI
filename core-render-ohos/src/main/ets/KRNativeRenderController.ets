@@ -249,8 +249,10 @@ export class KRNativeRenderController {
 
   /**
    * 判据B（兜底）：注入的机理是系统把「窗口尺寸变化量」错塞进 safeArea，故注入侧必满足
-   * |本帧侧值−上帧侧值| == |本帧窗口−上帧窗口|（同轴，0.1dp）——基于 bug 机理而非数值分布判定，无比例假设；
-   * 真实安全区变化（键盘/状态栏显隐）不会与窗口变化量精确等值，且仅突变帧进入本函数，稳态帧天然跳过，故不误伤。
+   * |本帧侧值−上帧侧值| == |本帧窗口−上帧窗口|（同轴，0.1dp）——基于 bug 机理而非数值分布判定，无比例假设。
+   * 注意：prevWindowRect 只在窗口突变帧轮换，故一次旋转后到下次旋转前本判据持续处于激活态；
+   * 稳态帧依靠 oldSides/newSides 同坐标系比较（sideDelta≈0）放行，不会误伤。
+   * 已知边界：真实避让变化量与窗口变化量恰好精确等值（±0.1dp）的巧合会被误退一帧，概率极低，作为机理层残留风险保留。
    */
   private correctInjectedSafeArea(newRect: KRRect, source: string): KRRect {
     const prevWin = this.prevWindowRect;
@@ -547,10 +549,9 @@ export class KRNativeRenderController {
       newValue.globalPosition.y as number,
       newWidth,
       newHeight);
-    // 布局回调已到，viewRect 确认跟随当前窗口（判据A恢复换算）
-    this.viewSyncedByWindow = true;
+    // 仅尺寸被布局系统重新测量时才确认同步：纯位置滚动不代表重新测量，
+    // 此时尺寸仍是旧朝向，提前开门会让 encode 用旧尺寸减新 safeAreaRect 产出错配 insets
     if (sizeChanged) {
-      // 布局系统重新测量了页面尺寸（纯位置滚动不算），viewRect 确认跟随当前窗口（判据A恢复换算）
       this.viewSyncedByWindow = true;
     }
     if (this.didInit) {
@@ -571,13 +572,13 @@ export class KRNativeRenderController {
     if (this.viewRect == null) {
       return;
     }
-    // 布局回调已到，viewRect 确认跟随当前窗口（判据A恢复换算），尺寸是否变化均视为已确认
-    this.viewSyncedByWindow = true;
     const newWidth = newValue.width as number;
     const newHeight = newValue.height as number;
     if (!this.isViewSizeChanged(newWidth, newHeight)) {
       return;
     }
+    // 尺寸确实被重新测量，viewRect 确认跟随当前窗口（判据A恢复换算）
+    this.viewSyncedByWindow = true;
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
     if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
       // onSizeChange 是布局前回调：提前更新 viewRect 使后续下发必然使用「新 viewRect − 新 safeAreaRect」，
@@ -656,6 +657,10 @@ export class KRNativeRenderController {
     }
     if (this.windowClass) {
       try {
+        // 密度变化后旧基准的 dp 语义已整体失效（窗口/避让的 dp 值随密度缩放），重置比较基准，
+        // 避免判据B拿旧密度侧值与新密度侧值比较产生跨密度误判
+        this.lastSafeAreaRect = null;
+        this.lastSafeAreaWinRect = null;
         this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass), true, 'densityChanged');
       } catch (e) {
         KRRenderLog.e('Window', `doOnDensityChanged update safearea error code:${e.code}`);

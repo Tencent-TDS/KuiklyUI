@@ -120,10 +120,13 @@ void KRVsyncModule::OnVsync(long long timestamp, void *data) {
     const uint64_t generation = context->generation;
     if (self) {
         std::lock_guard<std::mutex> guard(self->mutex_);
-        // 摘链：让槽侧不再持有本 context（槽侧引用的释放由 UnRegister/arm 侧的
-        // ReleaseRequestRef 完成，若已摘链则该处为 no-op）
+        // 摘链并就地释放槽侧引用：摘链后 arm 侧只能 Release 到 null(no-op)，
+        // 槽侧那份若不在此时减，refs 将卡在 1 造成每帧泄漏。
+        // 摘链处 2→1，函数末尾(或早退分支)回调侧 1→0 delete，恰好平衡。
+        // 非摘链路径(反注册/重注册竞态)不受影响，由各自分支的 Release 兜底。
         if (self->pending_request_ == context) {
             self->pending_request_ = nullptr;
+            ReleaseRequestRef(context);
         }
         if (!self->running_ || generation != self->generation_) {
             ReleaseRequestRef(context);  // 释放回调侧引用

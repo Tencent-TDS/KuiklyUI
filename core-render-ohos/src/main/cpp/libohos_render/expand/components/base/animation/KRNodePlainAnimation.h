@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include "libohos_render/expand/components/base/animation/IKRNodeAnimation.h"
 #include "libohos_render/expand/components/base/animation/KRNodeAnimationHandler.h"
+#include "libohos_render/expand/components/base/animation/KRNodeNativeAnimationV2.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/animate/KRAnimateOption.h"
 #include "libohos_render/utils/animate/KRAnimation.h"
@@ -43,12 +44,31 @@ static std::unordered_map<int, ArkUI_AnimationCurve> TIME_FUNC_2_ARKUI_CURVE_MAP
 class KRNodePlainAnimationHandler : public KRNodeAnimationHandler {
  public:
     int timingFuncType = TIMING_FUNC_TYPE_LINEAR;
+    std::vector<float> cubicBezier;
+    ArkUI_CurveHandle curveHandle = nullptr;
 
     std::shared_ptr<KRAnimateOption> buildAnimateOption() override {
         auto option = KRNodeAnimationHandler::buildAnimateOption();
+        if (cubicBezier.size() == 4) {
+            auto curve = KRCreateNativeCubicBezierCurve(cubicBezier);
+            option->SetSpringCurve(curve);
+            SetCurveHandle(curve);
+            return option;
+        }
         auto curve = TIME_FUNC_2_ARKUI_CURVE_MAP[timingFuncType];
         option->SetCurve(curve);
         return option;
+    }
+
+    void SetCurveHandle(ArkUI_CurveHandle curve) {
+        if (curveHandle) {
+            OH_ArkUI_Curve_DisposeCurve(curveHandle);
+        }
+        curveHandle = curve;
+    }
+
+    ~KRNodePlainAnimationHandler() {
+        SetCurveHandle(nullptr);
     }
 };
 

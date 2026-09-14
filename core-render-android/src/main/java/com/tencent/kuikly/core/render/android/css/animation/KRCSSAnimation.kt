@@ -100,6 +100,8 @@ class KRCSSAnimation(animation: String, view: View, context: IKuiklyRenderContex
      */
     private var animationKey = ""
 
+    private var nativeCurve: NativeCurve? = null
+
     private val supportAnimationHandlerCreator = ArrayMap<String, () -> KRCSSAnimationHandler>()
     private val animationOperationMap = ArrayMap<String, KRCSSAnimationHandler>()
 
@@ -201,6 +203,7 @@ class KRCSSAnimation(animation: String, view: View, context: IKuiklyRenderContex
             handler.durationS = duration
             handler.timingFuncType = timingFuncType
         }
+        handler.applyNativeV2Curve(nativeCurve)
     }
 
     private fun parseAnimation(animation: String) {
@@ -220,6 +223,7 @@ class KRCSSAnimation(animation: String, view: View, context: IKuiklyRenderContex
         if (animationSpilt.size > ANIMATION_KEY_INDEX) {
             animationKey = animationSpilt[ANIMATION_KEY_INDEX]
         }
+        nativeCurve = parseNativeCurveV2(animationSpilt)
     }
 
     private fun setupAnimationHandler() {
@@ -247,7 +251,6 @@ class KRCSSAnimation(animation: String, view: View, context: IKuiklyRenderContex
         private const val DELAY_INDEX = 5
         private const val REPEAT_INDEX = 6
         private const val ANIMATION_KEY_INDEX = 7
-
         private const val SPRING_ANIMATION_TYPE = 1
     }
 }

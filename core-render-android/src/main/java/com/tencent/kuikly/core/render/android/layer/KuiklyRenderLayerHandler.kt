@@ -90,6 +90,13 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         debugLogEnable = renderViewWeakRef?.get()?.isDebugLogEnable() ?: false
     }
 
+    override fun didInit(initCallback: IKuiklyRenderLayerInitCallback) {
+        initCallback.onReadCacheStart()
+        initCallback.onReadCacheFinish()
+        initCallback.onRenderCacheStart()
+        initCallback.onRenderCacheFinish()
+    }
+
     override fun createRenderView(tag: Int, viewName: String) {
         assert(isMainThread()) { // assert中的字符串不定义成常量，因为assert在运行的时候会被移除，定义成常量的话，会出现无用常量
             "must call on ui thread"
@@ -294,6 +301,17 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         renderViewWeakRef?.get()?.kuiklyRenderExport?.getTDFModule(name) as? T
 
     override fun getView(tag: Int): View? = getRenderViewHandler(tag)?.viewExport?.view()
+
+    override fun updateViewTagWithCurTag(currentTag: Int, newTag: Int) {
+        getRenderViewHandler(currentTag)?.also {
+            removeRenderViewHandler(currentTag)
+            putRenderViewHandler(newTag, it)
+        }
+    }
+
+    override fun didHitTest() {}
+
+    override fun willDealloc() {}
 
     override fun onDestroy() {
         moduleRegistryWRLock.withReadLock {

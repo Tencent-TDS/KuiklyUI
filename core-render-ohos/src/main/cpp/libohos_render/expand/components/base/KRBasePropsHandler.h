@@ -19,6 +19,7 @@
 #include <arkui/native_gesture.h>
 #include <arkui/native_type.h>
 #include <string>
+#include <unordered_set>
 #include "libohos_render/expand/components/base/animation/IKRNodeAnimation.h"
 #include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/foundation/KRRect.h"
@@ -73,6 +74,10 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
         return did_set_animation_;
     }
 
+    // ArkUI does not always interpolate from an implicit platform default. Before the first
+    // animation of a property, materialize that default as an explicit node attribute.
+    virtual void PrepareFirstAnimationProperty(const std::string &prop_key);
+
  private:
     void ResetTransformIfNeed();
     void UpdateTransform(const std::string &css_transform);
@@ -87,6 +92,7 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
     bool force_overflow_ = false;
     bool did_set_animation_ = false;
     bool has_clip_path_ = false;
+    std::unordered_set<std::string> initialized_animation_properties_;
 
     ArkUI_ContextHandle context_ = nullptr;
 

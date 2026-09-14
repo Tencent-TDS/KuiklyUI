@@ -280,7 +280,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
 
         base_event_handler_->OnGestureEvent(gesture_event_data, event_type);
         if (base_event_handler_->HasCaptureRule()) {
-            auto action_type = kuikly::util::GetArkUIGestureActionType(gesture_event_data->gesture_event_);
+            auto action_type = gesture_event_data->GetActionType();
             handling_capture_event_ =
                 action_type == GESTURE_EVENT_ACTION_ACCEPT || action_type == GESTURE_EVENT_ACTION_UPDATE;
         }

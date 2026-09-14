@@ -5,6 +5,10 @@
 
 > 官方文档（推荐阅读）：[Animation in Compose](https://developer.android.com/develop/ui/compose/animation/choose-api?hl=zh-cn)
 
+Kuikly Compose 还提供 Native 属性动画执行路径。当前版本覆盖 alpha、transform
+和纯色背景，并需要业务显式启用。完整支持矩阵、运行时语义、回退规则和使用示例请参阅
+[Native 属性动画](./native-animation.md)。
+
 ## 支持的动画 API
 
 Kuikly 当前重点支持以下动画 API，并与 Jetpack Compose 对齐：

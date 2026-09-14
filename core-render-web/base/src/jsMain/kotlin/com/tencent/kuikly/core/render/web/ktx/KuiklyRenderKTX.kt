@@ -90,10 +90,14 @@ class KuiklyRenderCallback(private val cb: (result: Any?) -> Unit) {
 /**
  * Convert [Map] to [JSONObject]
  */
-internal fun Map<String, Any>.toJSONObject(): JSONObject {
+internal fun Map<String, Any?>.toJSONObject(): JSONObject {
     val serializationObject = JSONObject()
     forEach { (key, value) ->
         when (value) {
+            null -> {
+                serializationObject.put(key, null)
+            }
+
             is Int -> {
                 serializationObject.put(key, value)
             }
@@ -119,12 +123,12 @@ internal fun Map<String, Any>.toJSONObject(): JSONObject {
             }
 
             is Map<*, *> -> {
-                val map = value.unsafeCast<Map<String, Any>>()
+                val map = value.unsafeCast<Map<String, Any?>>()
                 serializationObject.put(key, map.toJSONObject())
             }
 
             is List<*> -> {
-                val list = value.unsafeCast<List<Any>>()
+                val list = value.unsafeCast<List<Any?>>()
                 serializationObject.put(key, list.toJSONArray())
             }
 
@@ -136,10 +140,14 @@ internal fun Map<String, Any>.toJSONObject(): JSONObject {
 /**
  * Convert [List] to [JSONArray]
  */
-internal fun List<Any>.toJSONArray(): JSONArray {
+internal fun List<Any?>.toJSONArray(): JSONArray {
     val serializationArray = JSONArray()
     forEach { value ->
         when (value) {
+            null -> {
+                serializationArray.put(null)
+            }
+
             is Int -> {
                 serializationArray.put(value)
             }
@@ -165,12 +173,12 @@ internal fun List<Any>.toJSONArray(): JSONArray {
             }
 
             is Map<*, *> -> {
-                val map = value.unsafeCast<Map<String, Any>>()
+                val map = value.unsafeCast<Map<String, Any?>>()
                 serializationArray.put(map.toJSONObject())
             }
 
             is List<*> -> {
-                val list = value.unsafeCast<List<Any>>()
+                val list = value.unsafeCast<List<Any?>>()
                 serializationArray.put(list.toJSONArray())
             }
         }

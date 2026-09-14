@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.event.ClickParams
 
 internal class MyView: DeclarativeBaseView<MyViewAttr, MyViewEvent>() {
     
@@ -31,7 +32,11 @@ internal class MyViewAttr : ComposeAttr() {
 }
 
 internal class MyViewEvent : ComposeEvent() {
-    
+    fun tap(handler: (ClickParams) -> Unit) {
+        this.register("tap") {
+            handler(ClickParams.decode(it))
+        }
+    }
 }
 
 internal fun ViewContainer<*, *>.My(init: MyView.() -> Unit) {

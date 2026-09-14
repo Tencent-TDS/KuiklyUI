@@ -69,15 +69,30 @@ abstract class Props : BaseObject(), IPagerId {
 
     fun setProp(propKey: String, propValue: Any) {
         checkThread("attr", "access")
-        if (propsMap[propKey] == propValue && !forceUpdate) {
+        val previousValue = propsMap[propKey]
+        if (previousValue == propValue && !forceUpdate) {
             return
         }
         propsMap[propKey] = propValue
-        view()?.didSetProp(propKey, propValue)
+        val targetView = view()
+        if (this is Attr && stageNativeAnimationPropertyIfNeeded(
+                targetView,
+                propKey,
+                previousValue,
+                propValue
+            )
+        ) {
+            return
+        }
+        targetView?.didSetProp(propKey, propValue)
     }
 
     fun updatePropCache(propKey: String, propValue: Any) {
         propsMap[propKey] = propValue
+    }
+
+    fun removePropCache(propKey: String) {
+        propsMap.remove(propKey)
     }
 
     fun setNeedLayout() {

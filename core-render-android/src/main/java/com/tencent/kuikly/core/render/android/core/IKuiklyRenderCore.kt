@@ -18,10 +18,14 @@ package com.tencent.kuikly.core.render.android.core
 import android.view.View
 import com.tencent.kuikly.core.render.android.IKuiklyRenderView
 import com.tencent.kuikly.core.render.android.IKuiklyRenderViewTreeUpdateListener
+import com.tencent.kuikly.core.render.android.KuiklyContextParams
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
 import com.tencent.kuikly.core.render.android.exception.IKuiklyRenderExceptionListener
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
+import com.tencent.kuikly.core.render.android.layer.IKuiklyRenderLayerHandler
+import com.tencent.kuikly.core.render.android.layer.IKuiklyRenderLayerInitCallback
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreTask
+import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreUIScheduler
 import com.tencent.tdf.module.TDFBaseModule
 
 /**
@@ -36,6 +40,7 @@ interface IKuiklyRenderCore {
      * @param url 页面url, 可以是一个pageName或者是一个带有v_bundleName=$pageName和其他参数的https链接
      * @param params 传递给KTV页面的参数
      * @param assetsPath assets 资源路径
+     * @param contextParams 页面打开时相关参数（含执行模式、页面url、页面数据、资源路径等）
      * @param contextInitCallback 初始化事件回调
      */
     fun init(
@@ -44,8 +49,21 @@ interface IKuiklyRenderCore {
         url: String,
         params: Map<String, Any>,
         assetsPath: String?,
+        contextParams: KuiklyContextParams,
         contextInitCallback: IKuiklyRenderContextInitCallback
     )
+
+    /**
+     * 完全初始化Core之后调用
+     * 注：该时机用于依赖UI组件渲染时所需要的时机，因UI组件渲染可能通过rootView调用相关Api
+     * 其api会依赖core变量的存在，所以这里提供延后初始化的时机(保证rootView中core已完成初始化)
+     */
+    fun didInitCore(initCallback: IKuiklyRenderLayerInitCallback)
+
+    /**
+     * 收到手势响应时调用
+     */
+    fun didHitTest()
 
     /**
      * Native发送事件给KTV页面
@@ -130,4 +148,13 @@ interface IKuiklyRenderContextInitCallback {
      */
     fun onCreateInstanceFinish()
 
+}
+
+internal interface IKuiklyRenderLayerHandlerProvider {
+
+    fun createRenderLayerHandler(
+        renderView: IKuiklyRenderView,
+        contextParams: KuiklyContextParams,
+        uiScheduler: KuiklyRenderCoreUIScheduler?
+    ): IKuiklyRenderLayerHandler? = null
 }

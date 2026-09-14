@@ -92,6 +92,7 @@ class KRCSSPlainBackgroundColorAnimationHandler : KRCSSPlainAnimationHandler() {
 abstract class KRCSSPlainAnimationHandler : KRCSSAnimationHandler() {
 
     var timingFuncType = TIMING_FUNC_TYPE_LINEAR
+    internal var nativeCurve: NativeCurve? = null
     private var objectAnimator: ValueAnimator? = null
     private var isCancel = false
 
@@ -133,6 +134,7 @@ abstract class KRCSSPlainAnimationHandler : KRCSSAnimationHandler() {
     abstract fun createValueAnimator(target: View): ValueAnimator
 
     private fun createInterpolator(): TimeInterpolator {
+        nativeCurve.createTimeInterpolatorOrNull()?.let { return it }
         return when (timingFuncType) {
             TIMING_FUNC_TYPE_ACCELERATE -> AccelerateInterpolator()
             TIMING_FUNC_TYPE_DECELERATE -> DecelerateInterpolator()

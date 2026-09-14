@@ -37,6 +37,10 @@ import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Com
 import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_INIT_CORE_START
 import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_CREATE_INSTANCE_FINISH
 import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_CREATE_INSTANCE_START
+import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_INIT_LAYER_READ_CACHE_FINISH
+import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_INIT_LAYER_READ_CACHE_START
+import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH
+import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData.Companion.EVENT_ON_INIT_LAYER_RENDER_CACHE_START
 
 /**
  * 启动性能追踪
@@ -89,6 +93,22 @@ class KRLaunchMonitor: KRMonitor<KRLaunchData>() {
 
     override fun onCreateInstanceFinish() {
         eventTimestamps[EVENT_ON_CREATE_INSTANCE_FINISH] = System.currentTimeMillis()
+    }
+
+    override fun onInitLayerReadCacheStart() {
+        eventTimestamps[EVENT_ON_INIT_LAYER_READ_CACHE_START] = System.currentTimeMillis()
+    }
+
+    override fun onInitLayerReadCacheFinish() {
+        eventTimestamps[EVENT_ON_INIT_LAYER_READ_CACHE_FINISH] = System.currentTimeMillis()
+    }
+
+    override fun onInitLayerRenderCacheStart() {
+        eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_START] = System.currentTimeMillis()
+    }
+
+    override fun onInitLayerRenderCacheFinish() {
+        eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH] = System.currentTimeMillis()
     }
 
     /**

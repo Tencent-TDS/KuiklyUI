@@ -27,6 +27,7 @@ import android.util.Log
 import android.util.Size
 import android.util.SizeF
 import android.util.SparseArray
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
@@ -38,6 +39,7 @@ import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListene
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
 import com.tencent.kuikly.core.render.android.core.IKuiklyRenderContextInitCallback
 import com.tencent.kuikly.core.render.android.core.IKuiklyRenderCore
+import com.tencent.kuikly.core.render.android.core.IKuiklyRenderLayerHandlerProvider
 import com.tencent.kuikly.core.render.android.core.KuiklyRenderCore
 import com.tencent.kuikly.core.render.android.css.ktx.activity
 import com.tencent.kuikly.core.render.android.css.ktx.getDisplaySize
@@ -61,6 +63,7 @@ import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewPropExternalHandler
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
+import com.tencent.kuikly.core.render.android.layer.IKuiklyRenderLayerInitCallback
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreTask
 import com.tencent.tdf.module.TDFBaseModule
 import com.tencent.tdf.module.TDFModuleContext
@@ -75,7 +78,7 @@ class KuiklyRenderView(
     private var executeMode: KuiklyRenderCoreExecuteModeBase = KuiklyRenderCoreExecuteModeBase.JVM,
     private val enablePreloadClass: Boolean = true,
     private val delegate: KuiklyRenderViewBaseDelegatorDelegate? = null
-) : FrameLayout(context), IKuiklyRenderView {
+) : FrameLayout(context), IKuiklyRenderView, IKuiklyRenderLayerHandlerProvider {
 
     private var renderCore: IKuiklyRenderCore? = null
 
@@ -200,6 +203,28 @@ class KuiklyRenderView(
         tracer.end()
     }
 
+    override fun didCreateRenderView() {
+        addTaskWhenCoreDidInit {
+            renderCore?.didInitCore(object : IKuiklyRenderLayerInitCallback {
+                override fun onReadCacheStart() {
+                    dispatchLifecycleStateChanged(STATE_INIT_LAYER_READ_CACHE_START)
+                }
+
+                override fun onRenderCacheFinish() {
+                    dispatchLifecycleStateChanged(STATE_INIT_LAYER_READ_CACHE_FINISH)
+                }
+
+                override fun onRenderCacheStart() {
+                    dispatchLifecycleStateChanged(STATE_INIT_LAYER_RENDER_CACHE_START)
+                }
+
+                override fun onReadCacheFinish() {
+                    dispatchLifecycleStateChanged(STATE_INIT_LAYER_RENDER_CACHE_FINISH)
+                }
+            })
+        }
+    }
+
     override fun sendEvent(event: String, data: Map<String, Any>) {
         var shouldSync = delegate?.syncSendEvent(event) == true
         if (!shouldSync) {
@@ -316,7 +341,9 @@ class KuiklyRenderView(
     override fun syncFlushAllRenderTasks() {
         KuiklyRenderLog.d("KuiklyRenderView", "--syncFlushAllRenderTasks--")
         addTaskWhenCoreDidInit {
-            it.syncFlushAllRenderTasks()
+            if (childCount <= 0) {
+                it.syncFlushAllRenderTasks()
+            }
             remeasureIfNeeded()
         }
     }
@@ -363,6 +390,14 @@ class KuiklyRenderView(
         performInitRenderCoreLazyTaskOnce(w, h)
         sendSizeChangeIfNeed(w, h)
         isInOnSizeChanged = false
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        val result = super.dispatchTouchEvent(ev)
+        if (result) {
+            renderCore?.didHitTest()
+        }
+        return result
     }
 
     private fun performInitRenderCoreLazyTaskOnce(w: Int, h: Int
@@ -425,6 +460,7 @@ class KuiklyRenderView(
                 url,
                 generateWithParams(params, size),
                 assetsPath,
+                contextParams,
                 contextInitCallback)
         }
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
@@ -541,6 +577,26 @@ class KuiklyRenderView(
             STATE_INIT_CONTEXT_FINISH -> {
                 lifecycleCallbacks.forEach {
                     it.onInitContextFinish()
+                }
+            }
+            STATE_INIT_LAYER_READ_CACHE_START -> {
+                lifecycleCallbacks.forEach {
+                    it.onInitLayerReadCacheStart()
+                }
+            }
+            STATE_INIT_LAYER_READ_CACHE_FINISH -> {
+                lifecycleCallbacks.forEach {
+                    it.onInitLayerReadCacheFinish()
+                }
+            }
+            STATE_INIT_LAYER_RENDER_CACHE_START -> {
+                lifecycleCallbacks.forEach {
+                    it.onInitLayerRenderCacheStart()
+                }
+            }
+            STATE_INIT_LAYER_RENDER_CACHE_FINISH -> {
+                lifecycleCallbacks.forEach {
+                    it.onInitLayerRenderCacheFinish()
                 }
             }
             STATE_CREATE_INSTANCE_START -> {
@@ -691,7 +747,11 @@ class KuiklyRenderView(
         private const val STATE_INIT_CORE_FINISH = STATE_INIT_CORE_START + 1
         private const val STATE_INIT_CONTEXT_START = STATE_INIT_CORE_FINISH + 1
         private const val STATE_INIT_CONTEXT_FINISH = STATE_INIT_CONTEXT_START + 1
-        private const val STATE_CREATE_INSTANCE_START = STATE_INIT_CONTEXT_FINISH + 1
+        private const val STATE_INIT_LAYER_READ_CACHE_START = STATE_INIT_CONTEXT_FINISH + 1
+        private const val STATE_INIT_LAYER_READ_CACHE_FINISH = STATE_INIT_LAYER_READ_CACHE_START + 1
+        private const val STATE_INIT_LAYER_RENDER_CACHE_START = STATE_INIT_LAYER_READ_CACHE_FINISH + 1
+        private const val STATE_INIT_LAYER_RENDER_CACHE_FINISH = STATE_INIT_LAYER_RENDER_CACHE_START + 1
+        private const val STATE_CREATE_INSTANCE_START = STATE_INIT_LAYER_RENDER_CACHE_FINISH + 1
         private const val STATE_CREATE_INSTANCE_FINISH = STATE_CREATE_INSTANCE_START + 1
         private const val STATE_FIRST_FRAME_PAINT = STATE_CREATE_INSTANCE_FINISH + 1
         private const val STATE_RESUME = STATE_FIRST_FRAME_PAINT + 1

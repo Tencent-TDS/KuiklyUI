@@ -214,6 +214,7 @@ export const zhSidebar = sidebar({
                 "text-selection.md",
                 "modifier.md",
                 "animation-system.md",
+                "native-animation.md",
                 "gesture-system.md",
                 "thread-and-coroutines.md",
                 "view-model.md"

@@ -436,6 +436,39 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
         // Set here, directly return
         return true
     }
+    if (key == KRCssConst.FRAME) {
+        // FIX 1: If element has a pending kuikly-animation (executeAnimationId != 0) but
+        // no active hrAnimation on this call chain, it means a previous animation was just
+        // committed (via commitAnimation -> getAnimationJson -> setTimeout) and the actual
+        // style write is scheduled ~10ms later. In this window, if we let flex layout's
+        // auto-sync `setFrame` (which reaches here) directly write style.left/top/width/height,
+        // it will:
+        //   - overwrite the animation start state prematurely
+        //   - cause the pending executeAnimation's transition to become no-op (oldValue==newValue)
+        //   - trigger a residual browser transition to jump the element instantly
+        // Skip the direct write here; the pending executeAnimation will apply the correct
+        // target values 10ms later with proper transition.
+        val pendingAnimId: dynamic = dynamicElement.executeAnimationId
+        if (jsTypeOf(pendingAnimId) == "number" && pendingAnimId.unsafeCast<Int>() != 0) {
+            return true
+        }
+
+        // FIX 2: If there is no active animation (hrAnimation is null) but the element still has
+        // a residual `animation` attribute referencing an old kuikly-animation CSS rule,
+        // this old rule (which contains `!important`) will override the inline style we're
+        // about to set. This can happen when a previous transition's `transitionend` event
+        // was not fired (e.g. when the target value equals the current computed value, or
+        // when the animation was interrupted). Clear the residual attribute here to ensure
+        // the new inline frame takes effect immediately.
+        // Note: use dynamic + JS typeof check to avoid Kotlin's charSequenceLength on
+        // non-string values returned by getAttribute in mini-app environments.
+        if (ele.hrAnimation == null && jsTypeOf(dynamicElement.getAttribute) == KRJsTypeConst.FUNCTION) {
+            val animAttr: dynamic = ele.getAttribute(KRAttrConst.ANIMATION)
+            if (jsTypeOf(animAttr) == KRJsTypeConst.STRING && animAttr.length.unsafeCast<Int>() > 0) {
+                ele.setAttribute(KRAttrConst.ANIMATION, "")
+            }
+        }
+    }
 
     // Otherwise use unified setting method
     val result = propHandlers[key]?.invoke(ele.style, value, ele) ?: false

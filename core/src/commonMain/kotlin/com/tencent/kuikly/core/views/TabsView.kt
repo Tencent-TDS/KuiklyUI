@@ -109,21 +109,29 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
             scrollProgress * (contentViewFrame.width - flexNode.layoutFrame.width)
         }
         offsetX = max(min(offsetX, (contentViewFrame.width - flexNode.layoutFrame.width)),0f)
-        var animated = false
+        // 判断当前pageList是否完全归位（独立于tab头List是否需要滚动，避免tab0↔tab1等切换时indicator无动画）
+        var isFullIndexPosition = false
+        this.attr.scrollParams?.also {
+            val progress = (it.offsetX / it.viewWidth)
+            isFullIndexPosition = progress.isCloseToInt(0.05f)
+        }
+        val animated = didInitContentOffset && itemSelectedIndexDidChanged && isFullIndexPosition
         if (curOffsetX != offsetX) {
-            // 判断当前pageList是否完全归位
-            var isFullIndexPosition = false
-            this.attr.scrollParams?.also {
-                val progress = (it.offsetX / it.viewWidth)
-                isFullIndexPosition = progress.isCloseToInt(0.05f)
-            }
-            animated = didInitContentOffset && itemSelectedIndexDidChanged && isFullIndexPosition
             setContentOffset( offsetX, 0f, animated)
         }
 
         this.indicatorViewRef?.view?.getViewAttr()?.also {
             if (animated) {
-                it.setProp(Attr.StyleConst.ANIMATION, Animation.linear(0.2f).toString())
+                // 小程序：scroll-view scroll-with-animation 约 300ms + ease-out 类曲线，
+                // indicator 动画需与其对齐以避免视觉抖动；
+                // 其他平台（h5 tab头瞬时滚动；Android/iOS 原生 native 动画）保留 linear(0.2f)。
+                val pd = getPager().pageData
+                val indicatorAnim = if (pd.isMiniApp) {
+                    Animation.easeOut(0.3f)
+                } else {
+                    Animation.linear(0.2f)
+                }
+                it.setProp(Attr.StyleConst.ANIMATION, indicatorAnim.toString())
             }
             it.left(left)
             it.top(0f)

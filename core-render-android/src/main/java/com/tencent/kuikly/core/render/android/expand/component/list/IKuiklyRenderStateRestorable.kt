@@ -13,21 +13,18 @@
  * limitations under the License.
  */
 
-#include "KRRenderExecuteModeWrapper.h"
+package com.tencent.kuikly.core.render.android.expand.component.list
 
-KRRenderExecuteModeWrapper::KRRenderExecuteModeWrapper(const int mode, const KRRenderExecuteModeCreator &mode_creator,
-                                                       const KRRenderContextHandlerCreator &context_creator) {
-    mode_ = mode;
-    execute_mode_creator_ = mode_creator;
-    context_handler_creator_ = context_creator;
-}
-int KRRenderExecuteModeWrapper::GetMode() {
-    return mode_;
-}
-KRRenderExecuteModeCreator KRRenderExecuteModeWrapper::GetExecuteModeCreator() {
-    return execute_mode_creator_;
-}
+/**
+ * @brief 状态恢复协议
+ * 用于在首屏渲染后恢复View的状态（如offset等非属性的状态量）
+ */
+interface IKuiklyRenderStateRestorable {
 
-KRRenderContextHandlerCreator KRRenderExecuteModeWrapper::GetContextHandlerCreator() {
-    return context_handler_creator_;
+    /**
+     * 应用额外缓存内容（恢复状态）
+     * @param extraCacheProps 该View对应的缓存属性字典（不含viewName）
+     *        例如：{ "contentOffsetX": 0, "contentOffsetY": 350.5 }
+     */
+    fun applyExtraCacheContent(extraCacheProps: Map<String, Any?>)
 }

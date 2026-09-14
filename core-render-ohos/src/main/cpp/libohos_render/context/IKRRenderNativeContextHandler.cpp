@@ -18,10 +18,6 @@
 #include "libohos_render/context/KRRenderNativeContextHandlerManager.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 
-void IKRRenderNativeContextHandler::SetContextHandlerCreator(const KRRenderContextHandlerCreator &creator) {
-    KRRenderNativeContextHandlerManager::GetInstance().SetContextHandlerCreator(creator);
-}
-
 std::shared_ptr<IKRRenderNativeContextHandler>
 IKRRenderNativeContextHandler::CreateContextHandler(const std::shared_ptr<KRRenderContextParams> &context_params) {
     return KRRenderNativeContextHandlerManager::GetInstance().CreateContextHandler(context_params);

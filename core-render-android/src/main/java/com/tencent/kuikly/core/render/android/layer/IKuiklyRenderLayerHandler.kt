@@ -37,6 +37,11 @@ interface IKuiklyRenderLayerHandler {
     fun init(renderView: IKuiklyRenderView)
 
     /**
+     * 完全初始化后调用
+     */
+    fun didInit(initCallback: IKuiklyRenderLayerInitCallback)
+
+    /**
      * 创建渲染试图
      * @param tag 视图id
      * @param viewName 视图标签名字
@@ -194,7 +199,57 @@ interface IKuiklyRenderLayerHandler {
     fun getView(tag: Int): View?
 
     /**
+     * 更新渲染View的tag
+     * @param currentTag 当前要被修正的tag
+     * @param newTag 更新到该tag的值
+     */
+    fun updateViewTagWithCurTag(currentTag: Int, newTag: Int)
+
+    /**
+     * 在创建 Kotlin 页面实例（createInstance）之前，对传给页面的参数进行加工。
+     * 默认原样返回 params
+     */
+    fun decorateCreateInstanceParams(params: Map<String, Any>): Map<String, Any> = params
+
+    /**
+     * 收到手势时调用
+     */
+    fun didHitTest()
+
+    /**
+     * 即将销毁时回调用
+     */
+    fun willDealloc()
+
+    /**
      * [IKuiklyRenderView]实例销毁时，此方法会被调用
      */
     fun onDestroy()
+}
+
+/**
+ * 渲染层初始化过程的回调
+ */
+interface IKuiklyRenderLayerInitCallback {
+
+    /**
+     * 读取缓存开始
+     */
+    fun onReadCacheStart()
+
+    /**
+     * 读取缓存完成
+     */
+    fun onReadCacheFinish()
+
+    /**
+     * 渲染缓存开始
+     */
+    fun onRenderCacheStart()
+
+    /**
+     * 渲染缓存结束
+     */
+    fun onRenderCacheFinish()
+
 }

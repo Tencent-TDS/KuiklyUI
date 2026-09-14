@@ -18,6 +18,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { KuiklyRenderAdapterManager } from '@kuikly-open/render';
 import { AppKRRouterAdapter } from '../kuikly/adapters/AppKRRouterAdapter';
+import { LaunchParams } from '../kuikly/LaunchParams';
 import fs from '@ohos.file.fs';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Napi from 'libkuikly_entry.so';
@@ -25,6 +26,9 @@ import Napi from 'libkuikly_entry.so';
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
+    // aa start --ps pageName Xxx 落到 want.parameters。
+    const pageName = want?.parameters?.['pageName']
+    LaunchParams.pageName = (typeof pageName === 'string') ? pageName : ''
   }
 
   onDestroy(): void {

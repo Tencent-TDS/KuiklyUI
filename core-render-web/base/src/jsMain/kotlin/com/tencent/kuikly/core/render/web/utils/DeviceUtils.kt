@@ -1,6 +1,6 @@
 package com.tencent.kuikly.core.render.web.utils
 
-import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
+
 
 /**
  * Device type enumeration
@@ -20,12 +20,19 @@ object DeviceUtils {
      * Detect current device type
      */
     fun detectDeviceType(): DeviceType {
-        // Check mini-program WeChat environment 
-        val isInMiniProgram =
-            js("typeof window === 'undefined' || typeof wx !== 'undefined'").unsafeCast<Boolean>()
+        // Detect mini-program runtime. Do NOT rely on `typeof wx !== 'undefined'` alone,
+        // because WeChat JS-SDK in normal H5 also injects `wx`.
+        val isNoWindow = js(
+            "typeof window === 'undefined'"
+        ).unsafeCast<Boolean>()
+        val hasWxRuntimeApi = js(
+            "typeof wx !== 'undefined' && typeof wx.getSystemInfoSync === 'function'"
+        ).unsafeCast<Boolean>()
+        val hasMiniProgramGlobals = js(
+            "typeof getApp === 'function' && typeof Page === 'function'"
+        ).unsafeCast<Boolean>()
 
-        if (isInMiniProgram) {
-            // In mini-program environment, return specific type
+        if (isNoWindow || hasWxRuntimeApi || hasMiniProgramGlobals) {
             return DeviceType.MINIPROGRAM
         }
         

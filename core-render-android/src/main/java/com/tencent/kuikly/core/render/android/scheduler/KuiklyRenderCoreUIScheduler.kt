@@ -87,8 +87,14 @@ class KuiklyRenderCoreUIScheduler(
     private var logRunCount = 0
     private var callNativeLogCount = 0
 
+    private var isMarkViewDidLoad = false
+
     override fun scheduleTask(delayMs: Long, task: Runnable) {
         scheduleTask(delayMs, false, task)
+    }
+
+    fun markViewDidLoad() {
+        isMarkViewDidLoad = true
     }
 
     /**
@@ -140,7 +146,7 @@ class KuiklyRenderCoreUIScheduler(
     // 首屏完成在执行任务
     fun performWhenViewDidLoad(task: KuiklyRenderCoreTask) {
         assert(isMainThread())
-        if (viewDidLoad) {
+        if (viewDidLoad || isMarkViewDidLoad) {
             task()
         } else {
             viewDidLoadMainThreadTasks.add(task)
@@ -252,11 +258,18 @@ class KuiklyRenderCoreUIScheduler(
 
     // perform all wait to viewDidLoad tasks
     private fun performViewDidLoadTasksIfNeed() {
-        performOnMainQueueWithTask(sync = false) {
+        val block = {
             for (task in viewDidLoadMainThreadTasks.toList()) {
                 task()
             }
             viewDidLoadMainThreadTasks.clear()
+        }
+        if (isMarkViewDidLoad) {
+            block()
+        } else {
+            performOnMainQueueWithTask(sync = false) {
+                block()
+            }
         }
     }
 

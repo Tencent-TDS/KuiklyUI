@@ -200,9 +200,7 @@ NS_ASSUME_NONNULL_END
         _pageData = pageData;
         
         // 实例化Kuikly委托者类
-        // ⚠️ 注意：必须使用 KuiklyRenderViewControllerDelegator
-        //    不要使用 KuiklyRenderViewControllerBaseDelegator
-        _delegator = [[KuiklyRenderViewControllerDelegator alloc] initWithPageName:pageName pageData:pageData];
+        _delegator = [[KuiklyRenderViewControllerBaseDelegator alloc] initWithPageName:pageName pageData:pageData];
         
         _delegator.delegate = self;
     }

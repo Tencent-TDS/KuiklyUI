@@ -70,6 +70,7 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     if (node_ == nullptr) {
         return false;
     }
+    initialized_animation_properties_.insert(prop_key);
     if (strcmp(prop_key.c_str(), kBackgroundColor) == 0) {  // 背景色
         kuikly::util::UpdateNodeBackgroundColor(node_, kuikly::util::ConvertToHexColor(prop_value->toString()));
         return true;
@@ -187,6 +188,22 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     }
 
     return false;
+}
+
+void KRBasePropsHandler::PrepareFirstAnimationProperty(const std::string &prop_key) {
+    if (node_ == nullptr || initialized_animation_properties_.find(prop_key) !=
+                                initialized_animation_properties_.end()) {
+        return;
+    }
+    if (prop_key == kOpacity) {
+        SetPropWithoutAnimation(prop_key, NewKRRenderValue(1.0), nullptr);
+    } else if (prop_key == kTransform) {
+        SetPropWithoutAnimation(
+            prop_key,
+            NewKRRenderValue("0.0|1.0 1.0|0.0 0.0|0.5 0.5|0.0 0.0|0.0 0.0"),
+            nullptr
+        );
+    }
 }
 
 bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
@@ -401,6 +418,13 @@ bool KRBasePropsHandler::tryAddCurrentAnimationOperation(const std::string &prop
         return false;
     }
 
+    // ArkUI naturally replaces an in-flight interpolation for the same property. Delayed snaps
+    // have not entered ArkUI yet, so notify older handlers as well to invalidate their timers.
+    for (const auto &animation : animationQueue) {
+        if (animation != nullptr && animation != currentAnimation) {
+            animation->cancelAnimationOperations({prop_key});
+        }
+    }
     currentAnimation->addAnimationOperation(prop_key, prop_value);
     return true;
 }

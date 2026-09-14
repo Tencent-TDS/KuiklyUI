@@ -55,8 +55,6 @@ class KRRenderNativeContextHandlerManager {
     KRRenderNativeContextHandlerManager(const KRRenderNativeContextHandlerManager &) = delete;
     KRRenderNativeContextHandlerManager &operator=(const KRRenderNativeContextHandlerManager &) = delete;
 
-    void SetContextHandlerCreator(const KRRenderContextHandlerCreator &creator);
-
     std::shared_ptr<IKRRenderNativeContextHandler>
     CreateContextHandler(const std::shared_ptr<KRRenderContextParams> &context_params);
 
@@ -72,21 +70,12 @@ class KRRenderNativeContextHandlerManager {
         return m_instance;
     }
 
-    static void RegisterContextHandlerCreator(const int &mode, const KRRenderContextHandlerCreator &creator) {
-        GetContextHandlerCreatorRegister()[mode] = creator;
-    }
-    static std::unordered_map<int, KRRenderContextHandlerCreator> &GetContextHandlerCreatorRegister() {
-        static std::unordered_map<int, KRRenderContextHandlerCreator> gRegisterContextHandlerCreator;
-        return gRegisterContextHandlerCreator;
-    }
-
  private:
     KRRenderNativeContextHandlerManager() {}
     void ScheduleDeallocRenderValues(std::shared_ptr<KRRenderValue> will_dealloc_render_value);
 
  private:
     KRThreadSafeMap<std::string, std::shared_ptr<IKRRenderNativeContextHandler>> context_handler_map_;
-    KRRenderContextHandlerCreator creator_;
     std::atomic<bool> scheduling_dealloc_render_values_{false};
     std::vector<std::shared_ptr<KRRenderValue>> pending_dealloc_render_values_;
     KRSpinLock pending_dealloc_render_values_lock_;

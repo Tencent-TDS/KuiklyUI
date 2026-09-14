@@ -102,7 +102,6 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyRow", "LazyRow基本用法示例", "LazyRowDemo1"),
             DemoItem("BoxWithConstraints", "BoxWithConstraints 响应式布局组件示例", "BoxWithConstraintsDemo"),
             DemoItem("Dialog", "Dialog 组件示例", "DialogDemo"),
-            DemoItem("BottomSheet", "底部弹窗示例", "BottomSheetDemo1"),
             DemoItem("AppBar", "AppBar组件示例", "AppBarDemo"),
             DemoItem("Shape", "shape示例", "shapedemo"),
             DemoItem("HorizontalPager", "HorizontalPager基本用法示例", "HorizontalPagerDemo1"),
@@ -167,6 +166,14 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
+            DemoItem("Native属性动画", "Compose与Native动画对照、并发和重组压力测试", "NativeAnimationDemo"),
+            DemoItem("BottomSheet", "ModalBottomSheet Compose / Native 位移对照", "BottomSheetDemo1"),
+            DemoItem("Native NavHost", "NavHost Compose / Native push、fade 和 modal 转场", "NativeNavHostDemo"),
+            DemoItem(
+                "Kuikly DSL Transform对照",
+                "使用旧动画链路复现Native用例8.1的组合transform",
+                "KuiklyDslTransformAnimationDemo"
+            ),
             DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),

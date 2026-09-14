@@ -74,6 +74,11 @@ interface IKuiklyRenderView {
     )
 
     /**
+     * RenderView完全创建后调用
+     */
+    fun didCreateRenderView()
+
+    /**
      * Native事件发送给Kuikly页面
      * @param event 事件名字
      * @param data 事件数据
@@ -363,6 +368,26 @@ interface IKuiklyRenderViewLifecycleCallback {
      * 初始化渲染环境完成
      */
     fun onInitContextFinish()
+
+    /**
+     * 读取缓存开始
+     */
+    fun onInitLayerReadCacheStart(){}
+
+    /**
+     * 读取缓存完成
+     */
+    fun onInitLayerReadCacheFinish(){}
+
+    /**
+     * 渲染缓存开始
+     */
+    fun onInitLayerRenderCacheStart(){}
+
+    /**
+     * 渲染缓存完成
+     */
+    fun onInitLayerRenderCacheFinish(){}
 
     /**
      * 创建页面开始

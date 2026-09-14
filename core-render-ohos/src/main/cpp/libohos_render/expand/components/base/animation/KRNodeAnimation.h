@@ -18,6 +18,7 @@
 
 #include "libohos_render/expand/components/base/KRBasePropsHandler.h"
 #include "libohos_render/expand/components/base/animation/IKRNodeAnimation.h"
+#include "libohos_render/expand/components/base/animation/KRNodeNativeAnimationV2.h"
 #include "libohos_render/expand/components/base/animation/KRNodePlainAnimation.h"
 #include "libohos_render/expand/components/base/animation/KRNodeSpringAnimation.h"
 #include "libohos_render/utils/KRConvertUtil.h"
@@ -27,6 +28,9 @@ class KRNodeAnimation : public IKRNodeAnimation {
  public:
     // 正在执行动画的数量。0代表动画结束
     int animationRunningCount = 0;
+
+    // A View animation is reported as one batch. Any cancelled operation cancels the batch.
+    bool allOperationsFinished = true;
 
     // 动画作用的view引用
     std::weak_ptr<IKRRenderViewExport> weakView;
@@ -58,6 +62,7 @@ class KRNodeAnimation : public IKRNodeAnimation {
 
     // 动画key
     std::string animationKey = "";
+    KRNodeNativeAnimationV2 nativeV2;
 
     std::unordered_map<std::string, KRNodeAnimationHandlerCreator> supportAnimationHandlerCreator;
     std::unordered_map<std::string, std::shared_ptr<KRNodeAnimationHandler>> animationOperationMap;
@@ -241,6 +246,7 @@ class KRNodeAnimation : public IKRNodeAnimation {
         if (animationSpilt.size() > ANIMATION_KEY_INDEX) {
             animationKey = animationSpilt[ANIMATION_KEY_INDEX];
         }
+        nativeV2 = KRNodeNativeAnimationV2::Parse(animationSpilt);
     }
 
     /**
@@ -288,6 +294,7 @@ class KRNodeAnimation : public IKRNodeAnimation {
         handler->durationS = duration;
         handler->repeatForever = repeatForever;
         handler->weakView = weakView;
+        handler->isSnap = nativeV2.kind == "snap";
 
         std::shared_ptr<KRNodeSpringAnimationHandler> springHandler =
             std::dynamic_pointer_cast<KRNodeSpringAnimationHandler>(handler_);
@@ -299,6 +306,9 @@ class KRNodeAnimation : public IKRNodeAnimation {
                 std::dynamic_pointer_cast<KRNodePlainAnimationHandler>(handler_);
             if (plainHandler != nullptr) {
                 plainHandler->timingFuncType = timingFuncType;
+                if (nativeV2.kind == "cubic" && nativeV2.values.size() == 4) {
+                    plainHandler->cubicBezier = nativeV2.values;
+                }
             }
         }
     }

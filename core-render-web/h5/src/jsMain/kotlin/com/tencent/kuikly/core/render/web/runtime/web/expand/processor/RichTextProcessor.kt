@@ -101,7 +101,7 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private fun setMultiLineStyle(lines: Int, ele: HTMLElement) {
         // If text is multi-line, need to set multi-line properties
-        if (lines > 0) {
+        if (lines > 1) {
             ele.style.display = "-webkit-box"
             ele.style.asDynamic().webkitLineClamp = lines.toString()
             ele.style.asDynamic().webkitBoxOrient = "vertical"
@@ -120,7 +120,7 @@ object RichTextProcessor : IRichTextProcessor {
             ele.style.asDynamic().webkitLineClamp = ""
             ele.style.asDynamic().webkitBoxOrient = ""
             ele.style.whiteSpace = "pre-wrap"
-            ele.style.overflowY = "auto"
+            ele.style.overflowY = "hidden"
         }
     }
 
@@ -170,6 +170,7 @@ object RichTextProcessor : IRichTextProcessor {
             )
             
             TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+                setMultiLineStyle(view.numberOfLines, ele)
                 Log.trace("Using cached size: ", cachedSize.width, cachedSize.height)
                 return cachedSize
             }
@@ -369,6 +370,7 @@ object RichTextProcessor : IRichTextProcessor {
         )
         
         TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+            setMultiLineStyle(view.numberOfLines, ele)
             Log.trace("Using cached canvas size: ", cachedSize.width, cachedSize.height)
             return cachedSize
         }

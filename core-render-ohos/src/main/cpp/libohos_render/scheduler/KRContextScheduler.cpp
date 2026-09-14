@@ -24,6 +24,12 @@
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
+// 同步主线程任务的告警超时时长（默认 10s）。
+// 原为 ScheduleTaskOnMainThread(sync, worker) 内的局部 constexpr 常量，现提升为文件级
+// static 变量，允许通过 KRSetSyncMainTaskWarnTimeout(int ms) 在运行期覆盖（例如测试或
+// 性能敏感的调试场景，需放宽/收紧主<->worker 死锁检测的等待阈值）。单位为毫秒。
+static std::chrono::milliseconds g_SyncMainTaskWarnTimeout{10000};
+
 class KRContextSchedulerInternal {
  public:
     virtual ~KRContextSchedulerInternal() = default;
@@ -130,9 +136,7 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                     donePromise->set_exception(std::current_exception());
                 }
             });
-            using namespace std::chrono_literals;
-            constexpr auto kSyncMainTaskWarnTimeout = 10s;
-            if (doneFuture.wait_for(kSyncMainTaskWarnTimeout) == std::future_status::timeout) {
+            if (doneFuture.wait_for(g_SyncMainTaskWarnTimeout) == std::future_status::timeout) {
                 // 各路径 fail-fast 同口径。throw 出去也走不到任何业务可达的 catch 点：
                 //   - ToCallArkTSMethod / SyncCallArkTSMethod / KRForwardArkTSModule 都不接异常，
                 //   - 一路冒到 napi C ABI 边界后直接暴露给 K/N runtime，由 K/N 的
@@ -141,11 +145,14 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 // 避免栈 unwind 现场失真；也不会让 caller 误以为“这个 throw 可以 catch”
                 // 这种 API 双重含义陷阱。裸调 __assert_fail（而非 assert 宏）确保 release
                 // 也一定触发，与 KRThreadChecker.cpp 现有用法一致。
-                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>10s), "
+                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>"
+                                << g_SyncMainTaskWarnTimeout.count() << "ms), "
                                 "possible main<->worker deadlock; aborting to preserve crash context";
-                __assert_fail("ScheduleTaskOnMainThread(sync, worker) wait timeout (>10s), "
-                              "possible main<->worker deadlock",
-                              __FILE__, __LINE__, __func__);
+                const std::string assertMsg =
+                    "ScheduleTaskOnMainThread(sync, worker) wait timeout (>" +
+                    std::to_string(g_SyncMainTaskWarnTimeout.count()) + "ms), "
+                    "possible main<->worker deadlock";
+                __assert_fail(assertMsg.c_str(), __FILE__, __LINE__, __func__);
             }
             doneFuture.get();  // 正常返回 / rethrow 主线程异常 / broken_promise
             return;
@@ -268,5 +275,25 @@ void KRSetThreadingMode(int mode) {
     const auto target = (mode != 0) ? KRContextScheduler::ThreadingMode::SingleThread
                                     : KRContextScheduler::ThreadingMode::MultiThread;
     KRContextScheduler::SetThreadingMode(target);
+}
+EXTERN_C_END
+
+EXTERN_C_START
+/**
+ * 设置同步主线程任务（ScheduleTaskOnMainThread sync=true 的 worker 等待）的告警超时时长。
+ * @param ms 超时毫秒数；默认 10000(10s)。超时将触发 __assert_fail 以保留死锁现场。
+ *
+ * 该超时用于检测主<->worker 死锁：worker 线程同步等待主线程执行任务超过该时长即视为异常。
+ *
+ * 注意：g_SyncMainTaskWarnTimeout 为文件级 static 变量，本接口未做线程同步保护。
+ * 仅应在初始化 kuikly 前调用一次（且只调用一次），不要多次调用或在运行期并发设置，
+ * 否则存在数据竞争风险。
+ */
+void KRSetSyncMainTaskWarnTimeout(int ms) {
+    // 负数 / 0 视为非法输入，保持默认 10s，避免把等待阈值直接打到 0 导致
+    // 任何一次主线程轻微抖动都被判为死锁而触发 assert。
+    if (ms > 0) {
+        g_SyncMainTaskWarnTimeout = std::chrono::milliseconds(ms);
+    }
 }
 EXTERN_C_END

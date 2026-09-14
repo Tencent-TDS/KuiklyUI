@@ -70,6 +70,11 @@ internal class TBWaterfallListTestPage : BasePager() {
 
     override fun created() {
         super.created()
+        // 阻塞3秒，模拟耗时操作
+        val start = kotlin.time.TimeSource.Monotonic.markNow()
+        while (start.elapsedNow().inWholeMilliseconds < 3000) {
+            // busy wait
+        }
         KLog.e(TAG, "【时序】created() 开始执行")
         // 初始化数据
         for (i in 0 until 100) {
@@ -238,6 +243,8 @@ internal class TBWaterfallListTestPage : BasePager() {
                     lineSpacing(8f)
                     itemSpacing(8f)
                     contentPadding(8f, 8f, 8f, 8f)
+                    initContentOffset(ctx.restoredOffsetY)
+                    firstContentLoadMaxIndex(ctx.restoredFirstVisibleIndex + 10)
                 }
 
                 event {

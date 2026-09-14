@@ -122,8 +122,8 @@ open class ComposeContainer :
     /** 帧驱动已停止（页面销毁），使在途 watchdog 回调失效 */
     private var ohosVsyncDriverStopped = false
 
-    /** watchdog 兜底退回的 12ms Timer */
-    private var ohosVsyncFallbackTimer: Timer? = null
+    /** 鸿蒙非 vsync 驱动的 12ms Timer（watchdog 降级或开关关闭时启动，页面销毁时取消） */
+    private var ohosVsyncFrameTimer: Timer? = null
 
     internal var content: (@Composable () -> Unit)? = null
 
@@ -210,7 +210,7 @@ open class ComposeContainer :
                     startOhosNativeVsyncDriver()
                 } else {
                     // A/B 开关关闭：回到改造前的 12ms Timer 行为
-                    mediator?.startFrameDispatcher()
+                    ohosVsyncFrameTimer = mediator?.startFrameDispatcher()
                 }
             }
             else -> {
@@ -243,7 +243,7 @@ open class ComposeContainer :
                     "ohos native vsync no callback, fallback to 12ms timer"
                 )
                 getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
-                ohosVsyncFallbackTimer = mediator?.startFrameDispatcher()
+                ohosVsyncFrameTimer = mediator?.startFrameDispatcher()
             }
         }
     }
@@ -254,8 +254,8 @@ open class ComposeContainer :
             // miniApp/Web 与历史行为保持一致，不停止 Timer
         } else {
             ohosVsyncDriverStopped = true
-            ohosVsyncFallbackTimer?.cancel()
-            ohosVsyncFallbackTimer = null
+            ohosVsyncFrameTimer?.cancel()
+            ohosVsyncFrameTimer = null
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
         }
     }

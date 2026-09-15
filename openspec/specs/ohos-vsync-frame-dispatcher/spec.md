@@ -8,7 +8,7 @@
 
 ### Requirement: 鸿蒙 Compose 帧调度 SHALL 由 nativeBuild 门控决定 vsync 或 12ms Timer
 
-`ComposeContainer` 以 `useOhosNativeVsyncDriver`（`pageData.nativeBuild >= OHOS_NATIVE_VSYNC_MIN_BUILD`，`get()` 延迟求值——真实 `pageData` 在 `onCreatePager -> pageData.init()` 才填充，构造期求值会读到默认实例恒为 false）判定鸿蒙宿主能力：达标时 SHALL 通过 `VsyncModule.registerVsyncWithFrameInterval` 注册 `OH_NativeVSync` 回调驱动 `renderFrame`；未达标（宿主 native 库未内置 `KRVsyncModule`）SHALL 回退 12ms Timer（改造前行为）。判定为纯静态版本比对，无 watchdog、无 A/B 开关、无运行时特征探测。Android / iOS SHALL 保持既有的 `VsyncModule` 驱动路径不变；miniApp / Web SHALL 保持既有 Timer 路径不变。
+`ComposeContainer` 以 `enableUseOhosNativeVsync`（`pageData.nativeBuild >= OHOS_NATIVE_VSYNC_MIN_BUILD`，`get()` 延迟求值——真实 `pageData` 在 `onCreatePager -> pageData.init()` 才填充，构造期求值会读到默认实例恒为 false）判定鸿蒙宿主能力：达标时 SHALL 通过 `VsyncModule.registerVsyncWithFrameInterval` 注册 `OH_NativeVSync` 回调驱动 `renderFrame`；未达标（宿主 native 库未内置 `KRVsyncModule`）SHALL 回退 12ms Timer（改造前行为）。判定为纯静态版本比对，无 watchdog、无 A/B 开关、无运行时特征探测。Android / iOS SHALL 保持既有的 `VsyncModule` 驱动路径不变；miniApp / Web SHALL 保持既有 Timer 路径不变。
 
 #### Scenario: 120Hz 屏幕满帧驱动
 - **WHEN** 页面在 120Hz 屏幕的 HarmonyOS 设备（nativeBuild ≥ 3）上发生滚动或动画等持续绘制活动
@@ -42,7 +42,7 @@ vsync 能力随 `nativeBuild = 3` 这一代 native 库发布（`KRVsyncModule` �
 
 #### Scenario: 门控判定时机
 - **WHEN** `startFrameDispatcher` 在 `onCreatePager` 内执行（`pageData.init()` 已完成）
-- **THEN** `useOhosNativeVsyncDriver` SHALL 读到真实 nativeBuild（非默认值 0）
+- **THEN** `enableUseOhosNativeVsync` SHALL 读到真实 nativeBuild（非默认值 0）
 - **AND** 构造期求值 SHALL 被禁止（读默认实例恒为 false，vsync 永不启用）
 
 ### Requirement: 帧间隔 SHALL 以 int32 纳秒值经相邻 vsync 时间戳差值计算并上报

@@ -57,6 +57,7 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.lifecycle.Lifecycle
 import com.tencent.kuikly.lifecycle.LifecycleOwner
@@ -110,14 +111,15 @@ open class ComposeContainer :
 
     private val windowInfo = WindowInfoImpl()
 
+    // 小程序 H5 以及旧版本鸿蒙 下发tick 所注册的Timer实例
+    private var dispatchTimer: Timer? = null
+
     /**
-     * 鸿蒙是否启用 native vsync 帧驱动（nativeBuild 达到门限）。
-     * 注意必须用 get() 延迟求值：真实 pageData 在 onCreatePager -> pageData.init()
-     * 才填充，若在构造期直接初始化，读到的是默认实例（isOhOs=false / nativeBuild=0），
-     * 将恒为 false 导致 vsync 永不启用。
+     * 是否使用 Timer 下发帧 tick（而非 native vsync）：小程序 / H5，以及未达
+     * nativeBuild 门限的旧版鸿蒙宿主。start/stop 共用此判定，保证注册与反注册对称。
      */
-    private val enableUseOhosNativeVsync: Boolean
-        get() = pageData.nativeBuild >= OHOS_NATIVE_VSYNC_MIN_BUILD
+    private val useTimerFrameDispatcher: Boolean
+        get() = pageData.isMiniApp || pageData.isWeb || (pageData.isOhOs && pageData.nativeBuild < OHOS_NATIVE_VSYNC_MIN_BUILD)
 
     private val rootKView: DivView by lazy {
         DivView()
@@ -190,21 +192,21 @@ open class ComposeContainer :
 
     private fun startFrameDispatcher() {
         mediator?.renderFrame()
-        val pageData = getPager().pageData
-        when {
-            pageData.isMiniApp || pageData.isWeb || (pageData.isOhOs && !enableUseOhosNativeVsync) -> {
-                mediator?.startFrameDispatcher()
-            }
-            else -> {
-                getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsyncWithFrameInterval { frameIntervalNanos ->
-                    mediator?.renderFrame(frameIntervalNanos)
-                }
+        if (useTimerFrameDispatcher) {
+            dispatchTimer = mediator?.startFrameDispatcher()
+        } else {
+            // ios Android 满足NativeBuild条件的鸿蒙端 使用 vsync 下发tick
+            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsyncWithFrameInterval { frameIntervalNanos ->
+                mediator?.renderFrame(frameIntervalNanos)
             }
         }
     }
 
     private fun stopFrameDispatcher() {
-        if (pageData.isOhOs && !enableUseOhosNativeVsync) {
+        // miniAPP、H5、不满足NativeBuild 鸿蒙端：Timer 分支取消 dispatchTimer
+        // ios Android 满足NativeBuild 鸿蒙端 注销 native vsync 回调
+        if (useTimerFrameDispatcher) {
+            dispatchTimer?.cancel()
             return
         }
         getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()

@@ -8,7 +8,7 @@
 
 ### Requirement: 鸿蒙 Compose 帧调度 SHALL 由 nativeBuild 门控决定 vsync 或 12ms Timer
 
-`ComposeContainer` 以 `enableUseOhosNativeVsync`（`pageData.nativeBuild >= OHOS_NATIVE_VSYNC_MIN_BUILD`，`get()` 延迟求值——真实 `pageData` 在 `onCreatePager -> pageData.init()` 才填充，构造期求值会读到默认实例恒为 false）判定鸿蒙宿主能力：达标时 SHALL 通过 `VsyncModule.registerVsyncWithFrameInterval` 注册 `OH_NativeVSync` 回调驱动 `renderFrame`；未达标（宿主 native 库未内置 `KRVsyncModule`）SHALL 回退 12ms Timer（改造前行为）。判定为纯静态版本比对，无 watchdog、无 A/B 开关、无运行时特征探测。Android / iOS SHALL 保持既有的 `VsyncModule` 驱动路径不变；miniApp / Web SHALL 保持既有 Timer 路径不变。
+`ComposeContainer` 以计算属性 `useTimerFrameDispatcher`（`get()` 延迟求值：`pageData.isMiniApp || pageData.isWeb || (pageData.isOhOs && pageData.nativeBuild < OHOS_NATIVE_VSYNC_MIN_BUILD)`）统一决定帧驱动分支——真实 `pageData` 在 `onCreatePager -> pageData.init()` 才填充，构造期求值会读到默认实例恒为 false；鸿蒙端 `nativeBuild < OHOS_NATIVE_VSYNC_MIN_BUILD` 即回退 12ms Timer，否则走 native vsync。`startFrameDispatcher` 与 `stopFrameDispatcher` SHALL 共用该属性以保证注册与反注册严格对称（其依赖字段在页面生命周期内不可变，start/stop 必走同一分支）。`useTimerFrameDispatcher` 为 true 时 SHALL 走 12ms Timer（`mediator.startFrameDispatcher()`，返回的 `Timer` 实例由 `dispatchTimer` 持有）；为 false 时 SHALL 通过 `VsyncModule.registerVsyncWithFrameInterval` 注册 `OH_NativeVSync`（鸿蒙 `KRVsyncModule`）/ 平台既有 vsync（Android/iOS）驱动 `renderFrame`。判定为纯静态版本比对，无 watchdog、无 A/B 开关、无运行时特征探测。
 
 #### Scenario: 120Hz 屏幕满帧驱动
 - **WHEN** 页面在 120Hz 屏幕的 HarmonyOS 设备（nativeBuild ≥ 3）上发生滚动或动画等持续绘制活动
@@ -25,11 +25,12 @@
 - **WHEN** 页面运行在 nativeBuild < 3 的宿主（旧版 native 库未内置 `KRVsyncModule`）
 - **THEN** 帧调度 SHALL 走 12ms Timer 轮询，行为与改造前一致
 - **AND** 页面滚动与动画 SHALL 正常工作（不因新旧 Kotlin/native 混搭失去帧驱动）
-- **AND** `stopFrameDispatcher` SHALL 不对该路径调用 `unRegisterVsync`（start 时未注册）
+- **AND** `stopFrameDispatcher` SHALL 走 Timer 分支 `dispatchTimer.cancel()`，不调用 `unRegisterVsync`（start 时未注册 vsync）
 
 #### Scenario: 非 HarmonyOS 平台路径不变
 - **WHEN** 页面运行在 Android / iOS / miniApp / Web 宿主
-- **THEN** Android / iOS SHALL 注册 `VsyncModule`（平台既有 vsync 驱动）；miniApp / Web SHALL 使用 Timer，均与改造前行为一致
+- **THEN** Android / iOS SHALL 注册 `VsyncModule`（平台既有 vsync 驱动）；miniApp / Web SHALL 使用 12ms Timer 帧驱动
+- **AND** miniApp / Web 的 Timer SHALL 在页面销毁时经 `dispatchTimer.cancel()` 释放（较改造前的"不 cancel"为修复项）
 
 ### Requirement: nativeBuild 门限 SHALL 随 native 能力发版同步声明
 
@@ -60,7 +61,7 @@ vsync 能力随 `nativeBuild = 3` 这一代 native 库发布（`KRVsyncModule` �
 
 ### Requirement: 模块 SHALL 具备完整生命周期防护与对称的注册/反注册
 
-`KRVsyncModule` 的 vsync 请求 SHALL 携带 `weak_ptr` + `generation` 双重校验，模块销毁或反注册后在途回调 SHALL 安全丢弃（不发生 UAF）；`OH_NativeVSync_RequestFrame` 为一次性请求，每次回调 SHALL 先重新 arm 下一帧。当 context 线程尚未消化上一 tick 时，新 tick SHALL 被背压丢弃（`tick_pending_` 原子标志），防止慢帧堆积追帧。`ComposeContainer.stopFrameDispatcher` SHALL 与 `startFrameDispatcher` 对称：仅"鸿蒙且 nativeBuild 达标"（实际注册过 vsync）的路径执行 `unRegisterVsync`，修复历史上的空实现，消除常驻回调的功耗与泄漏隐患。回退 Timer 路径 SHALL 直接返回：该 Timer 无需显式停止——页面销毁时 `updateAppState(false)` 先于 `scene.close()` 置 `scene.paused`，此后 Timer tick 中的绘制被 `render` 的 `if (paused) return` 挡住，仅剩周期性空判定（与 miniApp/Web 分支的既有行为一致）。
+`KRVsyncModule` 的 vsync 请求 SHALL 携带 `weak_ptr` + `generation` 双重校验，模块销毁或反注册后在途回调 SHALL 安全丢弃（不发生 UAF）；`OH_NativeVSync_RequestFrame` 为一次性请求，每次回调 SHALL 先重新 arm 下一帧。当 context 线程尚未消化上一 tick 时，新 tick SHALL 被背压丢弃（`tick_pending_` 原子标志），防止慢帧堆积追帧。`ComposeContainer.stopFrameDispatcher` SHALL 与 `startFrameDispatcher` 经 `useTimerFrameDispatcher` 对称：Timer 分支 SHALL 调用 `dispatchTimer.cancel()` 停止 Timer 协程；vsync 分支 SHALL 调用 `unRegisterVsync`。此举修复历史上两处开合不对称的缺陷——① 原鸿蒙 stop 为空实现，vsync 注册后从不反注册（常驻回调功耗与泄漏）；② 原 miniApp/Web Timer 从不 cancel（协程泄漏，仅靠 paused 空转兜底）。
 
 #### Scenario: 页面销毁安全
 - **WHEN** 页面销毁触发 `stopFrameDispatcher` 且存在在途 vsync 回调
@@ -72,7 +73,8 @@ vsync 能力随 `nativeBuild = 3` 这一代 native 库发布（`KRVsyncModule` �
 - **THEN** 新 tick SHALL 被丢弃而非排队
 - **AND** 帧任务消化完毕后的下一个 vsync SHALL 恢复正常节拍
 
-#### Scenario: Timer 兜底路径销毁安全
-- **WHEN** nativeBuild < 3 的页面销毁，12ms Timer 仍在空转
-- **THEN** 销毁链 SHALL 已通过 paused 闸门拦截后续绘制，无需显式 cancel
-- **AND** `stopFrameDispatcher` SHALL 不调用 `unRegisterVsync`（该页面从未注册）
+#### Scenario: Timer 兜底路径销毁对称释放
+- **WHEN** 走 Timer 帧驱动的页面（miniApp / Web / nativeBuild < 3 的鸿蒙）销毁触发 `stopFrameDispatcher`
+- **THEN** SHALL 走 `useTimerFrameDispatcher` 分支执行 `dispatchTimer.cancel()`，停止 Timer 协程
+- **AND** SHALL 不调用 `unRegisterVsync`（该页面从未注册 vsync）
+- **AND** `dispatchTimer` 由 `mediator.startFrameDispatcher()` 返回的实例持有，start/stop 一一对应

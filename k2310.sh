@@ -31,10 +31,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 # --- 1. JDK 17（Gradle 8.9 硬性要求；只作用于本脚本进程，不外泄） ---
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-export PATH=$JAVA_HOME/bin:$PATH
+# macOS 用 java_home 定位；Linux CI 等无该命令的环境尊重外部已设置的 JAVA_HOME
+if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+  export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+fi
+export PATH="$JAVA_HOME/bin:$PATH"
 if ! java -version 2>&1 | grep -q '"17'; then
-  echo "[k2310] ❌ 未找到 JDK 17（Gradle 8.9 要求）。请先安装。" >&2
+  echo "[k2310] ❌ 未找到 JDK 17（Gradle 8.9 要求）。请安装，或将 JAVA_HOME 指向 JDK 17。" >&2
   exit 1
 fi
 
@@ -58,17 +61,34 @@ fi
 export KUIKLY_AGP_VERSION="${KUIKLY_AGP_VERSION:-8.6.0}"
 export KUIKLY_KOTLIN_VERSION="${KUIKLY_KOTLIN_VERSION:-2.3.10}"
 
-# --- 4. yarn.lock（不入库的本地文件；JS 构建需 2.3 版锁，结束后还原 2.1.21 版） ---
+# --- 4. 共享文件运行期临时切换（trap EXIT 统一还原，保证零残留） ---
+# 4.1 yarn.lock（不入库的本地文件；JS 构建需 2.3 版锁，结束后还原 2.1.21 版）
 LOCK_DIR="kotlin-js-store"
 if [ -f "$LOCK_DIR/yarn.2.3.10.lock" ]; then
   cp "$LOCK_DIR/yarn.2.3.10.lock" "$LOCK_DIR/yarn.lock"
 fi
-restore_lock() {
+
+# 4.2 gradle.properties：AGP 8.6.0 遇 android.disableAutomaticComponentCreation=true 会硬报错
+#     （"removed in version 8.0... Please remove it"，实测非忽略而是构建失败）；
+#     仓库默认保持 true（AGP 7.4.2 的发布口径与 main 一致），本脚本运行期临时注释该行，结束后还原
+GRADLE_PROPS="gradle.properties"
+GRADLE_PROPS_BAK=""
+if grep -q "^android.disableAutomaticComponentCreation=true" "$GRADLE_PROPS"; then
+  GRADLE_PROPS_BAK="$GRADLE_PROPS.k2310.bak"
+  cp "$GRADLE_PROPS" "$GRADLE_PROPS_BAK"
+  awk '{ if ($0 ~ /^android\.disableAutomaticComponentCreation=true/) print "#" $0; else print }' \
+    "$GRADLE_PROPS_BAK" > "$GRADLE_PROPS"
+fi
+
+restore_shared_files() {
   if [ -f "$LOCK_DIR/yarn.2.1.21.lock" ]; then
     cp "$LOCK_DIR/yarn.2.1.21.lock" "$LOCK_DIR/yarn.lock"
   fi
+  if [ -n "$GRADLE_PROPS_BAK" ] && [ -f "$GRADLE_PROPS_BAK" ]; then
+    mv "$GRADLE_PROPS_BAK" "$GRADLE_PROPS"
+  fi
 }
-trap restore_lock EXIT
+trap restore_shared_files EXIT
 
 # --- 5. 停掉 8.9 的旧 daemon（防止此前以错误环境启动的 daemon 被复用串台） ---
 "$GRADLE_89" --stop > /dev/null 2>&1

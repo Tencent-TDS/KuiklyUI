@@ -850,7 +850,7 @@ export class KRNativeRenderController {
     pageData[KRDeviceWidthKey] = screenSize.width;
     pageData[KRDeviceHeightKey] = screenSize.height;
     pageData[KROsVersionKey] = osFullName; // 系统版本
-    pageData[KRNativeBuild] = 2;
+    pageData[KRNativeBuild] = 3;
     pageData[KRAppVersionKey] = versionName;
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRDensity] = this.getWindowActiveDensity();

@@ -54,12 +54,9 @@ import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
-import com.tencent.kuikly.core.timer.Timer
-import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.lifecycle.Lifecycle
 import com.tencent.kuikly.lifecycle.LifecycleOwner
@@ -88,16 +85,10 @@ open class ComposeContainer :
         var enableConsumeSnapshot: Boolean = true
 
         /**
-         * 鸿蒙 native vsync 帧驱动总开关（debug/A-B 对比用），默认开启。
-         * true: 走 native KRVsyncModule(OH_NativeVSync)，帧节拍与屏幕刷新率对齐；
-         * false: 回退 12ms Timer 轮询（改造前行为），用于对比测试。
-         * 注：宿主 native 库过旧(无 KRVsyncModule)时由 watchdog 自动兜底退回
-         * 12ms Timer，行为与改造前一致，故无需按宿主灰度关闭本开关。
+         * 鸿蒙 native vsync 驱动的 nativeBuild 门限：vsync 能力随 nativeBuild=3
          */
-        var ohosUseNativeVsync: Boolean = true
+        private const val OHOS_NATIVE_VSYNC_MIN_BUILD = 3
 
-        /** watchdog 超时时间：超过该时长未收到首个 vsync tick 则退回 Timer */
-        private const val OHOS_VSYNC_WATCHDOG_DELAY_MS = 100
     }
 
     override var ignoreLayout = true
@@ -115,19 +106,18 @@ open class ComposeContainer :
 
     private var mediator: ComposeSceneMediator? = null
 
-    // —— 鸿蒙 vsync 驱动状态（回调与 watchdog 均在 context 线程，无需原子操作）——
-    /** 是否已收到首个 native vsync tick */
-    private var ohosVsyncTickArrived = false
-
-    /** 帧驱动已停止（页面销毁），使在途 watchdog 回调失效 */
-    private var ohosVsyncDriverStopped = false
-
-    /** 鸿蒙非 vsync 驱动的 12ms Timer（watchdog 降级或开关关闭时启动，页面销毁时取消） */
-    private var ohosVsyncFrameTimer: Timer? = null
-
     internal var content: (@Composable () -> Unit)? = null
 
     private val windowInfo = WindowInfoImpl()
+
+    /**
+     * 鸿蒙是否启用 native vsync 帧驱动（nativeBuild 达到门限）。
+     * 注意必须用 get() 延迟求值：真实 pageData 在 onCreatePager -> pageData.init()
+     * 才填充，若在构造期直接初始化，读到的是默认实例（isOhOs=false / nativeBuild=0），
+     * 将恒为 false 导致 vsync 永不启用。
+     */
+    private val enableUseOhosNativeVsync: Boolean
+        get() = pageData.nativeBuild >= OHOS_NATIVE_VSYNC_MIN_BUILD
 
     private val rootKView: DivView by lazy {
         DivView()
@@ -202,16 +192,8 @@ open class ComposeContainer :
         mediator?.renderFrame()
         val pageData = getPager().pageData
         when {
-            pageData.isMiniApp || pageData.isWeb -> {
+            pageData.isMiniApp || pageData.isWeb || (pageData.isOhOs && !enableUseOhosNativeVsync) -> {
                 mediator?.startFrameDispatcher()
-            }
-            pageData.isOhOs -> {
-                if (ohosUseNativeVsync) {
-                    startOhosNativeVsyncDriver()
-                } else {
-                    // A/B 开关关闭：回到改造前的 12ms Timer 行为
-                    ohosVsyncFrameTimer = mediator?.startFrameDispatcher()
-                }
             }
             else -> {
                 getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsyncWithFrameInterval { frameIntervalNanos ->
@@ -221,43 +203,11 @@ open class ComposeContainer :
         }
     }
 
-    /**
-     * 鸿蒙：native KRVsyncModule(OH_NativeVSync) 驱动帧调度，节拍与屏幕刷新率对齐。
-     * 旧宿主 native 库未内置该模块时，注册请求被转发到 ArkTS 层且不会有回调，
-     * 页面将失去帧驱动(仅首帧可渲染、无法滚动)。由 watchdog 超时退回 12ms Timer 兜底。
-     */
-    private fun startOhosNativeVsyncDriver() {
-        ohosVsyncTickArrived = false
-        ohosVsyncDriverStopped = false
-        getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsyncWithFrameInterval { frameIntervalNanos ->
-            ohosVsyncTickArrived = true
-            mediator?.renderFrame(frameIntervalNanos)
-        }
-        // watchdog 不保存 setTimeout 返回值、不显式取消：pager 销毁时
-        // GlobalFunctions.destroyGlobalFunction(pagerId) 会清理该 pager 全部函数引用，
-        // 到期 fire 为 no-op；另有 ohosVsyncDriverStopped 同线程标志兜底，故无需 ref。
-        setTimeout(pagerId, OHOS_VSYNC_WATCHDOG_DELAY_MS) {
-            if (!ohosVsyncTickArrived && !ohosVsyncDriverStopped) {
-                KLog.i(
-                    "ComposeContainer",
-                    "ohos native vsync no callback, fallback to 12ms timer"
-                )
-                getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
-                ohosVsyncFrameTimer = mediator?.startFrameDispatcher()
-            }
-        }
-    }
-
     private fun stopFrameDispatcher() {
-        val pageData = getPager().pageData
-        if (pageData.isMiniApp || pageData.isWeb) {
-            // miniApp/Web 与历史行为保持一致，不停止 Timer
-        } else {
-            ohosVsyncDriverStopped = true
-            ohosVsyncFrameTimer?.cancel()
-            ohosVsyncFrameTimer = null
-            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
+        if (pageData.isOhOs && !enableUseOhosNativeVsync) {
+            return
         }
+        getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
     }
 
     override fun created() {

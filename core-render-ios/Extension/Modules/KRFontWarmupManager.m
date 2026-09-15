@@ -15,6 +15,7 @@
 
 #import "KRFontWarmupManager.h"
 #import <pthread.h>
+#import <CoreText/CoreText.h>
 
 static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
 
@@ -25,6 +26,74 @@ static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
 @end
 
 @implementation KRFontWarmupManager
+
+#pragma mark - info.plist font warmup
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // 延迟到主线程 runloop 启动后再预热，确保在主线程单线程构建 CoreText 字体缓存。
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self warmupInfoPlistFontsOnce];
+        });
+    });
+}
+
++ (void)warmupInfoPlistFontsOnce {
+    static dispatch_once_t warmupOnceToken;
+    dispatch_once(&warmupOnceToken, ^{
+        if (pthread_main_np() != 0) {
+            [self warmupInfoPlistFonts];
+        } else {
+            // 非主线程：派发到主线程执行，不阻塞当前线程。
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self warmupInfoPlistFonts];
+            });
+        }
+    });
+}
+
++ (void)warmupInfoPlistFonts {
+    NSAssert(pthread_main_np() != 0, @"warmupInfoPlistFonts must be called on main thread");
+    NSArray<UIFont *> *fonts = [self p_fontsFromInfoPlist];
+    [[self sharedManager] warmupFonts:fonts];
+}
+
++ (NSArray<UIFont *> *)p_fontsFromInfoPlist {
+    NSMutableArray<UIFont *> *fonts = [NSMutableArray array];
+    NSArray *fontFiles = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"UIAppFonts"];
+    if (![fontFiles isKindOfClass:[NSArray class]]) {
+        return fonts;
+    }
+
+    // 常用字号，覆盖业务 RichText 绝大部分场景即可。
+    NSArray<NSNumber *> *sizes = @[@12, @14, @15, @16, @17, @20];
+    for (NSString *filename in fontFiles) {
+        if (![filename isKindOfClass:[NSString class]] || !filename.length) {
+            continue;
+        }
+        NSURL *url = [[NSBundle mainBundle] URLForResource:filename withExtension:nil];
+        if (!url) {
+            continue;
+        }
+        NSArray<UIFontDescriptor *> *descriptors = (__bridge_transfer NSArray *)CTFontManagerCreateFontDescriptorsFromURL((__bridge CFURLRef)url);
+        for (UIFontDescriptor *descriptor in descriptors) {
+            NSString *name = descriptor.postscriptName;
+            if (!name.length) {
+                continue;
+            }
+            for (NSNumber *size in sizes) {
+                UIFont *font = [UIFont fontWithName:name size:size.doubleValue];
+                if (font) {
+                    [fonts addObject:font];
+                }
+            }
+        }
+    }
+    return fonts;
+}
+
+#pragma mark - instance
 
 + (instancetype)sharedManager {
     static KRFontWarmupManager *instance = nil;

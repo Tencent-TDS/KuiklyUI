@@ -24,6 +24,15 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface KRFontWarmupManager : NSObject
 
+/// 预热 info.plist（UIAppFonts）中声明的自定义字体（需在主线程调用）。
+/// 会按常用字号构建字体；内部去重，已预热过的字号不会重复构建。
++ (void)warmupInfoPlistFonts;
+
+/// 预热 info.plist 字体的幂等入口：整个进程内仅执行一次。
+/// 可在任意线程调用（内部保证在主线程执行）。框架已在 +load 与渲染 Core 初始化时调用；
+/// 业务若运行期动态修改了 UIAppFonts，可再次调用 +warmupInfoPlistFonts 重新预热。
++ (void)warmupInfoPlistFontsOnce;
+
 + (instancetype)sharedManager;
 
 /// 主线程同步预热字体。内部会去重，已预热过的字体不会重复构建。

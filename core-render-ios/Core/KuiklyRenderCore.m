@@ -14,6 +14,7 @@
  */
 
 #import "KRConvertUtil.h"
+#import "KRFontWarmupManager.h"
 #import "KRLogModule.h"
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderCore.h"
@@ -65,6 +66,11 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
                           params:(NSDictionary *)params
                         delegate:(id<KuiklyRenderCoreDelegate>)delegate {
     if (self = [super init]) {
+        // 字体预热兜底：业务可能限制 +load 导致启动预热未执行，
+        // 此处在页面渲染前补一次，确保 CoreText 字体缓存已在主线程单线程构建完成，
+        // 避免主线程绘制与 Context 测量并发触发首次构建产生野指针。
+        // 内部幂等（进程内仅一次）：+load 已预热时零开销。
+        [KRFontWarmupManager warmupInfoPlistFontsOnce];
         _instanceId = [NSString stringWithFormat:@"%ld", (long)++gInstanceId];
         _delegate = delegate;
         _contextParam = contextParam;

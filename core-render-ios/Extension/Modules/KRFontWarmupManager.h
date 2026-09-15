@@ -29,8 +29,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)warmupInfoPlistFonts;
 
 /// 预热 info.plist 字体的幂等入口：整个进程内仅执行一次。
-/// 可在任意线程调用（内部保证在主线程执行）。框架已在 +load 与渲染 Core 初始化时调用；
-/// 业务若运行期动态修改了 UIAppFonts，可再次调用 +warmupInfoPlistFonts 重新预热。
+/// 可在任意线程调用（内部保证在主线程执行）。
+/// 框架会在渲染 Core 初始化时（首帧渲染前）自动调用，确保字体缓存已在主线程单线程构建完成。
+/// 业务也可在启动期（如 didFinishLaunching 之后）提前调用一次，以消除首帧前的同步预热开销；
+/// 若运行期动态修改了 UIAppFonts，可再次调用 +warmupInfoPlistFonts 重新预热。
 + (void)warmupInfoPlistFontsOnce;
 
 + (instancetype)sharedManager;

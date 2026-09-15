@@ -29,16 +29,6 @@ static NSString * const kKRFontWarmupKeyFormat = @"%@|%.2f";
 
 #pragma mark - info.plist font warmup
 
-+ (void)load {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        // 延迟到主线程 runloop 启动后再预热，确保在主线程单线程构建 CoreText 字体缓存。
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self warmupInfoPlistFontsOnce];
-        });
-    });
-}
-
 + (void)warmupInfoPlistFontsOnce {
     static dispatch_once_t warmupOnceToken;
     dispatch_once(&warmupOnceToken, ^{

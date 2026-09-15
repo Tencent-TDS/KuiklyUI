@@ -43,8 +43,8 @@ vsync 能力随 `nativeBuild = 3` 这一代 native 库发布（`KRVsyncModule` �
 
 #### Scenario: 门控判定时机
 - **WHEN** `startFrameDispatcher` 在 `onCreatePager` 内执行（`pageData.init()` 已完成）
-- **THEN** `enableUseOhosNativeVsync` SHALL 读到真实 nativeBuild（非默认值 0）
-- **AND** 构造期求值 SHALL 被禁止（读默认实例恒为 false，vsync 永不启用）
+- **THEN** `useTimerFrameDispatcher` SHALL 读到真实 nativeBuild（非默认值 0）
+- **AND** 构造期求值 SHALL 被禁止（读默认实例恒为 false，未达门限的旧鸿蒙宿主将误走 vsync 分支导致帧驱动失效）
 
 ### Requirement: 帧间隔 SHALL 以 int32 纳秒值经相邻 vsync 时间戳差值计算并上报
 

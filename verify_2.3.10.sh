@@ -1,9 +1,10 @@
 #!/bin/bash
 # Kotlin 2.3.10 验证
 #
-# 说明：本分支默认 Kotlin 版本已升级为 2.3.10，Gradle wrapper 固定 8.9、AGP 8.6.0，
-#      因此不再需要 -c settings.2.3.10.*.gradle.kts、FileReplacer 替换或环境变量注入，
-#      直接用默认 settings.gradle.kts 编译即可。需要 JDK 17（Gradle 8.9 要求）。
+# 说明：本分支默认构建（./gradlew）是 Kotlin 2.1.21；本脚本通过 ./k2310.sh
+#      显式启用 2.3.10（JDK 17 + 外部 Gradle 8.9 + AGP 8.6.0 注入 +
+#      settings.2.3.10.app），不修改 wrapper / gradle.properties 等共享文件，
+#      用完即走。
 #
 # 用法：
 #   ./verify_2.3.10.sh framework  只验证框架模块（编译，不含 App）
@@ -30,11 +31,11 @@ else
   TASKS=":androidApp:assembleDebug :demo:linkPodDebugFrameworkIosArm64"
 fi
 
-echo "=== Kotlin 2.3.10 验证开始（默认 settings.gradle.kts）==="
-echo "    Kotlin: 2.3.10   AGP: 8.6.0   Gradle: 8.9"
+echo "=== Kotlin 2.3.10 验证开始（./k2310.sh → settings.2.3.10.app.gradle.kts）==="
+echo "    Kotlin: 2.3.10   AGP: 8.6.0   Gradle: 8.9   JDK: 17"
 echo ""
 
-./gradlew $TASKS
+./k2310.sh $TASKS
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then

@@ -1,3 +1,20 @@
+#!/bin/bash
+# Kotlin 2.3.10 分支发布脚本
+#
+# 与 2.1.21_publish.sh 的差异：
+#   1) AGP 7.4.2 -> 8.6.0（Kotlin 2.3 要求 8.2.2 ~ 8.13.0）
+#   2) Gradle 8.9（AGP 8.6.0 要求 8.7+；wrapper 保持 7.6.3 归默认构建，
+#      由 ./k2310.sh 自带外部 Gradle 8.9）
+#   3) JDK 17（Gradle 8.9 硬性要求）
+#   4) KSP 2.1.21-2.0.1 -> 2.3.4（由版本映射自动带出）
+#
+# 实现方式：复用 ./k2310.sh 无状态入口（JDK 17 + 外部 Gradle 8.9 + 版本注入 +
+#          yarn.lock 切换/还原），不修改 wrapper / gradle.properties 等共享文件。
+#
+# 用法：
+#   ./publish/2.3.10_publish.sh              # 发布全部模块到 mavenLocal
+#   ./publish/2.3.10_publish.sh core publish # 只发布 core
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -5,18 +22,14 @@ echo "sh path: $SCRIPT_DIR"
 echo "project's root path: $PROJECT_ROOT"
 cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
 
-java -version
-
-# 注：Gradle 8.9 / gradle.properties 的 AGP8 属性移除等兼容性改动
-# 已随「默认版本升级到 2.3.10」直接固化进仓库文件，不再需要 FileReplacer 运行时替换。
-
 MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
 GRADLE_RUN_STATUS=0
 
 run_gradle() {
-  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" \
-    ./gradlew -c settings.2.3.10.gradle.kts ":$1:$PUBLISH_TASK" --stacktrace
+  # 发布用 settings（不含 demo / androidApp 等 App 宿主），
+  # 通过 K2310_SETTINGS 覆盖 k2310.sh 默认的 app settings
+  K2310_SETTINGS="settings.2.3.10.gradle.kts" ./k2310.sh ":$1:$PUBLISH_TASK" --stacktrace
 }
 
 if [ "$MODULE" = "all" ]; then

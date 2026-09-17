@@ -201,10 +201,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     UIFont* font = self.font ?: [UIFont systemFontOfSize:16];
     NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithAttributedString:self.attributedText ?:
                                          [[NSAttributedString alloc] initWithString:self.text ?: @""]];
-    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
-    paragraphStyle.minimumLineHeight = [_css_lineHeight floatValue];
-    paragraphStyle.maximumLineHeight = [_css_lineHeight floatValue];
-    paragraphStyle.lineSpacing = ceil(0.2 * _css_fontSize.floatValue);
+    NSMutableParagraphStyle *paragraphStyle = [self p_buildCurrentParagraphStyle];
 
     NSRange range = NSMakeRange(0, attrStr.length);
     [attrStr addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:range];
@@ -216,6 +213,30 @@ NSString *const KRFontWeightKey = @"fontWeight";
     typingAttrs[NSParagraphStyleAttributeName] = paragraphStyle;
     typingAttrs[NSFontAttributeName] = font;
     typingAttrs[NSBaselineOffsetAttributeName] = @(baselineOffset);
+    self.typingAttributes = typingAttrs;
+}
+
+/// 构造反映当前 textAlignment（及已设置 lineHeight）的 paragraph style，供重建路径复用。
+- (NSMutableParagraphStyle *)p_buildCurrentParagraphStyle {
+    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+    paragraphStyle.alignment = self.textAlignment;
+    if (_css_lineHeight.floatValue > FLT_EPSILON) {
+        paragraphStyle.minimumLineHeight = [_css_lineHeight floatValue];
+        paragraphStyle.maximumLineHeight = [_css_lineHeight floatValue];
+        paragraphStyle.lineSpacing = ceil(0.2 * _css_fontSize.floatValue);
+    }
+    return paragraphStyle;
+}
+
+/// 将当前段落样式整段应用到 attrStr，并同步 typingAttributes；后续新增任何重建
+/// attributedText 的路径都必须调用本方法，否则对齐会丢失。
+- (void)p_applyCurrentParagraphStyleToAttributedString:(NSMutableAttributedString *)attrStr {
+    NSMutableParagraphStyle *paragraphStyle = [self p_buildCurrentParagraphStyle];
+    if (attrStr.length > 0) {
+        [attrStr addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:NSMakeRange(0, attrStr.length)];
+    }
+    NSMutableDictionary *typingAttrs = [self.typingAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
+    typingAttrs[NSParagraphStyleAttributeName] = paragraphStyle;
     self.typingAttributes = typingAttrs;
 }
 
@@ -282,6 +303,19 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)setCss_textAlign:(NSString *)css_textAlign {
     self.textAlignment = [KRConvertUtil NSTextAlignment:css_textAlign];
+    // 对已有文本重新套用对齐，避免残留旧段落样式导致显示与当前设置不一致。
+    if (self.attributedText.length > 0) {
+        NSRange savedSelection = self.selectedRange;
+        NSMutableAttributedString *attrStr = [self.attributedText mutableCopy];
+        [self p_applyCurrentParagraphStyleToAttributedString:attrStr];
+        BOOL savedIgnore = _ignoreTextDidChanged;
+        _ignoreTextDidChanged = YES;
+        self.attributedText = attrStr;
+        self.selectedRange = savedSelection;
+        _ignoreTextDidChanged = savedIgnore;
+    } else {
+        [self p_applyCurrentParagraphStyleToAttributedString:[NSMutableAttributedString new]];
+    }
 }
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
@@ -422,6 +456,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
         if (textColor) {
             [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
         }
+        [self p_applyCurrentParagraphStyleToAttributedString:rawAttr];
         self.attributedText = rawAttr;
         [self p_updatePlaceholder];
     }
@@ -773,6 +808,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (textColor) {
         [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
     }
+    [self p_applyCurrentParagraphStyleToAttributedString:rawAttr];
     self.attributedText = rawAttr;
     [self p_applyTextPostProcessorIfNeed];
     NSUInteger inputCursor = [self p_getInputCursorIndexWithIndex:outputCursor];
@@ -1513,11 +1549,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [processedAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange2];
     }
 
+    // processor 返回的字符串可能不带 paragraph style，重套对齐避免 emoji 输入后对齐丢失。
+    NSMutableAttributedString *processedMutableAttr = [processedAttr mutableCopy];
+    [self p_applyCurrentParagraphStyleToAttributedString:processedMutableAttr];
+
     // 保存当前光标的原始文本位置
     NSUInteger outputCursor = [self p_getOutputCursorIndex];
     BOOL savedIgnore = _ignoreTextDidChanged;
     _ignoreTextDidChanged = YES;
-    self.attributedText = processedAttr;
+    self.attributedText = processedMutableAttr;
     NSUInteger inputCursor = [self p_getInputCursorIndexWithIndex:outputCursor];
     UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:inputCursor];
     if (newPosition) {

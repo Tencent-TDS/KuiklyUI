@@ -178,6 +178,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),
             DemoItem("iOS键盘InputTextField", "业务侧 InputTextField iOS 键盘复现", "IosKeyboardInputTextFieldDemo"),
+            DemoItem("TextArea对齐Bug", "iOS BasicTextField 右/居中对齐点击输入后失效复现", "TextAreaTextAlignBugDemo"),
         )
 
     @Composable

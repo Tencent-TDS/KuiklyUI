@@ -14,10 +14,10 @@
 
 ### 鸿蒙
 
-- feat(ohos): 将 kSyncMainTaskWarnTimeout 改为可配置的文件级 static 变量 · [#1720](https://github.com/Tencent-TDS/KuiklyUI/pull/1720)
 - fix(ohos): 修复双击手势 250ms 延迟任务访问悬空对象导致的崩溃 · [#1714](https://github.com/Tencent-TDS/KuiklyUI/pull/1714)
-- fix(ohos): config change not markText dirty · [#1511](https://github.com/Tencent-TDS/KuiklyUI/pull/1511)
+- feat(ohos): 将 kSyncMainTaskWarnTimeout 改为可配置的文件级 static 变量 · [#1720](https://github.com/Tencent-TDS/KuiklyUI/pull/1720)
 - fix: try catch ohos window problem · [#1719](https://github.com/Tencent-TDS/KuiklyUI/pull/1719)
+- fix(ohos): config change not markText dirty · [#1511](https://github.com/Tencent-TDS/KuiklyUI/pull/1511)
 
 ### H5
 
@@ -25,6 +25,11 @@
 
 ## 其他
 
+### 文档
+
 - docs: update tabs aspect ratio usage note · [#1640](https://github.com/Tencent-TDS/KuiklyUI/pull/1640)
 - docs: update changelog · [#1717](https://github.com/Tencent-TDS/KuiklyUI/pull/1717)
+
+### 工程与示例
+
 - chore: update InputSpanPage demo pageName · [#1713](https://github.com/Tencent-TDS/KuiklyUI/pull/1713)

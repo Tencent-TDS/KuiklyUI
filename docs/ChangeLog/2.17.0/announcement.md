@@ -2,42 +2,44 @@
 
 > 本版导航：**版本说明** · [变更汇总](./changelog.md) · [破坏性与迁移](./breaking.md)
 
-2.17.0 在 Kuikly DSL 与 Compose DSL 上均有能力新增，并集中修复了多端滚动与手势问题。
+2.17.0 扩展了 Kuikly 页面与原生宿主的组合方式，补充了 Compose 导航、抽屉和重组分析能力，并改善了多端输入、截图与滚动体验。
 
 ## Kuikly DSL
 
 ### 能力增加
 
-- **视图快照（iOS / Android）**：支持将页面或指定视图渲染为图片（#1066）。
-- **输入框键盘收起控制**：支持自定义发送按钮动作触发的键盘收起行为，业务可以控制键盘收起时机（#1045）。
-- **鸿蒙文本首行缩进**：文本支持首行缩进属性（#1182）。
-- **H5 文本换行边距事件**：文本换行时提供回调（#1196）。
-- **H5 默认 KRCustomPropsHandler**：H5 渲染新增默认的自定义属性处理器，业务可扩展属性处理逻辑（#1175）。
+- **以 View 粒度嵌入 Kuikly 页面（Android / iOS / 鸿蒙）**：可以把 Kuikly 页面作为子 View 嵌入原生 Activity、ViewController 或 ArkUI 列表/容器，用于卡片、Banner、瀑布流等混合页面；View 模式下由宿主负责尺寸和生命周期转发。接入方式见 [Android 工程接入](../../QuickStart/android.md)、[iOS 工程接入](../../QuickStart/iOS.md) 和 [鸿蒙工程接入](../../QuickStart/harmony.md)（#1228）。
+- **视图截图（iOS / Android）**：可以将当前 View 转换为图片，并按 `CACHE_KEY`、`DATA_URI` 或 `FILE` 获取结果，适合分享、预览和缓存复用场景。使用方式见[基础属性、事件和方法](../../API/components/basic-attr-event.md)（#1066）。
+- **输入框 IME Action 键盘控制（Android / iOS / 鸿蒙）**：通过 `autoHideKeyboardOnImeAction` 或 `Modifier.autoHideKeyboardOnImeAction`，业务可以明确控制点击 Send、Go、Search、Done 等键盘操作后是否收起软键盘；未显式设置时各端默认行为不同，需要跨端一致时建议主动设置。使用方式见 [Input 组件](../../API/components/input.md) 和 [Compose 核心组件](../../Compose/core-components.md)（#1045）。
+- **鸿蒙文本首行缩进**：`Text` 和富文本可以使用 `firstLineHeadIndent` 设置首行缩进，后续行保持正常对齐（#1182）。
+- **H5 DOM class 扩展**：H5 页面可以通过 `cssClass` 给 `View`、`Text` 等节点附加或动态更新 CSS class，复用宿主已有样式。使用方式见 [cssClass 使用说明](../../DevGuide/h5-css-class.md)（#1175）。
+- **H5 文本折行边距事件**：H5 文本在折行或省略号场景下可以通过 `onLineBreakMargin` 感知预留边距相关变化，用于配合“更多”等交互（#1196）。
 
 ### 性能优化
 
-- **鸿蒙 ArkTS 列表复用**：ArkTS 懒加载列表支持复用 Kuikly 组件，减少滚动时的创建开销（#1159）。
+- **鸿蒙列表组件复用**：鸿蒙列表滚动场景支持复用 Kuikly 组件，减少列表项反复创建带来的开销（#1159）。
 
 ### Bug 修复
 
-修复 iOS 图片中文路径加载、macOS 鼠标手势与文本视图递归、Android 嵌套滚动与多指坐标、鸿蒙 PAGView 自动播放与 Preferences 单例、H5 自定义字体显示等问题，逐条见「变更汇总」。
+本版修复了 iOS 图片中文路径加载、macOS 鼠标手势与文本视图递归、Android 嵌套滚动和多指坐标、鸿蒙 PAGView 播放与偏好设置、H5 自定义字体显示等问题，详情见「变更汇总」对应端的条目。
 
 ## Compose DSL
 
 ### 能力增加
 
-- **Compose Navigation 支持**：新增导航能力，并提供 NavBackStackEntry 的 ViewModelStore 生命周期管理（#1147、#1184）。
-- **Drawer 组件**：新增侧边抽屉布局组件（#1179）。
-- **RecompositionProfiler**：新增重组性能分析工具，支持业务自定义过滤规则（#1230、#1252、#1264）。
+- **Compose Navigation**：可以使用 `NavHost`、`NavHostController` 和导航 DSL 声明页面路由，支持参数传递、嵌套导航图、返回栈操作和页面切换动画；使用方式见[导航组件](../../Compose/navigation.md)（#1147）。
+- **页面级生命周期与 ViewModel 管理**：每个 `NavBackStackEntry` 可以承载独立的生命周期和 `ViewModelStore`，页面从导航栈移除时可自动完成对应状态清理；使用方式见[导航组件](../../Compose/navigation.md)和[Compose 核心组件](../../Compose/core-components.md)（#1184）。
+- **Navigation Drawer**：新增 `ModalNavigationDrawer` 和 `DismissibleNavigationDrawer`，支持抽屉状态、手势开关、遮罩关闭及内容推开效果；当前 Semantics、RTL 和 Permanent Drawer 等部分能力仍在建设中。使用方式见[Compose 核心组件](../../Compose/core-components.md)（#1179）。
+- **RecompositionProfiler**：调试阶段可以采集 Composable 的重组次数、耗时、State 触发和参数变化，并通过日志、文件报告或悬浮面板定位重组热点；支持按名称或包名前缀过滤基础组件。使用方式见[重组性能分析工具](../../Compose/recomposition-performance.md)（#1230、#1252、#1264）。
 
 ### 性能优化
 
-- **嵌套列表滚动复用**：LazyList / LazyGrid / Pager 中的 ScrollerView 支持复用，减少滚动时的节点创建开销（#1125）。
+- **嵌套列表滚动复用**：`LazyList`、`LazyGrid` 和 `Pager` 的嵌套滚动场景支持复用列表节点，减少滚动过程中的节点创建和回收开销（#1125）。
 
 ### Bug 修复
 
-修复 lazy grid 滚动、pager bounce 触发翻页、ScrollableTabRow 嵌套滚动、pager 包装器 scrollend 展开、协程取消异常等问题，逐条见「变更汇总」。
+本版修复了 Pager 反向 fling 误触发翻页、`ScrollableTabRow` 嵌套滚动、Pager wrapper 的 `scrollend` 展开以及协程取消异常等问题，详情见「变更汇总」的多端条目。
 
 ## 升级建议
 
-本版无破坏性变更，可直接升级。
+本版无业务可感知的破坏性变更，可直接升级；完整扫描结论见[破坏性与迁移](./breaking.md)。

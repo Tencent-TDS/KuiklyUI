@@ -12,7 +12,7 @@
 
 ### 性能优化
 
-- **鸿蒙包体积**：对 KN 与 libkuikly 应用无副作用的体积优化（#1600）。
+- **鸿蒙编译优化**：KN 与 libkuikly 由 `-Os` 调整为 `-O3`，并应用段优化（sections / relr / gc）与 `-fvisibility=hidden` 可见性控制（#1600）。
 
 ### Bug 修复
 

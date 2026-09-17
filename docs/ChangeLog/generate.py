@@ -3,7 +3,7 @@
 """Kuikly 版本三分文档生成脚本
 
 用法:
-    python3 docs/ChangeLog/generate.py <version> [--repo <path>] [--out-dir <path>] [--no-fetch]
+    python3 docs/ChangeLog/generate.py <version> [--release-prs <PR1,PR2,...>] [--repo <path>] [--out-dir <path>] [--no-fetch]
 
 示例:
     python3 docs/ChangeLog/generate.py 2.27.0
@@ -15,8 +15,8 @@
     4. 写入 docs/ChangeLog/<version>/（目录不存在则创建，文件已存在则覆盖）
 
 说明:
-    changelog.md 由脚本完整生成；announcement.md 与 breaking.md 的语义内容
-    （能力点描述、破坏性判定）需按 docs/ChangeLog/TEMPLATE.md 补全，
+    传入 --release-prs 时，changelog.md 按 Release 白名单生成候选；未在本地 tag 区间找到的 Release 条目需由 Skill 按原文补入。
+    announcement.md 与 breaking.md 的语义内容（能力点描述、破坏性判定）需按 docs/ChangeLog/TEMPLATE.md 补全，
     推荐通过 kuikly-changelog-gen skill 调用本脚本完成。
 """
 import argparse
@@ -207,6 +207,14 @@ def is_docs_like(commit):
     return bool(tops) and tops <= {"docs", "img"}
 
 
+def documentation_paths(commit):
+    """返回 PR 实际修改的用户文档路径；配置文件和图片不作为内链依据。"""
+    return sorted(
+        p for p in commit["paths"]
+        if p.startswith("docs/") and p.lower().endswith((".md", ".mdx"))
+    )
+
+
 def touches_dsl(commit):
     tops = {p.split("/")[0] for p in commit["paths"]}
     return bool(tops & {"core", "compose", "core-ksp", "core-annotations"})
@@ -273,8 +281,11 @@ def render_announcement(version, commits):
         for c in items:
             title, pr = split_subject(c["subject"])
             pr_txt = f"（#{pr}）" if pr else ""
+            docs = documentation_paths(c)
+            docs_txt = ", ".join(docs) if docs else "无（不要提供文档内链）"
             out.append(f"<!-- 改动路径：{path_brief(c)} -->")
-            out.append(f"- **{title}**：<1~2 句说明，业务视角>{pr_txt}")
+            out.append(f"<!-- 用户文档改动：{docs_txt} -->")
+            out.append(f"- **{title}**：<先写用户效果，再写使用方式或边界；仅按上述文档改动提供内链>{pr_txt}")
         return out
 
     lines = [
@@ -362,6 +373,7 @@ def main():
     ap.add_argument("version", help="版本号，与 git tag 一致，如 2.27.0")
     ap.add_argument("--repo", default=DEFAULT_REPO, help="仓库路径（默认脚本上两级）")
     ap.add_argument("--out-dir", default=None, help="输出目录（默认 docs/ChangeLog/<version>/）")
+    ap.add_argument("--release-prs", default=None, help="GitHub Release What's Changed 中的 PR 号，逗号分隔")
     ap.add_argument("--no-fetch", action="store_true", help="本地缺 tag 时不尝试从 origin 拉取")
     args = ap.parse_args()
 
@@ -376,9 +388,24 @@ def main():
         sys.stderr.write(f"错误：{args.version} 是最早的版本，没有可比对的上一版本。\n")
         sys.exit(1)
 
-    commits = drop_reverted(collect_commits(repo, prev, args.version))
+    all_commits = collect_commits(repo, prev, args.version)
+    commits = all_commits
+    if args.release_prs:
+        release_prs = {
+            value.strip().lstrip("#")
+            for value in args.release_prs.split(",")
+            if value.strip()
+        }
+        commits = [
+            c for c in all_commits
+            if split_subject(c["subject"])[1] in release_prs
+        ]
+        found_prs = {split_subject(c["subject"])[1] for c in commits}
+        missing_prs = sorted(release_prs - found_prs, key=int)
+        if missing_prs:
+            print("警告：Release 条目未在本地 tag 区间找到，需按 Release 原文手动补入：" + ", ".join(f"#{p}" for p in missing_prs))
     if not commits:
-        sys.stderr.write(f"错误：{prev}..{args.version} 区间没有 commit。\n")
+        sys.stderr.write(f"错误：{prev}..{args.version} 区间没有符合 Release 的 commit。\n")
         sys.exit(1)
 
     buckets = {"multi": [], "single": {}, "other": []}
@@ -395,15 +422,15 @@ def main():
     files = {
         "changelog.md": render_changelog(args.version, buckets),
         "announcement.md": render_announcement(args.version, commits),
-        "breaking.md": render_breaking(args.version, prev, commits),
+        "breaking.md": render_breaking(args.version, prev, all_commits),
     }
     for name, content in files.items():
         with open(os.path.join(out_dir, name), "w", encoding="utf-8") as f:
             f.write(content)
 
-    print(f"区间：{prev}..{args.version}，共 {len(commits)} 个 commit")
+    print(f"区间：{prev}..{args.version}，compare 共 {len(all_commits)} 个 commit，Release 候选 {len(commits)} 个")
     print(f"输出目录：{out_dir}")
-    print("  changelog.md     完整生成")
+    print("  changelog.md     Release 候选生成")
     print("  announcement.md  骨架（待 AI 补全能力点描述）")
     print("  breaking.md      骨架（待 AI 判定破坏性）")
     print("下一步：按 docs/ChangeLog/TEMPLATE.md 补全 announcement / breaking，并更新 README 版本列表。")

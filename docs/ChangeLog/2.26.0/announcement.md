@@ -9,8 +9,7 @@
 ### 能力增加
 
 - **listView 初始滚动位置（`initContentOffset`）**：ListView / WaterfallList 支持设置初始内容偏移（#1616）。
-- **鸿蒙无障碍支持（鸿蒙）**：新增无障碍能力（#1626）。
-- **网络回调补充 statusCode（鸿蒙）**：网络响应回调新增 `statusCode` 字段（#1623）。
+- **鸿蒙无障碍支持（鸿蒙）**：新增无障碍能力，`accessibilityRole` 兼容 API 18（#1626）。
 
 ### 性能优化
 
@@ -18,6 +17,7 @@
 
 ### Bug 修复
 
+- 修复鸿蒙端 `NetworkResponse.statusCode` 一直为 null 的问题（#1623）。
 - 修复 sliderpager 滚到最后一项的偏移溢出（#1681）与 `defaultPage` 不生效。
 - H5：修复 toImage 结果不清晰、ImageSpan 封面图位置、measure 缓存命中后的多行样式、序列化空值保护等问题。
 - Android：修复 PAG ReplaceImageLayer 图片源问题（#1688）。

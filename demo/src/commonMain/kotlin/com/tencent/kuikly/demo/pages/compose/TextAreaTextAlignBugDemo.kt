@@ -38,8 +38,8 @@ import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
 
 /**
- * 复现 iOS BasicTextField 设置 TextAlign.Right/Center 后，获焦或输入内容时对齐被重置为左对齐的问题。
- * 验证：打开页面，点击「居中」「右对齐」输入框并输入，观察对齐是否始终保持。
+ * 回归验证 iOS BasicTextField 设置 TextAlign.Right/Center 后，获焦或输入内容时对齐仍保持的能力。
+ * 验证：打开页面，点击「居中」「右对齐」输入框并输入，对齐应始终保持不回退左对齐。
  */
 @Page("TextAreaTextAlignBugDemo")
 class TextAreaTextAlignBugDemo : ComposeContainer() {
@@ -69,7 +69,7 @@ class TextAreaTextAlignBugDemo : ComposeContainer() {
                             .border(1.dp, Color.Black).padding(8.dp),
                     )
 
-                    Text("Right 对齐（预期：点击/输入后始终右对齐，iOS 实际会掉回左对齐）")
+                    Text("Right 对齐（预期：修复后点击/输入始终保持右对齐）")
                     var textRight by remember { mutableStateOf("Right 123456") }
                     BasicTextField(
                         value = textRight,

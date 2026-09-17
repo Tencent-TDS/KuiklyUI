@@ -235,6 +235,12 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (attrStr.length > 0) {
         [attrStr addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:NSMakeRange(0, attrStr.length)];
     }
+    [self p_applyParagraphStyleToTypingAttributes:paragraphStyle];
+}
+
+/// 仅把段落样式写入 typingAttributes（不改内容）；仅覆盖 NSParagraphStyleAttributeName，
+/// 其余字段（如 lineHeight 路径写入的 font/baseline）保持不变。
+- (void)p_applyParagraphStyleToTypingAttributes:(NSParagraphStyle *)paragraphStyle {
     NSMutableDictionary *typingAttrs = [self.typingAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
     typingAttrs[NSParagraphStyleAttributeName] = paragraphStyle;
     self.typingAttributes = typingAttrs;
@@ -303,19 +309,20 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)setCss_textAlign:(NSString *)css_textAlign {
     self.textAlignment = [KRConvertUtil NSTextAlignment:css_textAlign];
-    // 对已有文本重新套用对齐，避免残留旧段落样式导致显示与当前设置不一致。
-    if (self.attributedText.length > 0) {
-        NSRange savedSelection = self.selectedRange;
-        NSMutableAttributedString *attrStr = [self.attributedText mutableCopy];
-        [self p_applyCurrentParagraphStyleToAttributedString:attrStr];
-        BOOL savedIgnore = _ignoreTextDidChanged;
-        _ignoreTextDidChanged = YES;
-        self.attributedText = attrStr;
-        self.selectedRange = savedSelection;
-        _ignoreTextDidChanged = savedIgnore;
-    } else {
-        [self p_applyCurrentParagraphStyleToAttributedString:[NSMutableAttributedString new]];
+    // 空文本或拼音组词态：不整段重建，仅同步 typingAttributes，组词提交后自然生效。
+    if (self.attributedText.length == 0 || self.markedTextRange != nil) {
+        [self p_applyParagraphStyleToTypingAttributes:[self p_buildCurrentParagraphStyle]];
+        return;
     }
+    // 对已有文本重新套用对齐，避免残留旧段落样式导致显示与当前设置不一致。
+    NSRange savedSelection = self.selectedRange;
+    NSMutableAttributedString *attrStr = [self.attributedText mutableCopy];
+    [self p_applyCurrentParagraphStyleToAttributedString:attrStr];
+    BOOL savedIgnore = _ignoreTextDidChanged;
+    _ignoreTextDidChanged = YES;
+    self.attributedText = attrStr;
+    self.selectedRange = savedSelection;
+    _ignoreTextDidChanged = savedIgnore;
 }
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
@@ -1549,7 +1556,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [processedAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange2];
     }
 
-    // processor 返回的字符串可能不带 paragraph style，重套对齐避免 emoji 输入后对齐丢失。
+    // processor 返回的字符串可能不带 paragraph style，重套对齐避免 emoji 输入后对齐丢失；
+    // 如未来 processor 需按段返回不同对齐，此处整段覆盖需改为按段处理。
     NSMutableAttributedString *processedMutableAttr = [processedAttr mutableCopy];
     [self p_applyCurrentParagraphStyleToAttributedString:processedMutableAttr];
 

@@ -1,0 +1,21 @@
+name: add-gc-config-demo
+description: 为demo工程增加Kotlin/Native GC配置、GC suspend/resume封装，以及一个用于测试GC行为的复杂列表页面
+status: proposing
+created: 2026-04-28
+artifacts:
+  - id: proposal
+    type: proposal
+    status: done
+    outputPath: proposal.md
+  - id: design
+    type: design
+    status: done
+    outputPath: design.md
+    dependencies: [proposal]
+  - id: tasks
+    type: tasks
+    status: done
+    outputPath: tasks.md
+    dependencies: [proposal, design]
+apply:
+  requires: [tasks]

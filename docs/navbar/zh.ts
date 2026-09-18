@@ -10,7 +10,7 @@ export const zhNavbar = navbar([
     {text: "社区", link: "/Community/contribute-guide.md"},
     {text: "博客", link: "/Blog/roadmap2025.md"},
     {text: "QA", link: "/QA/kuikly-qa.md"},
-    {text: "更新日志", link: "/ChangeLog/changelog.md"},
+    {text: "更新日志", link: "/ChangeLog/README.md"},
     {
         text: "源码",
         link: "https://github.com/Tencent-TDS/KuiklyUI",

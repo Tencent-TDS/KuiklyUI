@@ -77,6 +77,26 @@ fun NestedScrollList(data: List<String>) {
   - 含义：在当前可见区域之外额外预加载的 item 数量，用于瀑布流滚动时提前测量和布局后续单元格。
   - 建议：根据单个 item 渲染开销和屏幕尺寸来调节，通常 4～10 之间即可。
 
+### LazyList 预取开关：`Modifier.enableLazyListPrefetch` <Badge text="2.23.3 及以上支持" type="warn"/>
+
+为 `LazyColumn` / `LazyRow` 显式开启预取（opt-in）。开启后框架会在滚动方向提前组合后续 item，减少快速滚动时的白屏。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enabled | 是否开启预取 | Boolean |
+
+```kotlin
+LazyColumn(
+    modifier = Modifier
+        .fillMaxSize()
+        .enableLazyListPrefetch(true)
+) {
+    items(dataList) { item ->
+        Text(text = item)
+    }
+}
+```
+
 ```kotlin
 @Composable
 fun PreloadPagerSample() {

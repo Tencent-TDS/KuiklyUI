@@ -77,6 +77,7 @@ TextArea {
 - `placeholder()` - 设置提示文本
 - `placeholderColor()` - 设置提示文本颜色
 - `tintColor()` - 设置光标颜色
+- `selectionColor()` - 设置文本选中高亮颜色
 - `maxTextLength()` - 设置最大输入长度
 - `keyboardTypePassword()` / `keyboardTypeNumber()` / `keyboardTypeEmail()` - 设置键盘类型
 - `returnKeyTypeSearch()` / `returnKeyTypeSend()` / `returnKeyTypeDone()` 等 - 设置返回键类型

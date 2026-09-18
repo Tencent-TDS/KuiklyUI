@@ -213,7 +213,7 @@ if (showBottomSheet) {
 
 ---
 
-## 3. enableConsumeSnapshot 配置说明（Android 平台）
+## 3. enableConsumeSnapshot 配置说明（Android 平台） <Badge text="2.12.0 及以上支持" type="warn"/>
 
 **关键词：** enableConsumeSnapshot、Snapshot、状态丢失、ANR、死锁、原生 Compose 共存
 

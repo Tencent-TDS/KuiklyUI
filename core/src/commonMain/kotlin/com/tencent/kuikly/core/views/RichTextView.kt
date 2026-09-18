@@ -228,19 +228,37 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         if (shadow?.calculateFromCache != true) {
             renderView?.setShadow()
         }
+        scheduleOhosTypographyRelayout()
         measureOutput.width = size!!.width
         measureOutput.height = size!!.height
         dispatchPlaceholderSpanLayoutEventIfNeed()
         tryFireLineBreakMarginEvent()
     }
 
+    private fun scheduleOhosTypographyRelayout() {
+        val pager = getPager()
+        if (!pager.pageData.isOhOs) {
+            return
+        }
+        pager.addTaskWhenPagerDidCalculateLayout {
+            shadow?.relayoutToWidthIfNeeded(flexNode.layoutFrame.width)?.let { heightChanged ->
+                renderView?.setShadow()
+                if (heightChanged && flexNode.styleHeight.isUndefined()) {
+                    flexNode.markDirty()
+                }
+            }
+        }
+    }
+
     private fun tryFireLineBreakMarginEvent() {
         if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
             getPager().addTaskWhenPagerDidCalculateLayout {
-                val isLineBreakMargin =
-                    shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
-                if (isLineBreakMargin) {
-                    onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+                if (!flexNode.isDirty) {
+                    val isLineBreakMargin =
+                        shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                    if (isLineBreakMargin) {
+                        onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+                    }
                 }
             }
         }

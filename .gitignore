@@ -62,3 +62,6 @@ ohos_build.log
 
 ## HarmonyOS dependency lock files (auto-generated, do not commit)
 **/oh-package-lock.json5
+
+# k2310.sh runtime backup (cleaned by EXIT trap; guards against hard-kill residue)
+gradle.properties.k2310.bak

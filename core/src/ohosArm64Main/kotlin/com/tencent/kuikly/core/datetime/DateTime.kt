@@ -27,7 +27,10 @@ actual object DateTime {
         return com_tencent_kuikly_CurrentTimestamp()
     }
 
-    @OptIn(ExperimentalForeignApi::class)
+    // Kotlin 2.3 起 kotlin.system.getTimeNanos 被标记为 error 级 deprecation，
+    // 但官方替代（measureTime / TimeSource.Monotonic.markNow）均不提供 Long 纳秒语义，
+    // 且该 API 物理仍存在，故显式压制；2.1.21 / 2.0.21-mini 侧不受影响。
+    @Suppress("DEPRECATION_ERROR")
     actual fun nanoTime(): Long {
         return getTimeNanos()
     }

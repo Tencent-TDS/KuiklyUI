@@ -1,0 +1,26 @@
+files:
+  # Gradle Wrapper 版本切换：7.6.3 -> 8.9
+  # Kotlin 2.3 支持 Gradle 7.6.3 ~ 9.0.0，但 AGP 8.6.0 要求 Gradle 8.7+，故取 8.9
+  - path: gradle/wrapper/gradle-wrapper.properties
+    replacements:
+      - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
+        to: distributionUrl=https://services.gradle.org/distributions/gradle-8.9-bin.zip
+
+  # 移除 AGP 8.x 已禁止的属性
+  # 该属性 AGP 7 需要、AGP 8 禁止（AGP 8.0 已移除），两个分支互斥，只能在发布时切换
+  - path: gradle.properties
+    replacements:
+      - from: android.disableAutomaticComponentCreation=true
+        to: #android.disableAutomaticComponentCreation=true
+
+  # podspec 版本号带 Kotlin 版本后缀，发布 2.3.10 制品时需同步切换
+  # （2.1.21 适配时同样处理，见 commit 4fe0082a）
+  - path: core/core.podspec
+    replacements:
+      - from: 2.0.0-2.1.21-SNAPSHOT
+        to: 2.0.0-2.3.10-SNAPSHOT
+
+  - path: core-annotations/core_annotations.podspec
+    replacements:
+      - from: 2.0.0-2.1.21-SNAPSHOT
+        to: 2.0.0-2.3.10-SNAPSHOT

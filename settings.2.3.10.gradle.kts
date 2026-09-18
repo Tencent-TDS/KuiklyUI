@@ -12,11 +12,9 @@ pluginManagement {
     }
 }
 
-// 默认保持 2.1.21。Kotlin 2.3.10 请使用 ./k2310.sh（自带 Gradle 8.9 + JDK 17 + settings.2.3.10.*）
-val buildFileName = "build.2.1.21.gradle.kts"
+val buildFileName = "build.2.3.10.gradle.kts"
+rootProject.buildFileName = buildFileName
 
-include(":androidApp")
-include(":demo")
 
 include(":core-annotations")
 project(":core-annotations").buildFileName = buildFileName
@@ -34,16 +32,14 @@ include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
 
 include(":core-render-web:base")
+project(":core-render-web:base").buildFileName = buildFileName
 include(":core-render-web:h5")
+project(":core-render-web:h5").buildFileName = buildFileName
 include(":core-render-web:miniapp")
-
-include(":h5App")
-project(":h5App").buildFileName = buildFileName
-include(":miniApp")
-project(":miniApp").buildFileName = buildFileName
-
+project(":core-render-web:miniapp").buildFileName = buildFileName
 
 include(":compose")
 project(":compose").buildFileName = buildFileName
 
-rootProject.buildFileName = buildFileName
+// include(":demo")
+// include(":androidApp")

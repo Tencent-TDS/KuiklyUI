@@ -1922,3 +1922,37 @@ ctx.viewRef?.view?.toImageScaled(DeclarativeBaseView.ImageType.DATA_URI, 2.0f) {
 - `scale` 参数在当前屏幕 DPR 基础上额外放大，例如 `scale=2.0` 会得到 2× 于屏幕密度的位图；像素数会随 `scale²` 增长，请按需使用
 - 当 `scale` 过大导致输出边长超过 4096px 时，H5 内部会自动等比例收敛，不会抛错
 - `CACHE_KEY` 模式的缓存管理规则与 [toImage](#toimage方法) 一致
+
+### setPropByFrameTask方法
+
+设置一个依赖布局结果的属性任务：当节点的布局结果产生或发生变化时回调该任务。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| taskKey | 属性任务的唯一 key，一般取属性名（如 `"transform"`） | String |
+| frameTask | 布局结果回调，参数为当前节点的布局结果 | FrameTask |
+
+::::tip 回调时机
+若调用时该节点**已经有布局结果**，回调会立即执行一次；此后布局结果变化时再次回调。常用于 `transform`、`clipPath` 这类需要按 frame 计算的属性。
+::::
+
+### removePropFrameTask方法
+
+移除指定 key 的属性任务。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| taskKey | 属性任务的唯一 key | String |
+
+```kotlin
+attr {
+    setPropByFrameTask("transform") { frame ->
+        // 拿到布局结果后计算并设置属性
+    }
+}
+
+// 不再需要时移除
+attr {
+    removePropFrameTask("transform")
+}
+```

@@ -448,6 +448,14 @@ internal class TestPage : BasePager() {
 
 :::
 
+### dragEnable <Badge text="仅鸿蒙" type="warn"/>
+
+设置图片在鸿蒙平台上是否可以拖动。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| dragEnable | 是否允许拖动 | Boolean |
+
 ### maskLinearGradient<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 

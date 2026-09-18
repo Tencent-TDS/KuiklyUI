@@ -319,6 +319,10 @@ internal class FontWeightPage : BasePager() {
 | -- | -- | -- |
 | lineBreakMargin | 最后一行折叠距离text组件frame.right距离 | String |
 
+::::tip 配套事件
+`onLineBreakMargin` 事件用于监听文本是否发生了折叠，H5 自 2.17.0 起支持。
+::::
+
 :::tabs
 
 @tab:active 示例
@@ -927,9 +931,13 @@ internal class TestPage : BasePager() {
 
 :::
 
-### firstLineHeadIndent方法
+### firstLineHeadIndent方法 <Badge text="鸿蒙 2.17.0 及以上支持" type="warn"/>
 
 文本首行缩进距离
+
+::::tip 版本说明
+该属性在其他端为基线能力，鸿蒙自 2.17.0 起支持。
+::::
 
 :::tabs
 

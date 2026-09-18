@@ -184,3 +184,18 @@ PrimaryTabRow(selectedTabIndex = selectedIndex) {
     )
 }
 ```
+
+## 插槽
+
+`SlotProvider` 提供 Compose 侧的动态插槽机制，用于在运行期把一段组合内容挂到容器中或从中移除。
+
+| API | 说明 |
+| -- | -- |
+| `ProvideSlotProvider(content)` | 提供插槽容器的作用域 |
+| `LocalSlotProvider` | 读取当前插槽容器 `SlotProvider` |
+| `SlotProvider.addSlot(content)` | 添加插槽，返回 `slotId` |
+| `SlotProvider.removeSlot(slotId)` | 按 `slotId` 移除插槽 |
+
+::::tip 适用场景
+`addSlot` 接收 `@Composable () -> Unit`，由容器统一渲染。适合需要把业务 UI 挂载到外部指定位置（如宿主提供的容器、自定义弹层）的场景。
+::::

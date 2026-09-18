@@ -19,6 +19,7 @@
 NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName = @"kSetCurrentUIAsFirstScreenForNextLaunchNotificationName";
 NSString *const kCloseTurboDisplayNotificationName = @"kCloseTurboDisplayNotificationName";
 NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCacheNotificationName";
+NSString *const kExecuteTurboDisplayDiffNotificationName = @"kExecuteTurboDisplayDiffNotificationName";
 
 @implementation KRTurboDisplayModule
 
@@ -64,6 +65,19 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
 - (void)clearCurrentPageCache:(NSDictionary *)args {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kClearCurrentPageCacheNotificationName object:self.hr_rootView userInfo:nil];
+    });
+}
+
+/**
+ * 挂起diff的执行触发(call by kotlin)，无需参数：
+ * 挂起声明由KRTurboDisplayConfig（enableSuspendDiff）在页面容器配置，didInit静态挂起，
+ * 免疫sync事件插队；幂等由Handler侧diffSuspended状态保证（非挂起/已执行的通知在Handler被拒）
+ */
+- (void)executeTurboDisplayDiff:(NSDictionary *)args {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:kExecuteTurboDisplayDiffNotificationName
+                                                            object:self.hr_rootView
+                                                          userInfo:nil];
     });
 }
 

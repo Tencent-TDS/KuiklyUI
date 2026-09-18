@@ -85,6 +85,19 @@ class TurboDisplayModule : Module() {
         asyncToNativeMethod(CLEAR_CURRENT_PAGE_CACHE, null, null)
     }
 
+    /**
+     * 执行被挂起的首屏 Diff（真实页面接管缓存首屏）
+     *
+     * 前置条件：页面容器 Native 侧配置了 TurboDisplayConfig 的挂起 Diff 模式
+     * （`enableSuspendDiff`），Diff 会在页面初始化阶段静态挂起，且无超时自动执行，
+     * diff 时机完全由业务控制。
+     * 本方法在数据就绪、页面达到稳定态后调用；重复调用安全（非挂起/已执行的通知在端侧被幂等拒绝）。
+     * 挂起 Diff 固定采用延迟 Diff 的执行节奏（Context 队列屏障），无需额外参数
+     */
+    fun executeTurboDisplayDiff() {
+        syncToNativeMethod(EXECUTE_TURBO_DISPLAY_DIFF, null, null)
+    }
+
     override fun moduleName(): String {
         return MODULE_NAME
     }
@@ -96,5 +109,6 @@ class TurboDisplayModule : Module() {
         const val IS_TURBO_DISPLAY = "isTurboDisplay"
         const val CLEAR_ALL_CACHE = "clearAllCache"
         const val CLEAR_CURRENT_PAGE_CACHE = "clearCurrentPageCache"
+        const val EXECUTE_TURBO_DISPLAY_DIFF = "executeTurboDisplayDiff"
     }
 }

@@ -281,6 +281,79 @@ list.diffUpdate(newData)
 userList.diffUpdate(newUsers) { old, new -> old.id == new.id }
 ```
 
+## 手动绑定表达式监听：bindValueChange
+
+`observable` 是字段级的响应式，适用于「字段 → 组件属性」的绑定。当需要监听的是**一段表达式**（而非单个字段）时，可以使用 `Pager.bindValueChange`：它会在表达式依赖的任意响应式字段变化时回调，并在绑定时**立即执行一次**。
+
+```kotlin
+fun bindValueChange(
+    valueBlock: () -> Any,
+    byOwner: Any,
+    valueChange: (value: Any) -> Unit
+)
+
+fun unbindAllValueChange(byOwner: Any)
+```
+
+用法示例：
+
+```kotlin
+internal class DemoPage : BasePager() {
+
+    private var firstName by observable("")
+    private var lastName by observable("")
+
+    override fun created() {
+        super.created()
+        // 监听表达式而非单个字段，绑定时会立即回调一次
+        bindValueChange(
+            valueBlock = { "${firstName} ${lastName}" },
+            byOwner = this
+        ) { fullName ->
+            // 表达式结果变化时触发
+            KLog.i("DemoPage", "fullName = $fullName")
+        }
+    }
+
+    override fun pageWillDestroy() {
+        super.pageWillDestroy()
+        // 解除该 owner 的全部监听，避免泄漏
+        unbindAllValueChange(this)
+    }
+}
+```
+
+::::tip 与 observable 的区别
+`observable` 绑定的是字段本身，属性随字段变化自动更新；`bindValueChange` 绑定的是任意表达式，适合需要在数据变化时执行副作用（如发请求、打点、联动赋值）的场景。
+::::
+
+## 响应式与线程校验（调试用）
+
+Kuikly 提供了两个校验开关，用于在开发阶段发现「在非 UI 线程访问响应式字段」与「越权访问响应式字段」这两类问题，默认均关闭。
+
+| 开关 | 说明 | 默认值 |
+| -- | -- | -- |
+| `Pager.VERIFY_THREAD` | 校验响应式字段是否在上下文线程访问 | false |
+| `Pager.VERIFY_REACTIVE_OBSERVER` | 校验是否存在越权的响应式访问 | false |
+| `Pager.verifyFailed(handler)` | 校验失败时的处理回调 | 默认直接抛出异常 |
+
+用法示例：
+
+```kotlin
+// 建议仅在调试包中开启
+Pager.VERIFY_THREAD = true
+Pager.VERIFY_REACTIVE_OBSERVER = true
+
+// 校验失败时默认会抛出异常，可替换为打印或上报，便于定位调用栈
+Pager.verifyFailed { e ->
+    KLog.e("KuiklyVerify", e.message ?: "verify failed")
+}
+```
+
+::::warning 使用建议
+校验会带来额外开销，**不要在生产包开启**。排查「UI 不更新」「数据错乱」类问题时，可临时开启以确认是否存在跨线程写响应式字段的情况。
+::::
+
 ## 下一步
 
 在这节中，我们学习了如何使用响应式字段和响应式容器来达到UI自动更新的目的。下一步，我们来学习``Kuikly``中的[语句指令](directive.md)

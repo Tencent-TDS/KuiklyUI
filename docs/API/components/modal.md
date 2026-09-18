@@ -4,6 +4,11 @@
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ModalViewDemoPage.kt)
 
+::::warning 使用注意
+- `inWindow` 为 `true` 时依赖 Native 渲染层能力，端侧版本不满足最低要求时该设置会被忽略，Modal 退化为普通 View 容器。
+- `inWindow` 默认为 `false`，此时 Modal 尺寸与页面等大；如需自定义尺寸，请在 `attr` 中自行设置 `absolutePosition` 与 `size`。
+::::
+
 
 
 ## 属性

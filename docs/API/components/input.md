@@ -367,7 +367,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-@tab 已废弃的单参数用法
+@tab 已废弃的单参数用法 <Badge text="自 2.15.0 起废弃" type="danger"/>
 
 ```kotlin{13}
 @Page("demo_page")

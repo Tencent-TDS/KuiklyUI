@@ -12,3 +12,10 @@
 * [SnapshotModule](snapshot.md)
 * [CodecModule](codec.md)
 * [CalendarModule](calendar.md)
+* [PerformanceModule](performance.md)
+* [TurboDisplayModule](turbo-display.md) <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
+* [VsyncModule](vsync.md)
+* [BackPressModule](back-press.md) <Badge text="Android" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+* [FontModule](font.md)
+* [FileModule](file.md)
+* [LogModule](log.md)

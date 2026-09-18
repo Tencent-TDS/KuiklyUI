@@ -11,6 +11,11 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/ScrollPickerExamplePage.kt)
 
+::::warning 使用注意
+- `itemWidth`、`itemHeight`、`countPerScreen` 默认值均为 0，需业务显式设置。
+- `dragEndEvent` <Badge text="自 2.8.0 起废弃" type="danger"/> 拖拽结束与滚动结束统一使用 `scrollEndEvent`。
+::::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

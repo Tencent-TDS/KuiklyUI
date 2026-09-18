@@ -4,9 +4,15 @@
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ListViewDemoPage.kt)
 
+::::warning 使用注意
+- FooterRefresh **必须布局在 Scroller 容器组件下**（实际业务中通常为 List 或 WaterfallList），否则会在运行时抛错。
+- 需拖拽过一次后才会触发加载更多。
+- 处于「无更多数据」状态时不会再触发刷新。
+::::
+
 ## 属性
 
-除了支持所有[基础属性](https://chat.openai.com/chat/basic-attr-event.md#基础属性)，还支持以下属性：
+除了支持所有[基础属性](basic-attr-event.md#基础属性)，还支持以下属性：
 
 ### preloadDistance
 

@@ -20,6 +20,8 @@ constexpr char kKeyAvgIncrement[] = "avgIncrement";
 constexpr char kKeyPeakIncrement[] = "peakIncrement";
 constexpr char kKeyAppPeak[] = "appPeak";
 constexpr char kKeyAppAvg[] = "appAvg";
+constexpr char kKeyEnvPeak[] = "envPeak";
+constexpr char kKeyEnvAvg[] = "envAvg";
 
 KRMemoryData::KRMemoryData(long long pss, long long env_heap): init_pss_(pss), init_env_heap_(env_heap) {}
 
@@ -48,6 +50,8 @@ std::string KRMemoryData::ToJSONString() {
     cJSON_AddNumberToObject(memory_data, kKeyPeakIncrement, GetMaxPssIncrement());
     cJSON_AddNumberToObject(memory_data, kKeyAppPeak, GetMaxPss());
     cJSON_AddNumberToObject(memory_data, kKeyAppAvg, GetAvgPss());
+    cJSON_AddNumberToObject(memory_data, kKeyEnvPeak, GetMaxEnvHeap());
+    cJSON_AddNumberToObject(memory_data, kKeyEnvAvg, GetAvgEnv());
     char* json_str = cJSON_Print(memory_data);
     std::string result = json_str;
     cJSON_Delete(memory_data);
@@ -143,4 +147,29 @@ long long KRMemoryData::GetAvgPssIncrement() {
         return 0;
     }
     return avgPssIncrement / pss_list_.size();
+}
+
+long long KRMemoryData::GetAvgEnv() {
+    std::lock_guard<std::mutex> lock(mutex_); 
+    if (env_heap_list_.empty()) {
+        return 0;
+    }
+    long long avgEnv = 0;
+    for (auto &env : env_heap_list_) {
+        avgEnv += env;
+    }
+    return avgEnv / env_heap_list_.size();
+}
+
+long long KRMemoryData::GetAvgEnvIncrement() {
+    std::lock_guard<std::mutex> lock(mutex_); 
+    if (env_heap_list_.empty()) {
+        return 0;
+    }
+    long long avgEnvIncrement = 0;
+    for (auto &env : env_heap_list_) {
+        long long envIncrement = env - init_env_heap_;
+        avgEnvIncrement += envIncrement;
+    }
+    return avgEnvIncrement / env_heap_list_.size();
 }

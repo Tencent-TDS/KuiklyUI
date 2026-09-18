@@ -1,5 +1,7 @@
 # Native 属性动画
 
+<Badge text="2.26.0 及以上支持" type="warn"/>
+
 本文说明 Kuikly Compose Native 属性动画的适用范围、API 使用方式、回退规则和当前限制。
 
 Native 属性动画是现有 Compose 动画系统的一条可选执行路径。它不会替换原有的 Compose

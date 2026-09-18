@@ -17,4 +17,28 @@
 
 ## 事件
 
-支持所有[基础事件](basic-attr-event.md#基础事件)
+支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
+
+### willDismiss
+
+监听系统返回键触发的关闭事件。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| reason | 关闭原因 | ModalDismissReason |
+
+**ModalDismissReason**
+
+| 枚举值 | 值 | 描述 |
+| -- | -- | -- |
+| BackPressed | 0 | 系统返回键触发 |
+
+```kotlin
+Modal {
+    event {
+        willDismiss { reason ->
+            // reason == ModalDismissReason.BackPressed 时表示用户按下了系统返回键
+        }
+    }
+}
+```

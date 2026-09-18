@@ -2,7 +2,7 @@
 
 `View`组件提供了跨多个文本组件的部分选中能力，类似系统原生交互，常用于AI聊天、富文本复制/分享等场景。任意`View`容器都可以通过`selectable`属性开启选中能力，容器内的`Text`、`RichText`等文本组件即可参与连续选中。
 
-支持的平台：Android、iOS、鸿蒙。
+支持的平台：Android、iOS、鸿蒙（自 2.21.0 起支持）。
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/tree/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/TextSelectionExamplePage.kt)
 

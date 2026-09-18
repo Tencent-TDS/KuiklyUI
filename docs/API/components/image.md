@@ -373,7 +373,7 @@ internal class TestPage: BasePager() {
 
 :::
 
-### colorFilter <Badge text="iOS暂不支持" type="warn"/>
+### colorFilter <Badge text="Android 2.20.1 及以上支持" type="warn"/> <Badge text="鸿蒙 2.20.1 及以上支持" type="warn"/> <Badge text="iOS 暂不支持" type="warn"/>
 
 设置图片颜色矩阵滤镜（4×5 矩阵），可实现灰度、调整饱和度、亮度、对比度等效果。
 

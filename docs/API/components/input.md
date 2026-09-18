@@ -258,7 +258,21 @@ internal class TestPage : BasePager() {
 
 :::
 
-### maxTextLength
+### selectionColor方法 <Badge text="2.20.1 及以上支持" type="warn"/>
+
+设置输入框文本选中时的高亮颜色。
+
+<div class="table-01">
+
+**selectionColor方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| color | 文本选中高亮颜色  | Color |
+
+</div>
+
+### maxTextLength <Badge text="2.15.0 及以上支持" type="warn"/>
 
 限制输入框的输入长度。支持三种内置长度限制类型（按字节、字符、视觉宽度计算）。
 

@@ -2,6 +2,44 @@
 
 本篇收录 Kuikly Compose 相对标准 Compose 额外提供的 Modifier，主要用于把能力透传到底层 Kuikly 组件。
 
+## 滚动与布局
+
+### Modifier.bouncesEnable
+
+控制滚动容器是否允许回弹效果。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否开启回弹 | Boolean |
+
+### Modifier.fixScrollOffset
+
+修正滚动容器在特定场景下的内容偏移。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| needFix | 是否启用偏移修正 | Boolean |
+
+## LazyList 预取
+
+### Modifier.enableLazyListPrefetch <Badge text="2.23.3 及以上支持" type="warn"/>
+
+为 `LazyColumn` / `LazyRow` 显式开启预取（opt-in），开启后会提前组合滚动方向上的后续 item。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enabled | 是否开启预取 | Boolean |
+
+## 文本输入
+
+### Modifier.autoFocusOnTextInputState
+
+与 `TextInputState` 配合使用，在通过状态预填文本时自动获取焦点。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enabled | 是否启用 | Boolean |
+
 ## 属性与事件透传
 
 ### Modifier.setProp
@@ -28,9 +66,13 @@
 
 ## 滚动控制
 
-### Modifier.flingEnable
+### Modifier.flingEnable <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
 
 动态开关底层 Kuikly `ScrollerView` 的原生惯性滚动。
+
+::::tip 版本说明
+该能力在 Android 与鸿蒙上为基线能力，iOS 自 2.16.0 起支持。
+::::
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |

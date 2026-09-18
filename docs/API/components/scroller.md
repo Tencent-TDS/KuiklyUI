@@ -49,9 +49,13 @@
 | --------------------- |--| ------------- |
 | pagingEnable         | 是否开启分页 | Boolean |
 
-### flingEnable
+### flingEnable <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
 
 是否允许惯性滚动（fling）。设置为 `false` 时，用户松手后列表立即停止滚动，不会有惯性滑动效果。
+
+::::tip 版本说明
+本属性在 Android 与鸿蒙上为基线能力，iOS 自 2.16.0 起支持。
+::::
 
 | 参数                | 描述                                                         | 类型          |
 | --------------------- | ------------------------------------------------------------ | ------------- |
@@ -171,7 +175,7 @@
 | viewHeight | 列表View高度 | Float   |
 | isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
 
-### scrollToTop
+### scrollToTop <Badge text="2.12.0 及以上支持" type="warn"/>
 
 监听系统触发的"回到顶部"事件。iOS和Android部分厂商，点击状态栏时会触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
 
@@ -192,7 +196,7 @@
 
 ### setContentOffset
 
-### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="2.14.0" type="warn"/>
+### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="Android 2.14.0 及以上支持" type="warn"/> <Badge text="鸿蒙 2.14.0 及以上支持" type="warn"/> <Badge text="iOS 2.14.0 及以上支持" type="warn"/>
 
 设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置，本方法支持线性动画曲线。
 

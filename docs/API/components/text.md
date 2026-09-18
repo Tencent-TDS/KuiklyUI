@@ -169,8 +169,8 @@ internal class FontSizePage : BasePager() {
 | `fontWeightMedium()` | `fontWeight500()` | 中等 |
 | `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
 | `fontWeightBold()` | `fontWeight700()` | 粗体 |
-| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
-| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗<Badge text="2.14.0 及以上支持" type="warn"/> |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗<Badge text="2.14.0 及以上支持" type="warn"/> |
 
 </div>
 

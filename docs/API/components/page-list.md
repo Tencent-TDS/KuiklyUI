@@ -148,7 +148,7 @@ PageList {
 
 ## 方法
 
-### scrollToPageIndex
+### scrollToPageIndex <Badge text="2.12.0 及以上支持" type="warn"/>
 
 设置`PageList`滚动到某一个pageIndex。
 

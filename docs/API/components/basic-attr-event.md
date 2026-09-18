@@ -11,6 +11,19 @@
 
 下面我们来看**样式属性**
 
+### 常用简写方法
+
+以下为高频使用的简写入口，等价于多个基础属性的组合：
+
+| 方法 | 等价写法 | 说明 |
+| -- | -- | -- |
+| `size(width, height)` | `width(w)` + `height(h)` | 同时设置宽高 |
+| `flex(value)` | 设置 FlexNode 的 flex 值 | 弹性占比，常用于 `flex(1f)` 撑满剩余空间 |
+| `margin(all)` | `margin(top = all, left = all, bottom = all, right = all)` | 四边外边距 |
+| `padding(all)` | `padding(top = all, left = all, bottom = all, right = all)` | 四边内边距 |
+| `maxSize(width, height)` / `minSize(width, height)` | `maxWidth` + `maxHeight` / `minWidth` + `minHeight` | 同时设置最大 / 最小尺寸 |
+| `backgroundColor(hexColor: Long)` | `backgroundColor(Color)` | 以 `0xAARRGGBB` 形式直接指定颜色 |
+
 ### backgroundColor方法
 
 背景颜色
@@ -144,7 +157,7 @@ internal class TestPage : BasePager() {
 | offsetY | 阴影效果相对于组件的Y坐标偏移量 | Float |
 | shadowRadius | 阴影效果扩散半径 | Float |
 | shadowColor | 阴影颜色 | Color |
-| fill<Badge text="仅Android、鸿蒙支持" type="warn"/> | 是否填充阴影区域，默认值true | Boolean |
+| fill<Badge text="仅Android、鸿蒙支持" type="warn"/> <Badge text="2.14.0 及以上支持" type="warn"/> | 是否填充阴影区域，默认值true | Boolean |
 
 </div>
 
@@ -946,6 +959,71 @@ capture属性常用于以下场景：
 - iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
 - Android: 对应setForceDarkAllowed设置为false
 
+### cursor方法 <Badge text="仅 macOS" type="warn"/>
+
+设置鼠标光标样式。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| type | 光标类型，使用 `CursorType` 常量，如 `CursorType.POINTER`、`CursorType.TEXT` | String |
+
+### interfaceStyle方法 <Badge text="仅 iOS" type="warn"/>
+
+设置视图的界面样式，用于自动颜色适配。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| style | 界面样式，可选 AUTO / LIGHT / DARK | InterfaceStyle |
+
+### preventTouch方法
+
+阻止该组件接收触摸事件。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否阻止触摸 | Boolean |
+
+### consumeTouchDown方法
+
+消费该组件的按下事件，阻止事件继续向其父级传递。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否消费按下事件 | Boolean |
+
+### superTouch方法
+
+将触摸事件交由父级组件处理。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否交由父级处理 | Boolean |
+
+### testTag方法 <Badge text="2.18.1 及以上支持" type="warn"/> <Badge text="各端同步支持" type="warn"/>
+
+为组件设置测试标识，供自动化测试定位使用。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| tag | 测试标识 | String |
+
+### screenFramePause方法
+
+暂停该容器所在屏幕的刷新帧，用于降低非活跃页面的渲染开销。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| pause | 是否暂停 | Boolean |
+
+### boxShadow 的 useShadowPath 参数 <Badge text="仅 iOS" type="warn"/>
+
+`boxShadow(boxShadow, useShadowPath)` 重载提供显式阴影路径优化，用于提升 iOS 上的阴影渲染性能。
+
+| 参数 | 描述 | 类型 | 默认值 |
+| -- | -- | -- | -- |
+| boxShadow | 阴影对象 | BoxShadow | - |
+| useShadowPath | 是否使用显式阴影路径 | Boolean | false |
+
 ---
 
 ## 布局属性
@@ -1168,6 +1246,62 @@ right方法是指将本组件的定位到距离**右边**的多少距离，而�
 bottom方法是指将本组件的定位到距离**下边**的多少距离，而下边的定义取决于**positionType**方法设置的值。如果设置了**FlexPositionType.RELATIVE**,
 那么bottom的作用相当于设置了marginBottom; 如果设置了**FlexPositionType.ABSOLUTE**, 那么bottom的作用是将元素的上边定位到距离父元素下边的bottom值。
 
+
+### alignContent方法
+
+设置多行（换行后）内容在交叉轴上的对齐方式，仅在 `flexWrapWrap()` 生效时才有意义。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| flexAlign | 对齐方式 | FlexAlign |
+
+### 百分比定位：top / left / right / bottom 重载
+
+除像素值外，`top`、`left`、`right`、`bottom` 还支持传入 `Percentage`（相对父容器尺寸的比例），框架会在布局完成后按父容器实际尺寸换算为像素值。
+
+| 方法 | 基准 |
+| -- | -- |
+| `top(percentage)` / `bottom(percentage)` | 父容器高度 |
+| `left(percentage)` / `right(percentage)` | 父容器宽度 |
+
+```kotlin
+View {
+    attr {
+        size(100f, 100f)
+        top(Percentage(0.5f))   // 距离父容器顶部为其高度的 50%
+    }
+}
+```
+
+### 定位与对齐的便捷方法
+
+| 方法 | 等价写法 | 说明 |
+| -- | -- | -- |
+| `positionAbsolute()` | `positionType(FlexPositionType.ABSOLUTE)` | 绝对定位 |
+| `positionRelative()` | `positionType(FlexPositionType.RELATIVE)` | 相对定位 |
+| `absolutePosition(top, left, bottom, right)` | 绝对定位 + 四边偏移 | 未传的边不设置 |
+| `absolutePositionAllZero()` | `absolutePosition(0, 0, 0, 0)` | 四边归零，铺满父容器 |
+| `alignSelfCenter()` | `alignSelf(FlexAlign.CENTER)` | 自身在交叉轴居中 |
+| `alignSelfFlexStart()` | `alignSelf(FlexAlign.FLEX_START)` | 自身在交叉轴起始对齐 |
+| `alignSelfFlexEnd()` | `alignSelf(FlexAlign.FLEX_END)` | 自身在交叉轴末尾对齐 |
+| `alignSelfStretch()` | `alignSelf(FlexAlign.STRETCH)` | 自身拉伸填满交叉轴 |
+
+### 容器属性的便捷方法
+
+以下方法为容器组件（`ContainerAttr`）上的快捷入口，等价于传入对应的枚举值：
+
+| 分类 | 方法 |
+| -- | -- |
+| 主轴方向 | `flexDirectionColumn()`、`flexDirectionRow()` |
+| 换行 | `flexWrapNoWrap()`、`flexWrapWrap()` |
+| 主轴对齐 | `justifyContentCenter()`、`justifyContentFlexStart()`、`justifyContentFlexEnd()`、`justifyContentSpaceAround()`、`justifyContentSpaceEvenly()`、`justifyContentSpaceBetween()` |
+| 交叉轴对齐 | `alignItemsCenter()`、`alignItemsFlexStart()`、`alignItemsFlexEnd()`、`alignItemsStretch()` |
+| 组合 | `allCenter()`（主轴居中 + 交叉轴居中） |
+| 单边内边距 | `paddingTop()`、`paddingBottom()`、`paddingLeft()`、`paddingRight()` |
+
+:::tip 常用简写
+`allCenter()` 等价于 `alignItemsCenter()` 与 `justifyContentCenter()` 的组合，是让子元素水平垂直居中最常用的写法。
+:::
 
 ---
 
@@ -1601,6 +1735,41 @@ internal class AppearPercentageEventPage : BasePager() {
     }
 }
 ```
+
+### pinch事件
+
+捏合手势事件（双指缩放）。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 回调参数 `PinchGestureParams` 含缩放倍数等字段 | (PinchGestureParams) -> Unit |
+
+### mouseEnter事件 <Badge text="仅 macOS" type="warn"/>
+
+鼠标进入组件区域时触发。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 无参数回调 | () -> Unit |
+
+### mouseExit事件 <Badge text="仅 macOS" type="warn"/>
+
+鼠标离开组件区域时触发。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 无参数回调 | () -> Unit |
+
+### 自定义事件注册
+
+除内置事件外，`Event` 还提供了事件注册与查询的底层入口，供扩展组件或框架内部使用。
+
+| 方法 | 说明 |
+| -- | -- |
+| `register(eventName, eventHandlerFn, isSync)` | 注册自定义事件，`isSync` 表示是否需要实时同步（如拖拽手势），默认 `false` |
+| `handlerWithEventName(eventName)` | 查询某个事件名对应的处理函数 |
+| `putPluginEvent(pluginName, event)` | 注册扩展事件中心 |
+| `getPluginEvent(pluginName)` | 获取扩展事件中心 |
 
 ---
 

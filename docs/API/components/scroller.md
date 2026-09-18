@@ -183,6 +183,15 @@
 |----|----|----|
 | _无_ | 回调无参数 | - |
 
+### willDragEndBySync
+
+在惯性滚动（fling）即将结束时回调，可用于提前处理吸附、加载等逻辑。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 回调参数为 `WillEndDragParams` | (WillEndDragParams) -> Unit |
+| isSync | 是否需要实时同步，默认 true | Boolean |
+
 ### contentSizeChanged
 
 组件 Size 发生变化事件, 该方法接收一个闭包回调, 回调中的参数如下
@@ -192,7 +201,49 @@
 | width | 组件宽度 | Float   |
 | height | 组件高度 | Float   |
 
+### syncScroll
+
+设置与父级滚动容器同步滚动。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| syncEnable | 是否同步滚动 | Boolean |
+
+### scrollWithParent
+
+设置是否与外层（父）滚动容器联动滚动。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否随父容器滚动 | Boolean |
+
 ## 方法
+
+### setHasPullToRefresh
+
+设置当前滚动容器是否挂载了下拉刷新，供渲染层做滚动行为优化。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enabled | 是否存在下拉刷新 | Boolean |
+
+### addScrollerViewEventObserver / removeScrollerViewEventObserver
+
+添加 / 移除滚动容器的滚动事件观察者，用于在不侵入业务事件注册的前提下监听滚动。
+
+| 方法 | 说明 |
+| -- | -- |
+| `addScrollerViewEventObserver(observer: IScrollerViewEventObserver)` | 添加观察者 |
+| `removeScrollerViewEventObserver(observer: IScrollerViewEventObserver)` | 移除观察者 |
+
+### setExternalScrollEventHandler / getExternalScrollEventHandler
+
+设置 / 获取外部滚动事件处理器，用于把滚动事件转发给外部容器统一处理。
+
+| 方法 | 说明 |
+| -- | -- |
+| `setExternalScrollEventHandler(eventName: String, handler: ((ScrollParams) -> Unit)?)` | 设置指定事件名的外部处理器 |
+| `getExternalScrollEventHandler(eventName: String): ((ScrollParams) -> Unit)?` | 获取指定事件名的外部处理器 |
 
 ### setContentOffset
 

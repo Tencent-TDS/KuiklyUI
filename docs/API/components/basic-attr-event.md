@@ -261,6 +261,17 @@ internal class BorderRadiusPage : BasePager() {
 
 </div>
 
+### borderTop / borderBottom / borderLeft / borderRight方法
+
+为组件单独设置某一条边的边框，参数与 `border` 一致（均为 `Border` 对象），对所有 `View` 系列容器可用。
+
+| 方法 | 说明 |
+| -- | -- |
+| `borderTop(border: Border)` | 设置上边框 |
+| `borderBottom(border: Border)` | 设置下边框 |
+| `borderLeft(border: Border)` | 设置左边框 |
+| `borderRight(border: Border)` | 设置右边框 |
+
 ::: tabs
 
 @tab:active 示例
@@ -1014,6 +1025,27 @@ capture属性常用于以下场景：
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | pause | 是否暂停 | Boolean |
+
+### highlightBackgroundColor方法
+
+设置按下态的高亮背景色：手指按下时以该颜色高亮，抬起后恢复。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| color | 高亮背景色 | Color |
+
+::::warning 使用注意
+若按下区域内同时存在其他手势（如 `click`），高亮不会触发。
+::::
+
+### backgroundImage方法
+
+为容器设置背景图片，默认按 `cover` 方式缩放。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| src | 图片源，能力与 `Image` 的 `src` 一致 | String |
+| imageAttr | 自定义该背景图的属性 | (ImageAttr.() -> Unit)? |
 
 ### boxShadow 的 useShadowPath 参数 <Badge text="仅 iOS" type="warn"/>
 
@@ -1770,6 +1802,29 @@ internal class AppearPercentageEventPage : BasePager() {
 | `handlerWithEventName(eventName)` | 查询某个事件名对应的处理函数 |
 | `putPluginEvent(pluginName, event)` | 注册扩展事件中心 |
 | `getPluginEvent(pluginName)` | 获取扩展事件中心 |
+
+### screenFrame事件
+
+屏幕刷新帧（VSYNC 信号）回调。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 无参数回调 | () -> Unit |
+
+::::warning 性能注意
+该回调在平台 UI 线程**同步**执行，内部不宜做耗时操作。可通过 `attr.screenFramePause(true)` 暂停监听以提升性能。
+::::
+
+### 触摸事件的追加与移除
+
+`touchDown`、`touchUp`、`touchMove`、`touchCancel` 除直接注册外，还支持注册多个监听并通过以下方法追加或移除。四个 `touch*` 方法均带 `isSync` 参数，表示是否需要实时同步（拖拽等场景），默认 `false`。
+
+| 方法 | 说明 |
+| -- | -- |
+| `addTouchDown(handler)` | 追加一个按下事件监听 |
+| `removeTouchDown(handler)` | 移除指定的按下事件监听 |
+| `addTouchUp(handler)` | 追加一个抬起事件监听 |
+| `removeTouchUp(handler)` | 移除指定的抬起事件监听 |
 
 ---
 

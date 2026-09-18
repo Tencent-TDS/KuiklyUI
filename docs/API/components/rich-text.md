@@ -116,6 +116,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+**ImageSpan 对齐偏移**
+
+`ImageSpan` 还提供 `horizontalAlignOffset(offset: Float)` 与 `verticalAlignOffset(offset: Float)`，用于调整图片相对文本基线的水平、垂直偏移。
+
 ### PlaceholderSpan方法
 
 ``PlaceholderSpan``方法用于往富文本组件中添加一个空白占位区域, 该方法接收一个``PlaceholderSpan``的初始化闭包，你可以在这个初始化闭包中使用`placeholderSize`属性设置空白占位区域的大小，并通过`spanFrameDidChanged`事件监听SpanFrame变化来配合在空白占位区域叠加其他任意View。使用方法参考示例：
@@ -190,6 +194,28 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+## 方法
+
+### getSpans
+
+获取当前 RichText 中已添加的全部 Span。
+
+**返回值**
+
+| 类型 | 描述 |
+| -- | -- |
+| Array&lt;ISpan&gt; | Span 数组 |
+
+### addSpan / removeSpan / removeSpanAt
+
+除在 DSL 中直接声明 Span 外，还可通过以下方法在运行期增删：
+
+| 方法 | 说明 |
+| -- | -- |
+| `addSpan(span: ISpan)` | 追加一个 Span |
+| `removeSpan(span: ISpan)` | 移除指定 Span |
+| `removeSpanAt(index: Int)` | 按索引移除 Span |
 
 ## 事件
 

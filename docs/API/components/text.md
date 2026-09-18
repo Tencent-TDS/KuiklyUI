@@ -481,6 +481,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+### textOverFlowWordWrapping方法
+
+文本超出最大行数时按单词边界换行，不显示"..."
+
 ### textOverFlowClip方法<Badge text="安卓实现中" type="warn"/>
 
 文本超出最大行数时，直接截断，不显示"..."
@@ -799,6 +803,14 @@ internal class TestPage : BasePager() {
 
 :::
 
+### paragraphSpacing方法
+
+设置段落之间的间距。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| value | 段落间距 | Float |
+
 ### lineSpacing方法
 
 设置文本行间距
@@ -892,6 +904,10 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+### fontStyleNormal方法
+
+设置字体样式为正常（默认）。
 
 ### fontStyleItalic方法
 

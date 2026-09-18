@@ -80,6 +80,14 @@
 
 设置输入法的下一步按钮类型为谷歌类型
 
+### returnKeyTypeNone方法
+
+设置输入法的下一步按钮类型为无（不显示下一步按钮）
+
+### returnKeyTypePrevious方法
+
+设置输入法的下一步按钮类型为上一项类型
+
 ### enablesReturnKeyAutomatically方法<Badge text="仅iOS" type="warn"/>
 
 自定根据内容禁用和启用iOS软件盘的Return Key

@@ -109,3 +109,23 @@ Kuikly({
 });
 ```
 :::
+## getItem方法
+
+原子读取，通过同步通道读取 key 对应的字符串值。
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+## setItem方法
+
+原子写入，通过同步通道写入 key 对应的字符串值。
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | String |

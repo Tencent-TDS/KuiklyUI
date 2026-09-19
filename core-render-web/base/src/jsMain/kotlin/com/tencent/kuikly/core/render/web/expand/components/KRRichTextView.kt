@@ -424,7 +424,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
      * Set text wrapping mode
      */
     private fun setLineBreakMode(lineBreakMode: String) {
-        if (this.numberOfLines > 0) {
+        if (this.numberOfLines > 1) {
             return
         }
         when (lineBreakMode) {

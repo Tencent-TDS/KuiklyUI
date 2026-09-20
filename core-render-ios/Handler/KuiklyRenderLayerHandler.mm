@@ -217,6 +217,8 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
         if ([module respondsToSelector:@selector(hr_pageWillDestroy)]) {
             [(id)module hr_pageWillDestroy];
         } else if ([module respondsToSelector:@selector(invalidate)]) {
+            // 兜底：未实现 hr_pageWillDestroy 的 TDF Module 走 invalidate，
+            // 要求实现方保证幂等（其 dealloc 时仍会再触发一次）
             [module invalidate];
         }
     }

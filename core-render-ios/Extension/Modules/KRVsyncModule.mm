@@ -103,8 +103,9 @@ typedef CADisplayLink KRVsyncDisplayLink;
 // Module 的 dealloc 将永不执行，回调与计时资源会一直空转
 // displayLink 挂在 context 线程 runloop 上，需回到该线程 invalidate
 - (void)hr_pageWillDestroy {
+    __weak typeof(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueImmediatelyWithBlock:^{
-        [self invalidateVsyncOnContextThread];
+        [weakSelf invalidateVsyncOnContextThread];
     }];
 }
 

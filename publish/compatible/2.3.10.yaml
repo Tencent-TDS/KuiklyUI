@@ -6,21 +6,16 @@ files:
       - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
         to: distributionUrl=https://services.gradle.org/distributions/gradle-8.9-bin.zip
 
+  # settings 指针切换：默认 2.1.21 -> 2.3.10
+  # （settings.gradle.kts 全仓库唯一，无 settings.2.3.10.* 变体；构建/发布时临时切指针）
+  - path: settings.gradle.kts
+    replacements:
+      - from: val buildFileName = "build.2.1.21.gradle.kts"
+        to: val buildFileName = "build.2.3.10.gradle.kts"
+
   # 移除 AGP 8.x 已禁止的属性
-  # 该属性 AGP 7 需要、AGP 8 禁止（AGP 8.0 已移除），两个分支互斥，只能在发布时切换
+  # 该属性 AGP 7 需要、AGP 8 禁止（AGP 8.0 已移除，读到即构建失败），两个分支互斥，只能在构建时切换
   - path: gradle.properties
     replacements:
       - from: android.disableAutomaticComponentCreation=true
         to: #android.disableAutomaticComponentCreation=true
-
-  # podspec 版本号带 Kotlin 版本后缀，发布 2.3.10 制品时需同步切换
-  # （2.1.21 适配时同样处理，见 commit 4fe0082a）
-  - path: core/core.podspec
-    replacements:
-      - from: 2.0.0-2.1.21-SNAPSHOT
-        to: 2.0.0-2.3.10-SNAPSHOT
-
-  - path: core-annotations/core_annotations.podspec
-    replacements:
-      - from: 2.0.0-2.1.21-SNAPSHOT
-        to: 2.0.0-2.3.10-SNAPSHOT

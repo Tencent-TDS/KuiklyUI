@@ -3,13 +3,13 @@
 #
 # 与 2.1.21_publish.sh 的差异：
 #   1) AGP 7.4.2 -> 8.6.0（Kotlin 2.3 要求 8.2.2 ~ 8.13.0）
-#   2) Gradle 8.9（AGP 8.6.0 要求 8.7+；wrapper 保持 7.6.3 归默认构建，
-#      由 ./k2310.sh 自带外部 Gradle 8.9）
-#   3) JDK 17（Gradle 8.9 硬性要求）
-#   4) KSP 2.1.21-2.0.1 -> 2.3.4（由版本映射自动带出）
+#   2) Gradle 8.9 + JDK 17（AGP 8.6.0 要求 Gradle 8.7+，Gradle 8.9 要求 JDK 17），
+#      由 publish/compatible/2.3.10.yaml 在发布期临时切换 wrapper，结束后还原
+#   3) KSP 2.1.21-2.0.1 -> 2.3.4（由版本映射自动带出）
 #
-# 实现方式：复用 ./k2310.sh 无状态入口（JDK 17 + 外部 Gradle 8.9 + 版本注入 +
-#          yarn.lock 切换/还原），不修改 wrapper / gradle.properties 等共享文件。
+# 机制（与历史发布脚本同构：FileReplacer + compatible/<版本>.yaml）：
+#   发布前 replace（临时切换 wrapper / settings 指针 / gradle.properties 属性），
+#   发布后 restore 还原。settings.gradle.kts 全仓库唯一，无 settings.2.3.10.* 变体。
 #
 # 用法：
 #   ./publish/2.3.10_publish.sh              # 发布全部模块到 mavenLocal
@@ -22,18 +22,38 @@ echo "sh path: $SCRIPT_DIR"
 echo "project's root path: $PROJECT_ROOT"
 cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
 
+# --- JDK 17（Gradle 8.9 硬性要求）---
+# macOS 用 java_home 定位；Linux CI 等无该命令的环境尊重外部已设置的 JAVA_HOME
+if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+  export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+fi
+export PATH="${JAVA_HOME:+$JAVA_HOME/bin:}$PATH"
+java -version
+
+CONFIG_FILE="publish/compatible/2.3.10.yaml"
+
+# --- 共享文件临时切换（发布结束统一还原） ---
+# yarn.lock：JS 模块（core-render-web x3）发布需 2.3 版锁
+LOCK_DIR="kotlin-js-store"
+if [ -f "$LOCK_DIR/yarn.2.3.10.lock" ]; then
+  cp "$LOCK_DIR/yarn.2.3.10.lock" "$LOCK_DIR/yarn.lock"
+fi
+
+# FileReplacer：临时切换 wrapper（7.6.3 -> 8.9）/ settings 指针（2.1.21 -> 2.3.10）/
+# gradle.properties 属性（AGP 8 禁止），发布结束 restore 还原
+java publish/FileReplacer.java replace "$CONFIG_FILE"
+
 MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
 GRADLE_RUN_STATUS=0
 
 run_gradle() {
-  # 发布用 settings（不含 demo / androidApp 等 App 宿主），
-  # 通过 K2310_SETTINGS 覆盖 k2310.sh 默认的 app settings
-  K2310_SETTINGS="settings.2.3.10.gradle.kts" ./k2310.sh ":$1:$PUBLISH_TASK" --stacktrace
+  KUIKLY_AGP_VERSION="8.6.0" KUIKLY_KOTLIN_VERSION="2.3.10" \
+    ./gradlew ":$1:$PUBLISH_TASK" --stacktrace
 }
 
 if [ "$MODULE" = "all" ]; then
-  MODULES="core-annotations core core-ksp core-wx core-render-android compose core-render-web:base core-render-web:h5 core-render-web:miniapp"
+  MODULES="core-annotations core core-ksp core-wx core-render-android compose core-gradle-plugin core-render-web:base core-render-web:h5 core-render-web:miniapp ui-tooling"
   echo "编译所有模块: $MODULES"
   echo "发布方式: $PUBLISH_TASK"
   for m in $MODULES; do
@@ -51,6 +71,12 @@ else
   if ! run_gradle "$MODULE"; then
     GRADLE_RUN_STATUS=1
   fi
+fi
+
+# --- 共享文件还原（无论发布成败都执行） ---
+java publish/FileReplacer.java restore "$CONFIG_FILE"
+if [ -f "$LOCK_DIR/yarn.2.1.21.lock" ]; then
+  cp "$LOCK_DIR/yarn.2.1.21.lock" "$LOCK_DIR/yarn.lock"
 fi
 
 if [ $GRADLE_RUN_STATUS -eq 0 ]; then

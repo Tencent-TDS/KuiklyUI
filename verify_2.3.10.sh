@@ -35,7 +35,7 @@ echo "=== Kotlin 2.3.10 验证开始（./k2310.sh → settings.2.3.10.app.gradle
 echo "    Kotlin: 2.3.10   AGP: 8.6.0   Gradle: 8.9   JDK: 17"
 echo ""
 
-./k2310.sh $TASKS
+./kbuild.sh 2.3.10 $TASKS
 STATUS=$?
 
 if [ $STATUS -eq 0 ]; then

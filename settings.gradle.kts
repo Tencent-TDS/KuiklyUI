@@ -12,7 +12,7 @@ pluginManagement {
     }
 }
 
-// 默认保持 2.1.21。Kotlin 2.3.10 请使用 ./k2310.sh（自带 Gradle 8.9 + JDK 17 + settings.2.3.10.*）
+// 默认保持 2.1.21。Kotlin 2.3.10 请使用 ./kbuild.sh 2.3.10（按 compatible/2.3.10.yaml 切换环境）
 val buildFileName = "build.2.1.21.gradle.kts"
 
 include(":androidApp")

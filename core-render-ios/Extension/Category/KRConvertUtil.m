@@ -24,6 +24,7 @@ const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 #import <CommonCrypto/CommonCrypto.h>
 #import "KRLogModule.h"
 #import "KuiklyRenderBridge.h"
+#import "KRFontWarmupManager.h"
 
 #define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
 
@@ -33,6 +34,16 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 
 
 + (UIFont *)UIFont:(id)json {
+    UIFont *font = [self p_resolveUIFontFromJson:json];
+    // 把实际创建/使用的字体派发到主线程预热，避免 Context Queue 子线程与主线程
+    // 并发触发同一字体的 CoreText 全局缓存首次构建。
+    if (font) {
+        [[KRFontWarmupManager sharedManager] warmupFontsAsync:@[font]];
+    }
+    return font;
+}
+
++ (UIFont *)p_resolveUIFontFromJson:(id)json {
     NSString *fontFamily = json[@"fontFamily"];
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
     KuiklyContextParam* contextParam = json[@"contextParam"];

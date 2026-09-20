@@ -200,6 +200,32 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
     // nothing to do
 }
 
+/*
+ * @brief 页面销毁前统一清理所有已创建的 Module：先让每个 Module 断开自身持有的外部强引用，
+ *        再清空注册表，保证 Module 生命周期不会超过页面。
+ */
+- (void)invalidateAllModules {
+    if (!_moduleRegistry) {
+        return;
+    }
+    NSArray<id<TDFModuleProtocol>> *modules = nil;
+    pthread_rwlock_rdlock(&_moduleRWLock);
+    modules = [_moduleRegistry allValues];
+    pthread_rwlock_unlock(&_moduleRWLock);
+
+    for (id<TDFModuleProtocol> module in modules) {
+        if ([module respondsToSelector:@selector(hr_pageWillDestroy)]) {
+            [(id)module hr_pageWillDestroy];
+        } else if ([module respondsToSelector:@selector(invalidate)]) {
+            [module invalidate];
+        }
+    }
+
+    pthread_rwlock_wrlock(&_moduleRWLock);
+    [_moduleRegistry removeAllObjects];
+    pthread_rwlock_unlock(&_moduleRWLock);
+}
+
 #pragma mark - private
 
 - (id<KuiklyRenderViewExportProtocol>)p_renderViewHandlerWithTag:(NSNumber *)tag {

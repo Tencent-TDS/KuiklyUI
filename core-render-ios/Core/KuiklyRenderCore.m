@@ -164,6 +164,16 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 /**
  * @brief Core销毁前调用，用于Core提前发送事件到KuiklyKotlin侧销毁内在资源.
  */
+/*
+ * @brief 页面销毁前统一清理 Module（由宿主在容器释放时主动调用，避免等待 RenderView.dealloc）
+ */
+- (void)invalidateAllModules {
+    id<KuiklyRenderLayerProtocol> renderLayerHandler = _renderLayerHandler;
+    if ([renderLayerHandler respondsToSelector:@selector(invalidateAllModules)]) {
+        [(id)renderLayerHandler invalidateAllModules];
+    }
+}
+
 - (void)willDealloc {
     id<KuiklyRenderContextProtocol> contextHandler = self.contextHandler;
     if ([contextHandler respondsToSelector:@selector(setIsDestroying:)]) {

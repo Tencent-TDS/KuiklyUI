@@ -563,6 +563,8 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)dealloc {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(delegatorDealloc) object:nil];
+    // 容器释放时主动断开 Module 持有的外部强引用，避免 Module 反向持有导致 RenderView 无法释放
+    [_renderView invalidateAllModules];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 

@@ -99,6 +99,15 @@ typedef CADisplayLink KRVsyncDisplayLink;
     _tipCb = nil;
 }
 
+// 页面销毁前注销 vsync：CADisplayLink 强持有本 Module，若不主动 invalidate，
+// Module 的 dealloc 将永不执行，回调与计时资源会一直空转
+// displayLink 挂在 context 线程 runloop 上，需回到该线程 invalidate
+- (void)hr_pageWillDestroy {
+    [KuiklyRenderThreadManager performOnContextQueueImmediatelyWithBlock:^{
+        [self invalidateVsyncOnContextThread];
+    }];
+}
+
 - (void)unRegisterVsync:(NSDictionary *)args {
     __weak __typeof__(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{

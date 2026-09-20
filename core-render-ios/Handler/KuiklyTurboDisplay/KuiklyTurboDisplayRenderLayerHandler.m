@@ -409,6 +409,12 @@
     return [_renderLayerHandler moduleWithName:moduleName];
 }
 
+- (void)invalidateAllModules {
+    if ([_renderLayerHandler respondsToSelector:@selector(invalidateAllModules)]) {
+        [(id)_renderLayerHandler invalidateAllModules];
+    }
+}
+
 - (id<KuiklyRenderViewExportProtocol>)viewWithTag:(NSNumber *)tag {
     return [_renderLayerHandler viewWithTag:tag];
 }

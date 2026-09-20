@@ -92,6 +92,10 @@ NSString *const KRDensity = @"density";
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
     [_renderCore sendWithEvent:event data:data sync:sync];
 }
+
+- (void)invalidateAllModules {
+    [_renderCore invalidateAllModules];
+}
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
  * @param moduleName 模块名
@@ -345,6 +349,8 @@ NSString *const KRDensity = @"density";
 #pragma mark - dealloc
 
 - (void)dealloc {
+    // 兜底：直接使用 KuiklyRenderView（未走 Delegator）时，同样保证 Module 不晚于页面释放
+    [_renderCore invalidateAllModules];
     [self p_flushDeallocTasks];
     KuiklyRenderCore *renderCore = _renderCore;
     [renderCore willDealloc];

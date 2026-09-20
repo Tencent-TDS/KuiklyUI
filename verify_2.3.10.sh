@@ -1,9 +1,9 @@
 #!/bin/bash
 # Kotlin 2.3.10 验证
 #
-# 说明：本分支默认构建（./gradlew）是 Kotlin 2.1.21；本脚本通过 ./k2310.sh
-#      显式启用 2.3.10（JDK 17 + 外部 Gradle 8.9 + AGP 8.6.0 注入 +
-#      settings.2.3.10.app），不修改 wrapper / gradle.properties 等共享文件，
+# 说明：本分支默认构建（./gradlew）是 Kotlin 2.1.21；本脚本通过 ./kbuild.sh 2.3.10
+#      显式启用 2.3.10（JDK 17 + 外部 Gradle 8.9 + AGP 8.6.0 注入，环境差异由
+#      publish/compatible/2.3.10.yaml 驱动），不修改 wrapper / gradle.properties 等共享文件，
 #      用完即走。
 #
 # 用法：
@@ -31,7 +31,7 @@ else
   TASKS=":androidApp:assembleDebug :demo:linkPodDebugFrameworkIosArm64"
 fi
 
-echo "=== Kotlin 2.3.10 验证开始（./k2310.sh → settings.2.3.10.app.gradle.kts）==="
+echo "=== Kotlin 2.3.10 验证开始（./kbuild.sh 2.3.10，环境由 compatible/2.3.10.yaml 驱动）==="
 echo "    Kotlin: 2.3.10   AGP: 8.6.0   Gradle: 8.9   JDK: 17"
 echo ""
 

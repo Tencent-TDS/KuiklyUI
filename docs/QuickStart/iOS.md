@@ -36,6 +36,38 @@ end
 * 版本号需要和[KMP跨端工程](common.md)保持一致
 :::
 
+:::: warning Xcode 27 及以上版本需要额外配置
+从 Xcode 27 起，iOS SDK 支持的最低部署目标提升为 **15.0**，低于该值的 target 会被编译器拒绝，报错形如：
+
+`The iOS deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 12.0, but the range of supported deployment target versions is 15.0 to 27.1.x.`
+
+Kuikly 渲染器的 podspec 仍声明 `12.0`（保留对低版本 iOS 的兼容声明），渲染器代码本身已完整兼容 iOS 15，因此使用 Xcode 27 及以上版本时，需要在宿主工程侧做两处调整：
+
+1. 将宿主 App target 的 **iOS Deployment Target** 设为 `15.0` 或更高（Xcode → Build Settings → iOS Deployment Target）
+2. 在 Podfile 末尾添加下面的 `post_install`，统一抬升 Pods 工程中各 target 的部署目标
+::::
+
+```ruby
+post_install do |installer|
+  deployment_target = '15.0'
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = deployment_target
+  end
+
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = deployment_target
+    end
+  end
+end
+```
+
+:::: tip 说明
+* 该片段会一并抬升 `OpenKuiklyIOSRender` 以及 SDWebImage 等三方依赖的部署目标，无需逐个处理
+* 使用 Xcode 27 以下版本时不需要在podfile中做额外的配置
+* 若宿主工程仍需支持 iOS 15 以下系统，请使用对应的低版本 Xcode 构建
+::::
+
 2. 执行``pod install --repo-update``安装依赖
 
 ---
@@ -587,6 +619,10 @@ pod 'shared', :path => '/Users/XXX/workspace/TestKuikly/shared' # 本地存放Ku
 end
 
 ```
+
+:::: tip 提示
+若使用 Xcode 27 及以上版本，请参照上文「Xcode 27 及以上版本需要额外配置」一节，在 Podfile 中补充 `post_install` 配置，并将宿主 App target 的 iOS Deployment Target 设为 15.0 或更高。
+::::
 
 重新执行``pod install``安装依赖
 

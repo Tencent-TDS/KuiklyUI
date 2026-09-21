@@ -1,16 +1,89 @@
 source 'https://cdn.cocoapods.org/'
 
+require 'json'
+
+# 定位当前应使用的 Xcode SDK 目录。
+# 关键点：当 xcode-select 指向 CommandLineTools 时，xcrun 会返回 CommandLineTools
+# 自带的 SDK（路径不含 /Platforms/），其 MinimumDeploymentTarget 远低于真 Xcode，
+# 直接使用会算出错误的部署目标，因此这里只接受来自真 Xcode 的 SDK 路径。
+def xcode_sdk_path(sdk_name, platform_dir)
+  candidates = []
+
+  xcrun_path = `xcrun --sdk #{sdk_name} --show-sdk-path 2>/dev/null`.strip
+  candidates << xcrun_path unless xcrun_path.empty?
+
+  dev_dir = `xcode-select -p 2>/dev/null`.strip
+  if !dev_dir.empty? && !dev_dir.include?('CommandLineTools')
+    candidates.concat(Dir.glob(File.join(dev_dir, "Platforms/#{platform_dir}.platform/Developer/SDKs/#{platform_dir}*.sdk")))
+  end
+
+  # 兜底：扫描常见安装位置，支持 Xcode 装在 ~/Downloads 等非标准路径
+  ['/Applications', '~/Applications', '~/Downloads'].each do |base|
+    Dir.glob(File.expand_path(File.join(base, 'Xcode*.app'))).sort.each do |app|
+      candidates.concat(Dir.glob(File.join(app, "Contents/Developer/Platforms/#{platform_dir}.platform/Developer/SDKs/#{platform_dir}*.sdk")))
+    end
+  end
+
+  valid = candidates.uniq.select { |path| path.include?('/Platforms/') }
+  return nil if valid.empty?
+
+  valid.max_by do |path|
+    match = File.basename(path, '.sdk')[/\d+(?:\.\d+)?$/]
+    match ? Gem::Version.new(match) : Gem::Version.new('0')
+  end
+end
+
+# 读取当前 Xcode 自带 SDK 允许的最低部署目标。
+# Xcode 27 起 macOS 为 12.0，低于它的 target 无法构建；旧 Xcode 则更低。
+# 从 SDK 读取而非写死 Xcode 版本号映射，后续 Xcode 再抬下限时可自动跟随。
+def sdk_min_deployment_target(sdk_name, platform_dir)
+  sdk_path = xcode_sdk_path(sdk_name, platform_dir)
+  return nil if sdk_path.nil?
+
+  settings_file = File.join(sdk_path, 'SDKSettings.json')
+  return nil unless File.exist?(settings_file)
+
+  JSON.parse(File.read(settings_file)).dig('SupportedTargets', sdk_name, 'MinimumDeploymentTarget')
+rescue StandardError
+  nil
+end
+
+# 项目自身的 macOS 兼容下限
+PROJECT_MIN_MACOS = '10.13'
+
+sdk_min = sdk_min_deployment_target('macosx', 'MacOSX')
+# 取「项目兼容下限」与「SDK 硬下限」中较高者：
+# Xcode 27 下为 12.0，旧 Xcode 下回落到项目原值 10.13（低版本支持完整保留）
+MACOS_DEPLOYMENT_TARGET = [PROJECT_MIN_MACOS, sdk_min].compact.max_by { |v| Gem::Version.new(v) }
+
+puts "[Podfile] macOS deployment target = #{MACOS_DEPLOYMENT_TARGET} (project: #{PROJECT_MIN_MACOS}, sdk_min: #{sdk_min || 'unknown'})"
+
 target 'macApp' do
   # use_frameworks!
-  platform :osx, '10.13'
-  
+  platform :osx, MACOS_DEPLOYMENT_TARGET
+
   pod 'OpenKuiklyIOSRender', :path => '../'
   pod 'demo', :path => '../demo'
-  
+
   # Third-party Pods for macApp
   pod 'SDWebImage', '~> 5.20.1'
   # pag官方mac版本存在问题不可用，使用定制修改版 '~> 4.5'
   pod 'libpag-macOS', :git => 'https://github.com/wwwcg/pag-mac.git', :commit=> 'fee5879b'
   pod 'VLCKit', '~>3.3.0'
 
+end
+
+post_install do |installer|
+  # Podfile 的 platform 只决定 Pods 工程自身的默认值，各 pod target 仍沿用自己
+  # podspec 声明的低值（SDWebImage 10.11 / libpag-macOS 10.13 / OpenKuiklyIOSRender 10.13），
+  # 因此这里统一强制抬升到 MACOS_DEPLOYMENT_TARGET，避免 pod install 后被覆盖回去。
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = MACOS_DEPLOYMENT_TARGET
+  end
+
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = MACOS_DEPLOYMENT_TARGET
+    end
+  end
 end

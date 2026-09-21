@@ -1973,7 +1973,11 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 if (!self.isNativeV2) {
+                    // XCODE27-TODO(deprecated): UIView.setAnimationCurve: → block-based animation API
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                     [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
+#pragma clang diagnostic pop
                 }
                 block();
             }];

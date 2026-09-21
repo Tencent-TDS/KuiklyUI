@@ -437,7 +437,11 @@ static CGFloat const kSearchBarHeight = 50.0;
         UIWindowScene *scene = (UIWindowScene *)UIApplication.sharedApplication.connectedScenes.allObjects.firstObject;
         statusBarHeight = scene.statusBarManager.statusBarFrame.size.height;
     } else {
+        // XCODE27-TODO(deprecated): UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
+#pragma clang diagnostic pop
     }
     CGFloat navHeight = self.navigationController.navigationBar.frame.size.height;
     CGFloat topOffset = statusBarHeight + navHeight;
@@ -465,7 +469,11 @@ static CGFloat const kSearchBarHeight = 50.0;
         UIWindowScene *scene = (UIWindowScene *)UIApplication.sharedApplication.connectedScenes.allObjects.firstObject;
         statusBarHeight = scene.statusBarManager.statusBarFrame.size.height;
     } else {
+        // XCODE27-TODO(deprecated): UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
+#pragma clang diagnostic pop
     }
     CGFloat navHeight = self.navigationController.navigationBar.frame.size.height;
     CGFloat topOffset = statusBarHeight + navHeight + kSearchBarHeight;

@@ -438,9 +438,13 @@
         string =  [((NSNumber *)self) stringValue];
     }
     if (string) {
+        // XCODE27-TODO(deprecated): CFURLCreateStringByAddingPercentEscapes → stringByAddingPercentEncodingWithAllowedCharacters:
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         return (NSString*)CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(nil,
                                                                                     (CFStringRef)string, nil,
                                                                                     (CFStringRef)@"!*'();:@&=+$,/?%#[]", kCFStringEncodingUTF8));
+#pragma clang diagnostic pop
     }
     return @"";
 }
@@ -677,7 +681,11 @@
 - (NSString *)rij_md5String {
     const char *cstr = [self UTF8String];
     unsigned char result[16];
+    // XCODE27-TODO(deprecated): CC_MD5 → CC_SHA256（需同步处理缓存 / 签名兼容）
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
+#pragma clang diagnostic pop
     
     return [NSString stringWithFormat:@"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
             result[0], result[1], result[2], result[3],
@@ -884,7 +892,11 @@
     if ([self respondsToSelector:sel]) {
         [self qq_setStatusBarStyle:style animated:animated];
     }else {
+        // XCODE27-TODO(deprecated): UIApplication.setStatusBarStyle:animated: → UIViewController.preferredStatusBarStyle
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         [self setStatusBarStyle:style animated:animated];
+#pragma clang diagnostic pop
     }
 }
 

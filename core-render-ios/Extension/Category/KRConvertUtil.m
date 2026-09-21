@@ -665,7 +665,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 + (NSString *)hr_md5StringWithString:(NSString *)string {
     const char *cstr = [string UTF8String];
     unsigned char result[16];
+    // XCODE27-TODO(deprecated): CC_MD5 → CC_SHA256（需同步处理 PAG / APNG 缓存文件兼容）
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
+#pragma clang diagnostic pop
     
     return [NSString stringWithFormat:@"%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
             result[0], result[1], result[2], result[3],
@@ -688,7 +692,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             }
         }
         if (!statusBarHeight) {
+            // XCODE27-TODO(deprecated): UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
+#pragma clang diagnostic pop
         }
     }
     if (@available(iOS 16.0, *)) {
@@ -807,8 +815,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
 
     } else {
-        // iOS 13 以下使用旧的 API
+        // XCODE27-TODO(deprecated): UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         keyWindow = UIApplication.sharedApplication.keyWindow;
+#pragma clang diagnostic pop
     }
     // 未获取到交互scene 或者 未找到Keywindow，则直接返回nil，准备使用全零的safeAreaInsets
     return keyWindow;

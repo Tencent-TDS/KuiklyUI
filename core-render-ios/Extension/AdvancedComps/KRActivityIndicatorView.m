@@ -29,7 +29,11 @@
     if ([super initWithFrame:frame]) {
         self.backgroundColor = [UIColor clearColor];
 #if !TARGET_OS_OSX // [macOS]
+        // XCODE27-TODO(deprecated): UIActivityIndicatorViewStyleWhite/Gray → StyleMedium + color
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
+#pragma clang diagnostic pop
 #else // [macOS
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleMedium;
         self.color = [UIColor whiteColor];
@@ -52,11 +56,15 @@
 - (void)setCss_style:(NSString *)css_style {
     _css_style = css_style;
 #if !TARGET_OS_OSX // [macOS]
+    // XCODE27-TODO(deprecated): UIActivityIndicatorViewStyleWhite/Gray → StyleMedium + color
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     if ([css_style isEqualToString:@"white"]) {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
     } else {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
     }
+#pragma clang diagnostic pop
 #else // [macOS
     // macOS: Use color property instead of style to set white/gray appearance
     if ([css_style isEqualToString:@"white"]) {

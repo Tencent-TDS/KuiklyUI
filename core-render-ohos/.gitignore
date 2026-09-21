@@ -9,3 +9,6 @@ BuildProfile.ets
 
 # Kotlin/Native LLDB helpers (auto-generated, do not commit)
 /.kuikly/
+
+# Host unit-test binaries
+/src/test/cpp/build/

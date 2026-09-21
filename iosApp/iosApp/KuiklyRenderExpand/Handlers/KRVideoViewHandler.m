@@ -108,7 +108,7 @@
 }
 
 +(BOOL)IsiPhoneX {
-    // XCODE27-TODO(deprecated): UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
+    // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return CGRectGetHeight([UIApplication sharedApplication].statusBarFrame) > 30;

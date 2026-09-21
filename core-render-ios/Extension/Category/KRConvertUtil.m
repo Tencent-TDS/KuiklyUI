@@ -665,7 +665,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 + (NSString *)hr_md5StringWithString:(NSString *)string {
     const char *cstr = [string UTF8String];
     unsigned char result[16];
-    // XCODE27-TODO(deprecated): CC_MD5 → CC_SHA256（需同步处理 PAG / APNG 缓存文件兼容）
+    // XCODE27-TODO(deprecated): [临时规避，后续迁移] CC_MD5 → CC_SHA256（需同步处理 PAG / APNG 缓存文件兼容）
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
@@ -692,7 +692,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             }
         }
         if (!statusBarHeight) {
-            // XCODE27-TODO(deprecated): UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
+            // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.statusBarFrame → UIWindowScene.statusBarManager.statusBarFrame
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
@@ -815,7 +815,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
 
     } else {
-        // XCODE27-TODO(deprecated): UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
+        // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         keyWindow = UIApplication.sharedApplication.keyWindow;

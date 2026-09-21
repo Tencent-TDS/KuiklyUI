@@ -42,7 +42,7 @@
 #if !TARGET_OS_OSX // [macOS]
     if (self.superview && ![self.superview isKindOfClass:[UIWindow class]]) {
        
-        // XCODE27-TODO(deprecated): UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
+        // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;

@@ -438,7 +438,7 @@
         string =  [((NSNumber *)self) stringValue];
     }
     if (string) {
-        // XCODE27-TODO(deprecated): CFURLCreateStringByAddingPercentEscapes → stringByAddingPercentEncodingWithAllowedCharacters:
+        // XCODE27-TODO(deprecated): [临时规避，后续迁移] CFURLCreateStringByAddingPercentEscapes → stringByAddingPercentEncodingWithAllowedCharacters:
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         return (NSString*)CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(nil,
@@ -681,7 +681,7 @@
 - (NSString *)rij_md5String {
     const char *cstr = [self UTF8String];
     unsigned char result[16];
-    // XCODE27-TODO(deprecated): CC_MD5 → CC_SHA256（需同步处理缓存 / 签名兼容）
+    // XCODE27-TODO(deprecated): [临时规避，后续迁移] CC_MD5 → CC_SHA256（需同步处理缓存 / 签名兼容）
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
@@ -892,7 +892,7 @@
     if ([self respondsToSelector:sel]) {
         [self qq_setStatusBarStyle:style animated:animated];
     }else {
-        // XCODE27-TODO(deprecated): UIApplication.setStatusBarStyle:animated: → UIViewController.preferredStatusBarStyle
+        // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.setStatusBarStyle:animated: → UIViewController.preferredStatusBarStyle
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
         [self setStatusBarStyle:style animated:animated];

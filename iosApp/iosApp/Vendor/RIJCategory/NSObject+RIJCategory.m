@@ -681,7 +681,7 @@
 - (NSString *)rij_md5String {
     const char *cstr = [self UTF8String];
     unsigned char result[16];
-    // XCODE27-TODO(deprecated): [临时规避，后续迁移] CC_MD5 → CC_SHA256（需同步处理缓存 / 签名兼容）
+    // XCODE27-TODO(deprecated): [临时规避，后续迁移] CC_MD5 → CC_SHA256（输出 32→64 字符，需核对按长度解析的调用方；需同步处理缓存 / 签名兼容）
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     CC_MD5(cstr, (CC_LONG)strlen(cstr), result);

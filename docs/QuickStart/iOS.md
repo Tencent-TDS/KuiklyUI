@@ -41,6 +41,8 @@ end
 - Macos 也在 Xcode 27 有了SDK版本限制，同 iOS 的操作，需要在运行前将所有的pod库 Macos Deployment Target 字段调整为 **12.0**。
 ::::
 
+2. 完成上述调整后，执行``pod install --repo-update``安装依赖
+
 ---
 
 ### 方式二：通过 SPM（Swift Package Manager）集成

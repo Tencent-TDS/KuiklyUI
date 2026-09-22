@@ -261,6 +261,12 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                             if (type == "dataUri") {
                                 resultData = snapshotManager->ProcessSnapshotResultWithDataType(
                                     env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                                // dataUri 分支仅使用 pixelMap，drawableDescriptorPtr 由本次调用取得，
+                                // 需显式释放，否则每次 toImage(DATA_URI) 泄漏一个 native DrawableDescriptor。
+                                if (drawableDescriptorPtr) {
+                                    OH_ArkUI_DrawableDescriptor_Dispose(drawableDescriptorPtr);
+                                    drawableDescriptorPtr = nullptr;
+                                }
                             } else if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                                 pathStr = arkTs.GetString(path);

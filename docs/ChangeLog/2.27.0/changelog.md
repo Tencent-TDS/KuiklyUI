@@ -1,12 +1,18 @@
-# 2.27.0 变更汇总
+# 2.27.0 变更说明
 
-> 本版导航：[版本说明](./announcement.md) · **变更汇总** · [破坏性与迁移](./breaking.md)
+## Part 1 总体说明
 
-## 多端
+2.27.0 把鸿蒙和 iOS 上几处会造成崩溃与界面不刷新的问题修掉，同时给多模块工程补上了编译期的页面重名检查。具体如下：
 
-- feat(compose): add KuiklyModulePages annotation and KSP processor support for … · [#1426](https://github.com/Tencent-TDS/KuiklyUI/pull/1426)
+- **鸿蒙崩溃与界面刷新**（鸿蒙）：修复配置变化（字体缩放、深色模式）后文本未标记脏区导致界面不刷新的问题；修掉双击手势延迟任务访问悬空对象引发的崩溃；window 相关调用加了异常保护；同步主任务的告警阈值改为可配置，宿主可按自身负载调整。
+- **多模块页面重名检查**（跨端）：Compose 新增模块页面注册注解与配套 KSP 处理器，多模块工程的页面注册与发现有了编译期依据——多模块工程中若存在同名 `@Page` 页面，会在编译阶段直接失败并列出冲突页面，把页面名改为全局唯一即可。
+- **iOS 首屏缓存与 H5 指示条**（iOS、H5）：TurboDisplay 刷新改为遵循节点级的自动更新关闭标记，显式关闭自动更新的节点不再被首屏缓存改写；H5 修复 Tabs 指示器位置异常。
 
-## 单端
+历史提交可见 [2.26.0...2.27.0](https://github.com/Tencent-TDS/KuiklyUI/compare/2.26.0...2.27.0)，完整条目见下方 Part 2。
+
+---
+
+## Part 2 变更汇总
 
 ### iOS
 
@@ -14,22 +20,32 @@
 
 ### 鸿蒙
 
-- fix(ohos): 修复双击手势 250ms 延迟任务访问悬空对象导致的崩溃 · [#1714](https://github.com/Tencent-TDS/KuiklyUI/pull/1714)
-- feat(ohos): 将 kSyncMainTaskWarnTimeout 改为可配置的文件级 static 变量 · [#1720](https://github.com/Tencent-TDS/KuiklyUI/pull/1720)
-- fix: try catch ohos window problem · [#1719](https://github.com/Tencent-TDS/KuiklyUI/pull/1719)
 - fix(ohos): config change not markText dirty · [#1511](https://github.com/Tencent-TDS/KuiklyUI/pull/1511)
+- fix: try catch ohos window problem · [#1719](https://github.com/Tencent-TDS/KuiklyUI/pull/1719)
+- feat(ohos): 将 kSyncMainTaskWarnTimeout 改为可配置的文件级 static 变量 · [#1720](https://github.com/Tencent-TDS/KuiklyUI/pull/1720)
+- fix(ohos): 修复双击手势 250ms 延迟任务访问悬空对象导致的崩溃 · [#1714](https://github.com/Tencent-TDS/KuiklyUI/pull/1714)
 
-### H5
+### 跨端
 
-- Bugfix/web tabs indicator fix · [#1715](https://github.com/Tencent-TDS/KuiklyUI/pull/1715)
+- feat(compose): add KuiklyModulePages annotation and KSP processor support for … · [#1426](https://github.com/Tencent-TDS/KuiklyUI/pull/1426)
 
-## 其他
-
-### 文档
+### 其他
 
 - docs: update tabs aspect ratio usage note · [#1640](https://github.com/Tencent-TDS/KuiklyUI/pull/1640)
+- chore: update InputSpanPage demo pageName · [#1713](https://github.com/Tencent-TDS/KuiklyUI/pull/1713)
+- Bugfix/web tabs indicator fix · [#1715](https://github.com/Tencent-TDS/KuiklyUI/pull/1715)
 - docs: update changelog · [#1717](https://github.com/Tencent-TDS/KuiklyUI/pull/1717)
 
-### 工程与示例
+> **分节说明**：本部分按改动实际落在哪些 Native 端划分。`Android` / `iOS` / `鸿蒙` / `H5` / `小程序` / `macOS` 为单端改动，即只涉及一个 Native 端；`多端` 为同时改动了多个 Native 端；`跨端` 为只改 Kotlin 上层、无 Native 改动，一次改完各端都生效；`Compose` 为 Compose 侧改动，即使会下发到 Native 三端也只在此列出，不重复计入 `多端`；`其他` 为文档、示例与发版杂项。
 
-- chore: update InputSpanPage demo pageName · [#1713](https://github.com/Tencent-TDS/KuiklyUI/pull/1713)
+---
+
+## Part 3 破坏性变更
+
+## 条件性破坏性
+
+### #1426 同名 `@Page` 页面直接编译失败
+
+- 结果：多模块工程中存在同名 `@Page` 页面时，编译阶段直接失败并列出冲突页面，不再运行时静默覆盖。
+- 影响：启用多模块工程且页面名重复时会触发。
+- 迁移：按编译报错将冲突页面名改为全局唯一。

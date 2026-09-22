@@ -114,6 +114,14 @@ typedef NS_ENUM(NSUInteger, KRDiffExecuteMode) {
 
 /**
  * @brief 启用挂起Diff（didInit静态挂起，由业务executeTurboDisplayDiff触发执行，无超时自动执行）
+ * @note 开启后会自动联动以下两项，业务无需（也不应）再显式设置：
+ *       1. 自动开启结构感知Diff-DOM（diffDOMMode = KRStructureAwareDiffDOM）：
+ *          挂起意味着首屏存在响应式变更，属结构变更，必须开启结构采集；
+ *       2. 首屏Diff固定按延迟Diff的节奏执行（渲染指令全部执行后再更新），与diffViewMode是否为
+ *          KRDelayedDiffView无关。
+ *       因此开启挂起后不要再调用 enable/disableStructureAwareDiffDOM、enable/disableDelayedDiff，
+ *       前者属于重复设置，后者会破坏挂起Diff的必要前提。
+ *       挂起Diff无框架层超时兜底，业务需自行保证executeTurboDisplayDiff被调用（含超时/失败分支）。
  */
 - (void)enableSuspendDiff;
 

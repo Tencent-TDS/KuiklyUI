@@ -63,6 +63,8 @@
 @property (nonatomic, weak) UIView *rootView;
 /** 挂起 diff 是否已执行完成标志位 */
 @property (nonatomic, assign) BOOL diffSuspended;
+/** 挂起 diff 是否已被业务触发标志位（幂等锁：覆盖「已触发 → diff异步完成」之间的重复触发窗口） */
+@property (nonatomic, assign) BOOL diffExecuteTriggered;
 
 @end
 
@@ -467,11 +469,6 @@
         // 节点级过滤的 diff 路径（此前置 nil 会使手动刷新落入全量缓存真实树的兜底分支，过滤失效）。
         // 自动更新已由 _closeAutoUpdateTurboDisplay 关闭，保留快照树不会触发额外写盘。
     }
-    // 兜底diff：没有开启挂起diff，但是却还没有触发diff（系统时机链路异常，
-    // 如业务在容器中没有对pageName作以区分导致配置串页），手势时强制接管
-    if (![_config isSuspendDiffEnabled] && _lazyRendering) {
-        [self diffPatchToRenderLayer];
-    }
 }
 
 #pragma mark - notification
@@ -564,9 +561,13 @@
     }
     // 幂等保护：未挂起（非挂起模式/无缓存未置位/diff已执行清位）直接忽略
     // 注：不能用config判断 —— 静态声明无法区分"未执行"与"已执行"
-    if (!self.diffSuspended) {
+    // 注：diffSuspended 只在 diff 完成（延迟diff的completion）时清位，触发到完成之间存在异步窗口
+    //     （延迟diff需等待跨端渲染指令全部到达），期间连续触发会重复进入 diffPatchToRenderLayer，
+    //     故用 diffExecuteTriggered 作为幂等锁；该锁只管重复触发，不影响 diffSuspended 的语义
+    if (!self.diffSuspended || self.diffExecuteTriggered) {
         return;
     }
+    self.diffExecuteTriggered = YES;    // 先加锁再执行，避免窗口内重复进入
     // 执行 Diff
     [self diffPatchToRenderLayer];
 }

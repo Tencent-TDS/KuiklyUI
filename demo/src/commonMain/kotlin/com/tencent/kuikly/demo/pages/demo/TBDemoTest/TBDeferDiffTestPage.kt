@@ -249,13 +249,18 @@
          val title: String
      )
 
-     // 颜色随机：缓存态与数据态颜色必然不同，diff 接管时刻（颜色整体刷新）肉眼可见
+     // 取色：按 index 确定性取色 + 页面级随机偏移，
+     // 使本次启动的配色与上次缓存下来的配色不同（diff 接管时刻配色整体刷新，肉眼可见）；
+     // 偏移在单次页面生命周期内固定，避免每次重组都变色
      private val listColorScheme = listOf(
          Color(0xFFB71C1C), Color(0xFFE65100), Color(0xFF1B5E20),
          Color(0xFF0D47A1), Color(0xFF4A148C)
      )
 
+     /** 页面级取色偏移（每次启动随机，单次生命周期内固定） */
+     private val colorOffset = kotlin.random.Random.nextInt(listColorScheme.size)
+
      private fun getColorByIndex(index: Int): Color {
-         return listColorScheme[kotlin.random.Random.nextInt(listColorScheme.size)]
+         return listColorScheme[(index + colorOffset) % listColorScheme.size]
      }
  }

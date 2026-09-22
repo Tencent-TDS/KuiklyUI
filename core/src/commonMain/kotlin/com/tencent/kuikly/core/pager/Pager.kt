@@ -600,6 +600,19 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_THEME_DID_CHANGED = "themeDidChanged"
         const val PAGER_EVENT_WILL_DESTROY = "pageWillDestroy"
         const val PAGER_EVENT_SET_NEED_LAYOUT = "setNeedLayout"
+        /** TB缓存读取开始 */
+        const val PAGER_EVENT_INIT_LAYER_READ_CACHE_START = "onInitLayerReadCacheStart"
+        /** TB缓存读取完成，data含succ（命中附加bytes/children） */
+        const val PAGER_EVENT_INIT_LAYER_READ_CACHE_FINISH = "onInitLayerReadCacheFinish"
+        /** TB缓存首屏渲染开始 */
+        const val PAGER_EVENT_INIT_LAYER_RENDER_CACHE_START = "onInitLayerRenderCacheStart"
+        /** TB缓存首屏渲染完成（TB直出结束，此后业务可交互缓存首屏），data含succ */
+        const val PAGER_EVENT_INIT_LAYER_RENDER_CACHE_FINISH = "onInitLayerRenderCacheFinish"
+        /** 真实视图 diff 开始（缓存视图 → 真实视图的关键更替） */
+        const val PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_START = "onInitLayerRealViewDiffStart"
+        /** 真实视图 diff 完成（diff 结束，真实页面生效） */
+        const val PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_FINISH = "onInitLayerRealViewDiffFinish"
+
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
 
         const val PAGER_EVENT_ON_BACK_PRESSED = "onBackPressed"

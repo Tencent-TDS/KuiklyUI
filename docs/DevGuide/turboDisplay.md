@@ -68,6 +68,10 @@ diffViewMode — 控制首屏增量更新的执行策略
 - Normal（默认）：同步一次性完成差异对比和更新
 - Delayed：延迟至渲染指令全部执行后再更新，支持页面恢复等交互场景
 
+diffExecuteMode — 控制首屏增量更新（真实视图接管缓存首屏）的执行时机
+- Normal（默认）：系统时机，业务首帧渲染完成后立即执行
+- Suspend：挂起时机，Diff 在页面初始化阶段静态挂起，由业务调用 `executeTurboDisplayDiff()` 触发执行，详见「控制首屏接管时机：挂起 Diff」
+
 autoUpdateTurboDisplay — 控制是否在首屏至完全渲染期间自动采集界面变化
 - true（默认）：自动捕捉界面属性变化并刷新缓存
 - false：关闭自动采集，仅保留初始缓存
@@ -79,6 +83,7 @@ persistentRealTree — 控制是否持续跟踪业务首屏节点状态
 ::: tip 配置项彼此关系
 - `持续记录（persistentRealTree）` → `自动采集（autoUpdateTurboDisplay）` → `结构变化采集（diffDOMMode）` 呈链式依赖，前者是后者的前提。持续记录关闭后，纵使自动采集开启，缓存内容也不再变化；自动采集关闭，缓存内容同样不再变化。
 - `首屏增量更新模式（diffViewMode）` 独立于以上三项，单独控制首屏增量更新的执行策略。
+- `首屏增量更新时机（diffExecuteMode）` 为 Suspend（挂起）时，会自动开启 `结构变化采集（diffDOMMode）`，且首屏增量更新固定按 `延迟模式（diffViewMode = Delayed）` 的节奏执行。此时这两项无需（也不应）再显式设置，详见「控制首屏接管时机：挂起 Diff」。
   :::
 
 
@@ -118,6 +123,98 @@ persistentRealTree — 控制是否持续跟踪业务首屏节点状态
 - 业务首屏和TurboDisplay缓存首屏进行差异更新时，为了可以将显示当前最新且正确的首屏效果，此时属于首屏阶段的组件所对应的 Native 节点，其结构变化与属性变化不受 `turboDisplayAutoUpdateEnable` 属性影响。
 - turboDisplayAutoUpdateEnable 属性会控制「首屏-完全渲染」期间的属性变更，关闭后本次写入的缓存首屏与所读取的一致。
   :::
+
+---
+
+### 控制首屏接管时机：挂起 Diff（可选）
+
+默认时机下，首屏增量更新（真实视图接管缓存首屏）由系统在业务首帧渲染完成后立即执行。若页面真实首屏依赖异步数据，此时接管会把缓存直出的成功态替换成 Loading / 空列表态，产生肉眼可见的跳变。
+
+挂起 Diff 将接管时机交给业务：Diff 在页面初始化阶段静态挂起，且无超时自动执行，业务在数据就绪、页面达到稳定态后主动触发接管。
+
+**适用场景：** 有缓存二次进入、且首屏内容依赖网络数据的页面 —— 缓存直出上次成功态，数据回来后再执行 Diff，使接管前后的树结构对齐、差异收敛为属性级更新。
+
+#### 配置方式
+
+**iOS（Native 侧声明挂起）：**
+
+```objectivec
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+
+    // 开启挂起 Diff：Diff 在 didInit 阶段静态挂起，由 Kotlin 侧 executeTurboDisplayDiff() 触发执行
+    [config enableSuspendDiff];
+    
+    // 剩余可以配置的API，建议全部打开，保证挂起diff阶段可以顺利的采集到缓存内容
+    [config enableAutoUpdateTurboDisplay];      // 启动自动采集能力
+    [config enablePersistentRealTree];          // 启动持续记录
+
+    return config;
+}
+```
+
+**Kotlin（业务侧触发接管）：**
+
+```kotlin
+addTaskWhenPagerUpdateLayoutFinish {
+    acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
+        .executeTurboDisplayDiff()
+}
+```
+
+> **完整示例参考：** `demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/TBDemoTest/TBDeferDiffTestPage.kt`，配合 iOS 侧 `KuiklyRenderViewController` 中的 `enableSuspendDiff` 配置使用。
+
+:::: tip 使用注意
+- 挂起 Diff 无框架层超时兜底：业务需自行保证 `executeTurboDisplayDiff()` 被调用（建议在超时 / 失败分支同样调用），否则页面将停留在可交互的缓存首屏，不会自动接管。
+- 重复调用安全：非挂起模式、已触发但接管尚未完成（延迟 Diff 异步执行中）、已执行完成 —— 这三种情形下再次通过 Module 显式触发 diff，都会在端侧被幂等拒绝。
+- 当前仅 iOS 端实现，其它端调用为空实现（no-op）。
+:::
+
+---
+
+### 首屏渲染层生命周期事件（可选）
+
+TurboDisplay 在首屏渲染层的 6 个关键节点向 Kotlin 侧发送生命周期事件，可用于时序观测、性能埋点与状态联动（如"真实视图已接管"指示）。事件由 Native 侧发出，业务通过 `IPagerEventObserver` 接收。
+
+| 事件名 | Pager 常量 | 触发时机 | data |
+| --- | --- | --- | --- |
+| onInitLayerReadCacheStart | PAGER_EVENT_INIT_LAYER_READ_CACHE_START | 开始读取本地缓存文件 | 无 |
+| onInitLayerReadCacheFinish | PAGER_EVENT_INIT_LAYER_READ_CACHE_FINISH | 缓存文件读取完成 | `succ`：是否读取成功，命中时附加 `bytes`、`children` |
+| onInitLayerRenderCacheStart | PAGER_EVENT_INIT_LAYER_RENDER_CACHE_START | 缓存首屏开始上屏渲染 | 无 |
+| onInitLayerRenderCacheFinish | PAGER_EVENT_INIT_LAYER_RENDER_CACHE_FINISH | 缓存首屏上屏完成（此后业务可交互缓存首屏） | `succ`：是否上屏成功 |
+| onInitLayerRealViewDiffStart | PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_START | 真实视图 Diff 开始（缓存视图 → 真实视图的关键更替） | 无 |
+| onInitLayerRealViewDiffFinish | PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_FINISH | 真实视图 Diff 完成，真实页面生效 | `succ`：是否接管成功 |
+
+接收示例：
+
+```kotlin
+class XxxPage : BasePager(), IPagerEventObserver {
+
+    override fun created() {
+        super.created()
+        addPagerEventObserver(this)      // 订阅 Pager 事件
+    }
+
+    override fun onPagerEvent(pagerEvent: String, eventData: JSONObject) {
+        // 事件名统一以 onInitLayer 开头，便于与其它 Pager 事件区分
+        if (!pagerEvent.startsWith("onInitLayer")) {
+            return
+        }
+        when (pagerEvent) {
+            Pager.PAGER_EVENT_INIT_LAYER_READ_CACHE_FINISH ->
+                KLog.i(TAG, "read cache: succ=${eventData.optBoolean("succ")}")
+            Pager.PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_FINISH ->
+                KLog.i(TAG, "real view take over: succ=${eventData.optBoolean("succ")}")
+        }
+    }
+}
+```
+
+:::: tip
+- 未命中缓存时不会发送 RenderCache / RealViewDiff 系列事件，ReadCacheFinish 的 `succ` 为 false。
+- 挂起 Diff 场景下，RealViewDiffStart / RealViewDiffFinish 的触发时刻即为业务调用 `executeTurboDisplayDiff()` 的时刻，可据此观测接管耗时。
+- 当前仅 iOS 端发送，其它端不会收到上述事件。
+:::
 
 ---
 

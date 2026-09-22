@@ -23,4 +23,6 @@ object CrossPlatFeature {
     var isUseFastCollection = true
     // 是否忽略isRenderViewForFlatLayer判断容器能否展平
     var isIgnoreRenderViewForFlatLayer = false
+    // 是否支持forceRenderViewSubtree特性，关闭后可避免每次平铺判断时回溯父链
+    var isSupportForceRenderViewSubtree = false
 }

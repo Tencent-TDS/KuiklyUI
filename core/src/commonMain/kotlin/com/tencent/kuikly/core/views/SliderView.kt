@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.views
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.PanGestureParams
 import com.tencent.kuikly.core.exception.throwRuntimeError
+import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -243,11 +244,67 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
         return attr.enableGlassEffect && PlatformUtils.isLiquidGlassSupported()
 
     }
+
+    /**
+     * Sync attr.sliderWidth / attr.sliderHeight with the actual laid-out frame
+     * so that:
+     *  - body()'s progress view width (contentWidth * currentProgress) and
+     *    thumb marginLeft use the real rendered width, and
+     *  - handlePanGesture()'s progress calculation (which uses layoutFrame)
+     *    stays aligned with what the user sees.
+     *
+     * This is important for scenarios where the slider's width is not known
+     * upfront and is decided by the parent layout (e.g. alignSelf=stretch,
+     * or when the slider is embedded inside another Kuikly Pager.
+     * In those cases attr.width() may have been seeded with a
+     * temporary/placeholder value at construction time.
+     */
+    override fun layoutFrameDidChanged(frame: Frame) {
+        super.layoutFrameDidChanged(frame)
+        if (frame.width > 0f && !frame.width.valueEquals(Float.undefined)
+            && !frame.width.valueEquals(attr.sliderWidth)) {
+            attr.sliderWidth = frame.width
+        }
+        if (frame.height > 0f && !frame.height.valueEquals(Float.undefined)
+            && !frame.height.valueEquals(attr.sliderHeight)) {
+            attr.sliderHeight = frame.height
+        }
+    }
+
     private fun handlePanGesture(params: PanGestureParams) {
-        var progress = if (attr.directionHorizontal) {
-            (params.x - attr.paddingLeft) / (flexNode.styleWidth - attr.paddingLeft - attr.paddingRight)
+        // Prefer the laid-out frame size (which shares the same coordinate basis as
+        // params.x/params.y from the pan gesture) over the style size. This keeps the
+        // progress calculation correct even when styleWidth/styleHeight is unset (NaN)
+        // or does not match the actual rendered size (e.g. when the parent layout
+        // stretches the slider via alignSelf=stretch, or when an outer container's
+        // padding shrinks the actual width). Fallback to styleWidth/styleHeight only
+        // when the frame is not yet laid out.
+        //
+        // NOTE: attr.sliderWidth / attr.sliderHeight (which body() uses to size the
+        // progress view and to position the thumb) is kept in sync with the laid-out
+        // frame by layoutFrameDidChanged(), so pan gestures and the visual progress
+        // stay aligned.
+        val laidOutW = flexNode.layoutFrame.width
+        val laidOutH = flexNode.layoutFrame.height
+        val effWidth = if (laidOutW > 0f && !laidOutW.valueEquals(Float.undefined)) {
+            laidOutW
         } else {
-            (params.y - attr.paddingTop) / (flexNode.styleHeight - attr.paddingTop - attr.paddingBottom)
+            flexNode.styleWidth
+        }
+        val effHeight = if (laidOutH > 0f && !laidOutH.valueEquals(Float.undefined)) {
+            laidOutH
+        } else {
+            flexNode.styleHeight
+        }
+        var progress = if (attr.directionHorizontal) {
+            (params.x - attr.paddingLeft) / (effWidth - attr.paddingLeft - attr.paddingRight)
+        } else {
+            (params.y - attr.paddingTop) / (effHeight - attr.paddingTop - attr.paddingBottom)
+        }
+        if (progress.valueEquals(Float.undefined)) {
+            // Guard against NaN (e.g. dividing by zero or by NaN denominator) so we
+            // don't propagate NaN into attr.currentProgress and downstream layout.
+            progress = 0f
         }
         progress = max(0f, min(progress, 1f))
         attr.currentProgress = progress

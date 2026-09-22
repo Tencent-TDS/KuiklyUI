@@ -75,8 +75,21 @@ class KuiklyRenderJvmContextHandler : KuiklyRenderCommonContextHandler(), IKuikl
     ): Any? {
         assert(!isMainThread())
         try {
+            val enumMethod = KuiklyRenderNativeMethod.fromInt(methodId)
+            // Fallback path: methodIds outside the built-in KuiklyRenderNativeMethod
+            // enum are dispatched to KuiklyRenderExternalNativeMethods.
+            // Runs synchronously on the Kuikly Context Thread; return value is
+            // propagated back to the caller so sync-contract methods still work.
+            if (enumMethod == KuiklyRenderNativeMethod.KuiklyRenderNativeMethodUnknown &&
+                KuiklyRenderExternalNativeMethods.contains(methodId)
+            ) {
+                val externalResult = KuiklyRenderExternalNativeMethods.dispatch(
+                    methodId, listOf(arg0, arg1, arg2, arg3, arg4, arg5)
+                )
+                return externalResult?.toKotlinObject()
+            }
             val result = callNativeCallback?.invoke(
-                KuiklyRenderNativeMethod.fromInt(methodId), listOf(
+                enumMethod, listOf(
                     arg0,
                     arg1,
                     arg2,

@@ -89,6 +89,17 @@ object BridgeManager {
         return nativeBridgeMap.containsKey(instanceId)
     }
 
+    /**
+     * Get the NativeBridge previously registered for [instanceId] (usually the
+     * pagerId of an active Kuikly page), or `null` if none exists.
+     *
+     * Public so that embedded surfaces can reuse the host
+     * page's NativeBridge instead of registering a separate one.
+     */
+    fun getNativeBridge(instanceId: String): NativeBridge? {
+        return nativeBridgeMap[instanceId]
+    }
+
     fun isPageExist(pageName: String): Boolean {
         return PagerManager.isPagerCreatorExist(pageName)
     }

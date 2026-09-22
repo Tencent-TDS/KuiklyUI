@@ -1555,6 +1555,18 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (instancetype)initWithCSSBorder:(CSSBorder *)border {
     if (self = [super init]) {
         _border = border;
+        // CAShapeLayer defaults `fillColor` to opaque black. If this border
+        // layer is added as a sublayer BEFORE its first `layoutSublayers`
+        // runs, the layer paints a solid black rectangle across its full bounds
+        // (because `path` is also still nil, so CAShapeLayer falls back
+        // to filling the entire bounds rect). Visually this produces the
+        // reported "半透明黑 rectangle growing from top-left to full card
+        // size" flash. Force fillColor to clear here so the layer is a
+        // pure no-op until `layoutSublayers` fills in the real stroke.
+        self.fillColor = [UIColor clearColor].CGColor;
+        // Also make sure stroke starts empty — nothing to paint until
+        // layoutSublayers sets the real border color.
+        self.strokeColor = [UIColor clearColor].CGColor;
     }
     return self;
 }

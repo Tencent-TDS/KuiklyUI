@@ -62,3 +62,9 @@ ohos_build.log
 
 ## HarmonyOS dependency lock files (auto-generated, do not commit)
 **/oh-package-lock.json5
+
+# FileReplacer runtime backups (restored by restore; guards against hard-kill residue)
+gradle.properties.bak
+settings.gradle.kts.bak
+gradle/wrapper/gradle-wrapper.properties.bak
+build.2.0.ohos.gradle.kts.bak

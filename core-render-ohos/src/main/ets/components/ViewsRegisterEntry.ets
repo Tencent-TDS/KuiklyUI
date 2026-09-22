@@ -18,6 +18,7 @@ import { KRNativeManager } from '../manager/KRNativeManager';
 import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
 import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
+import { KRAudioView } from './KRAudioView';
 import { KRBlurView } from './KRBlurView';
 
 /**
@@ -43,6 +44,10 @@ export class ViewsRegisterEntry {
 
     KRNativeManager.getInstance().registerViewCreator('KRVideoView', (): KuiklyRenderBaseView => {
       return new KRVideoView();
+    });
+
+    KRNativeManager.getInstance().registerViewCreator('KRAudioView', (): KuiklyRenderBaseView => {
+      return new KRAudioView();
     });
   }
 

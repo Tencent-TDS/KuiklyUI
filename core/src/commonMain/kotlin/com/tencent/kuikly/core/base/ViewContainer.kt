@@ -338,6 +338,17 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
             children.add(index, child)
         }
         child.parentRef = nativeRef
+        // One-way propagation of the per-subtree flat-layer opt-out:
+        // when this container's attr has [ContainerAttr.forceRenderView] set
+        // to [ForceRenderViewMode.SUB_TREE], mark the newly-attached child
+        // container's attr with the same mode so [isRenderViewForFlatLayer]
+        // only needs a local (non-traversing) read. The attr setter is
+        // monotonic (SUB_TREE wins over SELF/NONE), so re-attaching a child
+        // under a non-force parent will not downgrade a previously-set mode.
+        if ((getViewAttr() as? ContainerAttr)?.forceRenderView == ForceRenderViewMode.SUB_TREE &&
+            child is ViewContainer<*, *>) {
+            (child.getViewAttr() as? ContainerAttr)?.forceRenderView = ForceRenderViewMode.SUB_TREE
+        }
         child.didMoveToParentView()
     }
 
@@ -371,6 +382,18 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
     // 层级扁平下，判断当前容器是否可以扁平
     internal fun isRenderViewForFlatLayer(): Boolean {
         if (CrossPlatFeature.isIgnoreRenderViewForFlatLayer) {
+            return true
+        }
+        // Flat-layer opt-out driven by [ContainerAttr.forceRenderView]:
+        //   - SELF     : this container must materialize as a RenderView.
+        //   - SUB_TREE : this container and (via propagation in
+        //                [internalAddChild]) every descendant container must
+        //                materialize as a RenderView.
+        // Both modes short-circuit the flat-layer check with a cheap local
+        // read — no parent-chain traversal is needed because SUB_TREE is
+        // propagated to children at insert time.
+        val forceMode = (getViewAttr() as? ContainerAttr)?.forceRenderView
+        if (forceMode == ForceRenderViewMode.SELF || forceMode == ForceRenderViewMode.SUB_TREE) {
             return true
         }
         if (getPager().isDebugUIInspector) {
@@ -412,6 +435,58 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
 }
 
 open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
+
+    /**
+     * Per-container flat-layer opt-out mode.
+     *
+     *   - [ForceRenderViewMode.NONE]     : default, flat-layer may skip this
+     *                                      container when it has no visual attrs.
+     *   - [ForceRenderViewMode.SELF]     : this container must materialize as a
+     *                                      native RenderView, but children are
+     *                                      not affected.
+     *   - [ForceRenderViewMode.SUB_TREE] : this container and every descendant
+     *                                      container (propagated at insert time
+     *                                      by [ViewContainer.internalAddChild])
+     *                                      must materialize as RenderViews.
+     *
+     * The setter is monotonic along the SELF → SUB_TREE direction: once
+     * SUB_TREE is set, assigning SELF or NONE is a no-op (SUB_TREE already
+     * subsumes SELF). This keeps propagation safe — a descendant whose mode
+     * was lifted to SUB_TREE by its ancestor cannot be accidentally downgraded
+     * by a later direct write.
+     *
+     * Prefer the DSL helpers [forceRenderView] / [forceRenderViewSubtree] over
+     * writing this field directly.
+     */
+    var forceRenderView: ForceRenderViewMode = ForceRenderViewMode.NONE
+        set(value) {
+            // Monotonic: SUB_TREE is a strict superset of SELF, so once we
+            // reach SUB_TREE, do not allow downgrades.
+            if (field == ForceRenderViewMode.SUB_TREE) return
+            field = value
+        }
+
+    /**
+     * DSL: force the owning container to materialize as a native RenderView.
+     * If the container is already in [ForceRenderViewMode.SUB_TREE] mode, this
+     * call is a no-op (SUB_TREE already implies SELF).
+     */
+    fun forceRenderView(): ContainerAttr {
+        if (forceRenderView != ForceRenderViewMode.SUB_TREE) {
+            forceRenderView = ForceRenderViewMode.SELF
+        }
+        return this
+    }
+
+    /**
+     * DSL: force the owning container and its entire subtree to materialize
+     * as native RenderViews. Propagation to future children is handled by
+     * [ViewContainer.internalAddChild].
+     */
+    fun forceRenderViewSubtree(): ContainerAttr {
+        forceRenderView = ForceRenderViewMode.SUB_TREE
+        return this
+    }
 
     internal val isHorizontalDirection: Boolean
         get() = flexNode?.flexDirection == FlexDirection.ROW ||  flexNode?.flexDirection == FlexDirection.ROW_REVERSE
@@ -585,4 +660,24 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
             }
         }.toString()
     }
+}
+
+/**
+ * Flat-layer opt-out mode for a [ContainerAttr].
+ *
+ * See [ContainerAttr.forceRenderView] for semantics and propagation rules.
+ */
+enum class ForceRenderViewMode {
+    /** Default. Flat-layer optimization may elide this container. */
+    NONE,
+
+    /** This container must materialize as a native RenderView. Children unaffected. */
+    SELF,
+
+    /**
+     * This container and its entire subtree must materialize as native
+     * RenderViews. Propagated to children at insert time by
+     * [ViewContainer.internalAddChild]. Strictly supersedes [SELF].
+     */
+    SUB_TREE,
 }

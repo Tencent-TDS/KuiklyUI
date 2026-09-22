@@ -81,6 +81,11 @@ object KuiklyRenderAdapterManager {
     var krVideoViewAdapter: IKRVideoViewAdapter? = null
 
     /**
+     * AudioView适配器
+     */
+    var krAudioViewAdapter: IKRAudioViewAdapter? = null
+
+    /**
      * 文本后置处理器适配器
      */
     var krTextPostProcessorAdapter: IKRTextPostProcessorAdapter? = null

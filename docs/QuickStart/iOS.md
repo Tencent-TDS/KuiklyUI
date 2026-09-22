@@ -36,12 +36,12 @@ end
 * 版本号需要和[KMP跨端工程](common.md)保持一致
 :::
 
-:::: warning Xcode 27 及以上版本需要额外配置
-- 从 Xcode 27 起，iOS SDK 支持的最低部署目标提升为 **15.0**，因此运行前需要调整所有pod库的iOS Deployment Target 字段。
-- Macos 也在 Xcode 27 有了SDK版本限制，同 iOS 的操作，需要在运行前将所有的pod库 Macos Deployment Target 字段调整为 **12.0**。
-::::
-
 2. 完成上述调整后，执行``pod install --repo-update``安装依赖
+
+:::: warning Xcode 27 之后的版本pod后需要额外关注SDK的配置
+- 从 Xcode 27 起，iOS SDK 支持的最低部署目标提升为 **15.0**，因此运行前需要调整所有库的 iOS Deployment Target 字段。
+- Macos 也在 Xcode 27 有了 SDK 版本限制，同 iOS 的操作，需要在运行前将所有库的 Macos Deployment Target 字段调整为 **12.0**。
+::::
 
 ---
 

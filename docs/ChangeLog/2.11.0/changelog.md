@@ -53,8 +53,6 @@
 - fix: fix markdown component version · [#742](https://github.com/Tencent-TDS/KuiklyUI/pull/742)
 - docs: update thread-and-coroutines version · [#737](https://github.com/Tencent-TDS/KuiklyUI/pull/737)
 
-> **分节说明**：本部分按改动实际落在哪些 Native 端划分。`Android` / `iOS` / `鸿蒙` / `H5` / `小程序` / `macOS` 为单端改动，即只涉及一个 Native 端；`多端` 为同时改动了多个 Native 端；`跨端` 为只改 Kotlin 上层、无 Native 改动，一次改完各端都生效；`Compose` 为 Compose 侧改动，即使会下发到 Native 三端也只在此列出，不重复计入 `多端`；`其他` 为文档、示例与发版杂项。
-
 ---
 
 ## Part 3 破坏性变更

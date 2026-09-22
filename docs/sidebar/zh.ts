@@ -287,6 +287,7 @@ export const zhSidebar = sidebar({
             prefix: "/ChangeLog",
             collapsible: false,
             children: [
+                "README.md",
                 { text: "2.28.0", link: "/ChangeLog/2.28.0/changelog.md" },
                 { text: "2.27.0", link: "/ChangeLog/2.27.0/changelog.md" },
                 { text: "2.26.0", link: "/ChangeLog/2.26.0/changelog.md" },

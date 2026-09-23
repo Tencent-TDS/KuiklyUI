@@ -23,7 +23,10 @@ import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLParagraphElement
 import org.w3c.dom.HTMLSpanElement
+import org.w3c.dom.Node
+import org.w3c.dom.events.Event
 import org.w3c.dom.get
+import kotlin.js.JsName
 
 class KRTextProps {
     /**
@@ -116,6 +119,20 @@ data class RichTextSpan(
     val lineHeight: Float = 0f
 )
 
+/**
+ * One measured fragment used to hit-test a tap. Coordinates stay in the same
+ * space as [RichTextSpan.offsetLeft] after justify and the Android width scale.
+ */
+class SpanHitBox(
+    val index: Int,
+    var x: Float,
+    var y: Float,
+    var width: Float,
+    var height: Float,
+    val lineIndex: Int,
+    val placeholder: Boolean,
+)
+
 private const val DEFAULT_FONT_WEIGHT = 400
 
 /**
@@ -149,6 +166,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     // Rich text child node list, including node size information
     val richTextSpanList: JsArray<RichTextSpan> = JsArray()
 
+    // Fragments measured with the spans above. Miniapp tap hit-testing reads these
+    // so a click lands on the same box the image was drawn in.
+    val spanHitBoxes: JsArray<SpanHitBox> = JsArray()
+
     // Current full span list
     val childSpanList: JsArray<Any> = JsArray()
 
@@ -166,7 +187,12 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
 
     // Original HTML content of rich text for mini app
     val divHtml: String
-        get() = "<div>${spanHtml}</div>"
+        get() {
+            // WeChat rich-text only honors text-align on the inner nodes.
+            val align = ele.style.textAlign
+            val style = if (align.isNotEmpty()) " style=\"text-align:$align\"" else ""
+            return "<div$style>${spanHtml}</div>"
+        }
 
     // Default properties
     private var lineBreakMode = ""
@@ -421,6 +447,42 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     }
 
     /**
+     * Child span index for a click. Walks to the host's direct child, skipping
+     * the two float spacers used by line-break margin. A tap on the host itself
+     * uses the processor's coordinate lookup.
+     */
+    @JsName("spanIndexFromEvent")
+    internal fun spanIndexFromEvent(event: Event): Int {
+        var node: Node? = event.target.unsafeCast<Node?>()
+        val host: Node = ele
+        while (node != null && node != host && node.parentNode != host) {
+            node = node.parentNode
+        }
+        if (node == null || node == host) {
+            val x = event.asDynamic().offsetX ?: event.asDynamic().detail?.x
+            val y = event.asDynamic().offsetY ?: event.asDynamic().detail?.y
+            if (x != null && y != null) {
+                return KuiklyProcessor.richTextProcessor.spanIndexAt(
+                    this,
+                    x.unsafeCast<Double>().toFloat(),
+                    y.unsafeCast<Double>().toFloat()
+                )
+            }
+            return -1
+        }
+        val start = if (getHasAppendFloatSpans()) 2 else 0
+        val children = ele.childNodes
+        var index = 0
+        for (i in start until children.length) {
+            if (children[i] == node) {
+                return index
+            }
+            index++
+        }
+        return -1
+    }
+
+    /**
      * Set text wrapping mode
      */
     private fun setLineBreakMode(lineBreakMode: String) {
@@ -480,21 +542,23 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 placeholderSpan.style.width != "" &&
                 placeholderSpan.style.height != ""
             ) {
-                // Determine that it is a placeholder span, get size information.
-                // Use local coordinates relative to richText element to avoid world-space offsets.
-                val left = (placeholderSpan.offsetLeft - ele.offsetLeft).toFloat()
-                val top = (placeholderSpan.offsetTop - ele.offsetTop).toFloat()
-                val width = placeholderSpan.offsetWidth.toFloat()
-                val height = placeholderSpan.offsetHeight.toFloat()
-
-                val rectInfo = if (width > 0f && height > 0f) {
-                    "$left $top $width $height"
-                } else {
-                    // Fallback to bounding-rect relative coordinates when offset sizes are not ready.
-                    val containerRect = ele.getBoundingClientRect()
-                    val spanRect = placeholderSpan.getBoundingClientRect()
-                    "${(spanRect.left - containerRect.left).toFloat()} ${(spanRect.top - containerRect.top).toFloat()} ${spanRect.width.toFloat()} ${spanRect.height.toFloat()}"
+                // offsetLeft/offsetTop are not in one coordinate space once the
+                // rich text is position:absolute: the span's offsetParent becomes
+                // the text itself, while ele.offsetTop is relative to the scroller.
+                // Subtracting them drops the text's own origin. Use viewport rects.
+                val containerRect = ele.getBoundingClientRect()
+                val spanRect = placeholderSpan.getBoundingClientRect()
+                val left = (spanRect.left - containerRect.left).toFloat()
+                val top = (spanRect.top - containerRect.top).toFloat()
+                val width = spanRect.width.toFloat()
+                val height = spanRect.height.toFloat()
+                // A zero box means layout has not happened yet. Caching it
+                // would hide the image and skip later measurements.
+                if (width <= 0f || height <= 0f) {
+                    schedulePlaceholderRectRetry(index)
+                    return placeholderRectCache[index] ?: defaultRectInfo
                 }
+                val rectInfo = "$left $top $width $height"
 
                 placeholderRectCache[index] = rectInfo
                 placeholderRectRetryCount.remove(index)

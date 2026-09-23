@@ -246,20 +246,10 @@ object Transform {
     fun hydrate(element: MiniElement): Json {
         // For some nodes, node names are different in different situations, and some specific operations need to be done when converting data
         val nodeName = element.onTransformData()
-        
-        // 调试：总是输出 nodeName
-        console.log("[Transform.hydrate] nodeName:", nodeName, "element.innerId:", element.innerId)
-        
+
         // Get mapping from node attributes to template attributes
         val usedComponentsAlias = componentsAlias[nodeName]
-        
-        // 调试日志：检查 usedComponentsAlias
-        console.log("[Transform.hydrate] usedComponentsAlias:", usedComponentsAlias)
-        if (usedComponentsAlias == null || jsTypeOf(usedComponentsAlias) == "undefined") {
-            console.error("[Transform.hydrate] ERROR: usedComponentsAlias is null/undefined!")
-            console.log("[Transform.hydrate] Available keys in componentsAlias:", js("Object.keys(this.componentsAlias)"))
-        }
-        
+
         // Pure text type, special handling, just return the content of the text
         if (isText(element)) {
             val textNode = element.unsafeCast<MiniSpanElement>()
@@ -268,7 +258,6 @@ object Transform {
                 ShortCutsConst.TEXT to textNode.textContent,
                 ShortCutsConst.NODE_NAME to usedComponentsAlias[TEMPLATE_NODE_NAME_KEY]
             )
-            console.log("[Transform.hydrate] Text node result nn:", result[ShortCutsConst.NODE_NAME])
             return result
         }
 
@@ -276,8 +265,6 @@ object Transform {
             ShortCutsConst.NODE_NAME to usedComponentsAlias[TEMPLATE_NODE_NAME_KEY],
             ShortCutsConst.SID to element.innerId,
         )
-        
-        console.log("[Transform.hydrate] Element node nn:", data[ShortCutsConst.NODE_NAME])
 
         val propsKeys = element.props
 

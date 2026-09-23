@@ -157,7 +157,7 @@ class KRRichTextView : public IKRRenderViewExport {
         return selection_rects_.selection_rects.empty() ? KRRect() : selection_rects_.selection_rects.back();
     }
     std::string GetTextContent() {
-        return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->GetTextContent();
+        return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->MainThreadTextContent();
     }
     std::string GetSelectedContent(std::string &pre, std::string &post);
     bool IsTextView() override {
@@ -169,7 +169,6 @@ class KRRichTextView : public IKRRenderViewExport {
  private:
     std::shared_ptr<KRParagraph> paragraph_;
     std::shared_ptr<IKRRenderShadowExport> shadow_;
-    float last_draw_frame_width_ = -1.0;
     float line_break_margin_ = 0;
     KRParagraphSelectionInfo selection_rects_;
     void OnForegroundDraw(ArkUI_NodeCustomEvent *event);

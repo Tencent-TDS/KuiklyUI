@@ -185,13 +185,19 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::string GetTextContent() const {
         return text_content_;
     }
+    const std::string &MainThreadTextContent() const {
+        return main_thread_text_content_;
+    }
+    const std::vector<std::tuple<int, int, int>> &MainThreadSpanOffsets() const {
+        return main_thread_span_offsets_;
+    }
 
     KRSize MainMeasureSize() {
         return main_measure_size_;
     }
     
     bool DidExceedMaxLines(){
-        return did_exceed_max_lines_;
+        return main_thread_did_exceed_max_lines_;
     }
     
     OH_Drawing_Array *GetTextLines();
@@ -242,7 +248,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         float height_vp = 0.0f;
     };
     const std::vector<KRImageDrawRecord> &GetImageDrawRecords() const {
-        return image_draw_records_;
+        return main_thread_image_draw_records_;
     }
 
     // ===== Phase 3↔4 桥接：image span 解码完成通知 view markDirty =====
@@ -261,6 +267,12 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     bool HasImageSpans() const {
         return !image_draw_records_.empty();
     }
+    bool MainThreadHasImageSpans() const {
+        return !main_thread_image_draw_records_.empty();
+    }
+    bool MainThreadStyledStringEnabled() const {
+        return main_thread_styled_string_enabled_;
+    }
 
  private:
     void DestroyCachedTextLines();
@@ -273,10 +285,13 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     void TriggerImagePrefetchIfNeed();
  private:
     std::string text_content_;
+    std::string main_thread_text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
     bool did_exceed_max_lines_ = false;
+    bool main_thread_did_exceed_max_lines_ = false;
+    bool main_thread_styled_string_enabled_ = false;
     // 持有 typography 的两个槽位：
     //  - main_thread_typography_:    主线程使用（Paint/SpanIndex 等）；
     //  - context_thread_typography_: context 线程使用（Layout/SpanRect 计算）。
@@ -294,17 +309,22 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 
     KRSize context_measure_size_;
     KRSize main_measure_size_;
+    // 最近一次 TypographyLayout 使用的约束宽，以及对应的测量高度约束（单位 vp）。
+    float context_thread_layout_width_ = -1.0f;
+    float context_thread_constraint_height_ = -1.0f;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
+    std::vector<std::tuple<int, int, int>> main_thread_span_offsets_;
     std::shared_ptr<KRParagraph> paragraph_;
     KRSpinLock paragraph_lock_;
     std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
 
     // ===== Phase 4: image span 绘制相关 =====
-    // image_draw_records_ 仅由 BuildTextTypography 在 context 线程构造，主线程读取（OnForegroundDraw）。
-    // 重建（SetProp("values") -> Measure -> BuildTextTypography）时整体覆盖，无并发改写问题。
+    // context 线程构造 image_draw_records_；SetShadow 任务将快照复制到
+    // main_thread_image_draw_records_，供 OnForegroundDraw 使用。
     // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例 + LRU 128）。
     std::vector<KRImageDrawRecord> image_draw_records_;
+    std::vector<KRImageDrawRecord> main_thread_image_draw_records_;
     std::mutex image_loaded_callback_mutex_;
     ImageLoadedCallback image_loaded_callback_;
 
@@ -318,6 +338,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
      * 使用，生命周期由 context_thread_typography_ 管理）。
      */
     OH_Drawing_Typography *BuildTextTypography(double constraint_width, double constraint_height);
+    /**
+     * context 线程：按最终节点宽创建新的 Typography，不复用已经 Layout 的对象。
+     * 返回 true 表示 context_thread_typography_ 已被替换。
+     */
+    bool RelayoutToWidth(float width_vp);
 
     void ReleaseLastTypography();
     /**

@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.views.shadow
 
 import com.tencent.kuikly.core.base.Shadow
 import com.tencent.kuikly.core.base.Size
+import kotlin.math.abs
 
 open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
     pagerId, viewRef,
@@ -53,6 +54,27 @@ open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
         return size
     }
 
+    /**
+     * OHOS V1：按布局完成后的节点宽创建新的 Typography，避免在绘制期对同一对象
+     * 再次 Layout。返回 null 表示无需重建；非 null 值表示重建后文本高度是否变化。
+     */
+    fun relayoutToWidthIfNeeded(nodeWidth: Float): Boolean? {
+        if (nodeWidth <= 0f) {
+            return null
+        }
+        val sizeParts = callMethod(SHADOW_METHOD_RELAYOUT_TO_WIDTH, nodeWidth.toString()).split('|')
+        if (sizeParts.size != 2) {
+            return null
+        }
+        val relayoutWidth = sizeParts[0].toFloatOrNull() ?: return null
+        val relayoutHeight = sizeParts[1].toFloatOrNull() ?: return null
+        val cachedSize = lastSize
+        val heightChanged = cachedSize != null &&
+            abs(cachedSize.height - relayoutHeight) > LAYOUT_SIZE_EPSILON
+        lastSize = Size(cachedSize?.width ?: relayoutWidth, relayoutHeight)
+        return heightChanged
+    }
+
     fun markDirty() {
         if (isDirty) {
             return
@@ -63,5 +85,10 @@ open class TextShadow(pagerId: String, viewRef: Int, viewName: String) : Shadow(
 
     private fun markNotDirty() {
         isDirty = false
+    }
+
+    companion object {
+        private const val LAYOUT_SIZE_EPSILON = 0.01f
+        private const val SHADOW_METHOD_RELAYOUT_TO_WIDTH = "relayoutToWidth"
     }
 }

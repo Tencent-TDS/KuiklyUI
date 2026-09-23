@@ -22,7 +22,6 @@
 //#import <Bugly/Bugly.h>
 
 #import "KRConvertUtil.h"
-#import <objc/message.h>
 #import "UINavigationController+FDFullscreenPopGesture.h"
 #import "KuiklyRenderBridge.h"
 

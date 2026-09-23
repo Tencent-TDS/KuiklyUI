@@ -247,6 +247,9 @@ static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
 }
 
 - (void)dealloc {
+    // 环含 delegator 时（业务 completion 捕获了 delegator），delegator 与 renderView 的
+    // dealloc 均不会触发，需要环外必然释放的 VC 触发 Module 斩链，环才能断开
+    [_delegator invalidateAllModules];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -298,6 +301,5 @@ static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
     
     return NO;
 }
-
 
 @end

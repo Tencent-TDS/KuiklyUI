@@ -404,6 +404,44 @@ KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     return @"success"; // 3.同步返回给kuikly侧
 }
 ```
+
+### 页面销毁时的资源清理（hr_pageWillDestroy）
+
+框架在**页面容器释放时**会统一遍历当前页面已创建的 Module，并调用其 `hr_pageWillDestroy` 方法。
+
+```objc
+- (void)hr_pageWillDestroy {
+    _myCompletion = nil;                                   // 业务回调 / completion
+    [_myTimer invalidate];                                  // NSTimer / CADisplayLink
+    _myTimer = nil;
+    [[NSNotificationCenter defaultCenter] removeObserver:self]; // 通知观察者
+    [_myCache removeAllObjects];                            // 缓存
+}
+```
+
+**什么时候必须实现**
+
+Module 中强持有了以下任意一类资源时，**必须**实现该方法并主动断开，否则这些资源会随 Module 一起滞留：
+
+- 业务回调 / completion（`KuiklyRenderCallback`、业务传入的 block）
+- `NSTimer`、`CADisplayLink` 等计时或帧回调
+- 通知观察者（`NSNotificationCenter`，尤其是 `addObserverForName:usingBlock:` 这种 block 版）
+- 内存缓存、反射注册表等会长期持有的容器
+
+::: tip 为什么需要主动断开
+上述资源中有几类会**反向持有 Module 自身**：`CADisplayLink displayLinkWithTarget:self`、`NSTimer scheduledTimerWithTimeInterval:target:self` 会被 RunLoop 强持，block 版通知观察者会被通知中心强持。一旦形成这种外部强引用，Module 的 `dealloc` 将永远不会执行，Module 自身及其持有的资源都会泄漏。
+:::
+
+**不实现时框架的兜底**
+
+若 Module 只是被框架的注册表持有（未被 RunLoop、单例、全局广播中心等外部对象持有），那么框架在清理时会断开「页面 → Module」这条持有关系，Module 及其强持的成员会被正常释放，此时不实现该方法也不会造成泄漏。
+
+需要注意：即便 Module 被正常释放，若它在运行期把 block 交给了通知中心的 block 版观察者或业务自建的全局广播中心，这些 block 仍被外部持有，Module 释放后 block 及其捕获的对象依然会泄漏。这类持有只能由业务自己在 `hr_pageWillDestroy` 中解除。
+
+::: warning 幂等要求
+`hr_pageWillDestroy` 可能被调用多次（页面销毁路径上存在重复的清理触发点），实现必须可重复执行：只做置 nil、清空容器、invalidate 计时器这类安全操作，不要在其中做一次性业务。
+:::
+
 ## 鸿蒙侧
 
 ::::tip 注意

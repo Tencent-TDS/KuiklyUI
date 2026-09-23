@@ -200,6 +200,34 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
     // nothing to do
 }
 
+/*
+ * @brief 页面销毁前统一清理所有已创建的 Module：对每个实例断开其持有的外部强引用（斩链）。
+ *        注意：此处不清空注册表——清表后若 Kotlin 销毁流程（如业务在 pageWillDestroy 中调用
+ *        module）仍触达 module，会命中空表并重建全新实例，导致对象查找失败；module 实例随
+ *        layer 释放，斩链操作幂等，多次调用安全。
+ */
+- (void)invalidateAllModules {
+    if (!_moduleRegistry) {
+        return;
+    }
+    NSArray<id<TDFModuleProtocol>> *modules = nil;
+    pthread_rwlock_rdlock(&_moduleRWLock);
+    modules = [_moduleRegistry allValues];
+    pthread_rwlock_unlock(&_moduleRWLock);
+
+    for (id<TDFModuleProtocol> module in modules) {
+        if ([module respondsToSelector:@selector(hr_pageWillDestroy)]) {
+            [(id)module hr_pageWillDestroy];
+        } else if ([module respondsToSelector:@selector(invalidate)]) {
+            // 兜底：未实现 hr_pageWillDestroy 的 Module 走 invalidate。
+            // 注意 invalidate 可能被触发多次：invalidateAllModules 会在 Delegator.dealloc
+            // （经 _renderView）与 RenderView.dealloc（经 _renderCore）各调用一次，加上
+            // Module 自身 dealloc 的常规触发，第三方实现必须保证幂等。
+            [module invalidate];
+        }
+    }
+}
+
 #pragma mark - private
 
 - (id<KuiklyRenderViewExportProtocol>)p_renderViewHandlerWithTag:(NSNumber *)tag {

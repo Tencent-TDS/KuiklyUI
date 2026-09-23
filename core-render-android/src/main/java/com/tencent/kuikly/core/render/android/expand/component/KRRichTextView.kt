@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.render.android.expand.component
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -37,6 +36,7 @@ import android.text.TextUtils
 import android.text.style.LeadingMarginSpan
 import android.util.SizeF
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContextWrapper
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
@@ -191,24 +191,26 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         val x = kuiklyRenderContext.toPxF((map[KRViewConst.X] as? Float) ?: 0f)
         val y = kuiklyRenderContext.toPxF((map[KRViewConst.Y] as? Float) ?: 0f).toInt()
 
-        // 2. 计算spanIndex
-        var spanIndex = -1
-        val textLayout = textDrawer?.textLayout
-        val line = textLayout?.getLineForVertical(y) ?: 0
-        val lineLeft: Float = textLayout?.getLineLeft(line) ?: Float.MIN_VALUE
-        val lineRight: Float = textLayout?.getLineRight(line) ?: Float.MAX_VALUE
-
-        if (x < lineLeft || x > lineRight) { // 点击区域超出文本区域
-            spanIndex = -1
-        } else {
-            val off = textLayout?.getOffsetForHorizontal(line, x) ?: 0
-            (textLayout?.text as? Spanned)?.getSpans(off, off, FontWeightSpan::class.java)?.also {
-                if (it.isNotEmpty()) {
-                    spanIndex = it[0].index
-                }
-            }
+        val textLayout = textDrawer?.textLayout ?: return -1
+        val line = textLayout.getLineForVertical(y)
+        val lineLeft = textLayout.getLineLeft(line)
+        val lineRight = textLayout.getLineRight(line)
+        if (x < lineLeft || x > lineRight) {
+            return -1
         }
-        return spanIndex
+        val spanned = textLayout.text as? Spanned ?: return -1
+        // getOffsetForHorizontal 返回光标。点在字形左半边时落在该字起点，与上一个 span 的结束位置重合，
+        // 因此用 [off, off + 1) 取覆盖该字符的 span。点在右半边时落在下一个光标，需要回退一个字符。
+        val lineStart = textLayout.getLineStart(line)
+        var off = textLayout.getOffsetForHorizontal(line, x)
+        if (off > lineStart && x < textLayout.getPrimaryHorizontal(off)) {
+            off--
+        }
+        if (off < 0 || off >= spanned.length) {
+            return -1
+        }
+        val spans = spanned.getSpans(off, off + 1, FontWeightSpan::class.java)
+        return if (spans.isNotEmpty()) spans[0].index else -1
     }
 
     private fun initTextLayout(richTextShadow: KRRichTextShadow?) {
@@ -384,6 +386,7 @@ open class KRTextProps(private val kuiklyContext: IKuiklyRenderContext?) {
 
         const val TEXT_ALIGN_CENTER = "center"
         const val TEXT_ALIGN_RIGHT = "right"
+        const val TEXT_ALIGN_JUSTIFY = "justify"
 
         const val DEFAULT_FONT_SIZE = 13f
         const val UNSET_LINE_HEIGHT = -1f
@@ -420,7 +423,7 @@ open class KRTextProps(private val kuiklyContext: IKuiklyRenderContext?) {
     var textDecoration = KRCssConst.EMPTY_STRING
 
     /**
-     * 字体对齐。包括: 左对齐、居中对齐、右对齐
+     * 字体对齐。包括: 左对齐、居中对齐、右对齐、两端对齐
      */
     var textAlign = KRCssConst.EMPTY_STRING
 
@@ -549,7 +552,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     private var textProps = KRTextProps(null)
 
     /**
-     * 文本绘制器，封装了文本的 Layout（目前实现为 StaticLayout）
+     * 文本绘制器，封装了文本的 Layout（StaticLayout，两端对齐为 JustifiedLayout）
      */
     internal var textDrawer: KRRichTextViewDrawer? = null
 
@@ -806,84 +809,190 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         constraintSize: SizeF,
         measureMode: TextMeasureMode
     ): Layout {
-        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter
-        val textSource = if (textProps.textPostProcessor.isNotEmpty()) {
-            adapter?.onTextPostProcess(
-                kuiklyRenderContext, TextPostProcessorInput(textProps.textPostProcessor, text, textProps)
-            )?.text ?: text
-        } else {
-            text
-        }
+        val textSource = postProcessText(text)
         val desiredWidth = getDesiredWith(textSource, constraintSize, measureMode)
-        val shouldUseLegacyLineBreakMarginCompat =
-            textProps.lineBreakMargin != 0f && isNougatLineBreakMarginCompat()
-        if (!isBeforeM && !shouldUseLegacyLineBreakMarginCompat) {
-            val builder = createStaticLayoutBuilder(textSource, desiredWidth)
-            if (textProps.numberOfLines > 0 && textProps.lineBreakMargin == 0f) {
-                builder.setMaxLines(textProps.numberOfLines)
-                    .setEllipsize(TextUtils.TruncateAt.END)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (textProps.textAlign == KRTextProps.TEXT_ALIGN_JUSTIFY) {
+                return createJustifiedLayout(textSource, desiredWidth)
             }
-            return if (textProps.lineBreakMargin == 0f || textProps.numberOfLines == 0) {
-                builder.build()
-            } else {
-                val staticLayout = builder.build()
-                if (staticLayout.lineCount > textProps.numberOfLines) {
-                    val newBuilder = createStaticLayoutBuilder(textSource, desiredWidth)
-                    newBuilder.setMaxLines(textProps.numberOfLines)
-                        .setEllipsize(TextUtils.TruncateAt.END)
-                        .setIndents(null, createLineBreakMarginArray(textProps))
-                    textProps.isLineBreakMargin = true
-                    newBuilder.build()
-                } else {
-                    staticLayout
-                }
+            if (!shouldAvoidSetIndents()) {
+                return createLineLimitedStaticLayout(textSource, desiredWidth).layout
             }
-        } else {
-            var staticLayout = StaticLayout(textSource, 0, textSource.length, textPaint, desiredWidth, getTextAlign(), 1.0f, textProps.lineSpacing, false)
-            if (textProps.numberOfLines != 0 && staticLayout.lineCount > textProps.numberOfLines) {
-                val endLine = staticLayout.getLineEnd(staticLayout.lineCount - 1)
-                val extraMargin = if (textProps.lineBreakMargin != 0f) {
-                    textProps.isLineBreakMargin = true
-                    textProps.lineBreakMargin
-                } else {
-                    0f
-                }
-                val newText = TextUtils.ellipsize(textSource.subSequence(0, endLine), textPaint, (desiredWidth * textProps.numberOfLines - extraMargin), TextUtils.TruncateAt.END)
-                staticLayout = StaticLayout(newText, 0, newText.length, textPaint, desiredWidth, getTextAlign(), 1.0f, textProps.lineSpacing, false)
-            }
-            return staticLayout
         }
+        return createLegacyStaticLayout(textSource, desiredWidth)
     }
 
-    @SuppressLint("NewApi")
-    private fun createStaticLayoutBuilder(textSource: CharSequence, desiredWidth: Int): StaticLayout.Builder {
-        return StaticLayout.Builder.obtain(textSource,
+    private fun postProcessText(text: SpannableStringBuilder): CharSequence {
+        if (textProps.textPostProcessor.isEmpty()) {
+            return text
+        }
+        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter ?: return text
+        return adapter.onTextPostProcess(
+            kuiklyRenderContext,
+            TextPostProcessorInput(textProps.textPostProcessor, text, textProps)
+        )?.text ?: text
+    }
+
+    /** API 24/25 上 [StaticLayout.Builder.setIndents] 结果不正确，且当前设置了 lineBreakMargin。 */
+    private fun shouldAvoidSetIndents(): Boolean {
+        if (textProps.lineBreakMargin == 0f) {
+            return false
+        }
+        val sdk = Build.VERSION.SDK_INT
+        return sdk == Build.VERSION_CODES.N || sdk == Build.VERSION_CODES.N_MR1
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun createJustifiedLayout(textSource: CharSequence, desiredWidth: Int): Layout {
+        if (shouldAvoidSetIndents()) {
+            val probe = createStaticLayout(textSource, desiredWidth, Int.MAX_VALUE, null, null)
+            if (textProps.numberOfLines == 0 || probe.lineCount <= textProps.numberOfLines) {
+                return toJustifiedLayout(probe, null)
+            }
+            textProps.isLineBreakMargin = true
+            val truncated = ellipsizeToLineLimit(textSource, probe, desiredWidth, textProps.lineBreakMargin)
+            val layout = createStaticLayout(truncated, desiredWidth, Int.MAX_VALUE, null, null)
+            return toJustifiedLayout(layout, null)
+        }
+        val measured = createLineLimitedStaticLayout(textSource, desiredWidth)
+        return toJustifiedLayout(measured.layout, measured.rightIndents)
+    }
+
+    /**
+     * 未限制行数或没有 lineBreakMargin 时直接排版。
+     * 两者都有且超出行数时，才再排一次并带上末行缩进；未超出则返回第一次的结果。
+     */
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun createLineLimitedStaticLayout(
+        textSource: CharSequence,
+        desiredWidth: Int
+    ): LineLimitedLayout {
+        if (textProps.lineBreakMargin == 0f || textProps.numberOfLines == 0) {
+            val limitLines = textProps.numberOfLines > 0
+            return LineLimitedLayout(
+                createStaticLayout(
+                    textSource,
+                    desiredWidth,
+                    if (limitLines) textProps.numberOfLines else Int.MAX_VALUE,
+                    if (limitLines) TextUtils.TruncateAt.END else null,
+                    null
+                ),
+                null
+            )
+        }
+        val probe = createStaticLayout(textSource, desiredWidth, Int.MAX_VALUE, null, null)
+        if (probe.lineCount <= textProps.numberOfLines) {
+            return LineLimitedLayout(probe, null)
+        }
+        textProps.isLineBreakMargin = true
+        val rightIndents = IntArray(textProps.numberOfLines)
+        if (rightIndents.isNotEmpty()) {
+            rightIndents[rightIndents.lastIndex] = textProps.lineBreakMargin.toInt()
+        }
+        return LineLimitedLayout(
+            createStaticLayout(
+                textSource,
+                desiredWidth,
+                textProps.numberOfLines,
+                TextUtils.TruncateAt.END,
+                rightIndents
+            ),
+            rightIndents
+        )
+    }
+
+    private class LineLimitedLayout(
+        val layout: StaticLayout,
+        val rightIndents: IntArray?
+    )
+
+    private fun createLegacyStaticLayout(textSource: CharSequence, desiredWidth: Int): Layout {
+        val layout = buildLegacyStaticLayout(textSource, desiredWidth)
+        if (textProps.numberOfLines == 0 || layout.lineCount <= textProps.numberOfLines) {
+            return layout
+        }
+        val extraMargin = if (textProps.lineBreakMargin != 0f) {
+            textProps.isLineBreakMargin = true
+            textProps.lineBreakMargin
+        } else {
+            0f
+        }
+        val truncated = ellipsizeToLineLimit(textSource, layout, desiredWidth, extraMargin)
+        return buildLegacyStaticLayout(truncated, desiredWidth)
+    }
+
+    private fun ellipsizeToLineLimit(
+        textSource: CharSequence,
+        layout: Layout,
+        desiredWidth: Int,
+        extraMargin: Float
+    ): CharSequence {
+        val end = layout.getLineEnd(layout.lineCount - 1)
+        return TextUtils.ellipsize(
+            textSource.subSequence(0, end),
+            textPaint,
+            desiredWidth * textProps.numberOfLines - extraMargin,
+            TextUtils.TruncateAt.END
+        )
+    }
+
+    private fun buildLegacyStaticLayout(text: CharSequence, desiredWidth: Int): StaticLayout {
+        return StaticLayout(
+            text,
+            0,
+            text.length,
+            textPaint,
+            desiredWidth,
+            getTextAlign(),
+            1.0f,
+            textProps.lineSpacing,
+            false
+        )
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun createStaticLayout(
+        textSource: CharSequence,
+        desiredWidth: Int,
+        maxLines: Int,
+        ellipsize: TextUtils.TruncateAt?,
+        rightIndents: IntArray?
+    ): StaticLayout {
+        val builder = StaticLayout.Builder.obtain(
+            textSource,
             0,
             textSource.length,
             textPaint,
-            desiredWidth)
+            desiredWidth
+        )
             .setAlignment(getTextAlign())
             .setTextDirection(TextDirectionHeuristics.LTR)
             .setLineSpacing(textProps.lineSpacing, 1.0f)
             .setIncludePad(false)
-    }
-
-    private fun createLineBreakMarginArray(textProps: KRTextProps): IntArray {
-        val maxLines = textProps.numberOfLines
-        val array = IntArray(maxLines)
-        for (i in 0 until maxLines) {
-            if (i == maxLines - 1) {
-                array[i] = textProps.lineBreakMargin.toInt()
-            } else {
-                array[i] = 0
-            }
+        if (maxLines != Int.MAX_VALUE) {
+            builder.setMaxLines(maxLines)
         }
-        return array
+        if (ellipsize != null) {
+            builder.setEllipsize(ellipsize)
+        }
+        if (rightIndents != null) {
+            builder.setIndents(null, rightIndents)
+        }
+        return builder.build()
     }
 
-    private fun isNougatLineBreakMarginCompat(): Boolean {
-        return Build.VERSION.SDK_INT == Build.VERSION_CODES.N ||
-            Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun toJustifiedLayout(staticLayout: StaticLayout, rightIndents: IntArray?): JustifiedLayout {
+        return JustifiedLayout(
+            text = staticLayout.text,
+            paint = textPaint,
+            width = staticLayout.width,
+            alignment = getTextAlign(),
+            spacingMult = 1f,
+            spacingAdd = textProps.lineSpacing,
+            rightIndents = rightIndents,
+            staticLayout = staticLayout
+        )
     }
 
     private fun getDesiredWith(

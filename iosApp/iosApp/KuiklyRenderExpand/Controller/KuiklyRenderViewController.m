@@ -22,6 +22,7 @@
 //#import <Bugly/Bugly.h>
 
 #import "KRConvertUtil.h"
+#import <objc/message.h>
 #import "UINavigationController+FDFullscreenPopGesture.h"
 #import "KuiklyRenderBridge.h"
 
@@ -245,6 +246,9 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 }
 
 - (void)dealloc {
+    // 环含 delegator 时（业务 completion 捕获了 delegator），delegator 与 renderView 的
+    // dealloc 均不会触发，需要环外必然释放的 VC 触发 Module 斩链，环才能断开
+    [_delegator invalidateAllModules];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -290,6 +294,5 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
     
     return NO;
 }
-
 
 @end

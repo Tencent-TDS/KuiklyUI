@@ -89,6 +89,14 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (BOOL)syncSendEvent:(NSString *)event;
 /*
+ * @brief 主动断开所有 Module 持有的外部强引用（completion/timer/observer/缓存等）.
+ *        供宿主 ViewController 在 dealloc 中调用：若业务 block 捕获了 Delegator，
+ *        Delegator 与 RenderView 会互相持有成环，二者的 dealloc 均不会触发，
+ *        需要由环外必然释放的宿主 VC 触发本轮清理，环才能从 completion 边断开。
+ *        方法可重复调用（内部斩链操作幂等）。
+ */
+- (void)invalidateAllModules;
+/*
  * @brief 添加对Delegator的生命周期时机监听，实现自定义hook
  * @param lifeCycleListener 监听者（内部弱引用该对象）
  */

@@ -561,9 +561,15 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     });
 }
 
+- (void)invalidateAllModules {
+    [_renderView invalidateAllModules];
+}
+
 - (void)dealloc {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(delegatorDealloc) object:nil];
-    // 容器释放时主动断开 Module 持有的外部强引用，避免 Module 反向持有导致 RenderView 无法释放
+    // 容器释放时主动断开 Module 持有的外部强引用，避免 Module 反向持有导致 RenderView 无法释放；
+    // 注：若业务 block 捕获了 Delegator 本身（环含 Delegator），本 dealloc 不会触发，
+    // 需由宿主 VC 的 dealloc 调用 - invalidateAllModules 兜底
     [_renderView invalidateAllModules];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }

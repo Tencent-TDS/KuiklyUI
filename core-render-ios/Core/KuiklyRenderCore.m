@@ -161,11 +161,11 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
     NSAssert([NSThread isMainThread], @"should run on main thread");
     return [self.renderLayerHandler viewWithTag:tag];
 }
-/**
- * @brief Core销毁前调用，用于Core提前发送事件到KuiklyKotlin侧销毁内在资源.
- */
 /*
- * @brief 页面销毁前统一清理 Module（由宿主在容器释放时主动调用，避免等待 RenderView.dealloc）
+ * @brief 页面销毁前统一清理 Module：对每个已创建的 Module 断开其持有的外部强引用（斩链）。
+ *        注意：此处不清空注册表——若清表后 Kotlin 销毁流程（如业务在 pageWillDestroy 中调用
+ *        module）仍触达 module，会命中空表并重建全新实例，导致对象查找失败；module 实例随
+ *        layer/core 释放，斩链操作幂等。由宿主在容器释放时主动调用，避免等待 RenderView.dealloc。
  */
 - (void)invalidateAllModules {
     id<KuiklyRenderLayerProtocol> renderLayerHandler = _renderLayerHandler;
@@ -174,6 +174,9 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
     }
 }
 
+/**
+ * @brief Core销毁前调用，用于Core提前发送事件到KuiklyKotlin侧销毁内在资源.
+ */
 - (void)willDealloc {
     id<KuiklyRenderContextProtocol> contextHandler = self.contextHandler;
     if ([contextHandler respondsToSelector:@selector(setIsDestroying:)]) {

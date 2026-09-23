@@ -185,6 +185,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::string GetTextContent() const {
         return text_content_;
     }
+    // 排版下标把每个占位算作 1，text_content_ 不含占位。
+    int TextIndexForTypographyOffset(int offset) const;
 
     KRSize MainMeasureSize() {
         return main_measure_size_;

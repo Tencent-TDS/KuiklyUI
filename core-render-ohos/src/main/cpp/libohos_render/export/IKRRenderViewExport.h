@@ -433,7 +433,8 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DidInsertSubRenderView(sub_render_view, index);
     }
 
-    int32_t GetChildCount() {
+    // KRView 会扣掉选区手柄，插入下标不能把手柄当成业务子节点。
+    virtual int32_t GetChildCount() {
         if (node_ == nullptr) {
             return 0;
         }

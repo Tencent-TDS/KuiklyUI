@@ -754,16 +754,32 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
 
 std::string KRRichTextView::GetSelectedContent(std::string &pre, std::string &post) {
     std::u16string str16 = utf8_to_utf16(selection_rects_.text_content);
+    int sel_start = selection_rects_.start;
+    int sel_end_index = selection_rects_.end;
+    if (auto text_shadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)) {
+        sel_start = text_shadow->TextIndexForTypographyOffset(sel_start);
+        sel_end_index = text_shadow->TextIndexForTypographyOffset(sel_end_index);
+    }
+    if (sel_start < 0) {
+        sel_start = 0;
+    }
+    if (sel_end_index < sel_start) {
+        sel_end_index = sel_start;
+    }
 
-    if (selection_rects_.start > 0) {
-        std::u16string pre_u16 = str16.substr(0, selection_rects_.start);
+    if (sel_start > 0 && static_cast<size_t>(sel_start) < str16.size()) {
+        std::u16string pre_u16 = str16.substr(0, static_cast<size_t>(sel_start));
         pre = utf16_to_utf8(pre_u16);
     }
-    size_t sel_end = static_cast<size_t>(selection_rects_.end);
+    size_t sel_end = static_cast<size_t>(sel_end_index);
     if (sel_end > str16.size()) {
         sel_end = str16.size();
     }
-    std::u16string selected_u16 = str16.substr(selection_rects_.start, sel_end - selection_rects_.start);
+    size_t sel_begin = static_cast<size_t>(sel_start);
+    if (sel_begin > sel_end) {
+        sel_begin = sel_end;
+    }
+    std::u16string selected_u16 = str16.substr(sel_begin, sel_end - sel_begin);
     std::string selected_u8 = utf16_to_utf8(selected_u16);
 
     if (sel_end < str16.size()) {

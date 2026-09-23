@@ -168,6 +168,15 @@ bool KRView::IsSelectable() {
     return selectable_option_ != DISABLE;
 }
 
+int32_t KRView::GetChildCount() {
+    // 选区手柄不是业务子节点。计入后，后续插入的子节点会排到手柄下面。
+    int32_t count = IKRRenderViewExport::GetChildCount();
+    if (selection_info_.handle_nodes[0].wrapper != nullptr) {
+        count -= static_cast<int32_t>(sizeof(selection_info_.handle_nodes) / sizeof(selection_info_.handle_nodes[0]));
+    }
+    return count < 0 ? 0 : count;
+}
+
 void KRView::HandleCreateSelection(const KRAnyValue &params) {
     std::string str = params->toString();
     if (auto paramObj = kuikly::util::JSONObject::Parse(str)) {
@@ -752,6 +761,12 @@ void KRView::CleanupHandleNodes() {
     selection_info_ = {};
 }
 
+static void ConfigureSelectionHandleNode(ArkUI_NodeHandle node) {
+    // 高于文本和 ImageSpan，避免手柄被盖住。
+    constexpr int kSelectionHandleZIndex = 100;
+    kuikly::util::UpdateNodeZIndex(node, kSelectionHandleZIndex);
+}
+
 void KRView::UpdateSelectionHandles() {
     constexpr int kSelectorWidth = 20;
     constexpr int kSelectorCapWidth = 12;
@@ -771,6 +786,7 @@ void KRView::UpdateSelectionHandles() {
                                                                   kSelectorWidth / 2, kSelectorWidth / 2));
             kuikly::util::UpdateNodeBackgroundColor(head, kSelectorColor);
             kuikly::util::UpdateNodeBackgroundColor(body, kSelectorColor);
+            ConfigureSelectionHandleNode(wrapper);
 
             kuikly::util::UpdateNodeVisibility(wrapper, 0);
             nodeApi->addChild(wrapper, head);
@@ -788,6 +804,11 @@ void KRView::UpdateSelectionHandles() {
             handles->head = head;
             handles->body = body;
         }
+    }
+
+    if (auto props = GetBasePropsHandler()) {
+        // 圆点伸出文本行时暂时关闭裁剪。clipPath 存在时不改 NODE_CLIP。
+        props->SetContentClipSuspended(selection_info_.visible);
     }
 
     if (selection_info_.visible) {

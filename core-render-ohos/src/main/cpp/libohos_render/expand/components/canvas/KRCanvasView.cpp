@@ -643,8 +643,6 @@ void KRCanvasView::CreateBrushIfNeeded() {
 }
 
 void KRCanvasView::Reset() {
-    ops_.clear();
-
     if (drawingPath_) {
         OH_Drawing_PathDestroy(drawingPath_);
         drawingPath_ = nullptr;
@@ -746,4 +744,5 @@ void KRCanvasView::OnDraw(ArkUI_NodeCustomEvent *event) {
             DrawImage(params);
         }
     });
+    ops_.clear();
 }

@@ -37,6 +37,8 @@ import kotlin.math.PI
 class CanvasView : DeclarativeBaseView<Attr, Event>() {
     var drawCallback: CanvasDrawCallback? = null
     private var reactiveObserverOwner = BaseObject()
+    // 最近一次下发给 native renderView 的 frame，作为 layoutFrame 缺省时的兜底尺寸来源
+    private var lastRenderFrame = Frame.zero
 
     override fun createAttr(): Attr {
         return Attr()
@@ -59,25 +61,54 @@ class CanvasView : DeclarativeBaseView<Attr, Event>() {
     }
 
     override fun setFrameToRenderView(frame: Frame) {
+        lastRenderFrame = frame
         super.setFrameToRenderView(frame)
         draw()
     }
 
+    /**
+     * 显式触发一次重绘。供外部在动态设置 drawCallback 后主动调用
+     * （createRenderView/setFrameToRenderView 之外的路径不会自动触发 draw）。
+     */
+    fun redraw() {
+        draw()
+    }
+
+    /**
+     * flex 布局是否尚未产出 layoutFrame（缺省值）。
+     * 供外部在动态设置 drawCallback 后判断 draw 守卫的放行条件：
+     * 缺省时 draw 会回退使用最近一次下发 native 的 frame 作为尺寸来源。
+     */
+    fun isLayoutFrameDefault(): Boolean {
+        return flexNode.layoutFrame.isDefaultValue()
+    }
+
     private fun draw() {
-        if (renderView == null || flexNode.layoutFrame.isDefaultValue()) {
+        if (renderView == null || noDrawableSize()) {
             return
         }
         ReactiveObserver.unbindValueChange(reactiveObserverOwner)
         ReactiveObserver.bindValueChange(reactiveObserverOwner) {
-            if (renderView == null || flexNode.layoutFrame.isDefaultValue()) {
+            if (renderView == null || noDrawableSize()) {
             } else if (drawCallback != null){
                 val context = CanvasContext(renderView!!, pagerId, nativeRef)
                 context.reset()
-                drawCallback!!(context, flexNode.layoutFrame.width, flexNode.layoutFrame.height)
+                // layoutFrame 缺省时使用已下发给 native 的 frame 兜底，避免绘制命令拿不到有效尺寸
+                val w = if (flexNode.layoutFrame.isDefaultValue()) lastRenderFrame.width else flexNode.layoutFrame.width
+                val h = if (flexNode.layoutFrame.isDefaultValue()) lastRenderFrame.height else flexNode.layoutFrame.height
+                drawCallback!!(context, w, h)
                 // 将本帧所有绘制命令一次性发送给 native，减少 bridge 调用次数
                 context.flush()
             }
         }
+    }
+
+    // layoutFrame 为缺省值（尚未由 flex 布局产出）且 native 侧也没有可用 frame 时，视为没有可绘制尺寸
+    private fun noDrawableSize(): Boolean {
+        if (!flexNode.layoutFrame.isDefaultValue()) {
+            return false
+        }
+        return lastRenderFrame.width <= 0f || lastRenderFrame.height <= 0f
     }
 
     override fun didRemoveFromParentView() {

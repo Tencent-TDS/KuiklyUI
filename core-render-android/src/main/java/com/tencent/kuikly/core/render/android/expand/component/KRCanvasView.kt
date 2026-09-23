@@ -128,7 +128,8 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
     }
 
     private fun reset() {
-        drawOperationList.clear()
+        // 不在此处清空 drawOperationList：若 display 落在 reset 与重填之间会消费空队列导致白屏。
+        // 未消费的指令保留到下一次 performDrawOperationList 消费后再作废。
         currentDrawStyle = DrawStyle(kuiklyRenderContext)
     }
 
@@ -141,6 +142,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         for (op in drawOperationList) {
             op.draw(paint, canvas)
         }
+        drawOperationList.clear()
     }
 
     private fun setLineCap(params: String?) {

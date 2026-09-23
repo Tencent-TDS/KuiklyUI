@@ -129,7 +129,8 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 
 
 - (void)css_reset:(NSDictionary *)args {
-    self.renderActions = nil;
+    // 不在此处清空 renderActions：若 display 落在 reset 与重填之间会消费空队列导致白屏。
+    // 未消费的指令保留到下一次 drawRect 消费后再作废（对齐 Android d5786acb）。
     if (_path) {
         CGPathRelease(_path);
     }
@@ -615,7 +616,9 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     if (!context) {
         return;
     }
-    for (KRPathRenderAction action in self.renderActions) {
+    NSArray<KRPathRenderAction> *actions = [self.renderActions copy];
+    [self.renderActions removeAllObjects];
+    for (KRPathRenderAction action in actions) {
         action(context, self.path);
     }
 }

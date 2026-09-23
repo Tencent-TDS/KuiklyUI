@@ -34,6 +34,8 @@ internal class SSETypewriterDemoPage : BasePager() {
     private var currentHandle: NetworkModule.StreamRequestHandle? = null
     /** 已收到的数据块数量 */
     private var chunkCount by observable(0)
+    /** 尚未收到 SSE 空行分隔符的跨网络块数据。 */
+    private var pendingSSEData = ""
     /** 用户输入的提问内容 */
     private var userPrompt by observable("请用简洁的语言介绍一下你自己，以及你能做什么？")
 
@@ -271,6 +273,7 @@ internal class SSETypewriterDemoPage : BasePager() {
      */
     private fun startStream() {
         displayText = ""
+        pendingSSEData = ""
         chunkCount = 0
         statusText = "正在连接..."
         isStreaming = true
@@ -322,48 +325,45 @@ internal class SSETypewriterDemoPage : BasePager() {
                     statusText = "已连接 (HTTP ${response.statusCode})，接收中..."
                 }
 
-                // SSE 返回格式：每行 "data: {json}" 或 "data: [DONE]"
-                // NetworkModule 可能一次回调包含多行 SSE 数据
-                val lines = data.split("\n")
-                for (line in lines) {
-                    val trimmed = line.trim()
-                    // 处理标准 SSE 格式 "data: ..."
-                    val jsonStr = when {
-                        trimmed.startsWith("data: ") -> trimmed.removePrefix("data: ").trim()
-                        trimmed.startsWith("{") -> trimmed  // 直接是 JSON
-                        else -> continue
-                    }
-
-                    if (jsonStr == "[DONE]") {
-                        // 流结束标记
-                        continue
-                    }
-
-                    try {
-                        val json = JSONObject(jsonStr)
-                        val choices = json.optJSONArray("choices")
-                        if (choices != null && choices.length() > 0) {
-                            val delta = choices.optJSONObject(0)?.optJSONObject("delta")
-                            val content = delta?.optString("content", "") ?: ""
-                            if (content.isNotEmpty()) {
-                                displayText += content
-                            }
-                        }
-                    } catch (_: Exception) {
-                        // 解析失败的行跳过（可能是不完整的 JSON 片段）
-                    }
+                pendingSSEData += data.replace("\r\n", "\n")
+                var separatorIndex = pendingSSEData.indexOf("\n\n")
+                while (separatorIndex >= 0) {
+                    consumeSSEMessage(pendingSSEData.substring(0, separatorIndex))
+                    pendingSSEData = pendingSSEData.substring(separatorIndex + 2)
+                    separatorIndex = pendingSSEData.indexOf("\n\n")
                 }
             }
             "complete" -> {
+                if (pendingSSEData.isNotBlank()) {
+                    consumeSSEMessage(pendingSSEData)
+                    pendingSSEData = ""
+                }
                 statusText = "回复完成，共收到 $chunkCount 块数据"
                 isStreaming = false
                 currentHandle = null
             }
             "error" -> {
+                pendingSSEData = ""
                 statusText = "错误: $data"
                 isStreaming = false
                 currentHandle = null
             }
+        }
+    }
+
+    private fun consumeSSEMessage(message: String) {
+        val payload = message.lineSequence()
+            .filter { it.startsWith("data:") }
+            .joinToString("\n") { it.removePrefix("data:").trimStart() }
+            .ifEmpty { message.trim().takeIf { it.startsWith("{") } ?: return }
+        if (payload == "[DONE]") return
+        try {
+            val choices = JSONObject(payload).optJSONArray("choices") ?: return
+            val delta = choices.optJSONObject(0)?.optJSONObject("delta")
+            val content = delta?.optString("content", "") ?: ""
+            if (content.isNotEmpty()) displayText += content
+        } catch (_: Exception) {
+            // Ignore malformed terminal payloads; incomplete chunks remain buffered above.
         }
     }
 
@@ -373,6 +373,7 @@ internal class SSETypewriterDemoPage : BasePager() {
     private fun stopStream() {
         currentHandle?.close()
         currentHandle = null
+        pendingSSEData = ""
         statusText = "已停止，共收到 $chunkCount 块数据"
         isStreaming = false
     }
@@ -382,6 +383,7 @@ internal class SSETypewriterDemoPage : BasePager() {
      */
     private fun clearAll() {
         displayText = ""
+        pendingSSEData = ""
         chunkCount = 0
         statusText = "就绪"
     }

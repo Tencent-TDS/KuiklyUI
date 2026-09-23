@@ -185,7 +185,8 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         // 注意：这里不需要再做 off/destroy 清理——资源释放由 close 路径的 finalizeStreamRequest 统一完成，
         // 之所以仍可能收到回调，是因为 native 侧已入队的事件在 off 之前就 post 到了 ArkTS 事件循环。
         if (!callback || !this.activeStreamRequests.has(requestId)) return;
-        const text = decoder.decodeToString(new Uint8Array(data));
+        // Keep an incomplete UTF-8 suffix inside TextDecoder until the next chunk.
+        const text = decoder.decodeToString(new Uint8Array(data), { stream: true });
         const eventData: StreamEventData = {
           event: 'data',
           data: text
@@ -202,6 +203,13 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         // 与 dataReceive 同理：若已被主动关闭，这里静默返回；资源清理已由 close 路径完成。
         if (!this.activeStreamRequests.has(requestId)) return;
         if (callback) {
+          const tail = decoder.decodeToString(new Uint8Array(0), { stream: false });
+          if (tail) {
+            callback({
+              event: 'data',
+              data: tail
+            } as StreamEventData);
+          }
           const eventData: StreamEventData = {
             event: 'complete',
             data: ''

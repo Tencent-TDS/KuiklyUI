@@ -42,19 +42,56 @@ import java.util.concurrent.ConcurrentHashMap
 class KRNetworkModule : KuiklyRenderBaseModule() {
 
     private val activeStreamConnections = ConcurrentHashMap<String, HttpURLConnection>()
+    private val pendingStreamRequests = ConcurrentHashMap.newKeySet<String>()
+    private val streamRequestLock = Any()
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             METHOD_HTTP_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
                 httpRequest(params, null, callback)
             }
-            METHOD_HTTP_STREAM_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
-                httpStreamRequest(params, callback)
+            METHOD_HTTP_STREAM_REQUEST -> {
+                val requestId = params.toJSONObjectSafely().optString("requestId")
+                val requestAlreadyExists = synchronized(streamRequestLock) {
+                    if (requestId.isEmpty()) {
+                        false
+                    } else if (activeStreamConnections.containsKey(requestId) || pendingStreamRequests.contains(requestId)) {
+                        true
+                    } else {
+                        pendingStreamRequests.add(requestId)
+                        false
+                    }
+                }
+                if (requestId.isEmpty() || requestAlreadyExists) {
+                    callback?.invoke(
+                        mapOf(
+                            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                            KEY_STREAM_DATA to if (requestId.isEmpty()) "requestId is empty" else "duplicate requestId",
+                            KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                        )
+                    )
+                    return null
+                }
+                val threadAdapter = KuiklyRenderAdapterManager.krThreadAdapter
+                if (threadAdapter == null) {
+                    pendingStreamRequests.remove(requestId)
+                    callback?.invoke(
+                        mapOf(
+                            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                            KEY_STREAM_DATA to "thread adapter is unavailable",
+                            KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                        )
+                    )
+                    return null
+                }
+                threadAdapter.executeOnSubThread {
+                    httpStreamRequest(params, callback)
+                }
             }
             METHOD_CLOSE_STREAM_REQUEST -> {
-                KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
-                    closeStreamRequest(params)
-                }
+                // Do not enqueue close behind long-lived stream reads. A small shared pool can
+                // otherwise be fully occupied by streams, preventing their own close tasks.
+                closeStreamRequest(params)
                 null
             }
             else -> super.call(method, params, callback)
@@ -132,37 +169,25 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         val timeoutS = paramsJSON.optInt("timeout", DEFAULT_TIMEOUT_S)
         val requestId = paramsJSON.optString("requestId")
 
-        if (requestId.isEmpty()) {
-            KuiklyRenderLog.e(MODULE_NAME, "Stream request error: requestId is empty")
-            callback?.invoke(
-                mapOf(
-                    KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                    KEY_STREAM_DATA to "requestId is empty",
-                    KEY_STATUS_CODE to STATE_CODE_UNKNOWN
-                )
-            )
-            return
-        }
-
-        // 防御性判断：requestId 必须唯一，避免覆盖已有连接导致句柄丢失、状态错乱
-        if (activeStreamConnections.containsKey(requestId)) {
-            KuiklyRenderLog.e(MODULE_NAME, "Stream request error: duplicate requestId=$requestId")
-            callback?.invoke(
-                mapOf(
-                    KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                    KEY_STREAM_DATA to "duplicate requestId",
-                    KEY_STATUS_CODE to STATE_CODE_UNKNOWN
-                )
-            )
-            return
-        }
+        if (!pendingStreamRequests.contains(requestId)) return
 
         var reader: InputStreamReader? = null
         var errorStream: InputStream? = null
         var connection: HttpURLConnection? = null
         try {
             connection = openConnection(url, method, param) as HttpURLConnection
-            activeStreamConnections[requestId] = connection
+            val requestWasClosed = synchronized(streamRequestLock) {
+                if (pendingStreamRequests.remove(requestId)) {
+                    activeStreamConnections[requestId] = connection
+                    false
+                } else {
+                    true
+                }
+            }
+            if (requestWasClosed) {
+                connection.disconnect()
+                return
+            }
             val timeoutMs = if (timeoutS > 0) timeoutS * 1000 else DEFAULT_TIMEOUT_S * 1000
             connection.connectTimeout = timeoutMs
             connection.readTimeout = timeoutMs
@@ -228,7 +253,10 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         } catch (e: Exception) {
             KuiklyRenderLog.e(MODULE_NAME, "Stream request error: $e")
             // 如果是主动关闭导致的异常（requestId 已被 closeStreamRequest 移除），不回调 error
-            if (activeStreamConnections.containsKey(requestId)) {
+            val shouldReportError = synchronized(streamRequestLock) {
+                pendingStreamRequests.remove(requestId) || activeStreamConnections.containsKey(requestId)
+            }
+            if (shouldReportError) {
                 callback?.invoke(
                     mapOf(
                         KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
@@ -238,6 +266,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 )
             }
         } finally {
+            pendingStreamRequests.remove(requestId)
             activeStreamConnections.remove(requestId)
             try {
                 reader?.close()
@@ -252,7 +281,10 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     private fun closeStreamRequest(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
         val requestId = paramsJSON.optString("requestId")
-        val connection = activeStreamConnections.remove(requestId)
+        val connection = synchronized(streamRequestLock) {
+            pendingStreamRequests.remove(requestId)
+            activeStreamConnections.remove(requestId)
+        }
         try {
             connection?.disconnect()
         } catch (e: Exception) {
@@ -262,22 +294,16 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
 
     override fun onDestroy() {
         super.onDestroy()
-        //  remove 在主线程立即执行，disconnect() 交给子线程执行，
-        // 使用 iterator.remove() 逐个原子移除，避免 values snapshot 和 clear 之间的竞态窗口
-        val connections = ArrayList<HttpURLConnection>()
-        val iterator = activeStreamConnections.entries.iterator()
-        while (iterator.hasNext()) {
-            connections.add(iterator.next().value)
-            iterator.remove()
+        // Disconnect directly for the same reason as closeStreamRequest: teardown must not wait
+        // for a pool whose workers may all be blocked reading these streams.
+        val connections = synchronized(streamRequestLock) {
+            pendingStreamRequests.clear()
+            activeStreamConnections.values.toList().also { activeStreamConnections.clear() }
         }
-        if (connections.isNotEmpty()) {
-            KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
-                for (conn in connections) {
-                    try {
-                        conn.disconnect()
-                    } catch (_: Exception) {}
-                }
-            }
+        for (connection in connections) {
+            try {
+                connection.disconnect()
+            } catch (_: Exception) {}
         }
     }
 

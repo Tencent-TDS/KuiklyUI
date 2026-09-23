@@ -261,6 +261,8 @@ class NetworkModule : Module() {
             put("timeout", timeout)
             put("requestId", requestId)
         }
+        var callbackRef: CallbackRef? = null
+        var terminalEventBeforeRefAssigned = false
         val returnValue = toNative(
             true,
             METHOD_HTTP_STREAM_REQUEST,
@@ -278,12 +280,28 @@ class NetworkModule : Module() {
                         }
                         networkResponse = NetworkResponse(respHeaders ?: JSONObject(), statusCode)
                     }
-                    eventCallback(event, data, networkResponse)
+                    val isTerminalEvent = event == STREAM_EVENT_COMPLETE || event == STREAM_EVENT_ERROR
+                    try {
+                        eventCallback(event, data, networkResponse)
+                    } finally {
+                        if (isTerminalEvent) {
+                            val ref = callbackRef
+                            if (ref != null) {
+                                removeCallback(ref)
+                            } else {
+                                terminalEventBeforeRefAssigned = true
+                            }
+                        }
+                    }
                 }
             },
             syncCall = false
         )
-        return StreamRequestHandle(this, returnValue.callbackRef, requestId)
+        callbackRef = returnValue.callbackRef
+        if (terminalEventBeforeRefAssigned) {
+            callbackRef?.also { removeCallback(it) }
+        }
+        return StreamRequestHandle(this, callbackRef, requestId)
     }
 
     /**
@@ -324,6 +342,8 @@ class NetworkModule : Module() {
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
         private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
         private const val METHOD_CLOSE_STREAM_REQUEST = "closeStreamRequest"
+        private const val STREAM_EVENT_COMPLETE = "complete"
+        private const val STREAM_EVENT_ERROR = "error"
         private var streamRequestIdCounter = 0L
 
         private fun Any.toJSONObjectSafely(): JSONObject? {

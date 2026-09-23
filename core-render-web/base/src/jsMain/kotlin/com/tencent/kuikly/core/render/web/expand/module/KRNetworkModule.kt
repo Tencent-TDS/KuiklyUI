@@ -22,18 +22,27 @@ import kotlin.js.json
 
 /** Kuikly network request module */
 class KRNetworkModule : KuiklyRenderBaseModule() {
+    private val activeStreamRequests = mutableMapOf<String, dynamic>()
+
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             METHOD_HTTP_REQUEST -> httpRequest(params, callback)
+            METHOD_HTTP_STREAM_REQUEST -> httpStreamRequest(params, callback)
+            METHOD_CLOSE_STREAM_REQUEST -> closeStreamRequest(params)
             else -> super.call(method, params, callback)
         }
     }
 
     override fun call(method: String, params: Any?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
-            METHOD_HTTP_STREAM_REQUEST -> httpStreamRequest(params, callback)
+            METHOD_HTTP_REQUEST_BINARY -> httpRequestBinary(params, callback)
             else -> super.call(method, params, callback)
         }
+    }
+
+    override fun onDestroy() {
+        activeStreamRequests.keys.toList().forEach { closeStreamRequest(it, true) }
+        super.onDestroy()
     }
 
     /**
@@ -149,7 +158,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     /**
      * Initiate Web host HTTP streaming request
      */
-    private fun httpStreamRequest(params: Any?, callback: KuiklyRenderCallback?) {
+    private fun httpRequestBinary(params: Any?, callback: KuiklyRenderCallback?) {
         // Get http request related parameters
         val dataArray = params.unsafeCast<Array<*>>()
 
@@ -256,6 +265,174 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     }
                 )
             }
+    }
+
+    /** Initiate a streaming request using the public JSON-string bridge protocol. */
+    private fun httpStreamRequest(params: String?, callback: KuiklyRenderCallback?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val requestId = paramsJSON.optString("requestId")
+        if (requestId.isEmpty() || activeStreamRequests.containsKey(requestId)) {
+            callback?.invoke(
+                mapOf(
+                    KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                    KEY_STREAM_DATA to if (requestId.isEmpty()) "requestId is empty" else "duplicate requestId",
+                    KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                )
+            )
+            return
+        }
+
+        val method = paramsJSON.optString("method")
+        val param = paramsJSON.optJSONObject("param")
+        val headers = paramsJSON.optJSONObject("headers")
+        val cookie = paramsJSON.optString("cookie")
+        val timeout = paramsJSON.optInt("timeout") * 1000
+        val url = getRequestUrl(method, paramsJSON.optString("url"), param)
+        val controller: dynamic = js("typeof AbortController !== 'undefined' ? new AbortController() : null")
+        val state: dynamic = json(
+            "controller" to controller,
+            "timeoutHandle" to null,
+            "timedOut" to false
+        )
+        activeStreamRequests[requestId] = state
+
+        val requestInit = RequestInit(
+            method = method,
+            credentials = RequestCredentials.INCLUDE,
+            headers = getRequestHeaders(headers, cookie),
+            body = if (method == HTTP_METHOD_POST) getPostParams(param) else null,
+            mode = RequestMode.CORS
+        ).also {
+            if (timeout > 0) it.asDynamic()["timeout"] = timeout
+            if (controller != null) it.asDynamic()["signal"] = controller.signal
+        }
+        if (timeout > 0 && controller != null) {
+            state.timeoutHandle = kuiklyWindow.setTimeout({
+                if (activeStreamRequests.containsKey(requestId)) {
+                    state.timedOut = true
+                    controller.abort()
+                }
+            }, timeout)
+        }
+
+        kuiklyWindow.fetch(url, requestInit)
+            .then { response ->
+                if (!activeStreamRequests.containsKey(requestId)) return@then null
+                val statusCode = response.status.toInt()
+                val responseHeaders = serializeHeaders(response.headers)
+                if (!response.ok) {
+                    callback?.invoke(
+                        mapOf(
+                            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                            KEY_STREAM_DATA to "HTTP error $statusCode",
+                            KEY_HEADERS to responseHeaders,
+                            KEY_STATUS_CODE to statusCode
+                        )
+                    )
+                    finishStreamRequest(requestId)
+                    return@then null
+                }
+
+                val reader = response.asDynamic().body?.getReader()
+                if (reader == null) {
+                    // Mini-program fetch implementations may not expose ReadableStream. Preserve
+                    // the event protocol even though that environment can only deliver one chunk.
+                    return@then response.text().then { text ->
+                        if (activeStreamRequests.containsKey(requestId)) {
+                            callback?.invoke(
+                                mapOf(
+                                    KEY_STREAM_EVENT to STREAM_EVENT_DATA,
+                                    KEY_STREAM_DATA to text,
+                                    KEY_HEADERS to responseHeaders,
+                                    KEY_STATUS_CODE to statusCode
+                                )
+                            )
+                            callback?.invoke(mapOf(KEY_STREAM_EVENT to STREAM_EVENT_COMPLETE, KEY_STREAM_DATA to ""))
+                            finishStreamRequest(requestId)
+                        }
+                    }
+                } else {
+                    val decoder: dynamic = js("new TextDecoder('utf-8')")
+                    return@then readStreamChunks(
+                        requestId,
+                        reader,
+                        decoder,
+                        callback,
+                        responseHeaders,
+                        statusCode,
+                        true
+                    )
+                }
+            }
+            .catch { error ->
+                val currentState = activeStreamRequests[requestId] ?: return@catch
+                val timedOut = currentState.timedOut == true
+                callback?.invoke(
+                    mapOf(
+                        KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                        KEY_STREAM_DATA to (if (timedOut) "request timeout" else (error.message ?: "Unknown error")),
+                        KEY_STATUS_CODE to if (timedOut) STATE_CODE_TIMEOUT else STATE_CODE_UNKNOWN
+                    )
+                )
+                finishStreamRequest(requestId)
+            }
+    }
+
+    private fun readStreamChunks(
+        requestId: String,
+        reader: dynamic,
+        decoder: dynamic,
+        callback: KuiklyRenderCallback?,
+        headers: String,
+        statusCode: Int,
+        firstChunk: Boolean
+    ): Promise<dynamic> {
+        val readPromise = reader.read().unsafeCast<Promise<dynamic>>()
+        return readPromise.then { result: dynamic ->
+            if (!activeStreamRequests.containsKey(requestId)) return@then null
+            if (result.done == true) {
+                val tail = decoder.decode()
+                if ((tail as? String).orEmpty().isNotEmpty()) {
+                    callback?.invoke(mapOf(KEY_STREAM_EVENT to STREAM_EVENT_DATA, KEY_STREAM_DATA to tail))
+                }
+                callback?.invoke(mapOf(KEY_STREAM_EVENT to STREAM_EVENT_COMPLETE, KEY_STREAM_DATA to ""))
+                finishStreamRequest(requestId)
+                return@then null
+            }
+
+            val text = decoder.decode(result.value, json("stream" to true)) as String
+            val event = mutableMapOf<String, Any>(
+                KEY_STREAM_EVENT to STREAM_EVENT_DATA,
+                KEY_STREAM_DATA to text
+            )
+            if (firstChunk) {
+                event[KEY_HEADERS] = headers
+                event[KEY_STATUS_CODE] = statusCode
+            }
+            callback?.invoke(event)
+            readStreamChunks(requestId, reader, decoder, callback, headers, statusCode, false)
+        }
+    }
+
+    private fun closeStreamRequest(params: String?) {
+        val requestId = params.toJSONObjectSafely().optString("requestId")
+        closeStreamRequest(requestId, true)
+    }
+
+    private fun closeStreamRequest(requestId: String, abort: Boolean) {
+        val state = activeStreamRequests.remove(requestId) ?: return
+        if (state.timeoutHandle != null) kuiklyWindow.asDynamic().clearTimeout(state.timeoutHandle)
+        if (abort && state.controller != null) state.controller.abort()
+    }
+
+    private fun finishStreamRequest(requestId: String) {
+        closeStreamRequest(requestId, false)
+    }
+
+    private fun serializeHeaders(headers: Headers): String {
+        val values = json()
+        headers.asDynamic().forEach { value: String, key: String -> values[key] = value }
+        return JSON.stringify(values)
     }
 
     private fun ByteArray.toBlob(): ArrayBuffer {
@@ -405,7 +582,9 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     companion object {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
-        private const val METHOD_HTTP_STREAM_REQUEST = "httpRequestBinary"
+        private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_CLOSE_STREAM_REQUEST = "closeStreamRequest"
         // Network request success
         private const val KEY_SUCCESS = "success"
         // Network request failure
@@ -414,6 +593,11 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val KEY_HEADERS = "headers"
         // Network request status code field
         private const val KEY_STATUS_CODE = "statusCode"
+        private const val KEY_STREAM_EVENT = "event"
+        private const val KEY_STREAM_DATA = "data"
+        private const val STREAM_EVENT_DATA = "data"
+        private const val STREAM_EVENT_COMPLETE = "complete"
+        private const val STREAM_EVENT_ERROR = "error"
         // GET request method
         private const val HTTP_METHOD_GET = "GET"
         // POST request method

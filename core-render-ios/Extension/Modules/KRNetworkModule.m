@@ -24,6 +24,7 @@
 @property (nonatomic, copy) NSString *requestId;
 @property (nonatomic, assign) BOOL isFirstCallback;
 @property (nonatomic, strong) NSHTTPURLResponse *httpResponse;
+@property (nonatomic, strong) NSMutableData *pendingUTF8Data;
 /// 请求结束（成功/失败/被取消）后由 delegate 主动回调，用于统一清理
 /// module 侧持有的 session/task/delegate 三个字典条目，并 invalidate session。
 @property (nonatomic, copy) void (^onFinish)(NSString *requestId);
@@ -38,6 +39,7 @@
         _callback = callback;
         _requestId = requestId;
         _isFirstCallback = YES;
+        _pendingUTF8Data = [NSMutableData data];
     }
     return self;
 }
@@ -65,7 +67,20 @@
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
     if (!self.callback) return;
-    NSString *text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+    [self.pendingUTF8Data appendData:data];
+    NSString *text = nil;
+    NSUInteger decodableLength = self.pendingUTF8Data.length;
+    // A UTF-8 scalar is at most four bytes. If a network chunk ends in the middle
+    // of one, retain only that incomplete suffix for the next delegate callback.
+    for (NSUInteger trailingBytes = 0; trailingBytes <= MIN((NSUInteger)3, self.pendingUTF8Data.length); trailingBytes++) {
+        decodableLength = self.pendingUTF8Data.length - trailingBytes;
+        NSData *candidate = [self.pendingUTF8Data subdataWithRange:NSMakeRange(0, decodableLength)];
+        text = [[NSString alloc] initWithData:candidate encoding:NSUTF8StringEncoding];
+        if (text) break;
+    }
+    if (!text || decodableLength == 0) return;
+    NSData *suffix = [self.pendingUTF8Data subdataWithRange:NSMakeRange(decodableLength, self.pendingUTF8Data.length - decodableLength)];
+    self.pendingUTF8Data = [suffix mutableCopy];
     NSMutableDictionary *eventData = [@{
         @"event": @"data",
         @"data": text
@@ -90,6 +105,11 @@
                 });
             }
         } else {
+            if (self.pendingUTF8Data.length > 0) {
+                NSString *tail = [[NSString alloc] initWithData:self.pendingUTF8Data encoding:NSUTF8StringEncoding] ?: @"\uFFFD";
+                self.callback(@{ @"event": @"data", @"data": tail });
+                [self.pendingUTF8Data setLength:0];
+            }
             self.callback(@{
                 @"event": @"complete",
                 @"data": @""
@@ -389,6 +409,18 @@
             });
         }
         return;
+    }
+
+    if ([[method uppercaseString] isEqualToString:@"GET"] && requestParam.count > 0) {
+        NSURLComponents *components = [NSURLComponents componentsWithString:url];
+        if (components) {
+            NSMutableArray<NSURLQueryItem *> *queryItems = [NSMutableArray arrayWithArray:components.queryItems ?: @[]];
+            for (NSString *key in requestParam) {
+                [queryItems addObject:[NSURLQueryItem queryItemWithName:key value:[requestParam[key] description]]];
+            }
+            components.queryItems = queryItems;
+            url = components.URL.absoluteString ?: url;
+        }
     }
 
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];

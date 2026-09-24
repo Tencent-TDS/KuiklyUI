@@ -26,7 +26,6 @@ import org.w3c.dom.HTMLSpanElement
 import org.w3c.dom.Node
 import org.w3c.dom.events.Event
 import org.w3c.dom.get
-import kotlin.js.JsName
 
 class KRTextProps {
     /**
@@ -122,9 +121,11 @@ data class RichTextSpan(
 /**
  * One measured fragment used to hit-test a tap. Coordinates stay in the same
  * space as [RichTextSpan.offsetLeft] after justify and the Android width scale.
+ * [text] is the fragment's text ("" for a placeholder).
  */
 class SpanHitBox(
     val index: Int,
+    val text: String,
     var x: Float,
     var y: Float,
     var width: Float,
@@ -173,17 +174,8 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     // Current full span list
     val childSpanList: JsArray<Any> = JsArray()
 
-    // Placeholder Span list
-    val imageSpanList: JsArray<Any> = JsArray()
-
-    // Number of placeholder images
-    var imageSpanCount = 0
-
     // HTML content of child spans for mini app
     var spanHtml = ""
-
-    // Pending tasks
-    var pendingJob = 0
 
     // Original HTML content of rich text for mini app
     val divHtml: String
@@ -449,9 +441,8 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     /**
      * Child span index for a click. Walks to the host's direct child, skipping
      * the two float spacers used by line-break margin. A tap on the host itself
-     * uses the processor's coordinate lookup.
+     * uses the processor's coordinate lookup with the event's offsetX/offsetY.
      */
-    @JsName("spanIndexFromEvent")
     internal fun spanIndexFromEvent(event: Event): Int {
         var node: Node? = event.target.unsafeCast<Node?>()
         val host: Node = ele
@@ -459,16 +450,13 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             node = node.parentNode
         }
         if (node == null || node == host) {
-            val x = event.asDynamic().offsetX ?: event.asDynamic().detail?.x
-            val y = event.asDynamic().offsetY ?: event.asDynamic().detail?.y
-            if (x != null && y != null) {
-                return KuiklyProcessor.richTextProcessor.spanIndexAt(
-                    this,
-                    x.unsafeCast<Double>().toFloat(),
-                    y.unsafeCast<Double>().toFloat()
-                )
-            }
-            return -1
+            val x = event.asDynamic().offsetX ?: return -1
+            val y = event.asDynamic().offsetY ?: return -1
+            return KuiklyProcessor.richTextProcessor.spanIndexAt(
+                this,
+                x.unsafeCast<Double>().toFloat(),
+                y.unsafeCast<Double>().toFloat()
+            )
         }
         val start = if (getHasAppendFloatSpans()) 2 else 0
         val children = ele.childNodes
@@ -542,22 +530,15 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 placeholderSpan.style.width != "" &&
                 placeholderSpan.style.height != ""
             ) {
-                // offsetLeft/offsetTop are not in one coordinate space once the
-                // rich text is position:absolute: the span's offsetParent becomes
-                // the text itself, while ele.offsetTop is relative to the scroller.
-                // Subtracting them drops the text's own origin. Use viewport rects.
-                val containerRect = ele.getBoundingClientRect()
-                val spanRect = placeholderSpan.getBoundingClientRect()
-                val left = (spanRect.left - containerRect.left).toFloat()
-                val top = (spanRect.top - containerRect.top).toFloat()
-                val width = spanRect.width.toFloat()
-                val height = spanRect.height.toFloat()
+                val width = placeholderSpan.offsetWidth.toFloat()
+                val height = placeholderSpan.offsetHeight.toFloat()
                 // A zero box means layout has not happened yet. Caching it
                 // would hide the image and skip later measurements.
                 if (width <= 0f || height <= 0f) {
                     schedulePlaceholderRectRetry(index)
                     return placeholderRectCache[index] ?: defaultRectInfo
                 }
+                val (left, top) = offsetInText(placeholderSpan)
                 val rectInfo = "$left $top $width $height"
 
                 placeholderRectCache[index] = rectInfo
@@ -575,6 +556,31 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 kuiklyDocument.body?.removeChild(ele)
             }
         }
+    }
+
+    /**
+     * Layout position of [span] inside the text element. Offsets ignore
+     * ancestor transforms. The offsetParent chain reaches [ele] when it is
+     * positioned; otherwise both chains end at a shared ancestor.
+     */
+    private fun offsetInText(span: HTMLElement): Pair<Float, Float> {
+        var x = 0.0
+        var y = 0.0
+        var cur: HTMLElement? = span
+        while (cur != null && cur != ele) {
+            x += cur.offsetLeft
+            y += cur.offsetTop
+            cur = cur.offsetParent.unsafeCast<HTMLElement?>()
+        }
+        if (cur == null) {
+            var host: HTMLElement? = ele
+            while (host != null) {
+                x -= host.offsetLeft
+                y -= host.offsetTop
+                host = host.offsetParent.unsafeCast<HTMLElement?>()
+            }
+        }
+        return x.toFloat() to y.toFloat()
     }
 
     private fun schedulePlaceholderRectRetry(index: Int) {

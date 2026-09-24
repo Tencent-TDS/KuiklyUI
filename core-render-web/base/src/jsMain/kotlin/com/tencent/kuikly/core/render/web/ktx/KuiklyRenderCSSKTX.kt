@@ -12,6 +12,7 @@ import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.const.KRTagConst
 import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
+import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
@@ -430,9 +431,9 @@ private fun richTextClickParams(ele: Element, event: Event, clickEvent: dynamic)
         "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
         "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
     )
-    val rich = ele.asDynamic().krRichTextView
+    val rich = ele.asDynamic().krRichTextView.unsafeCast<KRRichTextView?>()
     if (rich != null) {
-        params["index"] = rich.spanIndexFromEvent(event).unsafeCast<Int>()
+        params["index"] = rich.spanIndexFromEvent(event)
     }
     return params
 }

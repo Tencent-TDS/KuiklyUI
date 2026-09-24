@@ -249,6 +249,7 @@ object Transform {
 
         // Get mapping from node attributes to template attributes
         val usedComponentsAlias = componentsAlias[nodeName]
+            ?: throw IllegalStateException("[Transform.hydrate] no template alias for node: $nodeName")
 
         // Pure text type, special handling, just return the content of the text
         if (isText(element)) {

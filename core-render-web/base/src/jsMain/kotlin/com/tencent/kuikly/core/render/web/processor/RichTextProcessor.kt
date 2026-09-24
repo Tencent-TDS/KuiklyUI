@@ -147,7 +147,8 @@ interface IRichTextProcessor {
     fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean = false
 
     /**
-     * Resolve the child span index for a tap at local ([x], [y]) inside [view].
+     * Resolve the child span index for a tap on [view]. [x]/[y] are the event's
+     * offsetX/offsetY; their coordinate space is platform specific.
      * Return -1 when this platform should keep using the DOM event target (H5).
      */
     fun spanIndexAt(view: KRRichTextView, x: Float, y: Float): Int = -1

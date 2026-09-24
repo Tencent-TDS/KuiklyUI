@@ -558,6 +558,8 @@ object RichTextProcessor : IRichTextProcessor {
             style.verticalAlign = "middle"
             // Alternate text such as U+FFFD stays in the span, but must not paint.
             style.color = "transparent"
+            style.textShadow = "none"
+            style.asDynamic().webkitTextStroke = "0"
             style.overflowX = "hidden"
             style.overflowY = "hidden"
         }

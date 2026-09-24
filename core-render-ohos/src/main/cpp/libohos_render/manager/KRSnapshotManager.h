@@ -47,10 +47,7 @@ class KRSnapshotManager {
         std::string message;
     };
 
-    struct ResultData ProcessSnapshotResultWithDataType(napi_env env, napi_value pixelMap, const std::string &path,
-                                                        const std::string &pathUri,
-                                                        ArkUI_DrawableDescriptor *drawableDescriptorPtr,
-                                                        std::weak_ptr<IKRRenderViewExport> weak_view);
+    struct ResultData ProcessSnapshotResultWithDataType(napi_env env, napi_value pixelMap);
     struct ResultData ProcessSnapshotResultWithCacheKeyType(napi_env env, napi_value pixelMap,
                                                             napi_value drawableDescriptor, const std::string &path,
                                                             const std::string &pathUri,

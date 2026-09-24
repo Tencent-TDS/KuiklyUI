@@ -747,6 +747,59 @@ internal class TestPage : BasePager() {
 
 :::
 
+### textAlignJustify方法
+
+文字两端对齐。文本的左右两侧对齐到容器边缘，最后一行除外。
+
+<div class="table-01">
+
+**平台支持**
+
+| 平台 | 说明 |
+|:----|:----|
+| iOS、macOS | 支持 |
+| 鸿蒙 | 支持*（详见下方说明） |
+| H5 | 支持 |
+| 小程序 | 支持 |
+| Android | API 23 及以上支持。API 22 及以下按左对齐显示 |
+
+</div>
+
+:::warning 鸿蒙平台限制
+富文本内嵌图片的两端对齐受鸿蒙文本组件限制，拉伸不均匀。使用时注意验证与规避。
+:::
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{13}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                padding(16f)
+            }
+
+            Text {
+                attr {
+                    text("两端对齐需要使用接近满宽的多行段落才能看清效果。软换行的中间行应撑满容器，最后一行保持左对齐。")
+                    fontSize(18f)
+                    textAlignJustify()
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 效果
+
+软换行且撑满容器的行左右对齐，最后一行保持左对齐。
+
+:::
+
 ### lineHeight方法
 
 文字行高

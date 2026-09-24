@@ -38,7 +38,6 @@ import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
-import com.tencent.kuikly.compose.ui.text.substring
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.TextUnit
 import com.tencent.kuikly.compose.ui.unit.isSpecified
@@ -368,7 +367,7 @@ internal fun RichTextAttr.applyAnnotatedString(
                     this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
                     this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
                 )
-                description(annoText.substring(placeholder.start, placeholder.end))
+                description(annoText.text.substring(placeholder.start, placeholder.end))
             })
         } else if (start < end) {
             // Create TextSpan for normal text

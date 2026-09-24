@@ -41,6 +41,7 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 private class TextJustifyDemoVM(scope: PagerScope) {
     var justifyEnabled by scope.observable(true)
     var clickStatus by scope.observable("还没点")
+    var alignClickStatus by scope.observable("还没点")
     var selectionContent by scope.observable("还没读")
     var selectableTextContainer: ViewRef<DivView>? = null
 
@@ -116,6 +117,7 @@ internal class TextJustifyDemo : BasePager() {
                 JustifyExampleSection(ctx.vm)
                 ClickAndSelectionSection(ctx.vm)
                 BoundarySection(ctx.vm)
+                RegressionSection(ctx.vm)
             }
         }
     }
@@ -496,6 +498,93 @@ private fun ViewContainer<*, *>.BoundarySection(vm: TextJustifyDemoVM) {
     }
     FlexibleWidthText(vm)
     LabeledText(vm, "空串", "")
+}
+
+private const val LATIN_PARAGRAPH =
+    "Hello international readers, this sentence is long enough to be truncated with an ellipsis at the end."
+
+private const val PUNCTUATION_PARAGRAPH =
+    "价格先涨了5%, 随后回落! 这是well-known的state-of-the-art方案——" +
+            "国旗\uD83C\uDDE8\uD83C\uDDF3\uD83C\uDDEF\uD83C\uDDF5不应被拆开。"
+
+private const val ZWJ_EMOJI_PARAGRAPH =
+    "组合表情\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67和\uD83D\uDC69\uD83C\uDFFD\u200D\uD83D\uDCBB" +
+            "在两端对齐的段落中应保持完整，软换行后仍是一个整体，不会被拉伸拆成多个字形。"
+
+private fun ViewContainer<*, *>.RegressionSection(vm: TextJustifyDemoVM) {
+    SectionTitle("回归对照")
+    LabeledText(vm, "拉丁文单行截断：省略号应接近右边缘", LATIN_PARAGRAPH) {
+        lines(1)
+        textOverFlowTail()
+    }
+    LabeledText(vm, "拉丁文两行截断：不应多出空白行", LATIN_PARAGRAPH + " " + LATIN_PARAGRAPH) {
+        lines(2)
+        textOverFlowTail()
+    }
+    Text {
+        attr {
+            fontSize(13f)
+            color(Color(0xFF333333))
+            marginBottom(4f)
+            testTag("regression_align_status")
+            text("居中/右对齐点击: ${vm.alignClickStatus}")
+        }
+    }
+    AlignedRichText(vm, "居中", "center") { textAlignCenter() }
+    AlignedRichText(vm, "右对齐", "right") { textAlignRight() }
+    Text {
+        attr {
+            fontSize(12f)
+            color(Color(0xFF888888))
+            marginBottom(4f)
+            text("窄宽度：半角标点不在行首，连字符后可换行，国旗不拆开")
+        }
+    }
+    Text {
+        attr {
+            width(180f)
+            backgroundColor(Color(0xFFF0F0F0))
+            marginBottom(12f)
+            testTag("regression_punctuation")
+            fontSize(16f)
+            text(PUNCTUATION_PARAGRAPH)
+            vm.applyChosenAlign(this)
+        }
+    }
+    LabeledText(vm, "ZWJ 组合表情：不应被拆开", ZWJ_EMOJI_PARAGRAPH)
+}
+
+private fun ViewContainer<*, *>.AlignedRichText(
+    vm: TextJustifyDemoVM,
+    label: String,
+    tag: String,
+    align: TextAttr.() -> Unit
+) {
+    RichText {
+        attr {
+            width(300f)
+            backgroundColor(Color(0xFFE8EAF6))
+            marginBottom(12f)
+            testTag("regression_align_$tag")
+            fontSize(18f)
+            align()
+        }
+        Span {
+            fontSize(18f)
+            text(label)
+            click { vm.alignClickStatus = "${label}文字" }
+        }
+        BlockSpan {
+            size(24f, 24f)
+            backgroundColor(Color(0xFFFF9800))
+            click { vm.alignClickStatus = "${label}橙色块" }
+        }
+        Span {
+            fontSize(18f)
+            text("尾字")
+            click { vm.alignClickStatus = "${label}尾字" }
+        }
+    }
 }
 
 private fun ViewContainer<*, *>.FlexibleWidthText(vm: TextJustifyDemoVM) {

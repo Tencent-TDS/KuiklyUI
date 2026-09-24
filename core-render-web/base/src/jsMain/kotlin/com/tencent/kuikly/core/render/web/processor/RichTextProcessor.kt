@@ -80,10 +80,11 @@ object TextMeasureCache {
         letterSpacing: String,
         lineHeight: String,
         constraintWidth: Float,
-        numberOfLines: Int
+        numberOfLines: Int,
+        wordBreak: String = "",
     ): String {
         // Use a simpler key format for better performance
-        return "$text|$fontSize|$fontWeight|$fontFamily|$fontStyle|$letterSpacing|$lineHeight|$constraintWidth|$numberOfLines"
+        return "$text|$fontSize|$fontWeight|$fontFamily|$fontStyle|$letterSpacing|$lineHeight|$constraintWidth|$numberOfLines|$wordBreak"
     }
     
     /**
@@ -148,8 +149,8 @@ interface IRichTextProcessor {
 
     /**
      * Resolve the child span index for a tap on [view]. [x]/[y] are the event's
-     * offsetX/offsetY; their coordinate space is platform specific.
-     * Return -1 when this platform should keep using the DOM event target (H5).
+     * offsetX/offsetY; their coordinate space is platform specific. Return -1
+     * on a miss, or null when this platform uses the DOM event target (H5).
      */
-    fun spanIndexAt(view: KRRichTextView, x: Float, y: Float): Int = -1
+    fun spanIndexAt(view: KRRichTextView, x: Float, y: Float): Int? = null
 }

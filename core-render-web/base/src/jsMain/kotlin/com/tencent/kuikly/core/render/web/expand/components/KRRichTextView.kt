@@ -180,9 +180,9 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     // Original HTML content of rich text for mini app
     val divHtml: String
         get() {
-            // WeChat rich-text only honors text-align on the inner nodes.
-            val align = ele.style.textAlign
-            val style = if (align.isNotEmpty()) " style=\"text-align:$align\"" else ""
+            // WeChat rich-text only honors text-align on the inner nodes. Only
+            // justify is forwarded: placeholder and hit-box x assume a left start.
+            val style = if (ele.style.textAlign == "justify") " style=\"text-align:justify\"" else ""
             return "<div$style>${spanHtml}</div>"
         }
 
@@ -439,24 +439,28 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     }
 
     /**
-     * Child span index for a click. Walks to the host's direct child, skipping
-     * the two float spacers used by line-break margin. A tap on the host itself
-     * uses the processor's coordinate lookup with the event's offsetX/offsetY.
+     * Child span index for a click. A processor that hit-tests by point
+     * (mini-app) answers from the event's offsetX/offsetY; otherwise walk
+     * to the host's direct child, skipping the two float spacers used by
+     * line-break margin.
      */
     internal fun spanIndexFromEvent(event: Event): Int {
+        val x = event.asDynamic().offsetX
+        val y = event.asDynamic().offsetY
+        if (x != null && y != null) {
+            KuiklyProcessor.richTextProcessor.spanIndexAt(
+                this,
+                x.unsafeCast<Double>().toFloat(),
+                y.unsafeCast<Double>().toFloat()
+            )?.let { return it }
+        }
         var node: Node? = event.target.unsafeCast<Node?>()
         val host: Node = ele
         while (node != null && node != host && node.parentNode != host) {
             node = node.parentNode
         }
         if (node == null || node == host) {
-            val x = event.asDynamic().offsetX ?: return -1
-            val y = event.asDynamic().offsetY ?: return -1
-            return KuiklyProcessor.richTextProcessor.spanIndexAt(
-                this,
-                x.unsafeCast<Double>().toFloat(),
-                y.unsafeCast<Double>().toFloat()
-            )
+            return -1
         }
         val start = if (getHasAppendFloatSpans()) 2 else 0
         val children = ele.childNodes

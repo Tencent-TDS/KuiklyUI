@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.add
 import com.tencent.kuikly.core.render.web.collection.array.clear
 import com.tencent.kuikly.core.render.web.collection.array.get
+import com.tencent.kuikly.core.render.web.collection.array.set
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.expand.components.RichTextSpan
 import com.tencent.kuikly.core.render.web.expand.components.SpanHitBox
@@ -40,6 +41,9 @@ object RichTextProcessor : IRichTextProcessor {
     // Parallel to the lines flushed by the current measure: true when the line
     // ended by wrapping, which is the only kind CSS `text-align: justify` stretches.
     private var lineSoftWrapped: JsArray<Boolean> = JsArray()
+    // Host `word-break: break-all` (set by the tail line-break mode and kept
+    // after the clamp style changes) lets Latin words wrap at any letter.
+    private var breakAllLetters = false
     // Fixed android width ratio magic value, temporarily set to 1.05,
     // because Android real machine canvas measurement width result is smaller
     private const val WIDTH_RATIO_MAGIC = 1.05f
@@ -67,9 +71,9 @@ object RichTextProcessor : IRichTextProcessor {
     private const val KIND_IDEOGRAPH = 2
     private const val KIND_OTHER = 3
 
-    // No line break before these (closing CJK / fullwidth punctuation).
+    // No line break before these (closing punctuation, CJK and half-width).
     private const val NO_BREAK_BEFORE =
-        "、。，．：；！？）］｝〉》」』】〕〗〙〛’”ヽヾ々〻"
+        "、。，．：；！？）］｝〉》」』】〕〗〙〛’”ヽヾ々〻,.!?);:"
 
     // No line break after these (opening CJK / fullwidth punctuation).
     private const val NO_BREAK_AFTER = "（［｛〈《「『【〔〖〘〚‘“"
@@ -951,18 +955,23 @@ object RichTextProcessor : IRichTextProcessor {
 
     /**
      * End of the unbreakable unit starting at [pos], including the spaces
-     * after it. A unit is a run of spaces, a word, or one CJK-like
-     * grapheme; closing punctuation joins the unit before it and opening
-     * punctuation joins the unit after it.
+     * after it. A unit is a run of spaces, a word (up to and including a
+     * dash), or one CJK-like grapheme; under `word-break: break-all` every
+     * grapheme is a unit. Closing punctuation joins the unit before it and
+     * opening punctuation joins the unit after it.
      */
     private fun nextBreak(text: String, pos: Int): Int {
         var i = pos
         if (!isBreakSpace(text[i])) {
             while (true) {
-                val perChar = breaksPerChar(codePointAt(text, i))
+                val wordStart = i
+                val perChar = breakAllLetters || breaksPerChar(codePointAt(text, i))
                 i = graphemeEnd(text, i)
                 if (!perChar) {
-                    while (i < text.length && !isBreakSpace(text[i]) && !breaksPerChar(codePointAt(text, i))) {
+                    // A leading dash (e.g. "-5") keeps its word.
+                    while (i < text.length && !(isDash(text[i - 1]) && i - 1 > wordStart) &&
+                        !isBreakSpace(text[i]) && !breaksPerChar(codePointAt(text, i))
+                    ) {
                         i = graphemeEnd(text, i)
                     }
                 }
@@ -984,6 +993,12 @@ object RichTextProcessor : IRichTextProcessor {
     /** End of the grapheme starting at [i]; never splits surrogates or emoji sequences. */
     private fun graphemeEnd(text: String, i: Int): Int {
         var j = i + codePointLength(text, i)
+        // A flag is a pair of regional indicators.
+        if (isRegionalIndicator(codePointAt(text, i)) && j < text.length &&
+            isRegionalIndicator(codePointAt(text, j))
+        ) {
+            j += codePointLength(text, j)
+        }
         while (j < text.length) {
             val c = text[j].code
             j += when {
@@ -1006,6 +1021,10 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     private fun isBreakSpace(ch: Char): Boolean = ch == ' ' || ch == '\t'
+
+    private fun isDash(ch: Char): Boolean = ch == '-' || ch in '\u2010'..'\u2014'
+
+    private fun isRegionalIndicator(cp: Int): Boolean = cp in 0x1F1E6..0x1F1FF
 
     /** CJK ideographs (incl. Ext B+), kana, bopomofo, CJK symbols and punctuation, fullwidth forms. */
     private fun isIdeographic(cp: Int): Boolean =
@@ -1048,6 +1067,7 @@ object RichTextProcessor : IRichTextProcessor {
 
     private fun resetMeasureState(view: KRRichTextView) {
         lineSoftWrapped = JsArray()
+        breakAllLetters = view.ele.style.wordBreak == "break-all"
         view.spanHitBoxes.clear()
     }
 
@@ -1209,7 +1229,8 @@ object RichTextProcessor : IRichTextProcessor {
             letterSpacing = "",
             lineHeight = ele.style.lineHeight,
             constraintWidth = constraintSize.width,
-            numberOfLines = view.numberOfLines
+            numberOfLines = view.numberOfLines,
+            wordBreak = ele.style.wordBreak,
         )
         
         TextMeasureCache.get(cacheKey)?.let { cachedSize ->
@@ -1262,17 +1283,7 @@ object RichTextProcessor : IRichTextProcessor {
         // judgement can observe the real overflow state.
         applyLineBreakMargin(constraintSize, view, linesSizeList)
 
-        // If maximum number of lines is set, and actual exceeds maximum number of lines,
-        // use maximum number of lines, otherwise use actual number of lines for processing
-        if (view.numberOfLines in 1..linesSizeList.length) {
-            // Set multi-line style
-            setMultiLineStyle(view.numberOfLines, view)
-            // Keep specified height
-            linesSizeList = linesSizeList.slice(0, view.numberOfLines)
-        } else {
-            // Clear multi-line style
-            setMultiLineStyle(0, view)
-        }
+        linesSizeList = clampVisibleLines(constraintSize, view, linesSizeList)
 
         // Reset current line width and height
         resetCurrentLineSize(view)
@@ -1389,26 +1400,39 @@ object RichTextProcessor : IRichTextProcessor {
         // Apply lineBreakMargin before line-clamp so that the "is truncated"
         // judgement can observe the real overflow state.
         applyLineBreakMargin(constraintSize, view, linesSizeList)
-        // If maximum number of lines is set, and actual exceeds maximum number of lines,
-        // use maximum number of lines, otherwise use actual number of lines for processing
-        if (view.numberOfLines in 1..linesSizeList.length) {
-            // Set multi-line style
-            setMultiLineStyle(view.numberOfLines, view)
-            // Keep specified height
-            linesSizeList = linesSizeList.slice(0, view.numberOfLines)
-        } else {
-            // Clear multi-line style
-            setMultiLineStyle(0, view)
-        }
+        linesSizeList = clampVisibleLines(constraintSize, view, linesSizeList)
         // Here style changed, need to re-set divHtml, considering update queue problem,
         // whether need to delay setting, only rich text needs setting
         view.ele.setAttribute("nodes", view.divHtml)
 
-        // Calculate span offset top
-        calculateSpanOffsetTop(linesSizeList, view, constraintSize.width)
+        val size = calculateTotalSize(linesSizeList)
+        // Justify stretches to the host box, which gets the reported width.
+        calculateSpanOffsetTop(linesSizeList, view, size.width)
+        return size
+    }
 
-        // Get occupied size position information based on the final size list
-        return calculateTotalSize(linesSizeList)
+    /**
+     * Keep the lines [KRRichTextView.numberOfLines] allows and apply the
+     * matching clamp style. When lines are cut, the last visible line reports
+     * the full constraint width like native, so the ellipsis is not drawn early.
+     */
+    private fun clampVisibleLines(
+        constraintSize: SizeF,
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+    ): JsArray<SizeF> {
+        val maxLines = view.numberOfLines
+        if (maxLines !in 1..linesSizeList.length) {
+            setMultiLineStyle(0, view)
+            return linesSizeList
+        }
+        setMultiLineStyle(maxLines, view)
+        val visible = linesSizeList.slice(0, maxLines)
+        if (maxLines < linesSizeList.length && constraintSize.width > 0f) {
+            val last = visible.length - 1
+            visible[last] = SizeF(constraintSize.width, visible[last].height)
+        }
+        return visible
     }
 
     /**

@@ -693,25 +693,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     return typography_raw;
 }
 
-int KRRichTextShadow::TextIndexForTypographyOffset(int offset) const {
-    if (offset <= 0 || span_offsets_.empty()) {
-        return offset < 0 ? 0 : offset;
-    }
-    int text_index = 0;
-    for (const auto &span : span_offsets_) {
-        int begin = std::get<1>(span);
-        int end = std::get<2>(span);
-        if (offset <= begin) {
-            return text_index;
-        }
-        if (offset < end) {
-            return text_index + (offset - begin);
-        }
-        text_index += end - begin;
-    }
-    return text_index;
-}
-
 void KRRichTextShadow::ReleaseLastTypography() {
     // 同步在当前线程（通常是 context 线程，但在 “主线程 Kotlin 同步回调递归
     // 触发 measure” 的场景下也可能是主线程）上释放本身对 typography 的强引用。

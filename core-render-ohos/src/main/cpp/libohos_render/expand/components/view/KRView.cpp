@@ -806,17 +806,23 @@ void KRView::UpdateSelectionHandles() {
         }
     }
 
+    KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
+                        selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
+                        selection_info_.start.height + kSelectorCapWidth);
+    KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
+                            selection_info_.end.height + kSelectorCapWidth);
     if (auto props = GetBasePropsHandler()) {
-        // 圆点伸出文本行时暂时关闭裁剪。clipPath 存在时不改 NODE_CLIP。
-        props->SetContentClipSuspended(selection_info_.visible);
+        // 关闭裁剪会让其他越界子节点一起露出，只在手柄伸出容器时关闭。clipPath 存在时不改 NODE_CLIP。
+        auto frame = GetFrame();
+        auto outside = [&frame](const KRRect &rect) {
+            return rect.x < 0 || rect.y < 0 || rect.x + rect.width > frame.width ||
+                   rect.y + rect.height > frame.height;
+        };
+        props->SetContentClipSuspended(selection_info_.visible &&
+                                       (outside(wrapper_rect) || outside(end_wrapper_rect)));
     }
 
     if (selection_info_.visible) {
-        constexpr int kSelectorWidth = 20;
-        constexpr int kSelectorCapWidth = 12;
-        KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
-                            selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
-                            selection_info_.start.height + kSelectorCapWidth);
         KRRect head_rect((kSelectorWidth - kSelectorCapWidth) / 2, 0, kSelectorCapWidth, kSelectorCapWidth);
         KRRect body_rect((kSelectorWidth - selection_info_.start.width) / 2, kSelectorCapWidth,
                          selection_info_.start.width, selection_info_.start.height);
@@ -825,8 +831,6 @@ void KRView::UpdateSelectionHandles() {
         kuikly::util::UpdateNodeFrame(selection_info_.handle_nodes[0].body, body_rect);
         kuikly::util::UpdateNodeVisibility(selection_info_.handle_nodes[0].wrapper, 1);
 
-        KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
-                                selection_info_.end.height + kSelectorCapWidth);
         KRRect end_head_rect((kSelectorWidth - kSelectorCapWidth) / 2, selection_info_.end.height, kSelectorCapWidth,
                              kSelectorCapWidth);
         KRRect end_body_rect((kSelectorWidth - selection_info_.end.width) / 2, 0, selection_info_.end.width,

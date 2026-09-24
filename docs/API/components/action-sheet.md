@@ -4,11 +4,6 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/core/src/commonMain/kotlin/com/tencent/kuikly/core/views/ActionSheetView.kt)
 
-::::warning 平台说明
-- Android 端不使用毛玻璃（blur）效果，因其在 Android 上存在性能与稳定性问题，已主动排除。
-- Android 端物理返回键不会自动关闭 ActionSheet，需业务在 Native 侧监听返回事件并下发到 Kotlin 侧，通过 `showActionSheet` 自行控制关闭。
-::::
-
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

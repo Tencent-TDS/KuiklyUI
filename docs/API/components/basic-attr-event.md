@@ -11,19 +11,6 @@
 
 下面我们来看**样式属性**
 
-### 常用简写方法
-
-以下为高频使用的简写入口，等价于多个基础属性的组合：
-
-| 方法 | 等价写法 | 说明 |
-| -- | -- | -- |
-| `size(width, height)` | `width(w)` + `height(h)` | 同时设置宽高 |
-| `flex(value)` | 设置 FlexNode 的 flex 值 | 弹性占比，常用于 `flex(1f)` 撑满剩余空间 |
-| `margin(all)` | `margin(top = all, left = all, bottom = all, right = all)` | 四边外边距 |
-| `padding(all)` | `padding(top = all, left = all, bottom = all, right = all)` | 四边内边距 |
-| `maxSize(width, height)` / `minSize(width, height)` | `maxWidth` + `maxHeight` / `minWidth` + `minHeight` | 同时设置最大 / 最小尺寸 |
-| `backgroundColor(hexColor: Long)` | `backgroundColor(Color)` | 以 `0xAARRGGBB` 形式直接指定颜色 |
-
 ### backgroundColor方法
 
 背景颜色
@@ -1010,7 +997,7 @@ capture属性常用于以下场景：
 | -- | -- | -- |
 | enable | 是否交由父级处理 | Boolean |
 
-### testTag方法 <Badge text="2.18.1 及以上支持" type="warn"/> <Badge text="各端同步支持" type="warn"/>
+### testTag方法 <Badge text="2.18.1 及以上支持" type="warn"/>
 
 为组件设置测试标识，供自动化测试定位使用。
 

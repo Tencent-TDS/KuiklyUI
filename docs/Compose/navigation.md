@@ -1,5 +1,7 @@
 # 导航组件
 
+<Badge text="2.17.0 及以上支持" type="warn"/>
+
 本页说明 Kuikly Compose 中导航（Navigation）组件的支持情况与使用注意事项。  
 基础用法和官方保持一致，请**优先查阅 Jetpack Compose 官方文档**。
 
@@ -211,6 +213,19 @@ val graph = navController.createGraph(
 
 NavHost(navController, graph)
 ```
+
+## 多页面模块注册：@KuiklyModulePages <Badge text="2.27.0 及以上支持" type="warn"/>
+
+`@KuiklyModulePages` 用于把一个模块内的多个页面集中声明，配合 KSP 在编译期完成注册。
+
+```kotlin
+@KuiklyModulePages(pages = ["HomePage", "DetailPage"])
+object DemoModule
+```
+
+::::warning 破坏性变更
+自 2.27.0 起，同一模块内出现**同名 `@Page`** 会在编译期直接报错。迁移时请先消除页面重名，再升级到该版本。
+::::
 
 ## 状态保存
 

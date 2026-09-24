@@ -399,7 +399,7 @@ fun TextFieldWithMaxLength() {
 
 ### 可滚动组件扩展
 
-#### 点击状态栏返回顶部：`Modifier.scrollToTop`
+#### 点击状态栏返回顶部：`Modifier.scrollToTop` <Badge text="2.12.0 及以上支持" type="warn"/>
 
 用于拦截系统触发的"回到顶部"事件（iOS 和 Android ColorOS 等厂商系统点击状态栏时触发），默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理。
 

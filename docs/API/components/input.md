@@ -80,6 +80,14 @@
 
 设置输入法的下一步按钮类型为谷歌类型
 
+### returnKeyTypeNone方法
+
+设置输入法的下一步按钮类型为无（不显示下一步按钮）
+
+### returnKeyTypePrevious方法
+
+设置输入法的下一步按钮类型为上一项类型
+
 ### enablesReturnKeyAutomatically方法<Badge text="仅iOS" type="warn"/>
 
 自定根据内容禁用和启用iOS软件盘的Return Key
@@ -88,7 +96,7 @@
 
 设置是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘
 
-### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/>
+### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/> <Badge text="2.12.0 及以上支持" type="warn"/>
 
 是否启用拼音输入回调。当设置为 `true` 时，在拼音输入过程中（未确认选择汉字时）也会触发 `textDidChange` 回调。
 
@@ -258,7 +266,21 @@ internal class TestPage : BasePager() {
 
 :::
 
-### maxTextLength
+### selectionColor方法 <Badge text="2.20.1 及以上支持" type="warn"/>
+
+设置输入框文本选中时的高亮颜色。
+
+<div class="table-01">
+
+**selectionColor方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| color | 文本选中高亮颜色  | Color |
+
+</div>
+
+### maxTextLength <Badge text="2.15.0 及以上支持" type="warn"/>
 
 限制输入框的输入长度。支持三种内置长度限制类型（按字节、字符、视觉宽度计算）。
 
@@ -367,7 +389,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-@tab 已废弃的单参数用法
+@tab 已废弃的单参数用法 <Badge text="自 2.15.0 起废弃" type="danger"/>
 
 ```kotlin{13}
 @Page("demo_page")
@@ -468,7 +490,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### textPostProcessor方法 <Badge text="Android/iOS/鸿蒙支持" type="info"/>
+### textPostProcessor方法 <Badge text="Android/iOS/鸿蒙支持" type="info"/> <Badge text="2.18.1 及以上支持" type="warn"/>
 
 声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan` / `NSTextAttachment` / ArkUI `ImageAttachment`）。具体处理逻辑需在各端实现对应适配器，详见 [`text-post-processor-guide.md`](../../DevGuide/text-post-processor-guide.md)。
 

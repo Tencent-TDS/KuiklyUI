@@ -125,4 +125,4 @@ NMDataResponse = (data: ByteArray, success: Boolean, errorMsg: String, response:
 | 参数                                         | 描述     | 类型         |
 |:-------------------------------------------|:-------|:-----------|
 | headerFields                               | 响应头参数   | JSONObject |
-| statusCode <Badge text="非必需" type="warn"/> | 响应状态码   | Int        |
+| statusCode <Badge text="非必需" type="warn"/> <Badge text="鸿蒙 2.26.0 及以上支持" type="warn"/> | 响应状态码   | Int        |

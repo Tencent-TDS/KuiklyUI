@@ -98,7 +98,7 @@
 :::tip 注意 
 鸿蒙侧提供了两种 SharedPreferences 缓存实现：
 - KRSharedPreferencesModule：基于 XML 文件读写，兼容所有 API 版本
-- KROhSharedPreferencesModule：基于鸿蒙原生 oh_preferences C API（GSKV 格式），要求 OpenHarmony API 版本 ≥ 13
+- KROhSharedPreferencesModule <Badge text="鸿蒙 2.15.3 及以上支持" type="warn"/>：基于鸿蒙原生 oh_preferences C API（GSKV 格式），要求 OpenHarmony API 版本 ≥ 13
 - 业务在鸿蒙侧使用构建Preference实例时，`切勿设置fileName为 KROhSharedPreferencesModule`，避免造成缓存路径的冲突
 - 推荐在 API 13 及以上版本使用 KROhSharedPreferencesModule，其性能和数据安全性更优，接入方式参考以下代码： 
 
@@ -109,3 +109,23 @@ Kuikly({
 });
 ```
 :::
+## getItem方法
+
+原子读取，通过同步通道读取 key 对应的字符串值。
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+## setItem方法
+
+原子写入，通过同步通道写入 key 对应的字符串值。
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| key <Badge text="必需" type="warn"/> | 缓存key  | String |
+| value <Badge text="必需" type="warn"/> | 缓存值  | String |

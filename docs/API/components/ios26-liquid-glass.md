@@ -62,9 +62,27 @@ GlassEffectContainer {
 }
 ```
 
-## 更多液态玻璃组件
+## 液态玻璃组件清单
 
-Kuikly 内置提供了以下拥有液态玻璃效果的组件：
+Kuikly 的液态玻璃能力分为「属性入口」与「内置组件」两部分，全部入口如下：
+
+| 入口 | 类型 | 启用方式 | 说明 |
+| -- | -- | -- | -- |
+| 任意容器组件 | 属性 | `glassEffectIOS()` | 为任意继承自 ViewContainer 的组件（View、Button 等）添加液态玻璃效果 |
+| 任意容器组件 | 属性 | `glassEffectContainerIOS(spacing)` | 为容器添加融合效果，子元素相互靠近时产生视觉融合 |
+| [LiquidGlass](./liquid-glass.md) | 独立组件 | 无需额外设置 | 基础液态玻璃容器，等同于 View + `glassEffectIOS()` |
+| [GlassEffectContainer](./glass-effect-container.md) | 独立组件 | 无需额外设置 | 液态玻璃容器组合，等同于 View + `glassEffectContainerIOS()` |
+| [Switch](./switch.md#enableglasseffect) | 内置组件 | `enableGlassEffect(true)` | iOS 26+ 自动使用原生液态玻璃开关 |
+| [Slider](./slider.md#enableglasseffect) | 内置组件 | `enableGlassEffect(true)` | iOS 26+ 自动使用原生液态玻璃滑块 |
+| [iOSSegmentedControl](./ios-segmented-control.md) | iOS 原生组件 | 无需额外设置 | iOS 原生分段控件，自动具备液态玻璃外观 |
+
+属性入口的完整参数说明见 [View 组件 - glassEffectIOS](./view.md#glasseffectios)。
+
+::::tip Compose 侧
+Compose DSL 提供等价的 Modifier 入口：`Modifier.liquidGlass()` 与 `Modifier.liquidGlassContainer(spacing)`，详见 [Compose 核心能力 - 液态玻璃](../../Compose/kuikly-modifiers.md)。
+::::
+
+以下是各内置组件的启用示例：
 
 ### Switch 组件
 

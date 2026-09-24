@@ -169,8 +169,8 @@ internal class FontSizePage : BasePager() {
 | `fontWeightMedium()` | `fontWeight500()` | 中等 |
 | `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
 | `fontWeightBold()` | `fontWeight700()` | 粗体 |
-| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
-| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗<Badge text="2.14.0 及以上支持" type="warn"/> |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗<Badge text="2.14.0 及以上支持" type="warn"/> |
 
 </div>
 
@@ -318,6 +318,10 @@ internal class FontWeightPage : BasePager() {
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | lineBreakMargin | 最后一行折叠距离text组件frame.right距离 | String |
+
+::::tip 配套事件
+`onLineBreakMargin` 事件用于监听文本是否发生了折叠，H5 自 2.17.0 起支持。
+::::
 
 :::tabs
 
@@ -476,6 +480,10 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+### textOverFlowWordWrapping方法
+
+文本超出最大行数时按单词边界换行，不显示"..."
 
 ### textOverFlowClip方法<Badge text="安卓实现中" type="warn"/>
 
@@ -795,6 +803,14 @@ internal class TestPage : BasePager() {
 
 :::
 
+### paragraphSpacing方法
+
+设置段落之间的间距。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| value | 段落间距 | Float |
+
 ### lineSpacing方法
 
 设置文本行间距
@@ -889,6 +905,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+### fontStyleNormal方法
+
+设置字体样式为正常（默认）。
+
 ### fontStyleItalic方法
 
 设置文本为斜体
@@ -927,9 +947,13 @@ internal class TestPage : BasePager() {
 
 :::
 
-### firstLineHeadIndent方法
+### firstLineHeadIndent方法 <Badge text="鸿蒙 2.17.0 及以上支持" type="warn"/>
 
 文本首行缩进距离
+
+::::tip 版本说明
+该属性在其他端为基线能力，鸿蒙自 2.17.0 起支持。
+::::
 
 :::tabs
 

@@ -4,6 +4,11 @@
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ModalViewDemoPage.kt)
 
+::::warning 使用注意
+- `inWindow` 为 `true` 时依赖 Native 渲染层能力，端侧版本不满足最低要求时该设置会被忽略，Modal 退化为普通 View 容器。
+- `inWindow` 默认为 `false`，此时 Modal 尺寸与页面等大；如需自定义尺寸，请在 `attr` 中自行设置 `absolutePosition` 与 `size`。
+::::
+
 
 
 ## 属性
@@ -12,4 +17,28 @@
 
 ## 事件
 
-支持所有[基础事件](basic-attr-event.md#基础事件)
+支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
+
+### willDismiss
+
+监听系统返回键触发的关闭事件。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| reason | 关闭原因 | ModalDismissReason |
+
+**ModalDismissReason**
+
+| 枚举值 | 值 | 描述 |
+| -- | -- | -- |
+| BackPressed | 0 | 系统返回键触发 |
+
+```kotlin
+Modal {
+    event {
+        willDismiss { reason ->
+            // reason == ModalDismissReason.BackPressed 时表示用户按下了系统返回键
+        }
+    }
+}
+```

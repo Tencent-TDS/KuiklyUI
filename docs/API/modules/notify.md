@@ -26,6 +26,7 @@
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
 | eventName <Badge text="必需" type="warn"/> | 事件名字  | String |
+| crossProcess <Badge text="非必需" type="warn"/> <Badge text="仅 Android" type="warn"/> | 是否为跨进程通知，默认 false  | Boolean |
 | cb <Badge text="必需" type="warn"/> | 事件回调闭包  | CallbackFn |
 
 **示例**
@@ -66,3 +67,4 @@ class NotifyTestPage : Pager() {
 |:----|:-------|:--|
 | eventName <Badge text="必需" type="warn"/> | 事件名字  | String |
 | eventData <Badge text="必需" type="warn"/> | 事件参数  | JSONObject |
+| crossProcess <Badge text="非必需" type="warn"/> <Badge text="仅 Android" type="warn"/> | 是否为跨进程通知，默认 false  | Boolean |

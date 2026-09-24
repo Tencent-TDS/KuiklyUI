@@ -43,8 +43,10 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
     staticLayout.spacingMultiplier, staticLayout.spacingAdd
 ) {
 
-    // 仅测量尺寸时不会触发，首次绘制或水平查询时才按行计算
-    private val lines: Array<Line> by lazy {
+    // shadow 线程会继续修改共享的 paint，构造时取快照，测量与绘制都用它
+    private val basePaint = TextPaint(staticLayout.paint)
+    // 在构造所在的 shadow 线程算完，避免首帧在 UI 线程测量整段文本
+    private val lines: Array<Line> = run {
         val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
         val measurePaint = TextPaint()
         Array(staticLayout.lineCount) { buildLine(it, iterator, measurePaint) }
@@ -232,7 +234,7 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
     private fun isRegionalIndicator(codePoint: Int) = codePoint in 0x1F1E6..0x1F1FF
 
     private fun applyMeasureState(tp: TextPaint, start: Int, end: Int) {
-        tp.set(paint)
+        tp.set(basePaint)
         (text as? Spanned)?.getSpans(start, end, MetricAffectingSpan::class.java)?.forEach {
             if (it !is ReplacementSpan) it.updateMeasureState(tp)
         }
@@ -240,7 +242,7 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
 
     /** 绘制态在绘制时才应用：渐变等样式依赖最终的 Layout 尺寸。 */
     private fun applyDrawState(tp: TextPaint, run: Run): TextPaint {
-        tp.set(paint)
+        tp.set(basePaint)
         for (style in run.styles) style.updateDrawState(tp)
         return tp
     }
@@ -262,7 +264,6 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
             canvas.translate(0f, -cursorOffsetVertical.toFloat())
         }
         if (!canvas.getClipBounds(clipRect)) return
-        val lines = lines
         val first = getLineForVertical(maxOf(clipRect.top, 0))
         val last = getLineForVertical(clipRect.bottom)
         for (index in first..last) {
@@ -361,7 +362,8 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
     override fun getSecondaryHorizontal(offset: Int): Float = getPrimaryHorizontal(offset)
 
     override fun getOffsetForHorizontal(line: Int, horiz: Float): Int {
-        val data = lines[line.coerceIn(0, lines.lastIndex)]
+        val index = line.coerceIn(0, lines.lastIndex)
+        val data = lines[index]
         val xs = data.xs
         val count = xs.size - 1
         if (count == 0) return data.bounds[0]
@@ -371,7 +373,9 @@ internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
             val mid = (low + high + 1) ushr 1
             if (xs[mid] <= horiz) low = mid else high = mid - 1
         }
-        return if (horiz - xs[low] <= xs[low + 1] - horiz) data.bounds[low] else data.bounds[low + 1]
+        val offset = if (horiz - xs[low] <= xs[low + 1] - horiz) data.bounds[low] else data.bounds[low + 1]
+        // 与 Layout 一致：非末行不返回行尾，否则该光标会归到下一行
+        return if (index < lines.lastIndex && offset >= getLineEnd(index)) data.bounds[count - 1] else offset
     }
 
     override fun getOffsetToLeftOf(offset: Int): Int {

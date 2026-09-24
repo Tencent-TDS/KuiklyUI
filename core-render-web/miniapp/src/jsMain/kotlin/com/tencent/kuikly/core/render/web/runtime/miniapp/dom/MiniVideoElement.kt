@@ -30,7 +30,6 @@ class MiniVideoElement(
         })
 
         style.onStyleSet = fun (styleName, value): Boolean {
-            console.log(styleName, OBJECT_FIT, value)
             if (styleName == OBJECT_FIT) {
                 setAttribute(OBJECT_FIT, value)
                 return false

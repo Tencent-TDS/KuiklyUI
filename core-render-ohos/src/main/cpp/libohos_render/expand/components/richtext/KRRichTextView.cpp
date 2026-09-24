@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
+#include <algorithm>
 #include <codecvt>
 #include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
@@ -468,6 +469,7 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRectsAll() {
     KRParagraphSelectionInfo info;
     info.start = 0;
     info.text_content = text_content_;
+    info.span_offsets = span_offsets_;
     info.end = line_info_list_.empty() ? 0 : line_info_list_.back().line_metrics_.endIndex;
     info.selection_rects = selected_rect_list;
     return info;
@@ -665,6 +667,7 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRects2(KRPoint p0, KRPoint
 
     KRParagraphSelectionInfo info;
     info.text_content = text_content_;
+    info.span_offsets = span_offsets_;
     info.start = first_line_text_offset;
     info.end = rects.empty() || rects.front().width <= 0 ? last_line_text_offset : last_line_text_offset + 1;
     info.selection_rects = rects;
@@ -752,18 +755,37 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     return paragraph_info;
 }
 
+int KRParagraphSelectionInfo::TextIndexForTypographyOffset(int offset) const {
+    if (offset <= 0 || span_offsets.empty()) {
+        return offset < 0 ? 0 : offset;
+    }
+    int text_index = 0;
+    for (const auto &span : span_offsets) {
+        int begin = std::get<1>(span);
+        int end = std::get<2>(span);
+        if (offset <= begin) {
+            return text_index;
+        }
+        if (offset < end) {
+            return text_index + (offset - begin);
+        }
+        text_index += end - begin;
+    }
+    return text_index;
+}
+
 std::string KRRichTextView::GetSelectedContent(std::string &pre, std::string &post) {
     std::u16string str16 = utf8_to_utf16(selection_rects_.text_content);
+    size_t sel_end = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.end)),
+                              str16.size());
+    size_t sel_begin = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.start)),
+                                sel_end);
 
-    if (selection_rects_.start > 0) {
-        std::u16string pre_u16 = str16.substr(0, selection_rects_.start);
+    if (sel_begin > 0) {
+        std::u16string pre_u16 = str16.substr(0, sel_begin);
         pre = utf16_to_utf8(pre_u16);
     }
-    size_t sel_end = static_cast<size_t>(selection_rects_.end);
-    if (sel_end > str16.size()) {
-        sel_end = str16.size();
-    }
-    std::u16string selected_u16 = str16.substr(selection_rects_.start, sel_end - selection_rects_.start);
+    std::u16string selected_u16 = str16.substr(sel_begin, sel_end - sel_begin);
     std::string selected_u8 = utf16_to_utf8(selected_u16);
 
     if (sel_end < str16.size()) {

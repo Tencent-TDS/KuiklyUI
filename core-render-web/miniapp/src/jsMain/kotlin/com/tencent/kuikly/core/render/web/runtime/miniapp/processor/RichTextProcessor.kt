@@ -44,6 +44,9 @@ object RichTextProcessor : IRichTextProcessor {
     // Host `word-break: break-all` (set by the tail line-break mode and kept
     // after the clamp style changes) lets Latin words wrap at any letter.
     private var breakAllLetters = false
+    // Justified rich text must wrap where the device does, or the stretch lands
+    // on the wrong line; the Android width ratio makes it wrap too early.
+    private var justifyMeasure = false
     // Fixed android width ratio magic value, temporarily set to 1.05,
     // because Android real machine canvas measurement width result is smaller
     private const val WIDTH_RATIO_MAGIC = 1.05f
@@ -773,7 +776,7 @@ object RichTextProcessor : IRichTextProcessor {
         if (font.letterSpacing != 0f && graphemeCount > 0) {
             textWidth += graphemeCount * font.letterSpacing
         }
-        if (MiniGlobal.isAndroid) {
+        if (MiniGlobal.isAndroid && !justifyMeasure) {
             // Android canvas measurement is not accurate, so we need to multiply a magic number.
             // Apply AFTER letter-spacing compensation so both glyph width and spacing
             // are scaled by the same factor, keeping them consistent with real rendering.
@@ -1068,6 +1071,7 @@ object RichTextProcessor : IRichTextProcessor {
     private fun resetMeasureState(view: KRRichTextView) {
         lineSoftWrapped = JsArray()
         breakAllLetters = view.ele.style.wordBreak == "break-all"
+        justifyMeasure = view.isRichText && view.ele.style.textAlign == "justify"
         view.spanHitBoxes.clear()
     }
 
@@ -1081,10 +1085,11 @@ object RichTextProcessor : IRichTextProcessor {
 
     /**
      * Final position of every hit box and placeholder, one line at a time.
-     * Android text widths carry [WIDTH_RATIO_MAGIC]; they are divided out
-     * first so the justify gap is taken against the real host width. On a
-     * soft-wrapped line under `text-align: justify` the gap is shared per
-     * justification opportunity (spaces, boundaries next to CJK characters).
+     * Outside justify, Android text widths carry [WIDTH_RATIO_MAGIC] for the
+     * wrap decision only; it is divided out so a placeholder stays next to
+     * the text before it. On a soft-wrapped line under `text-align: justify`
+     * the gap is shared per justification opportunity (spaces, boundaries
+     * next to CJK characters).
      */
     private fun layoutHitBoxes(
         view: KRRichTextView,
@@ -1101,7 +1106,7 @@ object RichTextProcessor : IRichTextProcessor {
             while (to < boxes.length && boxes[to].lineIndex == line) {
                 to++
             }
-            if (MiniGlobal.isAndroid) {
+            if (MiniGlobal.isAndroid && !justifyMeasure) {
                 unscaleLine(boxes, from, to)
             }
             val visible = line < linesSizeList.length
@@ -1405,8 +1410,12 @@ object RichTextProcessor : IRichTextProcessor {
         // whether need to delay setting, only rich text needs setting
         view.ele.setAttribute("nodes", view.divHtml)
 
-        val size = calculateTotalSize(linesSizeList)
-        // Justify stretches to the host box, which gets the reported width.
+        var size = calculateTotalSize(linesSizeList)
+        // A justified paragraph that wraps takes the full constraint, so the host
+        // box, the stretch target and the placeholder positions all agree.
+        if (justifyMeasure && constraintSize.width > size.width && lineSoftWrapped.includes(true)) {
+            size = SizeF(constraintSize.width, size.height)
+        }
         calculateSpanOffsetTop(linesSizeList, view, size.width)
         return size
     }

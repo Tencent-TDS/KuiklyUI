@@ -141,6 +141,8 @@ View {
 
 ## 相关组件
 
+- [LiquidGlass组件](./liquid-glass.md) - 基础液态玻璃容器
+- [GlassEffectContainer组件](./glass-effect-container.md) - 液态玻璃容器组合
 - [Slider组件](./slider.md) - 支持液态玻璃效果的滑块组件（enableGlassEffect属性）
 - [Switch组件](./switch.md) - 支持液态玻璃效果的开关组件（enableGlassEffect属性）
 - [iOSSegmentedControl组件](./ios-segmented-control.md) - 支持液态玻璃的iOS原生分段控制器

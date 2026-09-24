@@ -309,9 +309,11 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     NSString *textPostProcessor = nil;
     NSMutableArray *richAttrArray = [NSMutableArray new];
     UIFont *mainFont = nil;
-    for (NSMutableDictionary * span in spans) {
+    for (NSInteger spanIndex = 0; spanIndex < spans.count; spanIndex++) {
+        NSMutableDictionary *span = spans[spanIndex];
         if (span[@"placeholderWidth"]) { // 属于占位span
-            NSAttributedString *placeholderSpanAttributedString = [self p_createPlaceholderSpanAttributedStringWithSpan:span];
+            NSAttributedString *placeholderSpanAttributedString = [self p_createPlaceholderSpanAttributedStringWithSpan:span
+                                                                                                             spanIndex:spanIndex];
             [richAttrArray addObject:placeholderSpanAttributedString];
             continue;
         }
@@ -346,7 +348,6 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         CGFloat headIndent = [KRConvertUtil CGFloat:propStyle[@"headIndent"]];
         UIColor *strokeColor = [UIView css_color:propStyle[@"strokeColor"]];
         CGFloat strokeWidth = [KRConvertUtil CGFloat:propStyle[@"strokeWidth"]];
-        NSInteger spanIndex = [spans indexOfObject:span];
 
         NSShadow *textShadow = nil;
         NSString *cssTextShadow = propStyle[@"textShadow"];
@@ -486,7 +487,8 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     return attributedString;
 }
 
-- (NSAttributedString *)p_createPlaceholderSpanAttributedStringWithSpan:(NSMutableDictionary *)span {
+- (NSAttributedString *)p_createPlaceholderSpanAttributedStringWithSpan:(NSMutableDictionary *)span
+                                                               spanIndex:(NSInteger)spanIndex {
     KRRichTextAttachment *attachment = [[KRRichTextAttachment alloc] init];
     CGFloat height = [span[@"placeholderHeight"] doubleValue];
     CGFloat width = [span[@"placeholderWidth"] doubleValue];
@@ -511,7 +513,6 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     // 段落样式与文本 span 一致，但不写基线偏移。占位符纵向位置由 attachment.bounds 决定。
     [self p_applyParagraphStyleToAttr:mutableAttrString propStyle:propStyle];
-    NSInteger spanIndex = [_spans indexOfObject:span];
     [mutableAttrString addAttribute:KuiklyIndexAttributeName value:@(spanIndex) range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }

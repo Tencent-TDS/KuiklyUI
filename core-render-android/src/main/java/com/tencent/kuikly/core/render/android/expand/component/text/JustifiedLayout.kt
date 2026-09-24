@@ -18,14 +18,12 @@ package com.tencent.kuikly.core.render.android.expand.component.text
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.text.PositionedGlyphs
+import android.graphics.Rect
 import android.os.Build
 import android.text.Layout
 import android.text.Spanned
 import android.text.StaticLayout
-import android.text.TextDirectionHeuristics
 import android.text.TextPaint
-import android.text.TextShaper
 import android.text.style.CharacterStyle
 import android.text.style.MetricAffectingSpan
 import android.text.style.ReplacementSpan
@@ -34,1541 +32,450 @@ import java.text.BreakIterator
 import java.util.Locale
 
 /**
- * 仅支持从左到右的两端对齐 [Layout]，最低 API 23。
+ * 从左到右文本的两端对齐 [Layout]，最低 API 23。
  *
- * 换行、行高和行边界使用传入的 [StaticLayout]。
- * 水平位置按字素计算，不使用 [StaticLayout] 的水平坐标。不支持 RTL。
+ * 换行、行高、省略号沿用 [staticLayout]；水平位置按字素簇重新分配，[ReplacementSpan] 视为一个字素。
+ * 末行、硬换行行、带省略号的行、字素少于 2 的行不拉伸。水平查询与绘制使用同一套坐标。
  */
 @RequiresApi(Build.VERSION_CODES.M)
-internal class JustifiedLayout(
-    text: CharSequence,
-    paint: TextPaint,
-    width: Int,
-    alignment: Alignment = Alignment.ALIGN_NORMAL,
-    spacingMult: Float = 1f,
-    spacingAdd: Float = 0f,
-    private val rightIndents: IntArray? = null,
-    private val staticLayout: StaticLayout
-) : Layout(
-    text, paint, width, alignment, spacingMult, spacingAdd
+internal class JustifiedLayout(private val staticLayout: StaticLayout) : Layout(
+    staticLayout.text, staticLayout.paint, staticLayout.width, staticLayout.alignment,
+    staticLayout.spacingMultiplier, staticLayout.spacingAdd
 ) {
 
-    companion object {
-        private const val ELLIPSIS = "\u2026"
+    // 仅测量尺寸时不会触发，首次绘制或水平查询时才按行计算
+    private val lines: Array<Line> by lazy {
+        val iterator = BreakIterator.getCharacterInstance(Locale.ROOT)
+        val measurePaint = TextPaint()
+        Array(staticLayout.lineCount) { buildLine(it, iterator, measurePaint) }
+    }
+    private val drawPaint = TextPaint()
+    private val clipRect = Rect()
+
+    private fun buildLine(index: Int, iterator: BreakIterator, tp: TextPaint): Line {
+        val spanned = text as? Spanned
+        val start = staticLayout.getLineStart(index)
+        val lineEnd = staticLayout.getLineEnd(index)
+        val visibleEnd = staticLayout.getLineVisibleEnd(index)
+        val ellipsized = staticLayout.getEllipsisCount(index) > 0
+        val end = contentEnd(index, start, keepTrailingReplacements(start, visibleEnd, lineEnd))
+        val length = end - start
+
+        // 在行内按 MetricAffectingSpan 分段测量，保留字距调整，宽度与 StaticLayout 一致
+        val charWidths = FloatArray(length)
+        val runWidths = FloatArray(length)
+        var m = start
+        while (m < end) {
+            val next = spanned?.nextSpanTransition(m, end, MetricAffectingSpan::class.java) ?: end
+            applyMeasureState(tp, m, next)
+            tp.getTextWidths(text, m, next, runWidths)
+            System.arraycopy(runWidths, 0, charWidths, m - start, next - m)
+            m = next
+        }
+
+        // 字素边界；ReplacementSpan 整体为一个字素
+        val bounds = IntArray(length + 1)
+        val widths = FloatArray(length)
+        val replacements = arrayOfNulls<ReplacementSpan>(length)
+        var count = 0
+        var natural = 0f
+        var broken = false
+        bounds[0] = start
+        if (length > 0) {
+            iterator.setText(CharSequenceCharacterIterator(text, start, end))
+        }
+        var p = start
+        while (p < end) {
+            val replacement = spanned?.let { replacementAt(it, p, end) }
+            val next: Int
+            val width: Float
+            if (replacement != null) {
+                val spanEnd = spanned.getSpanEnd(replacement)
+                // 跨行的 ReplacementSpan 无法整体摆放，该行退化为不拉伸
+                broken = broken || spanned.getSpanStart(replacement) < p || spanEnd > end
+                next = minOf(spanEnd, end)
+                applyMeasureState(tp, p, next)
+                width = replacement.getSize(tp, text, p, next, null).toFloat()
+            } else {
+                next = nextGrapheme(iterator, p, start, spanned?.nextSpanTransition(p, end, ReplacementSpan::class.java) ?: end)
+                var sum = 0f
+                for (c in p until next) sum += charWidths[c - start]
+                width = sum
+            }
+            // 连字、合体字的宽度记在首个字素上，后续字素宽度为 0，并入前一个字素才不会被拆开
+            if (replacement == null && width == 0f && count > 0 && replacements[count - 1] == null) {
+                bounds[count] = next
+            } else {
+                replacements[count] = replacement
+                widths[count] = width
+                bounds[++count] = next
+            }
+            natural += width
+            p = next
+        }
+
+        var hardBreak = false
+        for (i in visibleEnd until lineEnd) {
+            if (text[i] == '\n' || text[i] == '\r') hardBreak = true
+        }
+        val left = staticLayout.getParagraphLeft(index).toFloat()
+        val justify = !broken && !hardBreak && !ellipsized && count >= 2 && index < staticLayout.lineCount - 1
+        // 自然宽度略超内容宽度时 gap 为负，压缩到行内而不是溢出
+        val gap = if (justify) (staticLayout.getParagraphRight(index) - left - natural) / (count - 1) else 0f
+        val xs = FloatArray(count + 1)
+        xs[0] = left
+        for (k in 0 until count) {
+            xs[k + 1] = xs[k] + widths[k] + if (k < count - 1) gap else 0f
+        }
+
+        // 绘制分段：CharacterStyle 变化处切分并对齐到字素边界，ReplacementSpan 单独成段
+        val runs = ArrayList<Run>()
+        var k = 0
+        while (k < count) {
+            val replacement = replacements[k]
+            var e = k + 1
+            val styleEnd = if (replacement == null) {
+                val transition = spanned?.nextSpanTransition(bounds[k], end, CharacterStyle::class.java) ?: end
+                while (e < count && bounds[e] < transition && replacements[e] == null) e++
+                transition
+            } else {
+                bounds[e]
+            }
+            runs += Run(k, e, stylesOf(spanned, bounds[k], styleEnd, replacement != null), replacement)
+            k = e
+        }
+        if (runs.isEmpty() && ellipsized) {
+            runs += Run(0, 0, stylesOf(spanned, start, minOf(start + 1, text.length), false), null)
+        }
+        val ellipsisWidth = if (ellipsized) applyDrawState(tp, runs.last()).measureText(ELLIPSIS) else 0f
+        return Line(bounds.copyOf(count + 1), xs, runs.toTypedArray(), justify && gap != 0f, ellipsisWidth)
     }
 
-    private val lineData: Array<LineData>
-
-    init {
-        require(width >= 0) {
-            "width < 0"
+    /** 省略号之后的字符不绘制；省略号落在 ReplacementSpan 内部时截到其起点。 */
+    private fun contentEnd(index: Int, start: Int, end: Int): Int {
+        if (staticLayout.getEllipsisCount(index) <= 0) return end
+        var cut = (start + staticLayout.getEllipsisStart(index)).coerceIn(start, end)
+        val spanned = text as? Spanned ?: return cut
+        for (span in spanned.getSpans(start, cut, ReplacementSpan::class.java)) {
+            if (spanned.getSpanStart(span) < cut && spanned.getSpanEnd(span) > cut) cut = spanned.getSpanStart(span)
         }
-        lineData = buildLines()
-    }
-
-    private fun buildLines(): Array<LineData> {
-
-        val count = staticLayout.lineCount
-
-        val graphemeIterator = if (Build.VERSION.SDK_INT < 29) {
-            BreakIterator.getCharacterInstance(Locale.ROOT)
-        } else {
-            null
-        }
-
-        return Array(count) { lineIndex ->
-
-            val start = staticLayout.getLineStart(lineIndex)
-
-            val visibleEnd = staticLayout.getLineVisibleEnd(lineIndex)
-
-            val hardEnd = staticLayout.getLineEnd(lineIndex)
-
-            /*
-             * getLineVisibleEnd() drops trailing whitespace. Placeholder
-             * text defaults to a single space, so a ReplacementSpan at the
-             * line end would lose its width and be positioned on the
-             * justified right edge.
-             */
-            val keptEnd = includeTrailingReplacementSpans(
-                lineStart = start, visibleEnd = visibleEnd, hardEnd = hardEnd
-            )
-
-            val contentEnd = ellipsisContentEnd(
-                lineIndex = lineIndex, lineStart = start, lineVisibleEnd = keptEnd
-            )
-
-            val clusters = Clusterizer.build(
-                text = text,
-                start = start,
-                end = contentEnd,
-                paint = paint,
-                graphemeIterator = graphemeIterator
-            )
-
-            var naturalWidth = 0f
-
-            for (cluster in clusters) {
-
-                cluster.paint = obtainPaintForRange(
-                    text = text, basePaint = paint, start = cluster.start, end = cluster.end
-                )
-
-                cluster.naturalWidth = measureCluster(
-                    text = text,
-                    clusterPaint = cluster.paint,
-                    start = cluster.start,
-                    end = cluster.end,
-                    replacementSpan = cluster.replacementSpan
-                )
-
-                naturalWidth += cluster.naturalWidth
-            }
-
-            /*
-             * A line ending in an explicit newline must not be justified.
-             *
-             * getLineVisibleEnd() also removes trailing whitespace, so
-             * we explicitly inspect the hard line ending instead of merely
-             * comparing hardEnd and visibleEnd.
-             */
-            val hardBreak = hasHardLineBreak(
-                text = text, visibleEnd = visibleEnd, hardEnd = hardEnd
-            )
-
-            val isLastLine = lineIndex == count - 1
-
-            /*
-             * Stretch only inside the box StaticLayout used for breaking.
-             * LeadingMarginSpan and right indents stay outside that box.
-             */
-            val contentLeft = staticLayout.getParagraphLeft(lineIndex).toFloat()
-
-            val contentRight = staticLayout.getParagraphRight(lineIndex).toFloat() - lineIndent(rightIndents, lineIndex)
-
-            val contentWidth = (contentRight - contentLeft).coerceAtLeast(0f)
-
-            val shouldJustify =
-                clusters.size >= 2 && !hardBreak && !isLastLine &&
-                    staticLayout.getEllipsisCount(lineIndex) == 0 && naturalWidth < contentWidth
-
-            val gapCount = if (shouldJustify) {
-                clusters.size - 1
-            } else {
-                0
-            }
-
-            val extraGap = if (gapCount > 0) {
-                (contentWidth - naturalWidth) / gapCount
-            } else {
-                0f
-            }
-
-            val visualWidth = naturalWidth + extraGap * gapCount
-
-            val startX = contentLeft + resolveLineStartX(
-                alignment = alignment, visualWidth = visualWidth, contentWidth = contentWidth
-            )
-
-            val positions = FloatArray(
-                clusters.size + 1
-            )
-
-            var x = startX
-
-            positions[0] = x
-
-            for (index in clusters.indices) {
-
-                val cluster = clusters[index]
-
-                val extraAfter = if (shouldJustify && index < clusters.lastIndex) {
-                    extraGap
-                } else {
-                    0f
-                }
-
-                x += cluster.naturalWidth
-                x += extraAfter
-
-                positions[index + 1] = x
-            }
-
-            val ellipsisWidth = measureEllipsisWidth(
-                lineIndex = lineIndex, clusters = clusters
-            )
-
-            if (ellipsisWidth > 0f) {
-                val textEnd = positions[positions.lastIndex]
-                val ellipsisEnd = minOf(textEnd + ellipsisWidth, contentRight)
-                positions[positions.lastIndex] = maxOf(ellipsisEnd, textEnd)
-            }
-
-            LineData(
-                line = lineIndex,
-                start = start,
-                visibleEnd = contentEnd,
-                clusters = clusters,
-                positions = positions,
-                ellipsisWidth = ellipsisWidth
-            )
-        }
+        return cut.coerceAtLeast(start)
     }
 
     /**
-     * Ellipsized characters stay in the source line but must not be drawn.
-     * Cut before a ReplacementSpan when the ellipsis lands inside it.
+     * getLineVisibleEnd 会去掉行尾空白，而占位文本默认是空格。
+     * 把与可见末尾相连、且在换行符之前的 ReplacementSpan 补回，普通行尾空格仍然去掉。
      */
-    private fun ellipsisContentEnd(
-        lineIndex: Int, lineStart: Int, lineVisibleEnd: Int
-    ): Int {
-
-        if (staticLayout.getEllipsisCount(lineIndex) <= 0) {
-            return lineVisibleEnd
-        }
-
-        var end = (lineStart + staticLayout.getEllipsisStart(lineIndex)).coerceIn(
-            lineStart, lineVisibleEnd
-        )
-
-        val spanned = text
-        if (spanned !is Spanned || end <= lineStart) {
-            return end
-        }
-
-        val spans = spanned.getSpans(
-            lineStart, end, ReplacementSpan::class.java
-        )
-
-        for (span in spans) {
-
-            val spanStart = spanned.getSpanStart(span)
-
-            val spanEnd = spanned.getSpanEnd(span)
-
-            if (spanStart < end && spanEnd > end) {
-                end = minOf(end, spanStart)
-            }
-        }
-
-        return end.coerceAtLeast(lineStart)
-    }
-
-    /**
-     * Put back ReplacementSpans that [Layout.getLineVisibleEnd] trimmed
-     * only because their placeholder text is trailing whitespace.
-     *
-     * A span is restored when it is contiguous with the visible end
-     * (or already overlaps it) and stays on this line, before any newline.
-     * Plain trailing spaces after the span stay trimmed.
-     */
-    private fun includeTrailingReplacementSpans(
-        lineStart: Int, visibleEnd: Int, hardEnd: Int
-    ): Int {
-
+    private fun keepTrailingReplacements(start: Int, visibleEnd: Int, lineEnd: Int): Int {
         val spanned = text as? Spanned ?: return visibleEnd
-
-        var limit = hardEnd
-
-        for (index in visibleEnd until hardEnd) {
-
-            val ch = text[index]
-
-            if (ch == '\n' || ch == '\r') {
-                limit = index
-                break
-            }
-        }
-
+        var limit = visibleEnd
+        while (limit < lineEnd && text[limit] != '\n' && text[limit] != '\r') limit++
+        if (limit == visibleEnd) return visibleEnd
+        val spans = spanned.getSpans(start, limit, ReplacementSpan::class.java)
         var end = visibleEnd
-
-        if (end >= limit) {
-            return visibleEnd
-        }
-
-        val spans = spanned.getSpans(
-            lineStart, limit, ReplacementSpan::class.java
-        )
-
         var expanded = true
-
         while (expanded) {
-
             expanded = false
-
             for (span in spans) {
-
                 val spanStart = spanned.getSpanStart(span)
-
                 val spanEnd = spanned.getSpanEnd(span)
-
-                if (spanStart < lineStart || spanEnd > limit) {
-                    continue
+                if (spanStart >= start && spanEnd <= limit && spanStart <= end && spanEnd > end) {
+                    end = spanEnd
+                    expanded = true
                 }
-
-                if (spanEnd <= end || spanStart > end) {
-                    continue
-                }
-
-                end = spanEnd
-
-                expanded = true
             }
         }
-
         return end
     }
 
-    private fun measureEllipsisWidth(
-        lineIndex: Int, clusters: List<Cluster>
-    ): Float {
-
-        if (staticLayout.getEllipsisCount(lineIndex) <= 0) {
-            return 0f
-        }
-
-        val ellipsisPaint = clusters.lastOrNull()?.paint ?: paint
-
-        return ellipsisPaint.measureText(ELLIPSIS)
-    }
-
-    private fun hasHardLineBreak(
-        text: CharSequence, visibleEnd: Int, hardEnd: Int
-    ): Boolean {
-
-        if (visibleEnd >= hardEnd) {
-            return false
-        }
-
-        /*
-         * StaticLayout normally stores the line terminator in hardEnd.
-         *
-         * We only regard CR/LF as a hard paragraph break.
-         * Ordinary trailing spaces must not disable justification.
-         */
-        var index = hardEnd - 1
-
-        while (index >= visibleEnd) {
-
-            when (text[index]) {
-
-                '\n', '\r' -> return true
-
-                else -> index--
+    /** 覆盖 [position] 的最长 ReplacementSpan。 */
+    private fun replacementAt(spanned: Spanned, position: Int, end: Int): ReplacementSpan? {
+        var best: ReplacementSpan? = null
+        var bestLength = 0
+        for (span in spanned.getSpans(position, minOf(position + 1, end), ReplacementSpan::class.java)) {
+            val length = spanned.getSpanEnd(span) - spanned.getSpanStart(span)
+            if (length > bestLength) {
+                best = span
+                bestLength = length
             }
         }
-
-        return false
+        return best
     }
 
-    private fun lineIndent(indents: IntArray?, lineIndex: Int): Int {
-        if (indents == null || lineIndex !in indents.indices) {
-            return 0
+    private fun nextGrapheme(iterator: BreakIterator, position: Int, lineStart: Int, limit: Int): Int {
+        var next = iterator.following(position)
+        while (next != BreakIterator.DONE && next < limit && joinsPrevious(next, lineStart)) {
+            next = iterator.following(next)
         }
-        return indents[lineIndex]
+        return if (next == BreakIterator.DONE || next > limit) limit else next
     }
 
-    private fun resolveLineStartX(
-        alignment: Alignment, visualWidth: Float, contentWidth: Float
-    ): Float {
+    /** 旧版 ICU（API 23-28）会拆开的 emoji 序列：ZWJ、变体选择符、肤色修饰符、标签序列、成对的区域指示符。 */
+    private fun joinsPrevious(offset: Int, lineStart: Int): Boolean {
+        val before = Character.codePointBefore(text, offset)
+        val after = Character.codePointAt(text, offset)
+        if (before == ZWJ || after == ZWJ || after in 0xFE00..0xFE0F || after in 0x1F3FB..0x1F3FF ||
+            after in 0xE0020..0xE007F
+        ) {
+            return true
+        }
+        if (!isRegionalIndicator(before) || !isRegionalIndicator(after)) return false
+        var indicators = 0
+        var i = offset
+        while (i > lineStart && isRegionalIndicator(Character.codePointBefore(text, i))) {
+            indicators++
+            i -= 2
+        }
+        return indicators % 2 == 1
+    }
 
-        return when (alignment) {
+    private fun isRegionalIndicator(codePoint: Int) = codePoint in 0x1F1E6..0x1F1FF
 
-            Alignment.ALIGN_CENTER -> (contentWidth - visualWidth) * 0.5f
-
-            Alignment.ALIGN_OPPOSITE -> contentWidth - visualWidth
-
-            else -> 0f
+    private fun applyMeasureState(tp: TextPaint, start: Int, end: Int) {
+        tp.set(paint)
+        (text as? Spanned)?.getSpans(start, end, MetricAffectingSpan::class.java)?.forEach {
+            if (it !is ReplacementSpan) it.updateMeasureState(tp)
         }
     }
 
-    private fun measureCluster(
-        text: CharSequence,
-        clusterPaint: TextPaint,
-        start: Int,
-        end: Int,
-        replacementSpan: ReplacementSpan?
-    ): Float {
-
-        if (start >= end) {
-            return 0f
-        }
-
-        if (replacementSpan != null) {
-
-            val fm = Paint.FontMetricsInt()
-
-            clusterPaint.getFontMetricsInt(fm)
-
-            return replacementSpan.getSize(
-                    clusterPaint, text, start, end, fm
-                ).toFloat()
-        }
-
-        /*
-         * API 23+.
-         *
-         * Because this method measures one grapheme cluster at a time,
-         * start/end/contextStart/contextEnd are identical.
-         */
-        return clusterPaint.getRunAdvance(
-            text, start, end, start, end, false, end
-        )
+    /** 绘制态在绘制时才应用：渐变等样式依赖最终的 Layout 尺寸。 */
+    private fun applyDrawState(tp: TextPaint, run: Run): TextPaint {
+        tp.set(paint)
+        for (style in run.styles) style.updateDrawState(tp)
+        return tp
     }
 
-    /**
-     * Creates the effective paint for a text range.
-     *
-     * MetricAffectingSpan:
-     *   updateMeasureState()
-     *
-     * CharacterStyle:
-     *   updateDrawState()
-     *
-     * ReplacementSpan is deliberately excluded because it is measured
-     * and drawn explicitly.
-     */
-    private fun obtainPaintForRange(
-        text: CharSequence, basePaint: TextPaint, start: Int, end: Int
-    ): TextPaint {
-
-        val result = TextPaint()
-
-        result.set(basePaint)
-
-        if (text !is Spanned) {
-            return result
-        }
-
-        val metricSpans = text.getSpans(
-            start, end, MetricAffectingSpan::class.java
-        )
-
-        for (span in metricSpans) {
-
-            if (span is ReplacementSpan) {
-                continue
-            }
-
-            span.updateMeasureState(result)
-        }
-
-        val characterSpans = text.getSpans(
-            start, end, CharacterStyle::class.java
-        )
-
-        for (span in characterSpans) {
-
-            if (span is ReplacementSpan) {
-                continue
-            }
-
-            span.updateDrawState(result)
-        }
-
-        return result
+    private fun stylesOf(spanned: Spanned?, start: Int, end: Int, replacement: Boolean): Array<CharacterStyle> {
+        val spans = spanned?.getSpans(start, end, CharacterStyle::class.java) ?: return NO_STYLES
+        // 与 TextLine 一致：ReplacementSpan 只接收 MetricAffectingSpan 的绘制态
+        return spans.filter { it !is ReplacementSpan && (!replacement || it is MetricAffectingSpan) }.toTypedArray()
     }
 
     override fun draw(canvas: Canvas) {
-
-        /*
-         * Layout.draw() normally draws background first.
-         *
-         * We intentionally draw our custom text here. Background spans are
-         * not part of the custom horizontal positioning system.
-         */
-        drawInternal(canvas)
+        draw(canvas, null, null, 0)
     }
 
-    override fun draw(
-        canvas: Canvas,
-        selectionHighlight: Path?,
-        selectionHighlightPaint: Paint?,
-        cursorOffsetVertical: Int
-    ) {
-
-        if (selectionHighlight != null && selectionHighlightPaint != null) {
-
-            if (cursorOffsetVertical != 0) {
-                canvas.save()
-
-                canvas.translate(
-                    0f, cursorOffsetVertical.toFloat()
-                )
-
-                canvas.drawPath(
-                    selectionHighlight, selectionHighlightPaint
-                )
-
-                canvas.restore()
-
-            } else {
-
-                canvas.drawPath(
-                    selectionHighlight, selectionHighlightPaint
-                )
-            }
+    override fun draw(canvas: Canvas, highlight: Path?, highlightPaint: Paint?, cursorOffsetVertical: Int) {
+        if (highlight != null && highlightPaint != null) {
+            canvas.translate(0f, cursorOffsetVertical.toFloat())
+            canvas.drawPath(highlight, highlightPaint)
+            canvas.translate(0f, -cursorOffsetVertical.toFloat())
         }
-
-        drawInternal(canvas)
-    }
-
-    private fun drawInternal(
-        canvas: Canvas
-    ) {
-
-        for (line in lineData) {
-            drawLine(
-                canvas, line
-            )
+        if (!canvas.getClipBounds(clipRect)) return
+        val lines = lines
+        val first = getLineForVertical(maxOf(clipRect.top, 0))
+        val last = getLineForVertical(clipRect.bottom)
+        for (index in first..last) {
+            drawLine(canvas, index, lines[index])
         }
     }
 
-    private fun drawLine(
-        canvas: Canvas, line: LineData
-    ) {
-
-        val baseline = getLineBaseline(line.line)
-
-        val top = getLineTop(line.line)
-
-        val bottom = getLineBottom(line.line)
-
-        for (index in line.clusters.indices) {
-
-            val cluster = line.clusters[index]
-
-            val x = line.positions[index]
-
-            val replacement = cluster.replacementSpan
-
+    private fun drawLine(canvas: Canvas, index: Int, line: Line) {
+        val top = getLineTop(index)
+        val bottom = getLineBottom(index)
+        val baseline = getLineBaseline(index)
+        val bounds = line.bounds
+        val xs = line.xs
+        for (run in line.runs) {
+            val tp = applyDrawState(drawPaint, run)
+            val x = xs[run.start]
+            val withEllipsis = line.ellipsisWidth > 0f && run === line.runs.last()
+            val replacement = run.replacement
             if (replacement != null) {
-
-                drawReplacementSpan(
-                    canvas = canvas,
-                    cluster = cluster,
-                    x = x,
-                    top = top,
-                    baseline = baseline,
-                    bottom = bottom
-                )
-
+                replacement.draw(canvas, text, bounds[run.start], bounds[run.end], x, top, baseline, bottom, tp)
+                if (withEllipsis) canvas.drawText(ELLIPSIS, xs[run.end], baseline.toFloat(), tp)
+                continue
+            }
+            val right = if (withEllipsis) line.right else xs[run.end]
+            val y = (baseline + tp.baselineShift).toFloat()
+            if (tp.bgColor != 0) {
+                val color = tp.color
+                val style = tp.style
+                tp.color = tp.bgColor
+                tp.style = Paint.Style.FILL
+                canvas.drawRect(x, top.toFloat(), right, bottom.toFloat(), tp)
+                tp.color = color
+                tp.style = style
+            }
+            // 下划线、删除线自行绘制，才能连续覆盖拉伸出的空白
+            val underline = tp.isUnderlineText
+            val strikeThru = tp.isStrikeThruText
+            tp.isUnderlineText = false
+            tp.isStrikeThruText = false
+            if (!line.stretched) {
+                val start = bounds[run.start]
+                val end = bounds[run.end]
+                if (start < end) canvas.drawTextRun(text, start, end, start, end, x, y, false, tp)
             } else {
-
-                drawTextCluster(
-                    canvas = canvas, cluster = cluster, x = x, baseline = baseline
-                )
-            }
-        }
-
-        /*
-         * API 31+ draws glyphs with Canvas.drawGlyphs(), which ignores
-         * underline and strikethrough. Framework TextLine strokes those
-         * decorations itself after shaping. API 23-30 still goes through
-         * drawTextRun(), which paints the flags.
-         */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            drawApi31Decorations(
-                canvas = canvas, line = line, baseline = baseline
-            )
-        }
-
-        if (line.ellipsisWidth > 0f) {
-            val ellipsisPaint = line.clusters.lastOrNull()?.paint ?: paint
-            canvas.drawText(
-                ELLIPSIS,
-                line.positions.last() - line.ellipsisWidth,
-                baseline.toFloat(),
-                ellipsisPaint
-            )
-        }
-    }
-
-    private fun drawReplacementSpan(
-        canvas: Canvas, cluster: Cluster, x: Float, top: Int, baseline: Int, bottom: Int
-    ) {
-
-        val span = cluster.replacementSpan ?: return
-
-        span.draw(
-            canvas, text, cluster.start, cluster.end, x, top, baseline, bottom, cluster.paint
-        )
-    }
-
-    private fun drawTextCluster(
-        canvas: Canvas, cluster: Cluster, x: Float, baseline: Int
-    ) {
-
-        if (cluster.start >= cluster.end) {
-            return
-        }
-
-        val clusterPaint = cluster.paint
-
-        if (Build.VERSION.SDK_INT >= 31) {
-
-            Api31Renderer.draw(
-                canvas = canvas,
-                text = text,
-                start = cluster.start,
-                end = cluster.end,
-                x = x,
-                baseline = baseline.toFloat(),
-                paint = clusterPaint
-            )
-
-        } else {
-
-            drawTextClusterLegacy(
-                canvas = canvas, cluster = cluster, x = x, baseline = baseline, paint = clusterPaint
-            )
-        }
-    }
-
-    /**
-     * API 23 - 30.
-     */
-    private fun drawTextClusterLegacy(
-        canvas: Canvas, cluster: Cluster, x: Float, baseline: Int, paint: TextPaint
-    ) {
-
-            canvas.drawTextRun(
-            text,
-            cluster.start,
-            cluster.end,
-            cluster.start,
-            cluster.end,
-            x,
-            baseline.toFloat(),
-            false,
-            paint
-        )
-    }
-
-    /**
-     * Underline and strikethrough for the [Canvas.drawGlyphs] path.
-     *
-     * Stroke geometry matches framework [android.text.TextLine]:
-     * top = baseline + position, height = thickness, fill rect.
-     * Adjacent clusters that share the same decoration are merged so
-     * justification gaps stay inside one continuous stroke.
-     */
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun drawApi31Decorations(
-        canvas: Canvas, line: LineData, baseline: Int
-    ) {
-
-        var index = 0
-
-        while (index < line.clusters.size) {
-
-            val cluster = line.clusters[index]
-
-            if (cluster.replacementSpan != null) {
-                index++
-                continue
-            }
-
-            val clusterPaint = cluster.paint
-
-            if (!hasTextDecoration(clusterPaint)) {
-                index++
-                continue
-            }
-
-            var end = index + 1
-
-            while (end < line.clusters.size) {
-
-                val next = line.clusters[end]
-
-                if (next.replacementSpan != null) {
-                    break
+                for (k in run.start until run.end) {
+                    canvas.drawTextRun(text, bounds[k], bounds[k + 1], bounds[k], bounds[k + 1], xs[k], y, false, tp)
                 }
-
-                val nextPaint = next.paint
-
-                if (!sameTextDecoration(clusterPaint, nextPaint)) {
-                    break
-                }
-
-                end++
             }
-
-            drawTextDecorations(
-                canvas = canvas,
-                paint = clusterPaint,
-                left = line.positions[index],
-                right = decorationRight(line, end - 1),
-                baseline = baseline.toFloat()
-            )
-
-            index = end
+            if (withEllipsis) canvas.drawText(ELLIPSIS, xs[run.end], y, tp)
+            drawDecorations(canvas, tp, underline, strikeThru, x, right, y)
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun decorationRight(
-        line: LineData, index: Int
-    ): Float {
-
-        val cluster = line.clusters[index]
-
-        /*
-         * The trailing position of the last cluster is extended for the
-         * ellipsis. Decorations stop at the glyph advance. Earlier clusters
-         * include the justification gap that was inserted after them.
-         */
-        return if (index < line.clusters.lastIndex) {
-            line.positions[index + 1]
+    /** 几何与 TextLine 一致：API 29+ 用字体度量，更低版本用 Skia 默认比例。 */
+    private fun drawDecorations(
+        canvas: Canvas, tp: TextPaint, underline: Boolean, strikeThru: Boolean, left: Float, right: Float, y: Float
+    ) {
+        val underlineColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tp.underlineColor else 0
+        if (left >= right || (!underline && !strikeThru && underlineColor == 0)) return
+        val color = tp.color
+        tp.style = Paint.Style.FILL
+        tp.isAntiAlias = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // 设置了 underlineColor 时，TextPaint.getUnderlineThickness 返回自定义粗细
+            if (underlineColor != 0) {
+                drawStroke(canvas, tp, underlineColor, tp.getUnderlinePosition(), tp.getUnderlineThickness(), left, right, y)
+            }
+            if (underline) {
+                val thickness = maxOf(tp.getUnderlineThickness(), 1f)
+                drawStroke(canvas, tp, color, tp.getUnderlinePosition(), thickness, left, right, y)
+            }
+            if (strikeThru) {
+                val thickness = maxOf(tp.getStrikeThruThickness(), 1f)
+                drawStroke(canvas, tp, color, tp.getStrikeThruPosition(), thickness, left, right, y)
+            }
         } else {
-            line.positions[index] + cluster.naturalWidth
+            val thickness = maxOf(tp.textSize * UNDERLINE_THICKNESS, 1f)
+            if (underline) drawStroke(canvas, tp, color, tp.textSize * UNDERLINE_OFFSET, thickness, left, right, y)
+            if (strikeThru) drawStroke(canvas, tp, color, tp.textSize * STRIKE_THRU_OFFSET, thickness, left, right, y)
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun hasTextDecoration(paint: TextPaint): Boolean {
-        return paint.isUnderlineText || paint.isStrikeThruText || paint.underlineColor != 0
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun sameTextDecoration(
-        left: TextPaint, right: TextPaint
-    ): Boolean {
-
-        return left.isUnderlineText == right.isUnderlineText &&
-            left.isStrikeThruText == right.isStrikeThruText &&
-            left.underlineColor == right.underlineColor &&
-            left.underlineThickness == right.underlineThickness &&
-            left.color == right.color &&
-            left.getUnderlinePosition() == right.getUnderlinePosition() &&
-            left.getUnderlineThickness() == right.getUnderlineThickness() &&
-            left.getStrikeThruPosition() == right.getStrikeThruPosition() &&
-            left.getStrikeThruThickness() == right.getStrikeThruThickness()
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun drawTextDecorations(
-        canvas: Canvas, paint: TextPaint, left: Float, right: Float, baseline: Float
+    private fun drawStroke(
+        canvas: Canvas, tp: TextPaint, color: Int, position: Float, thickness: Float, left: Float, right: Float, y: Float
     ) {
-
-        if (left >= right) {
-            return
-        }
-
-        /*
-         * TextPaint.underlineColor draws a custom stroke first.
-         * Paint underline / strikethrough flags then draw the font stroke.
-         * Font metrics come from getUnderlinePosition/Thickness.
-         * TextPaint.underlineThickness is a separate custom-thickness field.
-         */
-        if (paint.underlineColor != 0) {
-            drawDecorationStroke(
-                canvas = canvas,
-                paint = paint,
-                color = paint.underlineColor,
-                position = paint.getUnderlinePosition(),
-                thickness = paint.underlineThickness,
-                left = left,
-                right = right,
-                baseline = baseline
-            )
-        }
-
-        if (paint.isUnderlineText) {
-            drawDecorationStroke(
-                canvas = canvas,
-                paint = paint,
-                color = paint.color,
-                position = paint.getUnderlinePosition(),
-                thickness = kotlin.math.max(paint.getUnderlineThickness(), 1f),
-                left = left,
-                right = right,
-                baseline = baseline
-            )
-        }
-
-        if (paint.isStrikeThruText) {
-            drawDecorationStroke(
-                canvas = canvas,
-                paint = paint,
-                color = paint.color,
-                position = paint.getStrikeThruPosition(),
-                thickness = kotlin.math.max(paint.getStrikeThruThickness(), 1f),
-                left = left,
-                right = right,
-                baseline = baseline
-            )
-        }
+        if (thickness <= 0f) return
+        tp.color = color
+        canvas.drawRect(left, y + position, right, y + position + thickness, tp)
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun drawDecorationStroke(
-        canvas: Canvas,
-        paint: TextPaint,
-        color: Int,
-        position: Float,
-        thickness: Float,
-        left: Float,
-        right: Float,
-        baseline: Float
-    ) {
-
-        if (thickness <= 0f) {
-            return
-        }
-
-        val strokeTop = baseline + position
-
-        val previousColor = paint.color
-
-        val previousStyle = paint.style
-
-        val previousAntiAlias = paint.isAntiAlias
-
-        paint.style = Paint.Style.FILL
-
-        paint.isAntiAlias = true
-
-        paint.color = color
-
-        canvas.drawRect(
-            left, strokeTop, right, strokeTop + thickness, paint
-        )
-
-        paint.style = previousStyle
-
-        paint.color = previousColor
-
-        paint.isAntiAlias = previousAntiAlias
+    override fun getPrimaryHorizontal(offset: Int): Float {
+        val line = lines[getLineForOffset(offset)]
+        return line.xs[line.floorCluster(offset)]
     }
 
-    override fun getPrimaryHorizontal(
-        offset: Int
-    ): Float {
+    override fun getSecondaryHorizontal(offset: Int): Float = getPrimaryHorizontal(offset)
 
-        val safeOffset = offset.coerceIn(
-            0, text.length
-        )
-
-        val lineIndex = getLineForOffset(safeOffset)
-
-        return getPrimaryHorizontalInLine(
-            lineData[lineIndex], safeOffset
-        )
-    }
-
-    override fun getSecondaryHorizontal(
-        offset: Int
-    ): Float {
-
-        /*
-         * LTR-only.
-         */
-        return getPrimaryHorizontal(offset)
-    }
-
-    private fun getPrimaryHorizontalInLine(
-        line: LineData, offset: Int
-    ): Float {
-
-        if (line.clusters.isEmpty()) {
-            return line.positions.firstOrNull() ?: 0f
-        }
-
-        if (offset <= line.start) {
-            return line.positions.first()
-        }
-
-        if (offset >= line.visibleEnd) {
-            return line.positions.last()
-        }
-
-        val index = line.findClusterForOffset(offset)
-
-        if (index < 0) {
-            return line.positions.first()
-        }
-
-        val cluster = line.clusters[index]
-
-        return when {
-
-            offset <= cluster.start -> line.positions[index]
-
-            offset >= cluster.end -> line.positions[index + 1]
-
-            else ->/*
-                 * Inside grapheme cluster / ReplacementSpan.
-                 *
-                 * Cursor and horizontal mapping are atomic.
-                 */
-                line.positions[index]
-        }
-    }
-
-    override fun getOffsetForHorizontal(
-        line: Int, horiz: Float
-    ): Int {
-
-        if (lineData.isEmpty()) {
-            return 0
-        }
-
-        val safeLine = line.coerceIn(
-            0, lineData.lastIndex
-        )
-
-        val data = lineData[safeLine]
-
-        if (data.clusters.isEmpty()) {
-            return data.start
-        }
-
-        val clusters = data.clusters
-
-        /*
-         * Before the first cluster.
-         */
-        if (horiz <= data.positions.first()) {
-            return clusters.first().start
-        }
-
-        /*
-         * After the last cluster.
-         */
-        if (horiz >= data.positions.last()) {
-            return clusters.last().end
-        }
-
-        /*
-         * Find the cluster containing the horizontal coordinate.
-         */
+    override fun getOffsetForHorizontal(line: Int, horiz: Float): Int {
+        val data = lines[line.coerceIn(0, lines.lastIndex)]
+        val xs = data.xs
+        val count = xs.size - 1
+        if (count == 0) return data.bounds[0]
         var low = 0
-        var high = clusters.lastIndex
-
-        while (low <= high) {
-
-            val mid = (low + high) ushr 1
-
-            val left = data.positions[mid]
-
-            val right = data.positions[mid + 1]
-
-            when {
-
-                horiz < left -> high = mid - 1
-
-                horiz > right -> low = mid + 1
-
-                else -> {
-
-                    val distanceLeft = kotlin.math.abs(
-                        horiz - left
-                    )
-
-                    val distanceRight = kotlin.math.abs(
-                        horiz - right
-                    )
-
-                    return if (distanceLeft <= distanceRight) {
-                        clusters[mid].start
-                    } else {
-                        clusters[mid].end
-                    }
-                }
-            }
+        var high = count - 1
+        while (low < high) {
+            val mid = (low + high + 1) ushr 1
+            if (xs[mid] <= horiz) low = mid else high = mid - 1
         }
-
-        /*
-         * This should normally be unreachable because the previous
-         * boundary checks cover both ends.
-         *
-         * Still return a deterministic boundary.
-         */
-        val boundary = low.coerceIn(
-            1, clusters.size - 1
-        )
-
-        return clusters[boundary - 1].end
+        return if (horiz - xs[low] <= xs[low + 1] - horiz) data.bounds[low] else data.bounds[low + 1]
     }
 
-    override fun getCursorPath(
-        point: Int, dest: Path, editingBuffer: CharSequence?
-    ) {
-
-        dest.reset()
-
-        if (lineData.isEmpty()) {
-            return
+    override fun getOffsetToLeftOf(offset: Int): Int {
+        val index = getLineForOffset(offset)
+        val line = lines[index]
+        val bounds = line.bounds
+        return when {
+            offset > bounds.last() -> bounds.last()
+            offset > bounds[0] -> bounds[line.floorCluster(offset - 1)]
+            index > 0 -> lines[index - 1].bounds.last()
+            else -> offset
         }
-
-        val safePoint = point.coerceIn(
-            0, text.length
-        )
-
-        val lineIndex = getLineForOffset(safePoint)
-
-        val line = lineData[lineIndex]
-
-        val x = getPrimaryHorizontalInLine(
-            line, safePoint
-        )
-
-        val top = getLineTop(lineIndex)
-
-        val bottom = getLineBottom(lineIndex)
-
-        dest.moveTo(
-            x, top.toFloat()
-        )
-
-        dest.lineTo(
-            x, bottom.toFloat()
-        )
     }
 
-    override fun getSelectionPath(
-        start: Int, end: Int, dest: Path
-    ) {
+    override fun getOffsetToRightOf(offset: Int): Int {
+        val index = getLineForOffset(offset)
+        val line = lines[index]
+        val bounds = line.bounds
+        return if (offset < bounds.last()) bounds[line.floorCluster(offset) + 1] else getLineEnd(index)
+    }
 
+    override fun getLineLeft(line: Int): Float = lines[line].xs[0]
+
+    override fun getLineRight(line: Int): Float = lines[line].right
+
+    // 与 Layout 相同，包含首行缩进等段落左边距
+    override fun getLineMax(line: Int): Float = lines[line].right
+
+    override fun getLineWidth(line: Int): Float = lines[line].right - lines[line].xs[0]
+
+    override fun getCursorPath(point: Int, dest: Path, editingBuffer: CharSequence?) {
         dest.reset()
+        val line = getLineForOffset(point)
+        val x = getPrimaryHorizontal(point)
+        dest.moveTo(x, getLineTop(line).toFloat())
+        dest.lineTo(x, getLineBottom(line).toFloat())
+    }
 
-        if (lineData.isEmpty()) {
-            return
-        }
-
-        var selectionStart = start.coerceIn(
-            0, text.length
-        )
-
-        var selectionEnd = end.coerceIn(
-            0, text.length
-        )
-
-        if (selectionStart > selectionEnd) {
-
-            val tmp = selectionStart
-
-            selectionStart = selectionEnd
-
-            selectionEnd = tmp
-        }
-
-        if (selectionStart == selectionEnd) {
-            return
-        }
-
-        val firstLine = getLineForOffset(selectionStart)
-
-        val lastLine = getLineForOffset(selectionEnd)
-
-        for (lineIndex in firstLine..lastLine) {
-
-            val data = lineData[lineIndex]
-
-            val lineStart = data.start
-
-            val lineEnd = data.visibleEnd
-
-            val selectedStart = maxOf(
-                selectionStart, lineStart
-            )
-
-            val selectedEnd = minOf(
-                selectionEnd, lineEnd
-            )
-
-            if (selectedStart >= selectedEnd) {
-                continue
-            }
-
-            val x1 = getPrimaryHorizontalInLine(
-                data, selectedStart
-            )
-
-            val x2 = getPrimaryHorizontalInLine(
-                data, selectedEnd
-            )
-
-            val left = minOf(
-                x1, x2
-            )
-
-            val right = maxOf(
-                x1, x2
-            )
-
-            val top = getLineTop(lineIndex)
-
-            val bottom = getLineBottom(lineIndex)
-
+    override fun getSelectionPath(start: Int, end: Int, dest: Path) {
+        dest.reset()
+        val selectionStart = minOf(start, end).coerceIn(0, text.length)
+        val selectionEnd = maxOf(start, end).coerceIn(0, text.length)
+        if (selectionStart == selectionEnd) return
+        for (index in getLineForOffset(selectionStart)..getLineForOffset(selectionEnd)) {
+            val line = lines[index]
+            val from = maxOf(selectionStart, line.bounds[0])
+            val to = minOf(selectionEnd, line.bounds.last())
+            if (from >= to) continue
             dest.addRect(
-                left, top.toFloat(), right, bottom.toFloat(), Path.Direction.CW
+                line.xs[line.floorCluster(from)], getLineTop(index).toFloat(),
+                line.xs[line.floorCluster(to)], getLineBottom(index).toFloat(), Path.Direction.CW
             )
         }
     }
 
     override fun getLineCount(): Int = staticLayout.lineCount
-
-    override fun getLineTop(
-        line: Int
-    ): Int = staticLayout.getLineTop(line)
-
-    override fun getLineDescent(
-        line: Int
-    ): Int = staticLayout.getLineDescent(line)
-
-    override fun getLineStart(
-        line: Int
-    ): Int = staticLayout.getLineStart(line)
-
-    override fun getParagraphDirection(
-        line: Int
-    ): Int = DIR_LEFT_TO_RIGHT
-
-    override fun getEllipsisStart(
-        line: Int
-    ): Int = staticLayout.getEllipsisStart(line)
-
-    override fun getEllipsisCount(
-        line: Int
-    ): Int = staticLayout.getEllipsisCount(line)
-
-    override fun getLineContainsTab(
-        line: Int
-    ): Boolean = staticLayout.getLineContainsTab(line)
-
-    override fun getLineDirections(
-        line: Int
-    ): Directions = staticLayout.getLineDirections(line)
-
+    override fun getLineTop(line: Int): Int = staticLayout.getLineTop(line)
+    override fun getLineDescent(line: Int): Int = staticLayout.getLineDescent(line)
+    override fun getLineStart(line: Int): Int = staticLayout.getLineStart(line)
+    override fun getParagraphDirection(line: Int): Int = DIR_LEFT_TO_RIGHT
+    override fun getLineContainsTab(line: Int): Boolean = staticLayout.getLineContainsTab(line)
+    override fun getLineDirections(line: Int): Directions = staticLayout.getLineDirections(line)
     override fun getTopPadding(): Int = staticLayout.topPadding
-
     override fun getBottomPadding(): Int = staticLayout.bottomPadding
-
+    override fun getEllipsisStart(line: Int): Int = staticLayout.getEllipsisStart(line)
+    override fun getEllipsisCount(line: Int): Int = staticLayout.getEllipsisCount(line)
     override fun getHeight(): Int = staticLayout.height
 
-    override fun getLineForVertical(
-        vertical: Int
-    ): Int = staticLayout.getLineForVertical(vertical)
-
-    override fun getLineForOffset(
-        offset: Int
-    ): Int {
-
-        if (lineData.isEmpty()) {
-            return 0
-        }
-
-        val safeOffset = offset.coerceIn(
-            0, text.length
-        )
-
-        return staticLayout.getLineForOffset(
-            safeOffset
-        )
-    }
-
-    override fun getLineLeft(
-        line: Int
-    ): Float {
-
-        if (line !in lineData.indices) {
-            return 0f
-        }
-
-        val positions = lineData[line].positions
-
-        return positions.firstOrNull() ?: 0f
-    }
-
-    override fun getLineRight(
-        line: Int
-    ): Float {
-
-        if (line !in lineData.indices) {
-            return width.toFloat()
-        }
-
-        val positions = lineData[line].positions
-
-        return positions.lastOrNull() ?: 0f
-    }
-
-    override fun getLineMax(
-        line: Int
-    ): Float {
-
-        if (line !in lineData.indices) {
-            return 0f
-        }
-
-        val data = lineData[line]
-
-        if (data.positions.isEmpty()) {
-            return 0f
-        }
-
-        return kotlin.math.abs(
-            data.positions.last() - data.positions.first()
-        )
-    }
-
-    private class LineData(
-        val line: Int,
-        val start: Int,
-        val visibleEnd: Int,
-        val clusters: List<Cluster>,
-        val positions: FloatArray,
+    /**
+     * @param bounds 字素边界，首个为行首，末个为内容末尾（不含行尾空白和省略掉的字符）
+     * @param xs 各边界的横坐标
+     * @param stretched 是否插入了字素间距；未插入时按段整体绘制
+     */
+    private class Line(
+        val bounds: IntArray,
+        val xs: FloatArray,
+        val runs: Array<Run>,
+        val stretched: Boolean,
         val ellipsisWidth: Float
     ) {
+        val right: Float get() = xs[xs.size - 1] + ellipsisWidth
 
-        fun findClusterForOffset(
-            offset: Int
-        ): Int {
-
-            if (clusters.isEmpty()) {
-                return -1
+        /** 不大于 [offset] 的最后一个字素边界下标。 */
+        fun floorCluster(offset: Int): Int {
+            var low = 0
+            var high = bounds.size - 1
+            while (low < high) {
+                val mid = (low + high + 1) ushr 1
+                if (bounds[mid] <= offset) low = mid else high = mid - 1
             }
-
-            if (offset <= clusters.first().start) {
-                return 0
-            }
-
-            if (offset >= clusters.last().end) {
-                return clusters.lastIndex
-            }
-
-            /*
-             * Number of clusters is normally small, and this method is
-             * primarily used for cursor/horizontal mapping.
-             */
-            for (index in clusters.indices) {
-
-                val cluster = clusters[index]
-
-                if (offset >= cluster.start && offset <= cluster.end) {
-                    return index
-                }
-            }
-
-            return clusters.lastIndex
+            return low
         }
     }
 
-    private class Cluster(
-        val start: Int, val end: Int, val replacementSpan: ReplacementSpan?
-    ) {
-
-        var naturalWidth: Float = 0f
-
-        lateinit var paint: TextPaint
-    }
-
-    private object Clusterizer {
-
-        fun build(
-            text: CharSequence,
-            start: Int,
-            end: Int,
-            paint: TextPaint,
-            graphemeIterator: BreakIterator?
-        ): MutableList<Cluster> {
-
-            val result = ArrayList<Cluster>()
-
-            if (start >= end) {
-                return result
-            }
-
-            var position = start
-
-            while (position < end) {
-
-                /*
-                 * ReplacementSpan always wins over grapheme segmentation.
-                 */
-                val replacement = findReplacementSpan(
-                    text = text, position = position, end = end
-                )
-
-                if (replacement != null) {
-
-                    val spanned = text as Spanned
-
-                    val spanStart = spanned.getSpanStart(
-                        replacement
-                    )
-
-                    val spanEnd = spanned.getSpanEnd(
-                        replacement
-                    )
-
-                    /*
-                     * A ReplacementSpan must be atomic.
-                     *
-                     * StaticLayout normally keeps such spans together.
-                     * If it nevertheless crosses this custom visual range,
-                     * fail rather than silently drawing only part of it.
-                     */
-                    require(
-                        spanStart >= start && spanEnd <= end
-                    ) {
-                        "ReplacementSpan crosses line boundary: " + "span=[$spanStart,$spanEnd), " + "line=[$start,$end)"
-                    }
-
-                    result += Cluster(
-                        start = spanStart, end = spanEnd, replacementSpan = replacement
-                    )
-
-                    position = spanEnd
-
-                    continue
-                }
-
-                val next = nextGraphemeBoundary(
-                    text = text,
-                    start = position,
-                    end = end,
-                    paint = paint,
-                    graphemeIterator = graphemeIterator
-                )
-
-                val actualNext = when {
-
-                    next <= position -> minOf(
-                        position + 1, end
-                    )
-
-                    next > end -> end
-
-                    else -> next
-                }
-
-                result += Cluster(
-                    start = position, end = actualNext, replacementSpan = null
-                )
-
-                position = actualNext
-            }
-
-            return result
-        }
-
-        private fun findReplacementSpan(
-            text: CharSequence, position: Int, end: Int
-        ): ReplacementSpan? {
-
-            if (text !is Spanned) {
-                return null
-            }
-
-            if (position >= end) {
-                return null
-            }
-
-            val spans = text.getSpans(
-                position, minOf(
-                    position + 1, end
-                ), ReplacementSpan::class.java
-            )
-
-            if (spans.isEmpty()) {
-                return null
-            }
-
-            /*
-             * If multiple ReplacementSpans overlap, use the longest one.
-             */
-            var best = spans[0]
-
-            var bestLength = text.getSpanEnd(best) - text.getSpanStart(best)
-
-            for (index in 1 until spans.size) {
-
-                val candidate = spans[index]
-
-                val length = text.getSpanEnd(candidate) - text.getSpanStart(candidate)
-
-                if (length > bestLength) {
-
-                    best = candidate
-
-                    bestLength = length
-                }
-            }
-
-            return best
-        }
-
-        private fun nextGraphemeBoundary(
-            text: CharSequence,
-            start: Int,
-            end: Int,
-            paint: TextPaint,
-            graphemeIterator: BreakIterator?
-        ): Int {
-
-            /*
-             * API 29+:
-             *
-             * Paint.getTextRunCursor() uses Android's text shaping cursor
-             * rules and avoids placing the cursor inside:
-             *
-             *   - surrogate pairs
-             *   - combining sequences
-             *   - conjuncts
-             *   - reordering clusters
-             */
-            if (Build.VERSION.SDK_INT >= 29) {
-
-                val result = paint.getTextRunCursor(
-                    text, start, end, false, start, Paint.CURSOR_AFTER
-                )
-
-                if (result > start && result <= end) {
-                    return result
-                }
-            }
-
-            /*
-             * API 23 - 28 fallback.
-             *
-             * CharSequenceCharacterIterator keeps absolute indices, so
-             * following() still returns offsets into the original text.
-             */
-            val iterator = graphemeIterator ?: BreakIterator.getCharacterInstance(Locale.ROOT)
-            iterator.setText(CharSequenceCharacterIterator(text, start, end))
-
-            val next = iterator.following(start)
-
-            return when {
-
-                next == BreakIterator.DONE -> end
-
-                next <= start -> minOf(
-                    start + 1, end
-                )
-
-                next > end -> end
-
-                else -> next
-            }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private object Api31Renderer {
-
-        fun draw(
-            canvas: Canvas,
-            text: CharSequence,
-            start: Int,
-            end: Int,
-            x: Float,
-            baseline: Float,
-            paint: TextPaint
-        ) {
-
-            if (start >= end) {
-                return
-            }
-
-            /*
-             * The cluster has already had its spans resolved into `paint`.
-             *
-             * Passing a plain String prevents TextShaper from applying the
-             * same CharacterStyle/MetricAffectingSpan a second time.
-             */
-            val value = text.subSequence(
-                start, end
-            ).toString()
-
-            if (value.isEmpty()) {
-                return
-            }
-
-            TextShaper.shapeText(
-                value, 0, value.length, TextDirectionHeuristics.LTR, paint
-            ) { _, _, glyphs, shapedPaint ->
-
-                drawGlyphs(
-                    canvas = canvas,
-                    glyphs = glyphs,
-                    originX = x,
-                    originY = baseline,
-                    paint = shapedPaint
-                )
-            }
-        }
-
-        private fun drawGlyphs(
-            canvas: Canvas,
-            glyphs: PositionedGlyphs,
-            originX: Float,
-            originY: Float,
-            paint: TextPaint
-        ) {
-
-            val count = glyphs.glyphCount()
-
-            if (count <= 0) {
-                return
-            }
-
-            var groupStart = 0
-
-            while (groupStart < count) {
-
-                val font = glyphs.getFont(groupStart)
-
-                var groupEnd = groupStart + 1
-
-                while (groupEnd < count) {
-
-                    /*
-                     * Android's own TextShaper sample groups consecutive
-                     * glyphs using the same Font.
-                     */
-                    if (glyphs.getFont(groupEnd) != font) {
-                        break
-                    }
-
-                    groupEnd++
-                }
-
-                val groupCount = groupEnd - groupStart
-
-                val glyphIds = IntArray(groupCount)
-
-                val positions = FloatArray(
-                    groupCount * 2
-                )
-
-                for (i in 0 until groupCount) {
-
-                    val glyphIndex = groupStart + i
-
-                    glyphIds[i] = glyphs.getGlyphId(
-                        glyphIndex
-                    )
-
-                    positions[i * 2] = originX + glyphs.getGlyphX(
-                        glyphIndex
-                    )
-
-                    positions[i * 2 + 1] = originY + glyphs.getGlyphY(
-                        glyphIndex
-                    )
-                }
-
-                canvas.drawGlyphs(
-                    glyphIds, 0, positions, 0, groupCount, font, paint
-                )
-
-                groupStart = groupEnd
-            }
-        }
+    /** 同一绘制样式的连续字素 [start, end)。 */
+    private class Run(val start: Int, val end: Int, val styles: Array<CharacterStyle>, val replacement: ReplacementSpan?)
+
+    private companion object {
+        const val ELLIPSIS = "\u2026"
+        const val ZWJ = 0x200D
+        // Skia 默认的装饰线比例
+        const val UNDERLINE_OFFSET = 1f / 9f
+        const val UNDERLINE_THICKNESS = 1f / 18f
+        const val STRIKE_THRU_OFFSET = -6f / 21f
+        val NO_STYLES = emptyArray<CharacterStyle>()
     }
 }

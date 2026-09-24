@@ -51,6 +51,7 @@ import com.tencent.kuikly.core.render.android.expand.component.text.*
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONArray
+import java.text.Bidi
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -812,11 +813,14 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         val textSource = postProcessText(text)
         val desiredWidth = getDesiredWith(textSource, constraintSize, measureMode)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (textProps.textAlign == KRTextProps.TEXT_ALIGN_JUSTIFY) {
+            // JustifiedLayout 只支持从左到右，含双向文本时按左对齐排版
+            if (textProps.textAlign == KRTextProps.TEXT_ALIGN_JUSTIFY &&
+                !Bidi.requiresBidi(textSource.toString().toCharArray(), 0, textSource.length)
+            ) {
                 return createJustifiedLayout(textSource, desiredWidth)
             }
             if (!shouldAvoidSetIndents()) {
-                return createLineLimitedStaticLayout(textSource, desiredWidth).layout
+                return createLineLimitedStaticLayout(textSource, desiredWidth)
             }
         }
         return createLegacyStaticLayout(textSource, desiredWidth)
@@ -847,15 +851,14 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         if (shouldAvoidSetIndents()) {
             val probe = createStaticLayout(textSource, desiredWidth, Int.MAX_VALUE, null, null)
             if (textProps.numberOfLines == 0 || probe.lineCount <= textProps.numberOfLines) {
-                return toJustifiedLayout(probe, null)
+                return JustifiedLayout(probe)
             }
             textProps.isLineBreakMargin = true
             val truncated = ellipsizeToLineLimit(textSource, probe, desiredWidth, textProps.lineBreakMargin)
-            val layout = createStaticLayout(truncated, desiredWidth, Int.MAX_VALUE, null, null)
-            return toJustifiedLayout(layout, null)
+            return JustifiedLayout(createStaticLayout(truncated, desiredWidth, Int.MAX_VALUE, null, null))
         }
-        val measured = createLineLimitedStaticLayout(textSource, desiredWidth)
-        return toJustifiedLayout(measured.layout, measured.rightIndents)
+        // 末行缩进只作用于被截断的最后一行，该行不拉伸，JustifiedLayout 无需知道缩进
+        return JustifiedLayout(createLineLimitedStaticLayout(textSource, desiredWidth))
     }
 
     /**
@@ -866,45 +869,34 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     private fun createLineLimitedStaticLayout(
         textSource: CharSequence,
         desiredWidth: Int
-    ): LineLimitedLayout {
+    ): StaticLayout {
         if (textProps.lineBreakMargin == 0f || textProps.numberOfLines == 0) {
             val limitLines = textProps.numberOfLines > 0
-            return LineLimitedLayout(
-                createStaticLayout(
-                    textSource,
-                    desiredWidth,
-                    if (limitLines) textProps.numberOfLines else Int.MAX_VALUE,
-                    if (limitLines) TextUtils.TruncateAt.END else null,
-                    null
-                ),
+            return createStaticLayout(
+                textSource,
+                desiredWidth,
+                if (limitLines) textProps.numberOfLines else Int.MAX_VALUE,
+                if (limitLines) TextUtils.TruncateAt.END else null,
                 null
             )
         }
         val probe = createStaticLayout(textSource, desiredWidth, Int.MAX_VALUE, null, null)
         if (probe.lineCount <= textProps.numberOfLines) {
-            return LineLimitedLayout(probe, null)
+            return probe
         }
         textProps.isLineBreakMargin = true
         val rightIndents = IntArray(textProps.numberOfLines)
         if (rightIndents.isNotEmpty()) {
             rightIndents[rightIndents.lastIndex] = textProps.lineBreakMargin.toInt()
         }
-        return LineLimitedLayout(
-            createStaticLayout(
-                textSource,
-                desiredWidth,
-                textProps.numberOfLines,
-                TextUtils.TruncateAt.END,
-                rightIndents
-            ),
+        return createStaticLayout(
+            textSource,
+            desiredWidth,
+            textProps.numberOfLines,
+            TextUtils.TruncateAt.END,
             rightIndents
         )
     }
-
-    private class LineLimitedLayout(
-        val layout: StaticLayout,
-        val rightIndents: IntArray?
-    )
 
     private fun createLegacyStaticLayout(textSource: CharSequence, desiredWidth: Int): Layout {
         val layout = buildLegacyStaticLayout(textSource, desiredWidth)
@@ -979,20 +971,6 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             builder.setIndents(null, rightIndents)
         }
         return builder.build()
-    }
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun toJustifiedLayout(staticLayout: StaticLayout, rightIndents: IntArray?): JustifiedLayout {
-        return JustifiedLayout(
-            text = staticLayout.text,
-            paint = textPaint,
-            width = staticLayout.width,
-            alignment = getTextAlign(),
-            spacingMult = 1f,
-            spacingAdd = textProps.lineSpacing,
-            rightIndents = rightIndents,
-            staticLayout = staticLayout
-        )
     }
 
     private fun getDesiredWith(

@@ -16,6 +16,20 @@
 #import "KuiklyRenderView.h"
 #import "KuiklyRenderCore.h"
 #import "KRConvertUtil.h"
+
+#if !TARGET_OS_OSX
+#if defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 270100
+#if __has_include(<UIKit/UIHingeInteraction.h>)
+#import <UIKit/UIHingeInteraction.h>
+#define KR_HAS_UIHINGE 1
+#endif
+#if __has_include(<UIKit/UIViewReservedRegion.h>)
+#import <UIKit/UIViewReservedRegion.h>
+#define KR_HAS_RESERVED_REGION 1
+#endif
+#endif
+#endif
+
 /** RootView尺寸变化事件名. */
 NSString *const KRRootViewSizeDidChangedEventKey = @"rootViewSizeDidChanged";
 /** 字典key常量 */
@@ -37,6 +51,8 @@ NSString *const KRNativeBuild = @"nativeBuild";
 NSString *const KRSafeAreaInsets = @"safeAreaInsets";
 NSString *const KRAccessibilityRunning = @"isAccessibilityRunning";
 NSString *const KRDensity = @"density";
+NSString *const KRHingeStatusKey = @"hingeStatus";
+NSString *const KRReservedRegionsKey = @"reservedRegions";
 
 @interface KuiklyRenderView()<KuiklyRenderCoreDelegate>
 /** 渲染核心实现者对象 */
@@ -45,10 +61,22 @@ NSString *const KRDensity = @"density";
 @property (nonatomic, strong) NSString *pageName;
 /** 上次自身view尺寸 */
 @property (nonatomic, assign) CGSize lastViewSize;
+@property (nonatomic, copy) NSString *lastSafeAreaInsets;
+/** 上次已发送的 region JSON，layoutSubviews 时与最新读值比对 */
+@property (nonatomic, copy) NSString *lastPushedRegionsJSON;
+@property (nonatomic, assign) NSInteger lastNotifiedHingeStatus;
+@property (nonatomic, strong) id hingeInteraction;
 /** 内容视图是否完成加载过 */
 @property (nonatomic, assign, getter=isContentViewDidLoad) BOOL contentViewDidLoad;
 /** delegate for KuiklyRenderView. */
 @property (nonatomic, weak, readwrite) id<KuiklyRenderViewDelegate> delegate;
+
+- (void)p_notifyRootViewMetrics;
+- (void)p_notifyRootViewMetricsIfRegionsChanged;
+- (UIEdgeInsets)p_pagerSafeAreaInsets;
+- (void)p_installHingeInteractionIfNeeded;
+- (void)p_removeHingeInteractionIfNeeded;
+- (NSString *)p_reservedRegionsJSON;
 
 @end
 
@@ -167,30 +195,202 @@ NSString *const KRDensity = @"density";
     [super setFrame:frame];
     if (!CGSizeEqualToSize(_lastViewSize, self.bounds.size)) {
         _lastViewSize = self.bounds.size;
-        CGSize screenSize = ({
-#if TARGET_OS_OSX
-            NSScreen *screen = [NSScreen mainScreen];
-            screen ? screen.frame.size : CGSizeZero;
-#else
-            [UIScreen mainScreen].bounds.size;
-#endif
-        });
-        UIViewController *viewController = [self getViewController];
-        NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
-                               KRHeightKey: @(CGRectGetHeight(frame)),
-                               KRDeviceWidthKey:@(screenSize.width),
-                               KRDeviceHeightKey:@(screenSize.height),
-                               KRActivityWidthKey:@(CGRectGetWidth(viewController.view.bounds)),
-                               KRActivityHeightKey:@(CGRectGetHeight(viewController.view.bounds)),
-                               
-        };
-        BOOL sync = [self p_syncSendEvent:KRRootViewSizeDidChangedEventKey];
-        [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
-                              data:data
-                              sync:sync];
+        [self p_notifyRootViewMetrics];
     }
-  
 }
+
+#if !TARGET_OS_OSX
+- (void)safeAreaInsetsDidChange {
+    [super safeAreaInsetsDidChange];
+    if (_lastSafeAreaInsets != nil) {
+        NSString *insetsString = [KRConvertUtil stringWithInsets:[self p_pagerSafeAreaInsets]];
+        if (![insetsString isEqualToString:_lastSafeAreaInsets]) {
+            [self p_notifyRootViewMetrics];
+        }
+    }
+}
+
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    if (self.window) {
+        [self p_installHingeInteractionIfNeeded];
+    } else {
+        [self p_removeHingeInteractionIfNeeded];
+    }
+}
+#endif
+
+- (void)p_removeHingeInteractionIfNeeded {
+#if KR_HAS_UIHINGE
+    if (@available(iOS 27.1, *)) {
+        if (self.hingeInteraction) {
+            [self removeInteraction:self.hingeInteraction];
+            self.hingeInteraction = nil;
+        }
+    }
+#endif
+}
+
+- (void)p_installHingeInteractionIfNeeded {
+#if KR_HAS_UIHINGE
+    if (self.hingeInteraction) {
+        return;
+    }
+    if (@available(iOS 27.1, *)) {
+        __weak typeof(self) weakSelf = self;
+        UIHingeInteraction *interaction =
+            [[UIHingeInteraction alloc] initWithUpdateHandler:^(__unused UIHingeInteraction *hingeInteraction, UIHingeInteractionUpdate *update) {
+                __strong typeof(weakSelf) strongSelf = weakSelf;
+                if (!strongSelf) {
+                    return;
+                }
+                NSInteger status = UIHingeStatusUnknown;
+                if (update.hinge) {
+                    status = update.hinge.status;
+                }
+                BOOL statusChanged = (status != strongSelf.lastNotifiedHingeStatus);
+                strongSelf.lastNotifiedHingeStatus = status;
+                NSString *regionsJSON = [strongSelf p_reservedRegionsJSON];
+                BOOL regionsChanged = ![regionsJSON isEqualToString:strongSelf.lastPushedRegionsJSON];
+                if (statusChanged || regionsChanged) {
+                    [strongSelf p_notifyRootViewMetrics];
+                }
+            }];
+        [self addInteraction:interaction];
+        self.hingeInteraction = interaction;
+    }
+#endif
+}
+
+#if KR_HAS_RESERVED_REGION
+/// 上报 frame + margins：frame 是含 margins 的最终避让范围，margins 是其中为交互内容预留的部分。
+/// 不上报 region.identifier：该类在 SDK 里不透明，只能取到内存地址，且会跨 region 复用。
+- (void)p_collectReservedRegionsOfKind:(UIViewReservedRegionKind *)kind
+                                  name:(NSString *)name
+                                  into:(NSMutableArray *)items API_AVAILABLE(ios(27.1)) {
+    NSArray<UIViewReservedRegion *> *regions =
+        [self reservedRegionsOfKind:kind options:UIViewReservedRegionQueryOptionsIncludeInactive];
+    for (UIViewReservedRegion *region in regions) {
+        CGRect frame = region.frame;
+        UIEdgeInsets margins = region.margins;
+        [items addObject:@{
+            @"kind": name ?: @"",
+            @"active": @(region.active ? 1 : 0),
+            @"x": @(CGRectGetMinX(frame)),
+            @"y": @(CGRectGetMinY(frame)),
+            @"width": @(CGRectGetWidth(frame)),
+            @"height": @(CGRectGetHeight(frame)),
+            @"marginTop": @(margins.top),
+            @"marginLeft": @(margins.left),
+            @"marginBottom": @(margins.bottom),
+            @"marginRight": @(margins.right),
+        }];
+    }
+}
+#endif
+
+/// 当前根视图上的避让区域，序列化为 JSON 数组字符串。恒不返回 nil，无区域时返回 "[]"。
+/// 用字符串而非数组：Kotlin 侧以 optString + JSONArray 解码，与 safeAreaInsets 一致。
+- (NSString *)p_reservedRegionsJSON {
+#if KR_HAS_RESERVED_REGION
+    if (@available(iOS 27.1, *)) {
+        NSMutableArray *items = [NSMutableArray array];
+        [self p_collectReservedRegionsOfKind:[UIViewReservedRegionKind occlusionRegionKind]
+                                        name:@"occlusion"
+                                        into:items];
+        [self p_collectReservedRegionsOfKind:[UIViewReservedRegionKind divisionRegionKind]
+                                        name:@"division"
+                                        into:items];
+        if (items.count == 0) {
+            return @"[]";
+        }
+        NSData *data = [NSJSONSerialization dataWithJSONObject:items options:0 error:nil];
+        if (data.length > 0) {
+            NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            if (json.length > 0) {
+                return json;
+            }
+        }
+    }
+#endif
+    return @"[]";
+}
+
+- (void)notifyRootViewMetrics {
+    [self p_notifyRootViewMetrics];
+}
+
+- (UIEdgeInsets)p_pagerSafeAreaInsets {
+#if TARGET_OS_OSX // [macOS]
+    NSWindow *hostWindow = [self.delegate viewControllerHostWindow];
+    if (hostWindow) {
+        if (@available(macOS 11.0, *)) {
+            return hostWindow.contentView.safeAreaInsets;
+        }
+    }
+    return [KRConvertUtil currentSafeAreaInsets];
+#else
+    if (@available(iOS 11.0, *)) {
+        UIWindow *hostWindow = nil;
+        if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
+            hostWindow = [self.delegate viewControllerHostWindow];
+        }
+        if (hostWindow) {
+            return hostWindow.safeAreaInsets;
+        }
+        return [KRConvertUtil currentSafeAreaInsets];
+    }
+    return UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0);
+#endif
+}
+
+/// 只在 region 实际变化时才推事件，供 updateProperties 使用。
+- (void)p_notifyRootViewMetricsIfRegionsChanged {
+    NSString *regionsJSON = [self p_reservedRegionsJSON];
+    if ([regionsJSON isEqualToString:self.lastPushedRegionsJSON]) {
+        return;
+    }
+    [self p_notifyRootViewMetrics];
+}
+
+- (void)p_notifyRootViewMetrics {
+    if (CGSizeEqualToSize(self.bounds.size, CGSizeZero) && CGSizeEqualToSize(_lastViewSize, CGSizeZero)) {
+        return;
+    }
+    UIEdgeInsets insets = [self p_pagerSafeAreaInsets];
+    NSString *insetsString = [KRConvertUtil stringWithInsets:insets];
+    // 空结果必须是 "[]" 而不是缺省：Kotlin 侧用 data.has(RESERVED_REGIONS) 判定，
+    // key 缺失会被当成「本次事件没带 region」而保留旧值，region 消失时就清不掉了。
+    NSString *regionsJSON = [self p_reservedRegionsJSON];
+    _lastSafeAreaInsets = [insetsString copy];
+    _lastPushedRegionsJSON = [regionsJSON copy];
+    
+    CGSize screenSize = ({
+#if TARGET_OS_OSX
+        NSScreen *screen = [NSScreen mainScreen];
+        screen ? screen.frame.size : CGSizeZero;
+#else
+        [UIScreen mainScreen].bounds.size;
+#endif
+    });
+    UIViewController *viewController = [self getViewController];
+    NSDictionary *data = @{
+        KRWidthKey: @(CGRectGetWidth(self.bounds)),
+        KRHeightKey: @(CGRectGetHeight(self.bounds)),
+        KRDeviceWidthKey: @(screenSize.width),
+        KRDeviceHeightKey: @(screenSize.height),
+        KRActivityWidthKey: @(CGRectGetWidth(viewController.view.bounds)),
+        KRActivityHeightKey: @(CGRectGetHeight(viewController.view.bounds)),
+        KRSafeAreaInsets: insetsString,
+        KRHingeStatusKey: @(_lastNotifiedHingeStatus),
+        KRReservedRegionsKey: regionsJSON,
+    };
+    BOOL sync = [self p_syncSendEvent:KRRootViewSizeDidChangedEventKey];
+    [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
+                          data:data
+                          sync:sync];
+}
+
 
 - (BOOL)p_syncSendEvent:(NSString *)event {
     if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
@@ -211,6 +411,17 @@ NSString *const KRDensity = @"density";
     [super layoutSubviews];
     [self p_dispatchContentViewDidLoadDelegateIfNeed];
 }
+
+/// iOS 26+ 属性更新点：region 变化时 UIKit 会自动失效并重跑这里，等价于激活回调。
+/// 只在能真正查到 region 的构建里编译，否则每次属性更新都白跑一次比较。
+#if KR_HAS_RESERVED_REGION
+- (void)updateProperties {
+    [super updateProperties];
+    if (@available(iOS 26.0, *)) {
+        [self p_notifyRootViewMetricsIfRegionsChanged];
+    }
+}
+#endif
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *view = [super hitTest:point withEvent:event];
@@ -304,8 +515,11 @@ NSString *const KRDensity = @"density";
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0)];
         // Fallback on earlier versions
     }
+    _lastSafeAreaInsets = [mParmas[KRSafeAreaInsets] copy];
     mParmas[KRDensity] = @([UIScreen mainScreen].scale);
 #endif
+    mParmas[KRReservedRegionsKey] = [self p_reservedRegionsJSON];
+    mParmas[KRHingeStatusKey] = @(_lastNotifiedHingeStatus);
     return mParmas;
 }
 

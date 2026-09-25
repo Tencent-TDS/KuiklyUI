@@ -25,6 +25,8 @@ import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.pager.HingeStatus
+import com.tencent.kuikly.core.pager.ReservedRegion
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.manager.Task
@@ -576,6 +578,20 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             pageData.safeAreaInsets = EdgeInsets.decodeWithString(safeAreaInsetsString)
         }
         pageData.updateRootViewSize(data, width, height)
+        // 铰链状态与避让区域随 rootViewSizeDidChanged 快照携带；
+        // 铰链独立变化时由 iOS 侧触发本事件推送。
+        if (data.has(HINGE_STATUS)) {
+            val hinge = HingeStatus.fromRaw(data.optInt(HINGE_STATUS, 0))
+            if (hinge != pageData.hingeStatus) {
+                pageData.hingeStatus = hinge
+            }
+        }
+        if (data.has(RESERVED_REGIONS)) {
+            val regions = ReservedRegion.decodeReservedRegions(data.optString(RESERVED_REGIONS, ""))
+            if (regions != pageData.reservedRegions) {
+                pageData.reservedRegions = regions
+            }
+        }
         setupRootViewSizeStyle()
         if(densityInfo.isNotEmpty()) {
             val info = JSONObject(densityInfo)
@@ -621,6 +637,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val WIDTH = "width"
         const val HEIGHT = "height"
         const val SAFE_AREA_INSETS = "safeAreaInsets"
+        internal const val HINGE_STATUS = "hingeStatus"
+        internal const val RESERVED_REGIONS = "reservedRegions"
         const val DENSITY_INFO = "densityInfo"
         const val DENSITY_INFO_KEY_NEW_DENSITY = "newDensity"
 

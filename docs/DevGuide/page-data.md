@@ -66,10 +66,51 @@ class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>() {
 | isIphoneX       | 是否为iphoneX机型                                         | Boolean |
 | params          | 存放业务扩展的数据                                            | JSONObject |
 | safeAreaInsets  | 安全区域: 被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 | EdgeInsets |
+| hingeStatus     | 铰链开合状态（仅折叠设备）：0=未知 1=合上 2=半开 3=全开 | HingeStatus |
+| reservedRegions | 系统避让区域列表（仅 iOS 折叠设备）：occlusion=遮挡区（摄像头/侧边栏），division=折缝区 | List<ReservedRegion> |
 
 
 :::tip 提示
 iOS 端可通过实现 `viewControllerHostWindow` 方法，指定当前页面获取 safeAreaInsets 的参考窗口。这在多 Window 场景（如悬浮窗、分屏模式）确保获取到正确的安全区域。[参考示例](../QuickStart/iOS.md#实现kuikly承载容器)
+:::
+
+:::warning 版本要求
+`hingeStatus` 与 `reservedRegions` 需要 **KuiklyUI 2.29.0** 及以上版本，且仅在 iOS 27.1+ 系统的 iPhone Duo 折叠设备上返回有效数据；其他平台/设备上 `hingeStatus` 为 `UNKNOWN(0)`，`reservedRegions` 为空列表，可放心直接使用。
+:::
+
+## ReservedRegion（避让区域）
+
+系统为折叠屏设备提供的区域避让数据，坐标相对页面根视图，单位为点。
+
+:::warning 版本要求
+`ReservedRegion` 需要 **KuiklyUI 2.29.0** 及以上版本，且仅 iOS 27.1+ 的折叠设备（如 iPhone Duo）会返回数据；其他平台 / 设备上 `pageData.reservedRegions` 为空列表，可放心直接使用。
+:::
+
+| 字段        | 描述                                       | 类型    |
+|-----------|------------------------------------------|-------|
+| kind      | 区域类型：`OCCLUSION`（被遮挡，需让开）/ `DIVISION`（折缝，内容需分居两侧） | ReservedRegionKind |
+| active    | 当前是否生效（如设备平铺时折缝为未生效）                  | Boolean |
+| x, y      | 区域左上角坐标（相对页面根视图）                        | Float |
+| width, height | 区域尺寸（系统给的最终避让范围，已含 margins）      | Float |
+| marginTop/Left/Bottom/Right | frame 中为交互内容预留的边距（inset 掉才是「真正被挡住」的那块） | Float |
+
+使用示例：
+
+```kotlin
+// 避让所有生效的遮挡区域
+pageData.reservedRegions.forEach { region ->
+    if (region.active && region.kind == ReservedRegionKind.OCCLUSION) {
+        val bottom = region.y + region.height
+        // 按需让开该区域
+    }
+}
+
+// 判断设备是否处于半折叠（内容分居折缝两侧）
+val halfFolded = pageData.hingeStatus == HingeStatus.PARTIALLY_OPEN
+```
+
+:::tip 提示
+区域变化（折叠/展开/旋转）会随 `rootViewSizeDidChanged` 事件自动更新到上述字段，无需手动刷新。
 :::
 
 ## PagerData业务扩展参数

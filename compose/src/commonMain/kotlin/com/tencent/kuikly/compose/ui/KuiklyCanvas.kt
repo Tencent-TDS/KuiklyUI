@@ -76,7 +76,13 @@ internal class KuiklyCanvas : Canvas {
             if (value is CanvasView) {
                 context = CanvasContext(value.renderView!!, value.pagerId, value.nativeRef)
                 densityValue = value.getPager().pagerDensity()
-                value.renderView?.callMethod("reset", "")
+                // A CanvasView that manages its own draw loop via drawCallback also
+                // owns its reset+refill sequence. Sending a bare reset here (with no
+                // drawing commands following in this traversal) would wipe the ops it
+                // already queued and blank the canvas on the next native redraw.
+                if (value.drawCallback == null) {
+                    value.renderView?.callMethod("reset", "")
+                }
                 strokeCap = StrokeCap.Butt
             } else {
                 context = null

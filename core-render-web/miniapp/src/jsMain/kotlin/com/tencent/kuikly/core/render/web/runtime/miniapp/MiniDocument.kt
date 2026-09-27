@@ -106,6 +106,37 @@ object MiniDocument {
         return element
     }
 
+    // Document-level event listeners. Mini program has no global event dispatcher
+    // (e.g. selectionchange), so listeners are just recorded here to keep document-level
+    // bindings like KRTextFieldView/KRTextAreaView selection tracking from crashing.
+    private val eventListeners = fastMutableMapOf<String, MutableList<dynamic>>()
+
+    /**
+     * Register a document-level event listener
+     */
+    @JsName("addEventListener")
+    fun addEventListener(type: String, callback: dynamic) {
+        val list = eventListeners[type]
+        if (list == null) {
+            eventListeners[type] = mutableListOf(callback)
+        } else if (!list.contains(callback)) {
+            list.add(callback)
+        }
+    }
+
+    /**
+     * Remove a registered document-level event listener
+     */
+    @JsName("removeEventListener")
+    fun removeEventListener(type: String, callback: dynamic) {
+        eventListeners[type]?.let { list ->
+            list.remove(callback)
+            if (list.isEmpty()) {
+                eventListeners.remove(type)
+            }
+        }
+    }
+
     /**
      * Get mini program host element by element id
      */

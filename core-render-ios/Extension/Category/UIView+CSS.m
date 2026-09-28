@@ -109,6 +109,15 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 @end
 
+/// repeatForever 同步动画没有自然结束点（removedOnCompletion 对其无效）；宿主已不在做 frame 动画时移除，
+/// 避免宿主动画停止后形状层仍在循环。只移除 repeat 动画，普通动画按原逻辑自然结束。
+static void kr_removeStaleRepeatAnimation(CALayer *layer, NSString *key) {
+    CAAnimation *animation = [layer animationForKey:key];
+    if (animation && animation.repeatCount == HUGE_VALF) {
+        [layer removeAnimationForKey:key];
+    }
+}
+
 /// borderLayer 补 additive bounds/position 动画（与宿主 frame 动画同参）。
 /// masksToBounds=YES 裁剪窗口若停在 model 终值，path 插值几何会超出窗口 → 下半描边被裁；
 /// 补帧动画让窗口与 path 同步收缩，动画结束回退 model，稳态不变。
@@ -124,6 +133,8 @@ static void kr_syncBorderFrameAnimation(UIView *hostView, CALayer *borderLayer, 
         }
     }
     if (!frameAnimating) {
+        kr_removeStaleRepeatAnimation(borderLayer, @"kr_corner_border_bounds");
+        kr_removeStaleRepeatAnimation(borderLayer, @"kr_corner_border_position");
         return; // 非动画上下文：保持瞬时设置（与既有行为一致）
     }
     // 参数解析：css_animationImp → 借祖先 → 本 layer 快照（与 kr_syncCornerPathAnimation 同源逻辑）
@@ -169,6 +180,8 @@ static void kr_syncBorderFrameAnimation(UIView *hostView, CALayer *borderLayer, 
         return;
     }
     CFTimeInterval layerNow = [borderLayer convertTime:CACurrentMediaTime() fromLayer:nil];
+    // repeat 与 kr_syncCornerPathAnimation 的 path 动画对齐：否则 path 循环而裁剪窗口只跑一轮，后续轮次下半描边被裁
+    float syncRepeatCount = (anim && anim.kr_pathSyncRepeat) ? HUGE_VALF : 0;
     // bounds.size：additive，from=视觉尺寸差量 → 0（presentation = model终值 + 差量插值）
     CABasicAnimation *boundsAnim = [CABasicAnimation animationWithKeyPath:@"bounds.size"];
     boundsAnim.additive = YES;
@@ -181,6 +194,7 @@ static void kr_syncBorderFrameAnimation(UIView *hostView, CALayer *borderLayer, 
         boundsAnim.beginTime = layerNow + sourceDelay;
         boundsAnim.fillMode = kCAFillModeBackwards;
     }
+    boundsAnim.repeatCount = syncRepeatCount;
     boundsAnim.removedOnCompletion = YES;
     [borderLayer addAnimation:boundsAnim forKey:@"kr_corner_border_bounds"];
     // position：additive，from=视觉中心差量 → 0
@@ -195,6 +209,7 @@ static void kr_syncBorderFrameAnimation(UIView *hostView, CALayer *borderLayer, 
         posAnim.beginTime = layerNow + sourceDelay;
         posAnim.fillMode = kCAFillModeBackwards;
     }
+    posAnim.repeatCount = syncRepeatCount;
     posAnim.removedOnCompletion = YES;
     [borderLayer addAnimation:posAnim forKey:@"kr_corner_border_position"];
 }
@@ -209,7 +224,7 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
                                        CGPathRef fromPath,
                                        CGPathRef toPath,
                                        NSString *keyPath) {
-    if (!hostView || !targetLayer || !fromPath || !toPath || CGPathEqualToPath(fromPath, toPath)) {
+    if (!hostView || !targetLayer) {
         return;
     }
     BOOL frameAnimating = NO;
@@ -218,6 +233,13 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
             frameAnimating = YES;
             break;
         }
+    }
+    if (!frameAnimating) {
+        kr_removeStaleRepeatAnimation(targetLayer, @"kr_corner_path");
+        return;
+    }
+    if (!fromPath || !toPath || CGPathEqualToPath(fromPath, toPath)) {
+        return;
     }
     CSSAnimation *anim = hostView.css_animationImp;
     // —— 参数三级解析（见函数头注释）——
@@ -240,7 +262,7 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
     if (anim && anim.kr_pathSyncDuration && [anim kr_supportsPathSync]) {
         syncDuration = anim.kr_pathSyncDuration;
         syncTiming = anim.kr_pathSyncTimingFunction;
-    } else if (frameAnimating) {
+    } else {
         CABasicAnimation *baseAnim = nil;
         for (NSString *key in hostView.layer.animationKeys) {
             if ([key hasPrefix:@"bounds"]) {
@@ -256,7 +278,7 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
             syncTiming = baseAnim.timingFunction;
         }
     }
-    if (!frameAnimating || !syncDuration) {
+    if (!syncDuration) {
         return;
     }
     BOOL hasSourceDelay = (anim && anim.kr_pathSyncDelay > 0);
@@ -1098,12 +1120,19 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
 #endif
             UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
             if (clipPath) {
+                // shadowPath 属性变更默认带 0.25s 隐式动画，须显式禁用（原由外层事务统一禁用）
+                [CATransaction begin];
+                [CATransaction setDisableActions:YES];
                 self.layer.shadowPath = clipPath.CGPath;
+                [CATransaction commit];
             }
         } else {
             #if TARGET_OS_OSX // [macOS]
             CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
             self.layer.shadowPath = path;
+            [CATransaction commit];
             CGPathRelease(path);
             #else
             CGPathRef fromShadow = CGPathRetain(((CALayer *)self.layer.presentationLayer).shadowPath ?: self.layer.shadowPath);
@@ -2244,6 +2273,12 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     return _animationType == CSSAnimationTypePlain;
 }
 - (NSTimeInterval)kr_pathSyncDuration {
+#if !TARGET_OS_OSX
+    // native V2 snap 实际以 duration 0 执行（见 KRPerformNativeAnimationV2），不参与同步也不作为祖先参数被借用
+    if ([_nativeV2Kind isEqualToString:@"snap"]) {
+        return 0;
+    }
+#endif
     return _duration;
 }
 - (NSTimeInterval)kr_pathSyncDelay {
@@ -2253,6 +2288,16 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     return _repeatForever;
 }
 - (CAMediaTimingFunction *)kr_pathSyncTimingFunction {
+#if !TARGET_OS_OSX
+    // native V2 cubic 由 UICubicTimingParameters 驱动（见 KRPerformNativeAnimationV2），控制点语义与
+    // CAMediaTimingFunction 一致，按同一组控制点构造才能与宿主 frame 动画节奏对齐
+    if ([_nativeV2Kind isEqualToString:@"cubic"] && _nativeV2Values.count == 4) {
+        return [CAMediaTimingFunction functionWithControlPoints:_nativeV2Values[0].floatValue
+                                                               :_nativeV2Values[1].floatValue
+                                                               :_nativeV2Values[2].floatValue
+                                                               :_nativeV2Values[3].floatValue];
+    }
+#endif
     switch (_viewAnimationCurve) {
         case UIViewAnimationCurveEaseIn:
             return [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];

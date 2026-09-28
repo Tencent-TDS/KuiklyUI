@@ -118,6 +118,34 @@ static void kr_removeStaleRepeatAnimation(CALayer *layer, NSString *key) {
     }
 }
 
+/// 同步动画分散挂在宿主 layer（shadowPath）、mask、borderLayer 上，宿主的 removeAllAnimations 清不到子层，
+/// 需按 key 显式移除。onlyRepeat=YES 仅清 repeat-forever 残留（普通动画会自然结束）；NO 用于 reset 全量清理。
+static void kr_removeSyncAnimations(UIView *view, BOOL onlyRepeat) {
+    if (!view) {
+        return;
+    }
+    NSMutableArray<CALayer *> *pathLayers = [NSMutableArray arrayWithObject:view.layer];
+    if (view.layer.mask) {
+        [pathLayers addObject:view.layer.mask];
+    }
+    CALayer *borderLayer = view.css_borderLayer;
+    if (borderLayer) {
+        [pathLayers addObject:borderLayer];
+    }
+    for (CALayer *layer in pathLayers) {
+        NSArray<NSString *> *keys = (layer == borderLayer)
+            ? @[@"kr_corner_path", @"kr_corner_border_bounds", @"kr_corner_border_position"]
+            : @[@"kr_corner_path"];
+        for (NSString *key in keys) {
+            if (onlyRepeat) {
+                kr_removeStaleRepeatAnimation(layer, key);
+            } else {
+                [layer removeAnimationForKey:key];
+            }
+        }
+    }
+}
+
 /// borderLayer 补 additive bounds/position 动画（与宿主 frame 动画同参）。
 /// masksToBounds=YES 裁剪窗口若停在 model 终值，path 插值几何会超出窗口 → 下半描边被裁；
 /// 补帧动画让窗口与 path 同步收缩，动画结束回退 model，稳态不变。
@@ -243,6 +271,7 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
     }
     CSSAnimation *anim = hostView.css_animationImp;
     // —— 参数三级解析（见函数头注释）——
+    // 不抽公共 helper：与 kr_syncBorderFrameAnimation / setCss_frame: delay 修复的判定条件有意不同（duration vs delay>0）
     if (!anim || !anim.kr_pathSyncDuration || ![anim kr_supportsPathSync]) {
         UIView *ancestor = hostView.superview;
         int hops = 0;
@@ -1189,6 +1218,17 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
         kr_syncBorderFrameAnimation(self, borderLayer, borderFromFrame); // 裁剪窗口跟随插值，防下半描边被裁
         CGPathRelease(fromBorder);
     }
+    // 兜底清理 repeat 残留：border 块被尺寸相等 guard 挡住（如仅 position 变化）时，上面的同步函数不会被调用
+    BOOL hostFrameAnimating = NO;
+    for (NSString *animKey in self.layer.animationKeys) {
+        if ([animKey hasPrefix:@"bounds"] || [animKey hasPrefix:@"position"]) {
+            hostFrameAnimating = YES;
+            break;
+        }
+    }
+    if (!hostFrameAnimating) {
+        kr_removeSyncAnimations(self, YES);
+    }
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -1512,6 +1552,8 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
 }
 
 - (void)css_reset {
+    // 同步动画挂在 mask / borderLayer 子层，下方 removeAllAnimations 只清 self.layer；须在属性重置（可能移除子层）前显式清理
+    kr_removeSyncAnimations(self, NO);
     self.css_animation = nil;
     [self.css_didSetProps removeObject:@"animation"];
     for (NSString *propKey in [self.css_didSetProps copy]) {
@@ -2008,6 +2050,7 @@ static void kr_syncCornerPathAnimation(UIView *hostView,
     self.path = path.CGPath;
     #endif
     [CATransaction commit];
+    // 不删除（与 p_boundsDidChanged 同 key 覆盖无副作用）：本处覆盖 setNeedsLayout 触发的异步 layout，后者覆盖同步调用并带 from=nil 兜底
     if (fromBorderPath && self.path && !CGPathEqualToPath(fromBorderPath, self.path)) {
         kr_syncCornerPathAnimation(self.hostView, self, fromBorderPath, self.path, @"path");
     }

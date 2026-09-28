@@ -13,7 +13,7 @@
 
 </p>
 
-English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.qq.com/)
+English | [简体中文](./README-zh_CN.md) | [Homepage](https://kuikly.tds.qq.com/home)
 
 
 ## Introduction
@@ -83,6 +83,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 - [Quick Start](https://kuikly.tds.qq.com/QuickStart/hello-world.html)
 - [Integration Guide](https://kuikly.tds.qq.com/QuickStart/overview.html)
 - [Component Features](https://kuikly.tds.qq.com/API/components/override.html)
+- [Component Marketplace](https://kuikly.tds.qq.com/home/components)
 
 ## Building from Source
 ### Environment Setup
@@ -188,6 +189,15 @@ Scan the QR code with an Android phone to quickly try the demo. For iPhone and H
 
 ## Contribution Guidelines
 We welcome all developers to submit issues or PRs for `Kuikly`. Please review our [Contribution Guide](CONTRIBUTING.md) before contributing.
+
+## Publish to the Component Marketplace
+You can share reusable components and tool libraries on the [Kuikly Component Marketplace](https://kuikly.tds.qq.com/home/components).
+
+1. **Develop and open-source the component**: Host it on GitHub, and include usage docs and platform demos when possible. For independently publishable extended Views / Modules, see the [Kuikly extension library guide](https://kuikly.tds.qq.com/Community/kuikly_extension_lib_guide.html).
+2. **Register marketplace metadata**: Fork [KuiklyUI-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party) and append an entry at the end of `KuiklyUI-Libraries.json`, following the description template in that repository's README (name, description, type, developer, repository URL, examples, supported platforms, etc.).
+3. **Submit a PR**: After the PR is merged, the component appears in the marketplace. To update it later, edit the same entry and open another PR.
+
+Field definitions and the JSON template are in the [KuiklyUI-third-party listing guide](https://github.com/Tencent-TDS/KuiklyUI-third-party/blob/main/README.md). For component requests and maintenance discussion, use the [Community Ecosystem Discussion](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81).
 
 ## Code of Conduct
 All project participants are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT.md). Participation constitutes agreement to these terms.

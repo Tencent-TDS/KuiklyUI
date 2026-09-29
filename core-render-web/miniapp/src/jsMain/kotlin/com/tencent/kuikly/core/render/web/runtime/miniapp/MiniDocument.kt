@@ -129,19 +129,12 @@ object MiniDocument {
         val miniPage = MiniPageManage.getMiniPageByPageId(pageId)
         root.miniPageInstance = miniPage!!.mpInstance
 
-        // Need to set transform and transition to ensure drop-shadow and other content settings take effect
-        if (MiniGlobal.isIOS) {
-            miniPage.lifeCycle.onReady {
-                MiniGlobal.setTimeout({
-                    root.firstElementChild?.style?.transform = "translate(0,0)"
-                    root.firstElementChild?.style?.transition = "transform 250ms ease-out"
-                }, 0)
-            }
-        } else {
-            miniPage.lifeCycle.onReady {
-                root.firstElementChild?.style?.transform = "translate(0, 0)"
-            }
-        }
+        // PATCHED (canvas-follow-scroll): root transform removed. A transform on the root
+        // container's ancestor chain makes WeChat canvas same-layer rendering fall back to
+        // native-overlay mode, where the canvas layer stays fixed to the viewport while the
+        // Kuikly content layer scrolls (view transform) — charts/rings visibly detach.
+        // drop-shadow was the original reason for this transform; we don't rely on it.
+        // Upstream PR candidate alongside addEventListener fix (#1768).
 
         root.performUpdate()
     }

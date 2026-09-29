@@ -17,6 +17,8 @@
 
 #include <functional>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
+#include "libohos_render/expand/events/common_event/KRCommonEventManager.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
@@ -79,6 +81,8 @@ KRRenderView::~KRRenderView() {
     node_content_handle_ = nullptr;
     native_resources_manager_ = nullptr;
     method_arg_callback_map_.clear();
+    // 防御性注销：正常路径在 WillDestroy 中已注销，此处兜底避免订阅泄漏
+    UnsubscribeCommonEvents();
 }
 
 void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
@@ -116,6 +120,7 @@ void KRRenderView::OnAttachToWindow(ArkUI_NodeContentHandle handle){
 
 void KRRenderView::WillDestroy(const std::string &instanceId) {
     DispatchInitState(KRInitState::kStateDestroy);
+    UnsubscribeCommonEvents();
     core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
@@ -250,6 +255,9 @@ void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_Co
     context_ = context;
     ui_context_handle_ = ui_context_handle;
     native_resources_manager_ = native_resources_manager;
+    // 早于 core 初始化订阅：页面视图树会在 core 初始化过程中被同步创建，
+    // 提前订阅可保证事件通道在首帧之前就绪（见 openspec change: ohos-custom-back-to-top）
+    SubscribeCommonEvents();
     int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
     performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
     performance_manager_->SetArkLaunchTime(launch_time);
@@ -341,6 +349,12 @@ KRPoint KRRenderView::GetRootNodePositionInWindow() const {
 }
 
 void KRRenderView::DispatchInitState(KRInitState state) {
+    // 活跃状态（页面是否可见）单独维护，避免与性能埋点的 case 落穿逻辑耦合
+    if (state == KRInitState::kStateResume) {
+        is_active_ = true;
+    } else if (state == KRInitState::kStatePause || state == KRInitState::kStateDestroy) {
+        is_active_ = false;
+    }
     switch (state) {
     case KRInitState::kStateKRRenderViewInit:
         performance_manager_->OnKRRenderViewInit();
@@ -383,5 +397,49 @@ void KRRenderView::DispatchInitState(KRInitState state) {
         KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
             NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
             NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
+    });
+}
+
+void KRRenderView::SubscribeCommonEvents() {
+    if (is_common_event_subscribed_ || context_ == nullptr) {
+        return;
+    }
+    const std::string instance_id = context_->InstanceId();
+    if (instance_id.empty()) {
+        return;
+    }
+    is_common_event_subscribed_ = true;
+    kuikly::KRCommonEventManager::GetInstance().Subscribe(kuikly::CommonEventName::COMMON_EVENT_CLICK_STATUSBAR,
+                                                          instance_id);
+}
+
+void KRRenderView::UnsubscribeCommonEvents() {
+    if (!is_common_event_subscribed_ || context_ == nullptr) {
+        return;
+    }
+    is_common_event_subscribed_ = false;
+    kuikly::KRCommonEventManager::GetInstance().Unsubscribe(kuikly::CommonEventName::COMMON_EVENT_CLICK_STATUSBAR,
+                                                            context_->InstanceId());
+}
+
+void KRRenderView::OnCommonEvent(kuikly::CommonEventName name) {
+    KREnsureMainThread();
+
+    if (name != kuikly::CommonEventName::COMMON_EVENT_CLICK_STATUSBAR) {
+        return;
+    }
+    if (!is_active_) {
+        KR_LOG_INFO_WITH_TAG("KRCommonEvent")
+            << "skip " << kuikly::CommonEventNameToEventString(name) << ", instance is not active";
+        return;
+    }
+    if (core_ == nullptr) {
+        return;
+    }
+    // 遍历本实例视图树，由滚动容器自行决定回顶行为
+    core_->ForEachRenderView([](const std::shared_ptr<IKRRenderViewExport> &view) {
+        if (view != nullptr) {
+            view->OnStatusBarClicked();
+        }
     });
 }

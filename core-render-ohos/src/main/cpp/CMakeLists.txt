@@ -39,6 +39,7 @@ set(SOURCE_SET
         libohos_render/utils/KREventUtil.cpp
         libohos_render/layer/KRRenderLayerHandler.cpp
         libohos_render/expand/events/KREventDispatchCenter.cpp
+        libohos_render/expand/events/common_event/KRCommonEventManager.cpp
         libohos_render/expand/events/gesture/KRGestureGroupHandler.cpp
         libohos_render/expand/events/gesture/KRGestureEventHandler.cpp
         libohos_render/expand/events/gesture/KRGestureCaptureRule.cpp
@@ -165,6 +166,7 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libjsvm.so
                                     libnative_drawing.so
                                     libohcrypto.so
+                                    libohcommonevent.so
                                     libohfileuri.so
                                     libohresmgr.so
                                     libpixelmap.so

@@ -50,6 +50,19 @@ class KRRenderView : public IKRRenderView {
     bool syncSendEvent(const std::string &event_name) override;
 
     /**
+     * 收到系统公共事件时回调：仅活跃实例处理，并分发给内部的滚动容器
+     * @param name 事件枚举
+     */
+    void OnCommonEvent(kuikly::CommonEventName name) override;
+
+    /**
+     * 当前渲染实例是否处于活跃（可见）状态
+     */
+    bool is_active() const {
+        return is_active_;
+    }
+
+    /**
      * 获取渲染节点视图（要求在主线程调用）
      * @param tag 所在tag
      * @return 对应节点view
@@ -158,6 +171,9 @@ class KRRenderView : public IKRRenderView {
 
  private:
     void RemoveRootViewFromContentHandle(bool immediate);
+    /** 注册/注销框架关注的系统公共事件（按实例引用计数） */
+    void SubscribeCommonEvents();
+    void UnsubscribeCommonEvents();
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
     ArkUI_NodeHandle root_node_ = nullptr;
     float root_view_width_ = 0.0;
@@ -172,6 +188,8 @@ class KRRenderView : public IKRRenderView {
     std::shared_ptr<KRPerformanceManager> performance_manager_ = nullptr;
     bool is_load_finish = false;  //  是否已经初始化过标记
     bool is_detached_ = false;    //  是否因为 detach from window 而移除了 root view
+    bool is_active_ = false;      //  页面是否可见（由 viewDidAppear/viewDidDisappear 驱动）
+    bool is_common_event_subscribed_ = false;  //  是否已登记公共事件订阅
     void InitRender(float width, float height);
 };
 

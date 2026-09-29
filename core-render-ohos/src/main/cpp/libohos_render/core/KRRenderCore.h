@@ -91,6 +91,12 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
     std::shared_ptr<IKRRenderViewExport> GetView(ArkUI_NodeHandle handle);
 
     /**
+     * 只读遍历当前实例的全部渲染视图（要求在主线程调用）
+     * @param callback 每个视图的回调
+     */
+    void ForEachRenderView(const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback);
+
+    /**
      * 获取渲染节点视图（要求在主线程调用）
      * @param tag 所在tag
      * @return 对应节点view

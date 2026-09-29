@@ -37,9 +37,15 @@ extern void* OH_ArkUI_GestureInterrupter_GetUserData(ArkUI_GestureInterruptInfo*
 constexpr int FLING_SPEED_LIMIT_API_LEVEL = 18;
 constexpr ArkUI_NodeAttributeType kScrollFlingSpeedLimitAttr =
     static_cast<ArkUI_NodeAttributeType>(1002019);
+// 系统内置"点击状态栏回顶"属性（NODE_SCROLL_BACK_TO_TOP）从 API 15 开始支持
+constexpr int SCROLL_BACK_TO_TOP_API_LEVEL = 15;
 
 static bool IsFlingSpeedLimitApiAvailable() {
     return OH_GetSdkApiVersion() >= FLING_SPEED_LIMIT_API_LEVEL;
+}
+
+static bool IsScrollBackToTopApiAvailable() {
+    return OH_GetSdkApiVersion() >= SCROLL_BACK_TO_TOP_API_LEVEL;
 }
 
 constexpr char kPropNameDirectionRow[] = "directionRow";
@@ -61,6 +67,7 @@ constexpr char kEventNameDragBegin[] = "dragBegin";
 constexpr char kEventNameWillDragEnd[] = "willDragEnd";
 constexpr char kEventNameDragEnd[] = "dragEnd";
 constexpr char kEventNameScrollEnd[] = "scrollEnd";
+constexpr char kEventNameScrollToTop[] = "scrollToTop";
 constexpr char kEventKeyOffsetX[] = "offsetX";
 constexpr char kEventKeyOffsetY[] = "offsetY";
 constexpr char kEventKeyContentWidth[] = "contentWidth";
@@ -170,6 +177,8 @@ void KRScrollerView::DidInit() {
     last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
+    // 关闭系统内置回顶，改由框架通过系统公共事件实现（见 openspec change: ohos-custom-back-to-top）
+    DisableSystemBackToTopIfNeed();
     SetBouncesEnable(NewKRRenderValue(bounces_enabled_));
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_FRAME_BEGIN);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_START);
@@ -208,6 +217,10 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = SetFlingEnable(prop_value->toBool());
     } else if (kuikly::util::isEqual(prop_key, kPropNameFlingSpeedLimit)) {
         didHanded = SetFlingSpeedLimit(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kEventNameScrollToTop)) {
+        // 业务监听了"点击状态栏回顶"，后续由该回调决定行为（框架不再自动回顶）
+        on_scroll_to_top_callback_ = event_call_back;
+        didHanded = true;
     }
     return didHanded;
 }
@@ -231,9 +244,47 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
             if (IsFlingSpeedLimitApiAvailable()) {
                 kuikly::util::GetNodeApi()->resetAttribute(GetNode(), kScrollFlingSpeedLimitAttr);
             }
+        } else if (kuikly::util::isEqual(prop_key, kEventNameScrollToTop)) {
+            didHanded = true;
+            on_scroll_to_top_callback_ = nullptr;
         }
     }
     return didHanded;
+}
+
+void KRScrollerView::DisableSystemBackToTopIfNeed() {
+    if (GetNode() == nullptr || !IsScrollBackToTopApiAvailable()) {
+        // 低版本系统没有该属性，保持原有滚动行为
+        return;
+    }
+    ArkUI_NumberValue value[] = {{.i32 = 0}};
+    ArkUI_AttributeItem item = {value, 1};
+    const auto set_result = kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BACK_TO_TOP, &item);
+    KR_LOG_INFO_WITH_TAG("KRBackToTop") << "disable system back-to-top: node=" << GetNode()
+                                        << ", result=" << set_result;
+}
+
+void KRScrollerView::ScrollToTopByFramework() {
+    if (GetNode() == nullptr) {
+        return;
+    }
+    auto content_offset = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    if (std::fabs(content_offset.x) < 0.5f && std::fabs(content_offset.y) < 0.5f) {
+        // 已经在顶部，无需滚动
+        return;
+    }
+    kuikly::util::SetArkUIContentOffset(GetNode(), 0, 0, true, 0, 0, 0);
+}
+
+void KRScrollerView::OnStatusBarClicked() {
+    KREnsureMainThread();
+    if (on_scroll_to_top_callback_ != nullptr) {
+        // 业务已接管：仅回调，不做自动回顶（对齐 iOS scrollViewShouldScrollToTop: 返回 NO）
+        on_scroll_to_top_callback_(KREmptyValue());
+        return;
+    }
+    // 未注册回调：补回被关闭的系统默认行为
+    ScrollToTopByFramework();
 }
 
 void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) {
@@ -740,6 +791,8 @@ KRPoint KRScrollerView::GetContentOffset() {
 
 void KRScrollerView::DidMoveToParentView() {
     IKRRenderViewExport::DidMoveToParentView();
+    // 兜底：容器可能在系统事件订阅生效之前就被创建，挂载到视图树时再尝试一次（幂等）
+    DisableSystemBackToTopIfNeed();
     auto parent_view = GetParentView();
     while (parent_view != nullptr) {
         if (auto view = std::dynamic_pointer_cast<KRView>(parent_view)) {

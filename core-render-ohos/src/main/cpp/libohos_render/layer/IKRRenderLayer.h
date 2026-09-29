@@ -186,6 +186,12 @@ class IKRRenderLayer {
     virtual std::shared_ptr<IKRRenderViewExport> GetRenderView(int tag) = 0;
 
     /**
+     * 只读遍历当前渲染层已注册的全部视图（要求在主线程调用）
+     * @param callback 每个视图的回调
+     */
+    virtual void ForEachRenderView(const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) {}
+
+    /**
      * 将要销毁时调用
      */
     virtual void WillDestroy() = 0;

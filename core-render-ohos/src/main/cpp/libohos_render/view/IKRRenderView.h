@@ -20,6 +20,7 @@
 #include <rawfile/raw_file_manager.h>
 #include <memory>
 #include "libohos_render/context/KRRenderContextParams.h"
+#include "libohos_render/expand/events/common_event/KRCommonEventName.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/performance/KRPerformanceManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
@@ -51,6 +52,12 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      * @return true 为同步，false 为异步
      */
     virtual bool syncSendEvent(const std::string &event_name) { return false; }
+
+    /**
+     * 收到系统公共事件（CommonEvent）时回调（渲染主线程回调）
+     * @param name 事件枚举
+     */
+    virtual void OnCommonEvent(kuikly::CommonEventName name) {}
 
     /**
      * 获取渲染节点视图（要求在主线程调用）

@@ -140,6 +140,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     virtual void FireViewEventFromArkTS(std::string eventKey, KRAnyValue data) {}
 
     /**
+     * 用户点击系统状态栏（要求在主线程调用），由滚动容器实现自定义回顶逻辑
+     */
+    virtual void OnStatusBarClicked() {}
+
+    /**
      * 自定义设置ViewFrame, 基类不处理SetFrame操作，子类自身通过重写SetRenderViewFrame实现
      * @return
      */

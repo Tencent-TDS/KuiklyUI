@@ -159,6 +159,14 @@ std::shared_ptr<IKRRenderViewExport> KRRenderCore::GetView(ArkUI_NodeHandle hand
     return nullptr;
 }
 
+void KRRenderCore::ForEachRenderView(
+    const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) {
+    if (renderLayerHandler_ == nullptr) {
+        return;
+    }
+    renderLayerHandler_->ForEachRenderView(callback);
+}
+
 std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModule(const std::string &module_name) {
     return renderLayerHandler_->GetModule(module_name);
 }

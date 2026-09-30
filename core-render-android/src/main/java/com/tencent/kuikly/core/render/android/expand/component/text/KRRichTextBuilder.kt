@@ -51,8 +51,6 @@ import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
 import com.tencent.kuikly.core.render.android.expand.component.KRTextProps
 import org.json.JSONObject
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.max
 
 /**
@@ -442,6 +440,13 @@ class FontFamilySpan(fontFamily: String, typeFaceLoader: TypeFaceLoader?) : Type
 
 class HRLineHeightSpan(internal val height: Int) : LineHeightSpan {
 
+    // CSS line-height distributes the extra leading around the font's ascent
+    // and descent (half-leading). Android's top/bottom also include the font
+    // padding extents, even with StaticLayout.setIncludePad(false), so splitting
+    // the leading around top/bottom pushes fonts with asymmetric padding below
+    // the baseline a browser would use. Keep the computation strictly
+    // metrics-based: centering on glyph bounds would make the line box depend
+    // on the text itself and editable content would jump while typing.
     override fun chooseHeight(
         text: CharSequence?,
         start: Int,
@@ -450,11 +455,12 @@ class HRLineHeightSpan(internal val height: Int) : LineHeightSpan {
         lineHeight: Int,
         fm: Paint.FontMetricsInt
     ) {
-        val additional: Int = height - (-fm.top + fm.bottom)
-        fm.top -= ceil((additional / 2.0f).toDouble()).toInt()
-        fm.bottom += floor((additional / 2.0f).toDouble()).toInt()
-        fm.ascent = fm.top
-        fm.descent = fm.bottom
+        val additional: Int = height - (fm.descent - fm.ascent)
+        val topExtra = additional / 2
+        fm.ascent -= topExtra
+        fm.descent += additional - topExtra
+        fm.top = fm.ascent
+        fm.bottom = fm.descent
     }
 }
 

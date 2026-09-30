@@ -125,6 +125,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "SB"
+            titleText = "RichText Span Background"
+            subtitleText = "span 级 backgroundColor：跨行、叠加 view 背景、相邻 span"
+            declarativeExampleUrl = generateJumpUrl("RichTextSpanBackgroundExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Sp"
             titleText = "Span Selection"
             subtitleText = "长按富文本 Span 整体选择，支持字符/WORD/句子/段落/SPAN 多种选择类型"

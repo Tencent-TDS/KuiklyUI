@@ -398,8 +398,13 @@ internal fun RichTextAttr.applyAnnotatedString(
 
                 // Apply LinkAnnotation styles if found
                 linkAnnotation?.let { range ->
-                    val spanStyle = range.item.styles?.style ?: SpanStyle()
-                    applySpanStyle(spanStyle, density)
+                    // A link without styles only carries interaction metadata.
+                    // Applying an empty SpanStyle would reset font props that
+                    // were inherited from enclosing spans (for example a custom
+                    // fontFamily under a whole-paragraph click annotation).
+                    range.item.styles?.style?.let { spanStyle ->
+                        applySpanStyle(spanStyle, density)
+                    }
 
                     // Add click event handler
                     click { _ ->
@@ -433,6 +438,7 @@ internal fun TextSpan.applySpanStyle(spanStyle: SpanStyle, density: Density) {
     if (spanStyle.fontSize.isSpecified) {
         fontSize(scaleToDensity(density, spanStyle.fontSize.value))
     }
+    applyFontFamily(spanStyle.fontFamily)
     applyFontWeight(spanStyle.fontWeight)
     applyFontStyle(spanStyle.fontStyle)
     applyShadow(spanStyle.shadow)

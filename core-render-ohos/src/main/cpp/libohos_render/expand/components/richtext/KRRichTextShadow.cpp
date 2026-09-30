@@ -442,6 +442,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         auto fontWeight = kuikly::util::ConvertFontWeight(GetKRValue("fontWeight", spanMap, props_)->toInt(), fontWeightScale);
         // 解析基于Span的多个渐变色属性
         auto colorStr = GetKRValue("color", spanMap, props_)->toString();
+        auto backgroundColorStr = GetKRValue("backgroundColor", spanMap, spanMap)->toString();
         auto backgroundImage = GetKRValue("backgroundImage", spanMap, props_)->toString();
         OH_Drawing_ShaderEffect *colorShaderEffect = nullptr;
         auto linearGradient = std::make_shared<kuikly::util::KRLinearGradientParser>();
@@ -449,6 +450,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
 
         auto fontFamily = GetKRValue("fontFamily", spanMap, props_)->toString();
         auto color = colorStr.length() ? kuikly::util::ConvertToHexColor(colorStr) : 0xff000000;                    // 默认黑色
+        auto backgroundColor = backgroundColorStr.length() ? kuikly::util::ConvertToHexColor(backgroundColorStr) : 0x00000000;
         auto lineHeight = GetKRValue("lineHeight", spanMap, props_)->toFloat() / (fontSize / dpi);    // 字体比例
         auto lineSpacing = GetKRValue("lineSpacing", spanMap, props_)->toFloat() / (fontSize / dpi);  // 行间距比例
         auto textAlign = kuikly::util::ConvertToTextAlign(GetKRValue("textAlign", spanMap, props_)->toString());
@@ -465,8 +467,14 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         OH_Drawing_TextStyle *txtStyle = OH_Drawing_CreateTextStyle();
         OH_Drawing_Pen *textForegroundPen = nullptr;
         OH_Drawing_Brush *textForegroundBrush = OH_Drawing_BrushCreate();
+        OH_Drawing_Brush *textBackgroundBrush = nullptr;
         // 设置文字大小、字重等属性设置到文本样式对象中
         OH_Drawing_SetTextStyleColor(txtStyle, color);
+        if (backgroundColorStr.length() && backgroundColor != 0x00000000) {
+            textBackgroundBrush = OH_Drawing_BrushCreate();
+            OH_Drawing_BrushSetColor(textBackgroundBrush, backgroundColor);
+            OH_Drawing_SetTextStyleBackgroundBrush(txtStyle, textBackgroundBrush);
+        }
         if (textShadowStr.length()) {
             auto textShadow = OH_Drawing_CreateTextShadow();
             kuikly::util::SetTextShadow(textShadow, textShadowStr);
@@ -650,6 +658,10 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             textForegroundBrush = nullptr;
         }
         spanIndex++;
+        if (textBackgroundBrush) {
+            OH_Drawing_BrushDestroy(textBackgroundBrush);
+            textBackgroundBrush = nullptr;
+        }
     }
     // 根据handler对象生成文本排版布局typography
     context_thread_typography_ = KRMakeTypographyHandle(OH_Drawing_CreateTypography(handler));

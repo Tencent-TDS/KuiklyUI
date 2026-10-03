@@ -219,9 +219,11 @@ class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObs
         val newKeyboardHeight = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val insets = rootView.rootWindowInsets
             val imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom
-            val navHeight = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
-            // 只有当键盘弹出时（imeHeight > 0），才尝试减去导航栏高度
-            if (imeHeight > 0) (imeHeight - navHeight).coerceAtLeast(0) else 0
+            // Kuikly Android 默认走 SOFT_INPUT_ADJUST_NOTHING（KuiklyRenderViewBaseDelegator#softInputMode），
+            // window 不做 resize/pan，业务侧只能靠 padding(bottom = keyboardHeight.dp) 抬升输入框。
+            // 因此这里必须下发键盘物理总高（含底部导航栏被键盘覆盖的那段），
+            // 不能再减掉 navHeight —— 减掉后在带 nav 的机型（如三星）上会导致输入框被键盘遮挡一小截。
+            imeHeight.coerceAtLeast(0)
         } else {
             0
         }

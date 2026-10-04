@@ -347,3 +347,6 @@ long long com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() {
     }
     return 0;
 }
+
+typedef long long (*GetNativeHeapSize)();
+extern long long com_tencent_kuikly_SetGetNativeHeapSize(GetNativeHeapSize getNativeHeapSize);

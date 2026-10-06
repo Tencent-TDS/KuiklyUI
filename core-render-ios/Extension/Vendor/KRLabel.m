@@ -17,6 +17,7 @@
 #import <pthread.h>
 #import <libkern/OSAtomic.h>
 #import "KRAsyncDeallocManager.h"
+#import "KuiklyRenderThreadManager.h"
 #import <objc/runtime.h>
 #import "NSObject+KR.h"
 
@@ -374,13 +375,23 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 }
 
 - (void)dealloc{
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textStorageOnRender];
-    if (_textStorage != _textStorageOnRender) {
-        [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textStorage];
-    }
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_layoutManager];
-    [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textContainer];
-
+    // 将 TextKit 对象的释放投递到 Context 线程，保证与 calculateRenderViewSizeWithTag（同样在
+    // Context 线程执行的布局计算）串行，避免 Global Queue 异步释放 NSTextStorage 中的 UIFont 时
+    // 与 Context 线程上正在进行的 NSTextStorage initWithAttributedString → fixFontAttributeInRange
+    // 产生竞态（野指针）。
+    // 先拷贝到局部变量，避免 block 捕获处于销毁过程中的 self；
+    // 单个 block 一次性持有全部对象，避免多次独立投递在队列上产生任务间隙。
+    NSTextStorage *textStorageOnRender = _textStorageOnRender;
+    NSTextStorage *textStorage = _textStorage;
+    NSLayoutManager *layoutManager = _layoutManager;
+    NSTextContainer *textContainer = _textContainer;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        // block 强持有上述对象，待 Context 线程执行完毕后引用计数归零完成释放。
+        __attribute__((unused)) NSTextStorage *s0 = textStorageOnRender;
+        __attribute__((unused)) NSTextStorage *s1 = textStorage;
+        __attribute__((unused)) NSLayoutManager *s2 = layoutManager;
+        __attribute__((unused)) NSTextContainer *s3 = textContainer;
+    }];
 }
 
 #pragma mark - layout manager delegate

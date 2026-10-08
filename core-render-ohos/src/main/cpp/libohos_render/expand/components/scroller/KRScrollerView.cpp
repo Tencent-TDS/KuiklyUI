@@ -175,6 +175,8 @@ void KRScrollerView::DidInit() {
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_START);
     RegisterEvent(NODE_SCROLL_EVENT_ON_WILL_SCROLL);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_STOP);
+    // 默认嵌套滚动模式与 iOS/Android 保持一致：SELF_FIRST
+    kuikly::util::SetArkUINestedScroll(GetNode(), ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
 }
 
 bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,

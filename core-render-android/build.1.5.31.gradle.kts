@@ -69,7 +69,7 @@ android {
 
 dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31")
-    implementation("androidx.recyclerview:recyclerview:1.1.0")
+    implementation("androidx.recyclerview:recyclerview:1.2.1")
     compileOnly(project(":core"))
     implementation("androidx.appcompat:appcompat:1.2.0")
     implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")

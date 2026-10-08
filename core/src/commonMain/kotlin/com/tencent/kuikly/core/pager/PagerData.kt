@@ -69,6 +69,17 @@ class PageData(scope: PagerScope) {
     /** 安全区域是指不被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 */
     var safeAreaInsets: EdgeInsets by scope.observable(EdgeInsets.default)
 
+    /** 铰链开合状态。无铰链设备保持 [HingeStatus.UNKNOWN]。 */
+    var hingeStatus: HingeStatus by scope.observable(HingeStatus.UNKNOWN)
+        internal set
+
+    /**
+     * 当前根视图上的避让区域（遮挡和折缝）。无区域时为空列表。
+     * 随 rootViewSizeDidChanged 更新。
+     */
+    var reservedRegions: List<ReservedRegion> by scope.observable(emptyList())
+        internal set
+
     var density: Float = 3f
         internal set
 	
@@ -112,6 +123,8 @@ class PageData(scope: PagerScope) {
         if (safeAreaInsetsString.isNotEmpty()) {
             safeAreaInsets = EdgeInsets.decodeWithString(safeAreaInsetsString)
         }
+        hingeStatus = HingeStatus.fromRaw(pageData.optInt(HINGE_STATUS, 0))
+        reservedRegions = ReservedRegion.decodeReservedRegions(pageData.optString(RESERVED_REGIONS, ""))
         osVersion = pageData.optString(OS_VERSION)
         androidBottomBavBarHeight = pageData.optDouble(ANDROID_BOTTOM_NAV_BAR_HEIGHT, 0.0).toFloat()
         density = pageData.optDouble(DENSITY, 3.0).toFloat() // use 3(xxhdpi) for backwards compatibility
@@ -186,6 +199,8 @@ class PageData(scope: PagerScope) {
         const val PLATFORM = "platform"
         const val NATIVE_BUILD = "nativeBuild"
         private const val SAFE_AREA_INSETS = "safeAreaInsets"
+        internal const val HINGE_STATUS = "hingeStatus"
+        internal const val RESERVED_REGIONS = "reservedRegions"
         private const val ACTIVITY_WIDTH = "activityWidth"
         private const val ACTIVITY_HEIGHT = "activityHeight"
         private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning"

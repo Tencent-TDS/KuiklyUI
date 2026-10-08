@@ -322,6 +322,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         // 批量解析与字体相关的属性
         UIFont *font = [KRConvertUtil UIFont:propStyle];
         UIColor * color = [UIView css_color:propStyle[@"color"]] ?: [UIColor blackColor];
+        UIColor *backgroundColor = [UIView css_color:span[@"backgroundColor"]];
         NSString *cssGricent = propStyle[@"backgroundImage"];
         BOOL hasGradient = NO;
         if (cssGricent && [cssGricent hasPrefix:@"linear-gradient("]) {
@@ -374,6 +375,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         spanAttrs.spanIndex = spanIndex;
         spanAttrs.font = font;
         spanAttrs.color = color;
+        spanAttrs.backgroundColor = backgroundColor;
         spanAttrs.hasGradient = hasGradient;
         spanAttrs.cssGradient = cssGricent;
         spanAttrs.letterSpacing = letterSpacing;
@@ -447,6 +449,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
     if (attrs.letterSpacing) {
         [attributedString addAttribute:NSKernAttributeName value:@(attrs.letterSpacing) range:range];
+    }
+
+    if (attrs.backgroundColor) {
+        [attributedString addAttribute:NSBackgroundColorAttributeName value:attrs.backgroundColor range:range];
     }
 
     if (attrs.textDecoration == KRTextDecorationLineTypeUnderline) {

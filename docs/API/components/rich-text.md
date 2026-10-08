@@ -33,7 +33,7 @@
 
 @tab:active 示例
 
-```kotlin{10-19}
+```kotlin{10-26}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -52,6 +52,13 @@ internal class TestPage : BasePager() {
                     text("第二个Span")
                     color(Color.BLUE)
                     fontSize(20f)
+                }
+                Span {
+                    // span 级背景色只覆盖这一段文字，三端一致
+                    text("带背景的Span")
+                    color(Color.WHITE)
+                    backgroundColor(Color.RED)
+                    fontSize(16f)
                 }
             }
         }

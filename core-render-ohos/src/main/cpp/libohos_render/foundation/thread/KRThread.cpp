@@ -15,7 +15,6 @@
 
 #include "libohos_render/foundation/thread/KRThread.h"
 
-#include <pthread.h>
 #include <qos/qos.h>
 #include <cassert>
 #include <chrono>
@@ -39,9 +38,8 @@ constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 
 }  // namespace
 
-KRThread::KRThread(const std::string &name) {
-    m_workerThread = std::thread([this, name]() {this->WorkerLoop(name); });
-    pthread_setname_np(m_workerThread.native_handle(), name.c_str());
+KRThread::KRThread(const std::string &name)
+    : m_workerThread([this, name]() { this->WorkerLoop(name); }, name) {
 
     // 等 worker 线程把 uv_loop_init / uv_async_init 完成后再返回，
     // 这样外部立刻 DispatchAsync 也能保证 m_async 已就绪。
@@ -52,8 +50,8 @@ KRThread::KRThread(const std::string &name) {
 KRThread::~KRThread() {
     if (!m_loopReady.load()) {
         // 启动失败：worker 已退出或从未起来。
-        if (m_workerThread.joinable()) {
-            m_workerThread.join();
+        if (m_workerThread.Joinable()) {
+            m_workerThread.Join();
         }
         return;
     }
@@ -62,8 +60,8 @@ KRThread::~KRThread() {
     // 唤醒 loop 线程，让它走到 OnAsync 里检查 m_stop，关闭 async 句柄并退出 loop。
     uv_async_send(&m_async);
 
-    if (m_workerThread.joinable()) {
-        m_workerThread.join();
+    if (m_workerThread.Joinable()) {
+        m_workerThread.Join();
     }
 }
 

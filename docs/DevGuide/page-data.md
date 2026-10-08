@@ -67,7 +67,7 @@ class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>() {
 | params          | 存放业务扩展的数据                                            | JSONObject |
 | safeAreaInsets  | 安全区域: 被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 | EdgeInsets |
 | hingeStatus     | 铰链开合状态（仅折叠设备）：0=未知 1=合上 2=半开 3=全开 | HingeStatus |
-| reservedRegions | 系统避让区域列表（仅 iOS 折叠设备）：occlusion=遮挡区（摄像头/侧边栏），division=折缝区 | List<ReservedRegion> |
+| reservedRegions | 系统避让区域列表（仅 iOS 折叠设备）：occlusion=遮挡区（摄像头/侧边栏），division=折缝区 | `List<ReservedRegion>` |
 
 
 :::tip 提示

@@ -15,6 +15,52 @@
 
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/scheduler/KRContextScheduler.h"
+
+#include <algorithm>
+
+namespace {
+int CaptureIntervalMs(const KRAnyValue &params) {
+    if (!params) {
+        return 100;
+    }
+    const std::string value = params->toString();
+    const auto keyPosition = value.find("intervalMs");
+    if (keyPosition == std::string::npos) {
+        return 100;
+    }
+    const auto colonPosition = value.find(':', keyPosition);
+    if (colonPosition == std::string::npos) {
+        return 100;
+    }
+    try {
+        return std::max(1, std::stoi(value.substr(colonPosition + 1)));
+    } catch (...) {
+        return 100;
+    }
+}
+
+int CaptureSampleSize(const KRAnyValue &params) {
+    if (!params) {
+        return 2;
+    }
+    const std::string value = params->toString();
+    const auto keyPosition = value.find("sampleSize");
+    if (keyPosition == std::string::npos) {
+        return 2;
+    }
+    const auto colonPosition = value.find(':', keyPosition);
+    if (colonPosition == std::string::npos) {
+        return 2;
+    }
+    try {
+        return std::max(1, std::stoi(value.substr(colonPosition + 1)));
+    } catch (...) {
+        return 2;
+    }
+}
+}
 
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
@@ -25,6 +71,7 @@ void KRForwardArkTSView::DidInit() {
 }
 
 void KRForwardArkTSView::OnDestroy() {
+    StopPixelMapCapture();
     KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::RemoveView,
                                                   KRRenderValue::Make(GetViewTag()), nullptr, nullptr,
                                                   nullptr, nullptr, nullptr);
@@ -123,8 +170,81 @@ void KRForwardArkTSView::FireViewEventFromArkTS(std::string eventKey, KRAnyValue
 
 void KRForwardArkTSView::CallMethod(const std::string &method, const KRAnyValue &params,
                                     const KRRenderCallback &callback) {
+    if (GetViewName() == "KRNaviMirrorCaptureView" && method == "startCapture") {
+        StartPixelMapCapture(CaptureIntervalMs(params));
+        pixel_map_capture_sample_size_ = CaptureSampleSize(params);
+        if (callback) {
+            KRRenderValue::Map result;
+            result["code"] = KRRenderValue::Make(0);
+            callback(KRRenderValue::Make(result));
+        }
+        return;
+    }
+    if (GetViewName() == "KRNaviMirrorCaptureView" && method == "stopCapture") {
+        StopPixelMapCapture();
+        if (callback) {
+            KRRenderValue::Map result;
+            result["code"] = KRRenderValue::Make(0);
+            callback(KRRenderValue::Make(result));
+        }
+        return;
+    }
     KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
                                                   KRRenderValue::Make(GetViewTag()),
                                                   KRRenderValue::Make(method), params, nullptr, nullptr,
                                                   callback);
+}
+
+void KRForwardArkTSView::StartPixelMapCapture(int interval_ms) {
+    pixel_map_capture_interval_ms_ = std::max(1, interval_ms);
+    if (pixel_map_capture_running_) {
+        return;
+    }
+    pixel_map_capture_running_ = true;
+    SchedulePixelMapCapture(0);
+}
+
+void KRForwardArkTSView::StopPixelMapCapture() {
+    pixel_map_capture_running_ = false;
+}
+
+void KRForwardArkTSView::SchedulePixelMapCapture(int delay_ms) {
+    std::weak_ptr<IKRRenderViewExport> weakSelf = shared_from_this();
+    KRContextScheduler::ScheduleTask(delay_ms, [weakSelf] {
+        auto self = weakSelf.lock();
+        auto forwardView = std::dynamic_pointer_cast<KRForwardArkTSView>(self);
+        if (!forwardView || !forwardView->pixel_map_capture_running_) {
+            return;
+        }
+        forwardView->CapturePixelMapOnce();
+    });
+}
+
+void KRForwardArkTSView::CapturePixelMapOnce() {
+    std::weak_ptr<IKRRenderViewExport> weakSelf = shared_from_this();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [weakSelf] {
+        auto self = weakSelf.lock();
+        auto forwardView = std::dynamic_pointer_cast<KRForwardArkTSView>(self);
+        if (!forwardView || !forwardView->pixel_map_capture_running_) {
+            return;
+        }
+
+        // 与 IKRRenderViewExport::CallMethod("toImage") 一致，在主线程上把
+        // nodeId 写入 Forward View 对应的 CAPI 原生节点。
+        const std::string nodeId = forwardView->GetNodeId();
+        ArkUI_AttributeItem item = {nullptr, 0, nodeId.c_str(), nullptr};
+        kuikly::util::GetNodeApi()->setAttribute(forwardView->GetNode(), NODE_ID, &item);
+        if (auto root = forwardView->GetRootView().lock()) {
+            root->GetSnapshotManager()->TakePixelMapSnapshot(
+                forwardView->GetInstanceId(), forwardView->GetViewTag(), nodeId,
+                forwardView->pixel_map_capture_sample_size_, forwardView,
+                [weakSelf] {
+                    auto self = weakSelf.lock();
+                    auto forwardView = std::dynamic_pointer_cast<KRForwardArkTSView>(self);
+                    if (forwardView && forwardView->pixel_map_capture_running_) {
+                        forwardView->SchedulePixelMapCapture(forwardView->pixel_map_capture_interval_ms_);
+                    }
+                });
+        }
+    });
 }

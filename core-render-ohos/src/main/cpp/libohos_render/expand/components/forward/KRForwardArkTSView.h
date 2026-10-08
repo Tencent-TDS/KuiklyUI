@@ -45,8 +45,16 @@ class KRForwardArkTSView : public IKRRenderViewExport {
     }
 
  private:
+    void StartPixelMapCapture(int interval_ms);
+    void StopPixelMapCapture();
+    void SchedulePixelMapCapture(int delay_ms);
+    void CapturePixelMapOnce();
+
     std::unordered_map<std::string, KRRenderCallback> event_registry_;
     ArkUI_NodeHandle ark_node_ = nullptr;
+    bool pixel_map_capture_running_ = false;
+    int pixel_map_capture_interval_ms_ = 100;
+    int pixel_map_capture_sample_size_ = 2;
 };
 
 #endif  // CORE_RENDER_OHOS_KRFORWARDARKTSVIEW_H

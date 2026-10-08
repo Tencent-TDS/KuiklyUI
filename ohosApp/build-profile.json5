@@ -1,7 +1,19 @@
 {
   "app": {
     "signingConfigs": [
-
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/ninebot/.ohos/config/default_ohosApp_8-nZLZFMpXwc7JnqVUYB_jICqeGsDCzYL4QukxxK5OE=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B647652FBFDC5C267A8BB3003D61045C1146EF765A1AE3816AFBA98B12DE68A656C30BB4EC6946A",
+          "profile": "/Users/ninebot/.ohos/config/default_ohosApp_8-nZLZFMpXwc7JnqVUYB_jICqeGsDCzYL4QukxxK5OE=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/ninebot/.ohos/config/default_ohosApp_8-nZLZFMpXwc7JnqVUYB_jICqeGsDCzYL4QukxxK5OE=.p12",
+          "storePassword": "0000001BFDCBF637A36007A133D3C6C52E86BA027911D1BC35084939C0FF267777709E54A69A025211D9FA"
+        }
+      }
     ],
     "products": [
       {

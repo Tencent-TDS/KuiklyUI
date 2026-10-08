@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_KRSNAPSHOTMANAGER_H
 #include <arkui/drawable_descriptor.h>
 #include <js_native_api.h>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include "libohos_render/export/IKRRenderViewExport.h"
@@ -39,6 +40,11 @@ class KRSnapshotManager {
     void TakeSnapshot(const std::string &instance_id, const std::string &method_name, const std::string &nodeId,
                       const KRAnyValue &params, const KRRenderCallback &cb,
                       std::weak_ptr<IKRRenderViewExport> weak_view);
+
+    void TakePixelMapSnapshot(const std::string &instance_id, int view_tag, const std::string &nodeId,
+                              int sample_size,
+                              std::weak_ptr<IKRRenderViewExport> weak_view,
+                              const std::function<void()> &completion);
 
  private:
     struct ResultData {

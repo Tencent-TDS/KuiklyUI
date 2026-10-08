@@ -45,24 +45,42 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
       const internalParamsJson: Record<string, Object> = JSON.parse(internalParams as string);
       const type: string | undefined = internalParamsJson['type']?.toString();
       let sampleSize = internalParamsJson['sampleSize'] as number;
+      const waitUntilRenderFinished = internalParamsJson['waitUntilRenderFinished'] !== false;
       if (sampleSize <= 0) {
         sampleSize = 1;
       }
 
+      const snapshotStartMs = Date.now();
+      KRRenderLog.i('KRSnapshotModule',
+        `snapshot start id=${id} type=${type ?? ''} sampleSize=${sampleSize} ` +
+        `waitUntilRenderFinished=${waitUntilRenderFinished}`);
+
       componentSnapshot.get(id, (err: BusinessError<void>, data: image.PixelMap) => {
+
+        const snapshotCostMs = Date.now() - snapshotStartMs;
 
         const resultParam = new SnapshotData();
         if (err) {
           resultParam.message = (err instanceof Error ? err.message : JSON.stringify(err)) ?? '';
-          KRRenderLog.i('KRSnapshotModule', `complete error message: ${err.message}`);
+          KRRenderLog.i('KRSnapshotModule',
+            `snapshot error costMs=${snapshotCostMs} message=${err.message}`);
           // 补充 err 时执行callback
           if (callback != null) {
             callback([resultParam, new ArrayBuffer(1)]);
           }
           return;
         } else {
+          let size = 'unknown';
+          try {
+            const info = data.getImageInfoSync();
+            size = `${info.size.width}x${info.size.height}`;
+          } catch (_) {
+            size = 'unavailable';
+          }
+          KRRenderLog.i('KRSnapshotModule',
+            `snapshot success costMs=${snapshotCostMs} size=${size}`);
           if (callback == null) {
-            KRRenderLog.i('KRSnapshotModule', `callback null`);
+            KRRenderLog.i('KRSnapshotModule', `snapshot callback null`);
             return;
           }
 
@@ -95,7 +113,7 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
             return;
           }
         }
-      }, { scale: 1 / sampleSize, waitUntilRenderFinished: true });
+      }, { scale: 1 / sampleSize, waitUntilRenderFinished: waitUntilRenderFinished });
     }
     return null;
   }

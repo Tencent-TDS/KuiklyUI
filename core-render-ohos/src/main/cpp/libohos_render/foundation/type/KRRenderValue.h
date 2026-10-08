@@ -649,7 +649,12 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
     }
 
     void ToNapiValue(const napi_env &env, napi_value *nvalue, napi_status &nstatus) const {
-        if (isBool()) {
+        if (isNapiValue()) {
+            // PixelMap 等 ArkTS 原生对象必须原样透传，不能按普通对象转换。
+            const NapiValue napiValue = toNapiValue();
+            *nvalue = napiValue.value;
+            nstatus = napiValue.value == nullptr ? napi_invalid_arg : napi_ok;
+        } else if (isBool()) {
             nstatus = napi_get_boolean(env, toBool(), nvalue);
         } else if (isInt()) {
             nstatus = napi_create_int32(env, toInt(), nvalue);

@@ -327,3 +327,61 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
             NewKRRenderValue(valueMap), nullptr, nullptr, toImageCb, false, nullptr, true);
     });
 }
+
+void KRSnapshotManager::TakePixelMapSnapshot(const std::string &instance_id, int view_tag,
+                                             const std::string &nodeId,
+                                             int sample_size,
+                                             std::weak_ptr<IKRRenderViewExport> weak_view,
+                                             const std::function<void()> &completion) {
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, view_tag, nodeId, sample_size, weak_view, completion] {
+        KRRenderValueMap valueMap;
+        valueMap["node_id"] = NewKRRenderValue(nodeId);
+
+        KRRenderValueMap paramsMap;
+        paramsMap["type"] = NewKRRenderValue("dataUri");
+        paramsMap["sampleSize"] = NewKRRenderValue(std::max(1, sample_size));
+        // 镜像采集不等待 Kuikly 下一次 UI flush；持续采集需要避免每帧把页面渲染线程阻塞住。
+        // 原有 toImage 仍由 TakeSnapshot 使用 waitUntilRenderFinished=true。
+        paramsMap["waitUntilRenderFinished"] = NewKRRenderValue(false);
+        valueMap["params"] = NewKRRenderValue(NewKRRenderValue(paramsMap)->toString());
+
+        KRRenderCallback snapshotCallback = [instance_id, view_tag, weak_view, completion](KRAnyValue result) {
+            if (!weak_view.lock() || !result || !result->isNapiValue()) {
+                if (completion) {
+                    completion();
+                }
+                return;
+            }
+
+            NapiValue napiValue = result->toNapiValue();
+            napi_env env = napiValue.env;
+            napi_value snapshotData = nullptr;
+            napi_value pixelMap = nullptr;
+            if (env == nullptr || napiValue.value == nullptr ||
+                napi_get_element(env, napiValue.value, 0, &snapshotData) != napi_ok ||
+                snapshotData == nullptr ||
+                napi_get_named_property(env, snapshotData, "pixelMap", &pixelMap) != napi_ok ||
+                pixelMap == nullptr) {
+                if (completion) {
+                    completion();
+                }
+                return;
+            }
+
+            KRArkTSManager::GetInstance().CallArkTSMethod(
+                instance_id, KRNativeCallArkTSMethod::CallViewMethod,
+                NewKRRenderValue(view_tag), NewKRRenderValue("onNativePixelMap"),
+                KRRenderValue::Make(NapiValue(env, pixelMap)), nullptr, nullptr,
+                [completion](KRAnyValue) {
+                    if (completion) {
+                        completion();
+                    }
+                }, false, nullptr, true);
+        };
+
+        KRArkTSManager::GetInstance().CallArkTSMethod(
+            instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
+            NewKRRenderValue("KRSnapshotModule"), NewKRRenderValue("toImage"),
+            NewKRRenderValue(valueMap), nullptr, nullptr, snapshotCallback, false, nullptr, true);
+    });
+}

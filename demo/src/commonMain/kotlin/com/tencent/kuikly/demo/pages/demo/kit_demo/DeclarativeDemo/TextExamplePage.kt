@@ -399,7 +399,7 @@ internal class TextExampleTextAlign: ComposeView<ComposeAttr, ComposeEvent>() {
     override fun body(): ViewBuilder {
         return {
             attr {
-                height(118f)
+                height(280f)
             }
             Text {
                 attr {
@@ -426,6 +426,19 @@ internal class TextExampleTextAlign: ComposeView<ComposeAttr, ComposeEvent>() {
                     text("Text Align Right")
                     fontSize(18f)
                     textAlignRight()
+                }
+            }
+            Text {
+                attr {
+                    absolutePosition(left = 16f, right = 16f, top = 112f)
+                    backgroundColor(Color(0xFFD8BFD8))
+                    fontSize(16f)
+                    textAlignJustify()
+                    text(
+                        "两端对齐需要使用接近满宽的多行段落才能看清效果。" +
+                            "软换行的中间行应撑满容器，最后一行保持左对齐。" +
+                            "Justified text stretches wrapped lines to fill the container width."
+                    )
                 }
             }
         }

@@ -218,9 +218,11 @@ internal fun TextAttr.applyShadow(shadow: Shadow?) {
 internal fun TextAttr.applyTextAlign(textAlign: TextAlign?) {
     // Perf: skip when stays at native default (left) and has never been set
     val align = when (textAlign) {
-        TextAlign.Left, TextAlign.Unspecified, null -> com.tencent.kuikly.core.views.TextAlign.LEFT.value
+        TextAlign.Left, TextAlign.Start, TextAlign.Unspecified, null ->
+            com.tencent.kuikly.core.views.TextAlign.LEFT.value
         TextAlign.Center -> com.tencent.kuikly.core.views.TextAlign.CENTER.value
-        TextAlign.Right -> com.tencent.kuikly.core.views.TextAlign.RIGHT.value
+        TextAlign.Right, TextAlign.End -> com.tencent.kuikly.core.views.TextAlign.RIGHT.value
+        TextAlign.Justify -> com.tencent.kuikly.core.views.TextAlign.JUSTIFY.value
         else -> com.tencent.kuikly.core.views.TextAlign.LEFT.value
     }
     if (align == com.tencent.kuikly.core.views.TextAlign.LEFT.value &&
@@ -356,20 +358,17 @@ internal fun RichTextAttr.applyAnnotatedString(
         val end = sortedPositions[i + 1]
 
         // Check if this range is a placeholder
-        val isPlaceholder = placeholders?.any {
-            it.start == start && it.end == end
-        } ?: false
+        val placeholder = placeholders?.find { it.start == start && it.end == end }
 
-        if (isPlaceholder) {
+        if (placeholder != null) {
             // Create PlaceholderSpan
-            placeholders!!.find { it.start == start }?.let { placeholder ->
-                spans.add(PlaceholderSpan().apply {
-                    placeholderSize(
-                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
-                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
-                    )
-                })
-            }
+            spans.add(PlaceholderSpan().apply {
+                placeholderSize(
+                    this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
+                    this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
+                )
+                description(annoText.text.substring(placeholder.start, placeholder.end))
+            })
         } else if (start < end) {
             // Create TextSpan for normal text
             spans.add(TextSpan().apply {

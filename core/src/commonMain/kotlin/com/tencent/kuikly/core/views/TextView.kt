@@ -405,6 +405,14 @@ open class TextAttr : Attr() {
         return this
     }
 
+    /**
+     * 两端对齐。软换行且撑满容器的行拉伸至左右边缘；末行、硬换行行与短单行保持左对齐。
+     */
+    open fun textAlignJustify(): TextAttr {
+        TextConst.TEXT_ALIGN with TextAlign.JUSTIFY.value
+        return this
+    }
+
     open fun lineHeight(lineHeight: Float): TextAttr {
         TextConst.LINE_HEIGHT with lineHeight
         return this
@@ -564,7 +572,8 @@ object TextConst {
 enum class TextAlign(val value: String) {
     LEFT("left"),
     CENTER("center"),
-    RIGHT("right")
+    RIGHT("right"),
+    JUSTIFY("justify")
 }
 
 enum class FontStyle(val value: String) {

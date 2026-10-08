@@ -65,6 +65,7 @@ import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
+import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
@@ -111,6 +112,9 @@ class TextDemo : ComposeContainer() {
                     }
                     item {
                         LineBreakMarginDemo()
+                    }
+                    item {
+                        composeTextJustifyDemo()
                     }
                 }
             }
@@ -1292,6 +1296,117 @@ fun LineBreakMarginDemo() {
                 isLineBreakMargin = false
                 isLongText = !isLongText
             }, text = "点击切换")
+        }
+    }
+}
+
+@Composable
+fun composeTextJustifyDemo() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("两端对齐（Justify）", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "你好 Kuikly!",
+            textAlign = TextAlign.Justify,
+            modifier = Modifier.fillMaxWidth().background(Color(0xFFE8F5E9)).padding(8.dp),
+        )
+        Text(
+            "Justification distributes the empty space remaining in a line across the gaps between characters or words. Intermediate lines of a soft-wrapped block should fill the container width, while the final line remains left-aligned.\n" +
+            "两端对齐把一行中尚未占满的空白分配到字或词之间。软换行的中间行应撑满容器，最后一行保持左对齐。",
+            textAlign = TextAlign.Justify,
+            modifier = Modifier.fillMaxWidth().background(Color(0xFFF3E5F5)).padding(8.dp),
+        )
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = Color(0xFF333333))) {
+                    append("多样式")
+                }
+                withStyle(
+                    SpanStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1565C0),
+                    ),
+                ) {
+                    append("两端对齐")
+                }
+                withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
+                    append("把不同颜色、字号和装饰拼在同一段中。")
+                }
+                append("两端对齐把一行中尚未占满的空白分配到字或词之间。软换行的中间行应撑满容器，最后一行保持左对齐。")
+            },
+            textAlign = TextAlign.Justify,
+            modifier = Modifier.fillMaxWidth().background(Color(0xFFFFF3E0)).padding(8.dp),
+        )
+        val imageContent =
+            mapOf(
+                "image" to InlineTextContent(Placeholder(24.sp, 24.sp)) {
+                    Image(
+                        rememberAsyncImagePainter(
+                            "https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png",
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                },
+                "cyan" to InlineTextContent(Placeholder(24.sp, 24.sp)) {
+                    Box(Modifier.fillMaxSize().background(Color.Cyan))
+                },
+                "yellow" to InlineTextContent(Placeholder(24.sp, 24.sp)) {
+                    Box(Modifier.fillMaxSize().background(Color.Yellow))
+                },
+                "magenta" to InlineTextContent(Placeholder(24.sp, 24.sp)) {
+                    Box(Modifier.fillMaxSize().background(Color.Magenta))
+                },
+                "wide" to InlineTextContent(Placeholder(150.sp, 24.sp)) {
+                    Box(Modifier.fillMaxSize().background(Color.Gray.copy(alpha = 0.5f)))
+                },
+            )
+        var textAlign by remember { mutableStateOf(TextAlign.Justify) }
+        Column(modifier = Modifier.clickable {
+            textAlign = if (textAlign == TextAlign.Justify) TextAlign.Unspecified else TextAlign.Justify
+        }) {
+            Text("Tap to switch textAlign=$textAlign")
+            Text(
+                buildAnnotatedString {
+                    appendInlineContent("cyan")
+                    append("一二三四五六")
+                    appendInlineContent("image", "[图片]")
+                    appendInlineContent("wide")
+                    append("中间文字")
+                    appendInlineContent("yellow")
+                    appendInlineContent("magenta")
+                    append("末尾")
+                },
+                inlineContent = imageContent,
+                textAlign = textAlign,
+                fontSize = 20.sp,
+                modifier = Modifier
+                    .width(300.dp)
+                    .background(Color(0xFFE3F2FD))
+                    .padding(8.dp),
+            )
+            Text(
+                buildAnnotatedString {
+                    appendInlineContent("cyan")
+                    append("ABCDEFGHIJKLMN")
+                    appendInlineContent("image", "[IMG]")
+                    append("OPQRSTUVWXYZ")
+                    appendInlineContent("yellow")
+                    appendInlineContent("magenta")
+                    append("THE END")
+                },
+                inlineContent = imageContent,
+                textAlign = textAlign,
+                fontSize = 20.sp,
+                modifier = Modifier
+                    .width(300.dp)
+                    .background(Color(0xFFF8BBD0))
+                    .padding(8.dp),
+            )
         }
     }
 }

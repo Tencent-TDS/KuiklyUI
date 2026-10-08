@@ -1034,6 +1034,7 @@ val Context.versionName: String
         return innerVersionName
     }
 
+@Deprecated("实际是 SDK_INT <= M，包含 Android 6.0。判断 M 之前请直接比较 SDK_INT < VERSION_CODES.M")
 val isBeforeM: Boolean
     get() = Build.VERSION.SDK_INT <= Build.VERSION_CODES.M
 

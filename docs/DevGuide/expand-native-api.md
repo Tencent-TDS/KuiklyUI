@@ -66,13 +66,23 @@ Module 返回值和 callback 参数支持的类型：
 
 | 类目         |   序列化方式   | 涉及类型                                                 |
 |:-----------|:---------:|:-----------------------------------------------------|
-| **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
+| **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber`（见下方鸿蒙特殊说明） |
 | **二进制数据**  |   直接透传    | `ByteArray` `NSData` `ArrayBuffer`                   |
 | **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
 | **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
 | **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
 
 :::tip 注意
+- **鸿蒙数值类型的特殊情况**：ArkTS 语言层面只有一个 `number` 类型（底层为 IEEE 754 double），没有独立的 `int` 原始类型。因此 Native 侧无论是写 `return 314` 还是 `return 3.14`，经 napi 桥接透传到 Kotlin 侧时，**运行时类型统一为 `kotlin.Double`**。这意味着如果直接把返回值强转成 `Int`（例如 `syncToNativeMethod(...) as Int`），在鸿蒙上会抛出 `ClassCastException`。对比其他平台：Android 侧 Java 的 `int` 会到达 Kotlin 侧的 `kotlin.Int`；iOS 侧 `NSNumber` 会根据实际内部类型桥接为 `kotlin.Int`/`kotlin.Double`。为了写出跨三端都能正确工作的业务代码，**推荐先 cast 为 `kotlin.Number` 父接口，再调用 `.toInt()` / `.toDouble()` 进行显式收窄**：
+
+```kotlin
+// ✅ 推荐（三端兼容）
+val intValue = (syncToNativeMethod("retInt", arrayOf<Any>(), null) as Number).toInt()
+val doubleValue = (syncToNativeMethod("retDouble", arrayOf<Any>(), null) as Number).toDouble()
+
+// ❌ 不推荐（在鸿蒙上会因 ArkTS number 均为 Double 而抛 ClassCastException）
+val intValue = syncToNativeMethod("retInt", arrayOf<Any>(), null) as Int
+```
 - syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，
 序列化过程不支持对ByteArray二进制数据进行处理。因此请选择params为Any的syncToNativeMethod/asyncToNativeMethod方法传输二进制参数
 - callback中解析回传至Koltin侧二进制数据，可参考示例：

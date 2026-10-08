@@ -433,23 +433,28 @@ internal fun TextSpan.applySpanStyle(spanStyle: SpanStyle, density: Density) {
     if (spanStyle.fontSize.isSpecified) {
         fontSize(scaleToDensity(density, spanStyle.fontSize.value))
     }
-    applyFontWeight(spanStyle.fontWeight)
-    applyFontStyle(spanStyle.fontStyle)
-    applyShadow(spanStyle.shadow)
+    // Overlapping spans are lowered onto the same TextSpan in order, so an
+    // unset property on an inner span means "inherit the enclosing span",
+    // not "reset to the default". The TextAttr appliers below implement the
+    // whole-text TextStyle contract, where null does mean reset, so only call
+    // them for values the span actually sets. (textDecoration and
+    // letterSpacing already follow this rule.)
+    spanStyle.fontWeight?.let { applyFontWeight(it) }
+    spanStyle.fontStyle?.let { applyFontStyle(it) }
+    spanStyle.shadow?.let { applyShadow(it) }
 
-    applyStyleColor(spanStyle)
-    if (spanStyle.brush is SolidColor) {
-        color((spanStyle.brush as SolidColor).value.toKuiklyColor())
-    } else if (spanStyle.brush is LinearGradient) {
-        val linearGradient = spanStyle.brush as LinearGradient
-        backgroundLinearGradient(
-            linearGradient.direction,
-            *linearGradient.resolveForText().colorStops.toTypedArray()
+    when (val brush = spanStyle.brush) {
+        is SolidColor -> color(brush.value.toKuiklyColor())
+        is LinearGradient -> backgroundLinearGradient(
+            brush.direction,
+            *brush.resolveForText().colorStops.toTypedArray()
         )
-    } else {
-        if (spanStyle.color.isSpecified) {
+        else -> if (spanStyle.color.isSpecified) {
             color(spanStyle.color.toKuiklyColor())
         }
+    }
+    if (spanStyle.background.isSpecified) {
+        setProp(Attr.StyleConst.BACKGROUND_COLOR, spanStyle.background.toKuiklyColor().toString())
     }
 
     // Apply text decoration

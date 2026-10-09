@@ -61,6 +61,14 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 - (void)addKeyframeWithRelativeStartTime:(double)frameStartTime relativeDuration:(double)frameDuration animations:(void (^)(void))animations API_AVAILABLE(ios(7.0));
 
+#pragma mark - kr_corner 形状同步动画参数（供 kr_syncCornerPathAnimation 构造与宿主 frame 同参的 path 动画）
+/// spring 的 timing 无法用 CABasicAnimation 精确对齐，不参与同步
+- (BOOL)kr_supportsPathSync;
+- (NSTimeInterval)kr_pathSyncDuration;
+- (NSTimeInterval)kr_pathSyncDelay;
+- (BOOL)kr_pathSyncRepeat;
+- (CAMediaTimingFunction *)kr_pathSyncTimingFunction;
+
 @end
 
 @interface CSSTransform : NSObject
@@ -100,6 +108,226 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 @end
+
+/// repeatForever 同步动画没有自然结束点（removedOnCompletion 对其无效）；宿主已不在做 frame 动画时移除，
+/// 避免宿主动画停止后形状层仍在循环。只移除 repeat 动画，普通动画按原逻辑自然结束。
+static void kr_removeStaleRepeatAnimation(CALayer *layer, NSString *key) {
+    CAAnimation *animation = [layer animationForKey:key];
+    if (animation && animation.repeatCount == HUGE_VALF) {
+        [layer removeAnimationForKey:key];
+    }
+}
+
+/// 同步动画分散挂在宿主 layer（shadowPath）、mask、borderLayer 上，宿主的 removeAllAnimations 清不到子层，
+/// 需按 key 显式移除。onlyRepeat=YES 仅清 repeat-forever 残留（普通动画会自然结束）；NO 用于 reset 全量清理。
+static void kr_removeSyncAnimations(UIView *view, BOOL onlyRepeat) {
+    if (!view) {
+        return;
+    }
+    NSMutableArray<CALayer *> *pathLayers = [NSMutableArray arrayWithObject:view.layer];
+    if (view.layer.mask) {
+        [pathLayers addObject:view.layer.mask];
+    }
+    CALayer *borderLayer = view.css_borderLayer;
+    if (borderLayer) {
+        [pathLayers addObject:borderLayer];
+    }
+    for (CALayer *layer in pathLayers) {
+        NSArray<NSString *> *keys = (layer == borderLayer)
+            ? @[@"kr_corner_path", @"kr_corner_border_bounds", @"kr_corner_border_position"]
+            : @[@"kr_corner_path"];
+        for (NSString *key in keys) {
+            if (onlyRepeat) {
+                kr_removeStaleRepeatAnimation(layer, key);
+            } else {
+                [layer removeAnimationForKey:key];
+            }
+        }
+    }
+}
+
+/// borderLayer 补 additive bounds/position 动画（与宿主 frame 动画同参）。
+/// masksToBounds=YES 裁剪窗口若停在 model 终值，path 插值几何会超出窗口 → 下半描边被裁；
+/// 补帧动画让窗口与 path 同步收缩，动画结束回退 model，稳态不变。
+static void kr_syncBorderFrameAnimation(UIView *hostView, CALayer *borderLayer, CGRect fromFrame) {
+    if (!hostView || !borderLayer || CGRectIsEmpty(fromFrame)) {
+        return;
+    }
+    BOOL frameAnimating = NO;
+    for (NSString *key in hostView.layer.animationKeys) {
+        if ([key hasPrefix:@"bounds"] || [key hasPrefix:@"position"]) {
+            frameAnimating = YES;
+            break;
+        }
+    }
+    if (!frameAnimating) {
+        kr_removeStaleRepeatAnimation(borderLayer, @"kr_corner_border_bounds");
+        kr_removeStaleRepeatAnimation(borderLayer, @"kr_corner_border_position");
+        return; // 非动画上下文：保持瞬时设置（与既有行为一致）
+    }
+    // 参数解析：css_animationImp → 借祖先 → 本 layer 快照（与 kr_syncCornerPathAnimation 同源逻辑）
+    NSTimeInterval syncDuration = 0;
+    CAMediaTimingFunction *syncTiming = nil;
+    NSTimeInterval sourceDelay = 0;
+    CSSAnimation *anim = hostView.css_animationImp;
+    if (!anim || !anim.kr_pathSyncDuration || ![anim kr_supportsPathSync]) {
+        UIView *ancestor = hostView.superview;
+        int hops = 0;
+        while (ancestor && hops < 5) {
+            if (ancestor.css_animationImp
+                && ancestor.css_animationImp.kr_pathSyncDuration
+                && [ancestor.css_animationImp kr_supportsPathSync]) {
+                anim = ancestor.css_animationImp;
+                break;
+            }
+            ancestor = ancestor.superview;
+            hops++;
+        }
+    }
+    if (anim && anim.kr_pathSyncDuration && [anim kr_supportsPathSync]) {
+        syncDuration = anim.kr_pathSyncDuration;
+        syncTiming = anim.kr_pathSyncTimingFunction;
+        sourceDelay = anim.kr_pathSyncDelay;
+    } else {
+        for (NSString *key in hostView.layer.animationKeys) {
+            if ([key hasPrefix:@"bounds"]) {
+                CABasicAnimation *base = (CABasicAnimation *)[hostView.layer animationForKey:key];
+                if ([base isKindOfClass:[CABasicAnimation class]] && base.duration > 0) {
+                    syncDuration = base.duration;
+                    syncTiming = base.timingFunction;
+                    break;
+                }
+            }
+        }
+    }
+    if (!syncDuration) {
+        return;
+    }
+    CGRect toFrame = borderLayer.frame;
+    if (CGRectEqualToRect(fromFrame, toFrame)) {
+        return;
+    }
+    CFTimeInterval layerNow = [borderLayer convertTime:CACurrentMediaTime() fromLayer:nil];
+    // repeat 与 kr_syncCornerPathAnimation 的 path 动画对齐：否则 path 循环而裁剪窗口只跑一轮，后续轮次下半描边被裁
+    float syncRepeatCount = (anim && anim.kr_pathSyncRepeat) ? HUGE_VALF : 0;
+    // bounds.size：additive，from=视觉尺寸差量 → 0（presentation = model终值 + 差量插值）
+    CABasicAnimation *boundsAnim = [CABasicAnimation animationWithKeyPath:@"bounds.size"];
+    boundsAnim.additive = YES;
+    boundsAnim.fromValue = [NSValue valueWithCGSize:CGSizeMake(CGRectGetWidth(fromFrame) - CGRectGetWidth(toFrame),
+                                                               CGRectGetHeight(fromFrame) - CGRectGetHeight(toFrame))];
+    boundsAnim.toValue = [NSValue valueWithCGSize:CGSizeZero];
+    boundsAnim.duration = syncDuration;
+    boundsAnim.timingFunction = syncTiming;
+    if (sourceDelay > 0) {
+        boundsAnim.beginTime = layerNow + sourceDelay;
+        boundsAnim.fillMode = kCAFillModeBackwards;
+    }
+    boundsAnim.repeatCount = syncRepeatCount;
+    boundsAnim.removedOnCompletion = YES;
+    [borderLayer addAnimation:boundsAnim forKey:@"kr_corner_border_bounds"];
+    // position：additive，from=视觉中心差量 → 0
+    CABasicAnimation *posAnim = [CABasicAnimation animationWithKeyPath:@"position"];
+    posAnim.additive = YES;
+    posAnim.fromValue = [NSValue valueWithCGPoint:CGPointMake(CGRectGetMidX(fromFrame) - CGRectGetMidX(toFrame),
+                                                               CGRectGetMidY(fromFrame) - CGRectGetMidY(toFrame))];
+    posAnim.toValue = [NSValue valueWithCGPoint:CGPointZero];
+    posAnim.duration = syncDuration;
+    posAnim.timingFunction = syncTiming;
+    if (sourceDelay > 0) {
+        posAnim.beginTime = layerNow + sourceDelay;
+        posAnim.fillMode = kCAFillModeBackwards;
+    }
+    posAnim.repeatCount = syncRepeatCount;
+    posAnim.removedOnCompletion = YES;
+    [borderLayer addAnimation:posAnim forKey:@"kr_corner_border_position"];
+}
+
+/// 形状同步动画核心：宿主 frame 动画进行中时，为 mask/shadowPath/border 生成同参 path 动画，
+/// 使圆角/阴影/描边随 bounds 平滑插值（否则 CA 只动画 bounds，形状层直落终值 = 视觉瞬变）。
+/// 参数三级解析：本 view css_animationImp → 沿 superview 借祖先（KRBoxShadowView 场景动画参数
+/// 在外层 wrapper）→ 本 layer 隐式动画快照（仅 duration/timing 可信，无 delay）。
+/// 不读 UIKit 隐式动画做模板：animationForKey 返回的 beginTime 是未生效快照值，跨层复制必错。
+static void kr_syncCornerPathAnimation(UIView *hostView,
+                                       CALayer *targetLayer,
+                                       CGPathRef fromPath,
+                                       CGPathRef toPath,
+                                       NSString *keyPath) {
+    if (!hostView || !targetLayer) {
+        return;
+    }
+    BOOL frameAnimating = NO;
+    for (NSString *key in hostView.layer.animationKeys) {
+        if ([key hasPrefix:@"bounds"] || [key hasPrefix:@"position"]) {
+            frameAnimating = YES;
+            break;
+        }
+    }
+    if (!frameAnimating) {
+        kr_removeStaleRepeatAnimation(targetLayer, @"kr_corner_path");
+        return;
+    }
+    if (!fromPath || !toPath || CGPathEqualToPath(fromPath, toPath)) {
+        return;
+    }
+    CSSAnimation *anim = hostView.css_animationImp;
+    // —— 参数三级解析（见函数头注释）——
+    // 不抽公共 helper：与 kr_syncBorderFrameAnimation / setCss_frame: delay 修复的判定条件有意不同（duration vs delay>0）
+    if (!anim || !anim.kr_pathSyncDuration || ![anim kr_supportsPathSync]) {
+        UIView *ancestor = hostView.superview;
+        int hops = 0;
+        while (ancestor && hops < 5) {
+            if (ancestor.css_animationImp
+                && ancestor.css_animationImp.kr_pathSyncDuration
+                && [ancestor.css_animationImp kr_supportsPathSync]) {
+                anim = ancestor.css_animationImp; // 同一动画事务，节奏一致且含 delay
+                break;
+            }
+            ancestor = ancestor.superview;
+            hops++;
+        }
+    }
+    NSTimeInterval syncDuration = 0;
+    CAMediaTimingFunction *syncTiming = nil;
+    if (anim && anim.kr_pathSyncDuration && [anim kr_supportsPathSync]) {
+        syncDuration = anim.kr_pathSyncDuration;
+        syncTiming = anim.kr_pathSyncTimingFunction;
+    } else {
+        CABasicAnimation *baseAnim = nil;
+        for (NSString *key in hostView.layer.animationKeys) {
+            if ([key hasPrefix:@"bounds"]) {
+                CABasicAnimation *candidate = (CABasicAnimation *)[hostView.layer animationForKey:key];
+                if ([candidate isKindOfClass:[CABasicAnimation class]] && candidate.duration > 0) {
+                    baseAnim = candidate;
+                    break;
+                }
+            }
+        }
+        if (baseAnim) {
+            syncDuration = baseAnim.duration;
+            syncTiming = baseAnim.timingFunction;
+        }
+    }
+    if (!syncDuration) {
+        return;
+    }
+    BOOL hasSourceDelay = (anim && anim.kr_pathSyncDelay > 0);
+    NSTimeInterval sourceDelay = hasSourceDelay ? anim.kr_pathSyncDelay : 0;
+    CABasicAnimation *pathAnim = [CABasicAnimation animationWithKeyPath:keyPath];
+    pathAnim.fromValue = (__bridge id)fromPath;
+    pathAnim.toValue = (__bridge id)toPath;
+    pathAnim.duration = syncDuration;
+    pathAnim.timingFunction = syncTiming;
+    if (sourceDelay > 0) {
+        // beginTime 须换算到目标 layer 时间轴（子树可能有偏移）；backwards 保证 delay 窗口内保持起始形状
+        pathAnim.beginTime = [targetLayer convertTime:CACurrentMediaTime() fromLayer:nil] + sourceDelay;
+        pathAnim.fillMode = kCAFillModeBackwards;
+    }
+    if (anim && anim.kr_pathSyncRepeat) {
+        pathAnim.repeatCount = HUGE_VALF;
+    }
+    pathAnim.removedOnCompletion = YES;
+    [targetLayer addAnimation:pathAnim forKey:@"kr_corner_path"];
+}
 
 @implementation UIView (CSS)
 
@@ -818,9 +1046,6 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     };
     // 兼容正在做transform动画场景时修改frame
     if (self.layer.animationKeys.count && !CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
-        // 原子性设置frame，使得UIView动画可以生效的同时，也可以避免影响transform动画
-        self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame));
-        self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
         // 无动画设置最终的frame，避免影响transform动画
         #if TARGET_OS_OSX // [macOS]
         [CATransaction begin];
@@ -828,20 +1053,91 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         setFrameBlock();
         [CATransaction commit];
         #else
-        [UIView performWithoutAnimation:setFrameBlock];
+        // 修复(iOS)：原先 performWithoutAnimation 会连带取消 bounds/center 的隐式动画 → transform
+        // 动画节点宽高瞬变。改为：transform 重置/重建无动画（避免与其动画冲突），bounds/center 保留隐式动画。
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [CSSTransform resetTransformWithView:self];
+        [CATransaction commit];
+        self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame)); // 带动画（UIView 动画块内）
+        self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
+        [self p_boundsDidChanged];
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [self.css_transformImp applyToView:self]; // transform 动画由 setCss_transform 单独驱动
+        [CATransaction commit];
         #endif // [macOS]
     } else {
         setFrameBlock();
+        // 修复(delay窗口瞬变)：隐式 bounds/position 动画的 beginTime 快照语义不可靠，delay 窗口内
+        // presentation 直取 model 终值 → 高度瞬变。重建动画：from/to/duration 复制可信快照，
+        // beginTime=layer当前时间+delay、backwards。delay 来源三级解析同 kr_syncCornerPathAnimation。
+        CSSAnimation *delayAnim = self.css_animationImp;
+        if (!delayAnim || delayAnim.kr_pathSyncDelay <= 0 || ![delayAnim kr_supportsPathSync]) {
+            UIView *ancestor = self.superview;
+            int hops = 0;
+            while (ancestor && hops < 5) {
+                if (ancestor.css_animationImp
+                    && ancestor.css_animationImp.kr_pathSyncDelay > 0
+                    && [ancestor.css_animationImp kr_supportsPathSync]) {
+                    delayAnim = ancestor.css_animationImp;
+                    break;
+                }
+                ancestor = ancestor.superview;
+                hops++;
+            }
+        }
+        if (delayAnim && delayAnim.kr_pathSyncDelay > 0) {
+            CFTimeInterval layerNow = [self.layer convertTime:CACurrentMediaTime() fromLayer:nil];
+            for (NSString *animKey in [self.layer.animationKeys copy]) {
+                if (![animKey hasPrefix:@"bounds"] && ![animKey hasPrefix:@"position"]) {
+                    continue;
+                }
+                CABasicAnimation *implicit = (CABasicAnimation *)[self.layer animationForKey:animKey];
+                if (![implicit isKindOfClass:[CABasicAnimation class]] || implicit.duration <= 0) {
+                    continue;
+                }
+                CABasicAnimation *fixed = [CABasicAnimation animationWithKeyPath:implicit.keyPath];
+                fixed.fromValue = implicit.fromValue;
+                fixed.toValue = implicit.toValue;
+                fixed.byValue = implicit.byValue;
+                fixed.additive = implicit.additive;
+                fixed.duration = implicit.duration;
+                fixed.timingFunction = implicit.timingFunction;
+                fixed.speed = implicit.speed;
+                fixed.repeatCount = implicit.repeatCount;
+                fixed.autoreverses = implicit.autoreverses;
+                fixed.beginTime = layerNow + delayAnim.kr_pathSyncDelay;
+                fixed.fillMode = kCAFillModeBackwards;
+                fixed.removedOnCompletion = implicit.removedOnCompletion;
+                [self.layer removeAnimationForKey:animKey];
+                [self.layer addAnimation:fixed forKey:animKey];
+            }
+        }
     }
     [self p_limitMaxBorderRadisuIfNeed];
 }
 
 - (void)p_boundsDidChanged {
-    // 圆角 / clipPath mask 也是手动挂上去的独立 CAShapeLayer（CSSShapeLayer 在 setFrame: 里同步重算 path），
-    // 同样不享受 UIView backing layer 的隐式动画屏蔽，属性变更会走 CA 默认的 0.25s，这里统一禁掉
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    [self.layer.mask setFrame:self.bounds];
+    // —— mask 圆角：抓视觉当前 path → 无动画写终值 → 补同参形状动画（见 kr_syncCornerPathAnimation）——
+    CALayer *mask = self.layer.mask;
+    if ([mask isKindOfClass:[CSSShapeLayer class]]) {
+        CAShapeLayer *shape = (CAShapeLayer *)mask;
+        CGPathRef fromPath = CGPathRetain(((CAShapeLayer *)shape.presentationLayer).path ?: shape.path);
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [shape setFrame:self.bounds];
+        [CATransaction commit];
+        kr_syncCornerPathAnimation(self, shape, fromPath, shape.path, @"path");
+        CGPathRelease(fromPath);
+    } else {
+        // 圆角 / clipPath mask 也是手动挂上去的独立 layer（CSSShapeLayer 在 setFrame: 里同步重算 path），
+        // 同样不享受 UIView backing layer 的隐式动画屏蔽，属性变更会走 CA 默认的 0.25s，这里统一禁掉
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [mask setFrame:self.bounds];
+        [CATransaction commit];
+    }
     if (self.layer.shadowPath) {
         // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
         // 这样阴影形状才会和裁剪形状一致
@@ -853,19 +1149,86 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #endif
             UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
             if (clipPath) {
+                // shadowPath 属性变更默认带 0.25s 隐式动画，须显式禁用（原由外层事务统一禁用）
+                [CATransaction begin];
+                [CATransaction setDisableActions:YES];
                 self.layer.shadowPath = clipPath.CGPath;
+                [CATransaction commit];
             }
         } else {
             #if TARGET_OS_OSX // [macOS]
             CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
             self.layer.shadowPath = path;
+            [CATransaction commit];
             CGPathRelease(path);
             #else
+            CGPathRef fromShadow = CGPathRetain(((CALayer *)self.layer.presentationLayer).shadowPath ?: self.layer.shadowPath);
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
             self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+            [CATransaction commit];
+            kr_syncCornerPathAnimation(self, self.layer, fromShadow, self.layer.shadowPath, @"shadowPath");
+            CGPathRelease(fromShadow);
             #endif // [macOS]
         }
     }
-    [CATransaction commit];
+    // —— border 描边层：与 mask 同款模式，但须在 frame 下发的同一调用栈内处理 ——
+    // borderLayer 靠 CA 异步 layout pass 调度，宿主 frame 动画不触发 layout pass → 描边推迟
+    // 到动画中段才按终值直落。此处同步瞬时更新 bounds + 强制重算 path + 补动画。
+    CSSBorderLayer *borderLayer = self.css_borderLayer;
+    if ([borderLayer isKindOfClass:[CSSBorderLayer class]] &&
+        !CGSizeEqualToSize(borderLayer.bounds.size, self.bounds.size)) {
+        CGPathRef fromBorder = CGPathRetain(((CAShapeLayer *)borderLayer.presentationLayer).path ?: borderLayer.path);
+        // 修复(重建孤弧)：样式变化触发 borderLayer 重建（path 全空）→ from=nil 若直接放弃会令描边
+        // 瞬跳终值。动画进行中时用宿主视觉 bounds + borderRadius 原值（与 to 同构、不 clamp）重建 from。
+        CGRect borderFromFrame = borderLayer.presentationLayer
+            ? ((CALayer *)borderLayer.presentationLayer).frame
+            : borderLayer.frame;
+        if (!fromBorder) {
+            BOOL hostFrameAnimating = NO;
+            for (NSString *animKey in self.layer.animationKeys) {
+                if ([animKey hasPrefix:@"bounds"] || [animKey hasPrefix:@"position"]) {
+                    hostFrameAnimating = YES;
+                    break;
+                }
+            }
+            if (hostFrameAnimating) {
+                CGRect visualBounds = self.layer.presentationLayer
+                    ? ((CALayer *)self.layer.presentationLayer).bounds
+                    : self.bounds;
+                CSSBorderRadius *fallbackRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.css_borderRadius];
+                UIBezierPath *fromPath = [KRConvertUtil
+                    hr_bezierPathWithRoundedRect:CGRectMake(0, 0, CGRectGetWidth(visualBounds), CGRectGetHeight(visualBounds))
+                               topLeftCornerRadius:fallbackRadius.topLeftCornerRadius
+                              topRightCornerRadius:fallbackRadius.topRightCornerRadius
+                            bottomLeftCornerRadius:fallbackRadius.bottomLeftCornerRadius
+                           bottomRightCornerRadius:fallbackRadius.bottomRightCornerRadius];
+                fromBorder = CGPathRetain(fromPath.CGPath);
+                borderFromFrame = CGRectMake(0, 0, CGRectGetWidth(visualBounds), CGRectGetHeight(visualBounds));
+            }
+        }
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        borderLayer.frame = self.bounds;   // 瞬时同步（防 CA 默认 0.25s 隐式）
+        [borderLayer layoutSublayers];     // 强制立即重算 path（_lastSize 去重天然配合）
+        [CATransaction commit];
+        kr_syncCornerPathAnimation(self, borderLayer, fromBorder, borderLayer.path, @"path");
+        kr_syncBorderFrameAnimation(self, borderLayer, borderFromFrame); // 裁剪窗口跟随插值，防下半描边被裁
+        CGPathRelease(fromBorder);
+    }
+    // 兜底清理 repeat 残留：border 块被尺寸相等 guard 挡住（如仅 position 变化）时，上面的同步函数不会被调用
+    BOOL hostFrameAnimating = NO;
+    for (NSString *animKey in self.layer.animationKeys) {
+        if ([animKey hasPrefix:@"bounds"] || [animKey hasPrefix:@"position"]) {
+            hostFrameAnimating = YES;
+            break;
+        }
+    }
+    if (!hostFrameAnimating) {
+        kr_removeSyncAnimations(self, YES);
+    }
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -1189,6 +1552,8 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 - (void)css_reset {
+    // 同步动画挂在 mask / borderLayer 子层，下方 removeAllAnimations 只清 self.layer；须在属性重置（可能移除子层）前显式清理
+    kr_removeSyncAnimations(self, NO);
     self.css_animation = nil;
     [self.css_didSetProps removeObject:@"animation"];
     for (NSString *propKey in [self.css_didSetProps copy]) {
@@ -1242,8 +1607,13 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     CGPoint oldPosition = self.layer.position;
     CGPoint newPosition = CGPointMake(oldPosition.x + (anchorPoint.x - oldAnchorPoint.x) * self.bounds.size.width,
                                       oldPosition.y + (anchorPoint.y - oldAnchorPoint.y) * self.bounds.size.height);
+    // 修复(元素乱飞)：anchorPoint 补偿 position 是即时几何修正，若被隐式动画化会与 frame 的
+    // position 动画叠加插值 → 元素乱飞（Android 的 pivot 独立无此问题）。disableActions 使其瞬时生效。
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     self.layer.anchorPoint = anchorPoint;
     self.layer.position = newPosition;
+    [CATransaction commit];
 }
 
 - (NSString *)css_accessibilityInfo {
@@ -1599,7 +1969,12 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     
     // 1. 同步 frame 到父图层的 bounds
     if (!CGSizeEqualToSize(self.bounds.size, self.superlayer.bounds.size)) {
+        // 修复：裸赋值触发 CA 默认 0.25s 隐式 frame 动画，与宿主动画不同步（边框快速到位后不动）。
+        // 瞬时同步，形状由第 7 步的 kr_corner_path 显式动画驱动。
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
         self.frame = self.superlayer.bounds;
+        [CATransaction commit];
     }
     
     // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
@@ -1657,7 +2032,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         self.lineDashPattern = nil;
     }
     
-    // 7. 设置边框路径
+    // 7. 设置边框路径（宿主 frame 动画进行中时补同参 path 动画，描边随 bounds 平滑）
+    CGPathRef fromBorderPath = CGPathRetain(((CAShapeLayer *)self.presentationLayer).path ?: self.path);
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES]; // 禁隐式 path 动画（beginTime 不含 delay，与显式动画叠加）
     #if TARGET_OS_OSX // [macOS]
     if (@available(macos 14.0, *)) {
         self.path = path.CGPath;
@@ -1672,6 +2050,12 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     self.path = path.CGPath;
     #endif
     [CATransaction commit];
+    // 不删除（与 p_boundsDidChanged 同 key 覆盖无副作用）：本处覆盖 setNeedsLayout 触发的异步 layout，后者覆盖同步调用并带 from=nil 兜底
+    if (fromBorderPath && self.path && !CGPathEqualToPath(fromBorderPath, self.path)) {
+        kr_syncCornerPathAnimation(self.hostView, self, fromBorderPath, self.path, @"path");
+    }
+    CGPathRelease(fromBorderPath);
+    [CATransaction commit]; // 闭合方法开头的外层事务（b132ea70f 引入，勿删：丢失会导致事务泄漏 → 渲染提交被吞 → 白屏）
 }
 
 @end
@@ -1925,6 +2309,48 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     [_keyFrameAniamtions addObject:^(){
         [UIView addKeyframeWithRelativeStartTime:frameStartTime relativeDuration:frameDuration animations:animations];
     }];
+}
+
+#pragma mark - kr_corner 路径动画参数（参数源头是 Kotlin 下发的 css_animation，未经 UIKit 二次加工，值可信）
+- (BOOL)kr_supportsPathSync {
+    return _animationType == CSSAnimationTypePlain;
+}
+- (NSTimeInterval)kr_pathSyncDuration {
+#if !TARGET_OS_OSX
+    // native V2 snap 实际以 duration 0 执行（见 KRPerformNativeAnimationV2），不参与同步也不作为祖先参数被借用
+    if ([_nativeV2Kind isEqualToString:@"snap"]) {
+        return 0;
+    }
+#endif
+    return _duration;
+}
+- (NSTimeInterval)kr_pathSyncDelay {
+    return _delay;
+}
+- (BOOL)kr_pathSyncRepeat {
+    return _repeatForever;
+}
+- (CAMediaTimingFunction *)kr_pathSyncTimingFunction {
+#if !TARGET_OS_OSX
+    // native V2 cubic 由 UICubicTimingParameters 驱动（见 KRPerformNativeAnimationV2），控制点语义与
+    // CAMediaTimingFunction 一致，按同一组控制点构造才能与宿主 frame 动画节奏对齐
+    if ([_nativeV2Kind isEqualToString:@"cubic"] && _nativeV2Values.count == 4) {
+        return [CAMediaTimingFunction functionWithControlPoints:_nativeV2Values[0].floatValue
+                                                               :_nativeV2Values[1].floatValue
+                                                               :_nativeV2Values[2].floatValue
+                                                               :_nativeV2Values[3].floatValue];
+    }
+#endif
+    switch (_viewAnimationCurve) {
+        case UIViewAnimationCurveEaseIn:
+            return [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+        case UIViewAnimationCurveEaseOut:
+            return [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+        case UIViewAnimationCurveEaseInOut:
+            return [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+        default: // Linear / 自定义键盘曲线（无 control points 可还原，降级 linear）
+            return [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+    }
 }
 
 - (void)performAnimateWithType:(CSSAnimationType)type

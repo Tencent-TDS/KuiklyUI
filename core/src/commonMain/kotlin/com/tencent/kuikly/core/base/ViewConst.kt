@@ -57,6 +57,7 @@ object ViewConst {
     const val TYPE_PAG_VIEW = "KRPAGView"
     const val TYPE_APNG_VIEW = "KRAPNGView"
     const val TYPE_VIDEO_VIEW = "KRVideoView"
+    const val TYPE_AUDIO_VIEW = "KRAudioView"
     const val TYPE_MODAL_VIEW = "KRModalView"
 
 }

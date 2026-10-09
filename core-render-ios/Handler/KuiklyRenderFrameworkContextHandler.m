@@ -190,9 +190,15 @@
     NSString *firstChar = [[frameworkName uppercaseString] substringWithRange:NSMakeRange(0, 1)];
     // 首字母大写后的framework名
     frameworkName = [NSString stringWithFormat:@"%@%@", firstChar, [frameworkName substringFromIndex:1]];
+    // 候选1：首字母大写后原样拼接 KuiklyCoreEntry
     NSString *entryClassName = [NSString stringWithFormat:@"%@KuiklyCoreEntry", frameworkName];
     if (!NSClassFromString(entryClassName)) {
+        // 候选2：剥掉小写字母（Kotlin/Native 缓存模式对不含数字的 baseName 生成的类名前缀）
         entryClassName = [NSString stringWithFormat:@"%@KuiklyCoreEntry",  [self removeLowerCaseCharacters:frameworkName]];
+    }
+    if (!NSClassFromString(entryClassName)) {
+        // 候选3：只保留 A-Z 大写字母（Kotlin/Native 对含数字的 baseName 也会把数字剥掉，再拼接 KuiklyCoreEntry）
+        entryClassName = [NSString stringWithFormat:@"%@KuiklyCoreEntry", [self keepUppercaseLetterCharacters:frameworkName]];
     }
     // 动态遵循协议，以便运行时设置其代理
     NSString *entryDelegateName = [NSString stringWithFormat:@"%@Delegate", entryClassName];
@@ -213,6 +219,25 @@
     for (NSUInteger i = 0; i < length; i++) {
         unichar character = [input characterAtIndex:i];
         if (![[NSCharacterSet lowercaseLetterCharacterSet] characterIsMember:character]) {
+            [result appendFormat:@"%C", character];
+        }
+    }
+    return result;
+}
+
+/*
+ * @brief 只保留 A-Z 大写字母，剥掉数字、小写字母、其他字符
+ * @discussion 用于处理含数字的 framework baseName。Kotlin/Native
+ * 生成的 ObjC 类前缀会把数字也剥掉，
+ * 因此比 removeLowerCaseCharacters 更激进。
+ */
++ (NSString *)keepUppercaseLetterCharacters:(NSString *)input {
+    NSMutableString *result = [[NSMutableString alloc] init];
+    NSUInteger length = input.length;
+
+    for (NSUInteger i = 0; i < length; i++) {
+        unichar character = [input characterAtIndex:i];
+        if (character >= 'A' && character <= 'Z') {
             [result appendFormat:@"%C", character];
         }
     }

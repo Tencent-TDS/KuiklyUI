@@ -4,6 +4,11 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/ScrollPickerExamplePage.kt)
 
+::::warning 使用注意
+- 年份可选范围固定为 **1970 年至当前年份**，不在此范围内的日期无法选择。
+- 需显式设置宽高，未设置时组件测量结果为 0。
+::::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

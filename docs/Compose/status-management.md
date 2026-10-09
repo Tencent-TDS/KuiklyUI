@@ -33,6 +33,28 @@
 - `CompositionLocalProvider`：在局部组合树中提供依赖（如主题、环境配置等）  
 - `staticCompositionLocalOf` / `compositionLocalOf`：定义可在组合树中传递的环境对象
 
+### 内容移动
+
+- `movableContentOf` <Badge text="2.19.1 及以上支持" type="warn"/>：把一段组合内容包装为可移动对象，在组合树中改变位置时**保留其内部状态**，不会因位置变化而重建
+
+```kotlin
+val item = remember {
+    movableContentOf { index: Int ->
+        Text(text = "Item $index")
+    }
+}
+
+// 在 A 位置使用
+item(0)
+
+// 移动到 B 位置后，内部状态（如滚动位置、输入内容）依然保留
+item(1)
+```
+
+::::tip 适用场景
+列表项换位、面板在不同容器间迁移等场景下，用 `movableContentOf` 包裹可避免状态丢失。Kuikly 在 `ViewContainer` 层提供了对应的轻量搬运路径，搬运过程中原生 View 资源会被保留而非销毁重建。
+::::
+
 ## 示例：计数与副作用
 
 ```kotlin

@@ -51,6 +51,8 @@
 | -- | -- | -- |
 | scaleMode | 缩放模式 | PAGScaleMode |
 
+除 `scaleMode(mode)` 外，还提供四个便捷方法：`scaleModeNone()`、`scaleModeStretch()`、`scaleModeLetterBox()`、`scaleModeZoom()`，分别对应上表的四种模式。
+
 ### autoPlay <Badge text="微信小程序实现中" type="warn"/>
 
 设置是否自动播放，默认值为 true

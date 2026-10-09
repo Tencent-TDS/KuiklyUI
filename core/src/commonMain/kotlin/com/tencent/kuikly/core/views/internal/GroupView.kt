@@ -333,7 +333,7 @@ open class GroupEvent : Event() {
             return
         }
         updateTouchDownRegisterWithBlock {
-            touchUpHandlers.add(handler)
+            touchDownHandlers.add(handler)
         }
     }
 

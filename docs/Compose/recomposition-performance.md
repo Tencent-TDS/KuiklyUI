@@ -1,5 +1,7 @@
 # 重组性能分析工具
 
+<Badge text="2.17.0 及以上支持" type="warn"/>
+
 本页说明如何使用 Kuikly Compose 内建的 `RecompositionProfiler` 工具，在调试阶段定位重组性能问题。
 
 **主要能力：**

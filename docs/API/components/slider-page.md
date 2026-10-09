@@ -4,6 +4,11 @@
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/SliderPageViewDemoPage.kt)
 
+::::warning 使用注意
+- `loopPlayIntervalTimeMs` 为 0 时不自动轮播，默认值为 3000ms。
+- `initSliderItems` 传入空列表时不会生成任何 item。
+::::
+
 ## 属性
 
 除了支持所有[基础属性](basic-attr-event.md#基础属性)，还支持以下属性：

@@ -1,5 +1,7 @@
 # 导航组件
 
+<Badge text="2.17.0 及以上支持" type="warn"/>
+
 本页说明 Kuikly Compose 中导航（Navigation）组件的支持情况与使用注意事项。  
 基础用法和官方保持一致，请**优先查阅 Jetpack Compose 官方文档**。
 
@@ -211,6 +213,14 @@ val graph = navController.createGraph(
 
 NavHost(navController, graph)
 ```
+
+## 跨模块页面重名检查 <Badge text="2.27.0 及以上支持" type="warn"/>
+
+自 2.27.0 起，在[多模块](../DevGuide/multi_module.md)模式（KSP 参数 `enableMultiModule` 为 `true`）下，KSP 会为每个配置了 `moduleId` 的子模块自动生成带 `@KuiklyModulePages` 注解的页面登记类，主模块（`isMainModule` 为 `true`）编译时汇总各子模块的页面名并做重名校验。该注解由框架生成，业务无需手写。
+
+::::warning 破坏性变更
+自 2.27.0 起，同一模块内出现**同名 `@Page`** 会在编译期直接报错。迁移时请先消除页面重名，再升级到该版本。
+::::
 
 ## 状态保存
 

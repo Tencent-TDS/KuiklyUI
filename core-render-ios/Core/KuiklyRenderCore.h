@@ -74,6 +74,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)willDealloc;
 
 /**
+ * @brief 页面销毁前统一清理 Module 持有的外部强引用（由宿主容器释放时主动调用）。
+ */
+- (void)invalidateAllModules;
+
+/**
  * @brief 获取模块对应的实例（仅支持在主线程调用）。
  * @param moduleName 模块名
  * @return module实例

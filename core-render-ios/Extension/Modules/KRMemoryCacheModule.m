@@ -229,6 +229,17 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     return [cacheObj isKindOfClass:[UIImage class]] ? (UIImage*)cacheObj : nil;
 }
 
+// 页面销毁前断开 _imageCache：imageView 持有 loadSuccess block、block 又强持有本 Module，
+// 形成自环会让 dealloc 永不执行，需主动清空缓存解开
+- (void)hr_pageWillDestroy {
+    [_imageCacheLock lock];
+    [_imageCache removeAllObjects];
+    _imageCache = nil;
+    [_imageCacheLock unlock];
+    [_memoryKeyValueMap removeAllObjects];
+    _memoryKeyValueMap = nil;
+}
+
 - (void)dealloc {
     // 显式清空 memoryKeyValueMap，确保 toImage 的 cacheKey 缓存被及时释放
     [_memoryKeyValueMap removeAllObjects];

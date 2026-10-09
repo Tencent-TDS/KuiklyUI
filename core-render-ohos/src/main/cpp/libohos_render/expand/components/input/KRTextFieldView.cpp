@@ -677,10 +677,35 @@ bool KRTextFieldView::LimitInputContentTextInMaxLength() {
     }
     if (length_limit_type_ == -1) { // 兼容旧逻辑
         auto text = kuikly::util::ConvertToU32String(GetContentText());
-        if (text.length() > max_length_) {
-            text = text.substr(0, max_length_);
-            SetContentText(kuikly::util::ConvertToNormalString(text)); // 假设你有一个SetContentText函数来设置文本内容
+        if (static_cast<int32_t>(text.length()) > max_length_) {
+            // 与 iOS p_limitTextInput 保持一致：删除「光标前刚输入的内容」，
+            // 而不是 substr 截掉文本尾部。截尾会把末尾字符误删、把刚输入的内容留在文本里
+            // （表现为达到上限后输入拼音会残留首字母），并且没有恢复光标。
+            uint32_t caret_u16 = GetInputNodeSelectionStartPosition();
+            uint32_t caret_u32 = kuikly::util::Utf16OffsetToU32Index(text, caret_u16);
+            uint32_t overflow = static_cast<uint32_t>(text.length() - static_cast<size_t>(max_length_));
+            uint32_t remove_begin = caret_u32 > overflow ? (caret_u32 - overflow) : 0;
+            uint32_t remove_count = caret_u32 - remove_begin;
+            uint32_t tail_remove_count = overflow - remove_count;
+            text.erase(remove_begin, remove_count);
+            // 光标前删完仍超限时（与 iOS truncatedTail 分支同语义）继续从尾部删，光标落到末尾
+            if (tail_remove_count > 0) {
+                uint32_t tail_begin = static_cast<uint32_t>(text.length()) > tail_remove_count
+                                          ? static_cast<uint32_t>(text.length()) - tail_remove_count
+                                          : 0;
+                text.erase(tail_begin, tail_remove_count);
+                remove_begin = static_cast<uint32_t>(text.length());
+            }
+            uint32_t new_caret_u16 = kuikly::util::U32PrefixUtf16Length(text, remove_begin);
+            SetContentText(kuikly::util::ConvertToNormalString(text));
             NotifyTextLengthBeyondLimit();
+            // ArkUI setAttribute(text) 会把光标重置到文本末尾，这里按既有 pattern
+            // 在下一轮 loop 把光标恢复到目标位置
+            KRMainThread::RunOnMainThreadForNextLoop([weakSelf = weak_from_this(), new_caret_u16]() {
+                if (auto strongSelf = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock())) {
+                    strongSelf->SetCursorIndex(new_caret_u16);
+                }
+            });
             return true;
         }
         return false;
@@ -718,7 +743,16 @@ void KRTextFieldView::NotifyTextLengthBeyondLimit() {
 }
 
 void KRTextFieldView::SetupLengthInputFilter() {
-    if (length_limit_type_ == -1 || length_input_filter_) {
+    if (length_input_filter_) {
+        return;
+    }
+    if (length_limit_type_ == -1) {
+        // legacy 模式：注册 ON_WILL_INSERT，由 OnWillInsertText 在内容进入文本前按码点长度拦截。
+        // 这样不会走到 OnTextDidChanged 的后置截断，避免 SetContentText 引发的光标往返与滚动闪烁。
+        // 这里不设置 length_input_filter_，保留原语义：后续若切到 lengthLimitType 仍会注册完整事件集。
+        if (max_length_ != -1) {
+            RegisterEvent(GetOnWillInsertEventType());
+        }
         return;
     }
     length_input_filter_ = true;
@@ -793,6 +827,33 @@ void KRTextFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
 
 constexpr size_t MAX_INSERT_LENGTH = 256;
 void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
+    if (max_length_ != -1 && length_limit_type_ == -1) {
+        // legacy 模式：与 iOS shouldChangeCharactersInRange 的预检对齐，
+        // 在内容进入文本之前按「码点长度」拦截。这样不会走到 OnTextDidChanged 的
+        // 后置截断，也就不会产生 SetContentText（ArkUI 会把光标重置到末尾，再由我们
+        // 下一轮 loop 拉回），消除因此产生的滚动与闪烁。
+        char buffer[MAX_INSERT_LENGTH] = "";
+        int32_t size = MAX_INSERT_LENGTH;
+        char *pBuffer = buffer;
+        OH_ArkUI_NodeEvent_GetStringValue(event, 0, &pBuffer, &size);
+        auto destText = GetContentText();
+        auto range = GetInputNodeTextSelectionRange();
+        int u8_start = GetUTF8ByteCount(destText, 0, range.first);
+        int u8_end = GetUTF8ByteCount(destText, 0, range.second);
+        std::string new_text = destText.substr(0, u8_start) + std::string(buffer) +
+                               destText.substr(u8_end);
+        int32_t new_length = static_cast<int32_t>(kuikly::util::ConvertToU32String(new_text).length());
+        bool beyond_limit = new_length > max_length_;
+        if (beyond_limit) {
+            NotifyTextLengthBeyondLimit();
+            ArkUI_NumberValue ret[] = {false};
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            return;
+        }
+        ArkUI_NumberValue ret[] = {true};
+        OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+        return;
+    }
     if (max_length_ != -1 && length_limit_type_ != -1) {
         // 处理键盘输入文本触发长度限制
         // KR_LOG_DEBUG << "OnWillInsertText: max_length=" << max_length_ << ", limit_type=" << length_limit_type_;

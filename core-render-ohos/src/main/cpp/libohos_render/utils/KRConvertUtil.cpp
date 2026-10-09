@@ -15,6 +15,7 @@
 
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/foundation/KRConfig.h"
+#include <algorithm>
 #include <codecvt>
 #include <iostream>
 #include <locale>
@@ -88,6 +89,29 @@ std::u32string ConvertToU32String(const std::string &input) {
 std::string ConvertToNormalString(const std::u32string &input) {
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     return converter.to_bytes(input);
+}
+
+uint32_t Utf16OffsetToU32Index(const std::u32string &text, uint32_t utf16_offset) {
+    uint32_t utf16_index = 0;
+    uint32_t u32_index = 0;
+    while (u32_index < text.length()) {
+        if (utf16_index >= utf16_offset) {
+            break;
+        }
+        // BMP 外的码点（emoji 等）在 UTF-16 中占 2 个 code unit
+        utf16_index += (text[u32_index] > 0xFFFF) ? 2 : 1;
+        u32_index++;
+    }
+    return u32_index;
+}
+
+uint32_t U32PrefixUtf16Length(const std::u32string &text, uint32_t count) {
+    uint32_t utf16_length = 0;
+    uint32_t limit = std::min(count, static_cast<uint32_t>(text.length()));
+    for (uint32_t i = 0; i < limit; i++) {
+        utf16_length += (text[i] > 0xFFFF) ? 2 : 1;
+    }
+    return utf16_length;
 }
 
 ArkUI_TextAlignment ConvertToArkUITextAlign(const std::string &textAlign) {

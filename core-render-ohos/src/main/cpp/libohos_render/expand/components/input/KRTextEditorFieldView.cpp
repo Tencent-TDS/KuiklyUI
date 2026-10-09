@@ -864,6 +864,36 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         }
     }
 
+    // legacy 模式（length_limit_type == -1）：与老 KRTextFieldView / iOS 预检对齐，
+    // 在内容进入文本前按「码点长度」拦截，避免后置截断带来的文本重写与光标往返（滚动/闪烁）。
+    if (state_.max_length_ != -1 && state_.length_limit_type_ == -1) {
+        bool reject = false;
+        if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
+            if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
+                ARKUI_ERROR_CODE_NO_ERROR) {
+                std::string repl_str = kuikly::text_editor::ReadDescriptorString(g.desc());
+                if (!repl_str.empty()) {
+                    auto dest = GetContentText();
+                    int u8_start = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_start);
+                    int u8_end = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_end);
+                    std::string candidate =
+                        dest.substr(0, u8_start) + repl_str + dest.substr(u8_end);
+                    int32_t candidate_len = static_cast<int32_t>(
+                        kuikly::util::ConvertToU32String(candidate).length());
+                    if (candidate_len > state_.max_length_) {
+                        NotifyTextLengthBeyondLimit();
+                        reject = true;
+                    }
+                }
+            }
+        }
+        if (reject) {
+            ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            return;
+        }
+    }
+
     // max-length 过滤（length_limit_type != -1 时手动过滤）
     if (state_.max_length_ != -1 && state_.length_limit_type_ != -1) {
         // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
@@ -968,10 +998,34 @@ bool KRTextEditorFieldView::LimitInputContentTextInMaxLength() {
     if (state_.length_limit_type_ == -1) {
         auto text32 = kuikly::util::ConvertToU32String(GetContentText());
         if (static_cast<int32_t>(text32.length()) > state_.max_length_) {
-            text32 = text32.substr(0, state_.max_length_);
+            // 与老 KRTextFieldView / iOS p_limitTextInput 保持一致：删除「光标前刚输入的内容」，
+            // 而不是 substr 截掉文本尾部，避免达到上限后继续输入残留字符且光标跳到末尾。
+            uint32_t caret_u16 = GetSelectionStartPosition();
+            uint32_t caret_u32 = kuikly::util::Utf16OffsetToU32Index(text32, caret_u16);
+            uint32_t overflow =
+                static_cast<uint32_t>(text32.length() - static_cast<size_t>(state_.max_length_));
+            uint32_t remove_begin = caret_u32 > overflow ? (caret_u32 - overflow) : 0;
+            uint32_t remove_count = caret_u32 - remove_begin;
+            uint32_t tail_remove_count = overflow - remove_count;
+            text32.erase(remove_begin, remove_count);
+            if (tail_remove_count > 0) {
+                uint32_t tail_begin = static_cast<uint32_t>(text32.length()) > tail_remove_count
+                                          ? static_cast<uint32_t>(text32.length()) - tail_remove_count
+                                          : 0;
+                text32.erase(tail_begin, tail_remove_count);
+                remove_begin = static_cast<uint32_t>(text32.length());
+            }
+            uint32_t new_caret_u16 = kuikly::util::U32PrefixUtf16Length(text32, remove_begin);
             // 内部截断走静默写入：外层 OnTextDidChanged 会在本函数返回后统一发一次回调
             SetContentTextSilent(kuikly::util::ConvertToNormalString(text32));
             NotifyTextLengthBeyondLimit();
+            KRMainThread::RunOnMainThread(
+                [weakSelf = weak_from_this(), new_caret_u16] {
+                    if (auto strongSelf =
+                            std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock())) {
+                        strongSelf->SetCursorIndex(new_caret_u16);
+                    }
+                });
             return true;
         }
         return false;

@@ -517,6 +517,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     // legacy 模式也做长度预检：与 p_limitTextInput 使用同一口径，
     // 让超限内容在进入文本前就被拦住，避免文本先变长再整体重写导致的原生滚动。
     if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
+#if TARGET_OS_OSX
+        // macOS 走 KRUIKit 兼容层（KRUITextField），未提供 insertText: / replaceRange:withText:，
+        // 这里沿用原有行为：不做预检，超限统一交给 p_limitTextInput 后置截断。
+        return YES;
+#else
         NSInteger legacyMaxLength = [self p_legacyMaxInputLengthWithString:textField.text];
         if (legacyMaxLength <= 0) {
             return YES;
@@ -571,6 +576,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             strongSelf->_applyingPartialInsert = NO;
         });
         return NO;
+#endif
     }
 
     // 检查长度限制
@@ -759,10 +765,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             NSMutableAttributedString *truncatedAttributedString = [textView.attributedText mutableCopy];
             NSUInteger atIndex = MAX(location - 1, 0);
             NSUInteger deleteLength = 0;
+#if !TARGET_OS_OSX
             // 记录真实删除区间（原文本坐标），用于后续做局部删除
             NSUInteger deleteStart = NSNotFound;
             NSUInteger deleteEnd = 0;
             NSUInteger tailDeleted = 0;
+#endif
 
             while ([self p_shouldTruncate:truncatedAttributedString maxLength:maxLength] && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
                 NSRange composedRange = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:atIndex]; // 避免切割emoji
@@ -770,8 +778,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                     break;
                 }
                 [truncatedAttributedString deleteCharactersInRange:composedRange];
+#if !TARGET_OS_OSX
                 deleteStart = (deleteStart == NSNotFound) ? composedRange.location : MIN(deleteStart, composedRange.location);
                 deleteEnd = MAX(deleteEnd, NSMaxRange(composedRange));
+#endif
 
                 atIndex = composedRange.location -1;
                 deleteLength += composedRange.length;
@@ -783,7 +793,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                     break;
                 }
                 [truncatedAttributedString deleteCharactersInRange:range];
+#if !TARGET_OS_OSX
                 tailDeleted += range.length;
+#endif
                 truncatedTail = YES;
             }
             if (truncatedTail) {
@@ -793,6 +805,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
             NSUInteger newOffset = MIN(MAX(location - deleteLength, 0), truncatedAttributedString.length);
 
+#if TARGET_OS_OSX
+            // macOS 兼容层没有 replaceRange:withText:，沿用整体赋值 attributedText 的原有逻辑
+            textView.attributedText = truncatedAttributedString;
+#else
             // 局部删除替代整体赋值 attributedText：
             // 赋值 attributedText 会让 UIKit 先把光标推到文本末尾并原生滚动过去，之后再把光标
             // 设回目标位置又滚一次 —— 这就是超限时看到的滚动/闪烁。
@@ -829,6 +845,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 }
             }
             _applyingPartialInsert = NO;
+#endif
 
             UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:newOffset];
 
@@ -836,6 +853,14 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 _ignoreSelectionChange = YES;
                 self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
                 _ignoreSelectionChange = NO;
+#if TARGET_OS_OSX
+                // 整体赋值 attributedText 会把光标推到文本末尾，需要在下一轮 loop 再设一次
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self->_ignoreSelectionChange = YES;
+                    self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+                    self->_ignoreSelectionChange = NO;
+                });
+#endif
             }
 
         }

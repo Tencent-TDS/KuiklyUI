@@ -868,6 +868,9 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
     // 在内容进入文本前按「码点长度」拦截，避免后置截断带来的文本重写与光标往返（滚动/闪烁）。
     if (state_.max_length_ != -1 && state_.length_limit_type_ == -1) {
         bool reject = false;
+        bool has_partial = false;
+        std::string pending_text;
+        uint32_t pending_caret_u16 = 0;
         if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
             if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
                 ARKUI_ERROR_CODE_NO_ERROR) {
@@ -876,13 +879,27 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
                     auto dest = GetContentText();
                     int u8_start = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_start);
                     int u8_end = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_end);
-                    std::string candidate =
-                        dest.substr(0, u8_start) + repl_str + dest.substr(u8_end);
-                    int32_t candidate_len = static_cast<int32_t>(
-                        kuikly::util::ConvertToU32String(candidate).length());
-                    if (candidate_len > state_.max_length_) {
+                    // 去掉本次替换区间后的正文，用于计算「剩余容量」
+                    std::string base_text = dest.substr(0, u8_start) + dest.substr(u8_end);
+                    auto base_u32 = kuikly::util::ConvertToU32String(base_text);
+                    auto repl_u32 = kuikly::util::ConvertToU32String(repl_str);
+                    int32_t base_len = static_cast<int32_t>(base_u32.length());
+                    int32_t repl_len = static_cast<int32_t>(repl_u32.length());
+                    int32_t allowed = state_.max_length_ - base_len;
+                    if (repl_len > allowed) {
+                        // 超限：先拒绝本次插入，再在下一轮 loop 写入「裁剪到剩余容量」的内容，
+                        // 与 iOS/Android 的「部分插入」对齐——文本只变一次，光标落在插入内容之后。
                         NotifyTextLengthBeyondLimit();
                         reject = true;
+                        if (allowed > 0) {
+                            std::u32string prefix_u32 = repl_u32.substr(0, static_cast<size_t>(allowed));
+                            std::string prefix = kuikly::util::ConvertToNormalString(prefix_u32);
+                            pending_text = dest.substr(0, u8_start) + prefix + dest.substr(u8_end);
+                            pending_caret_u16 =
+                                kuikly::text_editor::GetUTF16Length(dest.substr(0, u8_start)) +
+                                kuikly::util::U32PrefixUtf16Length(prefix_u32, prefix_u32.length());
+                            has_partial = true;
+                        }
                     }
                 }
             }
@@ -890,6 +907,16 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         if (reject) {
             ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
             OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            if (has_partial) {
+                KRMainThread::RunOnMainThreadForNextLoop(
+                    [weakSelf = weak_from_this(), pending_text, pending_caret_u16] {
+                        if (auto strongSelf =
+                                std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock())) {
+                            strongSelf->SetContentText(pending_text);
+                            strongSelf->SetCursorIndex(pending_caret_u16);
+                        }
+                    });
+            }
             return;
         }
     }

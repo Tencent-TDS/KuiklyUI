@@ -840,18 +840,37 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         auto range = GetInputNodeTextSelectionRange();
         int u8_start = GetUTF8ByteCount(destText, 0, range.first);
         int u8_end = GetUTF8ByteCount(destText, 0, range.second);
-        std::string new_text = destText.substr(0, u8_start) + std::string(buffer) +
-                               destText.substr(u8_end);
-        int32_t new_length = static_cast<int32_t>(kuikly::util::ConvertToU32String(new_text).length());
-        bool beyond_limit = new_length > max_length_;
-        if (beyond_limit) {
-            NotifyTextLengthBeyondLimit();
-            ArkUI_NumberValue ret[] = {false};
+        // 去掉本次替换区间后的正文，用于计算「剩余容量」
+        std::string base_text = destText.substr(0, u8_start) + destText.substr(u8_end);
+        auto base_u32 = kuikly::util::ConvertToU32String(base_text);
+        auto insert_u32 = kuikly::util::ConvertToU32String(std::string(buffer));
+        int32_t base_len = static_cast<int32_t>(base_u32.length());
+        int32_t insert_len = static_cast<int32_t>(insert_u32.length());
+        int32_t allowed = max_length_ - base_len;
+        if (insert_len <= allowed) {
+            ArkUI_NumberValue ret[] = {true};
             OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
             return;
         }
-        ArkUI_NumberValue ret[] = {true};
+        // 超限：先拒绝本次插入，再在下一轮 loop 写入「裁剪到剩余容量」的内容，
+        // 与 iOS/Android 的「部分插入」对齐——文本只变一次，光标落在插入内容之后。
+        NotifyTextLengthBeyondLimit();
+        ArkUI_NumberValue ret[] = {false};
         OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+        if (allowed > 0) {
+            std::u32string prefix_u32 = insert_u32.substr(0, static_cast<size_t>(allowed));
+            std::string prefix = kuikly::util::ConvertToNormalString(prefix_u32);
+            std::string new_text = destText.substr(0, u8_start) + prefix + destText.substr(u8_end);
+            uint32_t caret_u16 = GetUTF16Length(destText.substr(0, u8_start)) +
+                                 kuikly::util::U32PrefixUtf16Length(prefix_u32, prefix_u32.length());
+            KRMainThread::RunOnMainThreadForNextLoop(
+                [weakSelf = weak_from_this(), new_text, caret_u16]() {
+                    if (auto strongSelf = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock())) {
+                        strongSelf->SetContentText(new_text);
+                        strongSelf->SetCursorIndex(caret_u16);
+                    }
+                });
+        }
         return;
     }
     if (max_length_ != -1 && length_limit_type_ != -1) {

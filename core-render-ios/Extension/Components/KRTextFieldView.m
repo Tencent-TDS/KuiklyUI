@@ -101,6 +101,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     UIColor *_cursorColor;
     /** 显式设置的选中高亮颜色 */
     UIColor *_selectionColor;
+    /** 正在执行「裁剪到剩余容量」的局部插入：跳过预检，避免自己插入的内容被自己再拦一次 */
+    BOOL _applyingPartialInsert;
 }
 @synthesize hr_rootView;
 #pragma mark - init
@@ -507,20 +509,68 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         return YES;
     }
 
+    // 我们自己发起的局部插入，直接放行，避免被自己的预检再处理一次
+    if (_applyingPartialInsert) {
+        return YES;
+    }
+
     // legacy 模式也做长度预检：与 p_limitTextInput 使用同一口径，
-    // 让超限内容在进入文本前就被拦住，避免组词期间文本先变长再截断导致的原生滚动。
+    // 让超限内容在进入文本前就被拦住，避免文本先变长再整体重写导致的原生滚动。
     if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
         NSInteger legacyMaxLength = [self p_legacyMaxInputLengthWithString:textField.text];
-        if (legacyMaxLength > 0) {
-            NSString *newRawText = [textField.text stringByReplacingCharactersInRange:range withString:string];
-            if ([self p_calculateLengthForText:newRawText] > legacyMaxLength) {
-                if (self.css_textLengthBeyondLimit) {
-                    self.css_textLengthBeyondLimit(@{});
-                }
-                return NO;
-            }
+        if (legacyMaxLength <= 0) {
+            return YES;
         }
-        return YES;
+        // 组词期间一律不拦截：textField.text 包含未上屏的拼音字母，若在此按上限拦截，
+        // 剩余容量小于拼音串长度时会被直接拒绝（UIKit 随后丢弃整段 marked text），
+        // 表现为「还没到上限就输不进去」。
+        // 候选词上屏那一步 UIKit 不经过本回调（unmark 不询问 delegate），
+        // 超限由 p_limitTextInput 收口，且已改为局部删除，不会再整体重写文本。
+        if (textField.markedTextRange) {
+            return YES;
+        }
+        NSString *newRawText = [textField.text stringByReplacingCharactersInRange:range withString:string];
+        if ([self p_calculateLengthForText:newRawText] <= legacyMaxLength) {
+            return YES;
+        }
+        // 超限：把本次插入裁剪到剩余容量后局部插入。
+        // 只改 range 覆盖的那一段，绝不整体赋值 attributedText，
+        // 这样不会先把光标推到末尾再拉回，也就不会触发原生滚动；
+        // 插入后长度正好等于上限，p_limitTextInput 不会再触发截断。
+        NSMutableString *baseText = [textField.text mutableCopy];
+        NSUInteger from = MIN(range.location, baseText.length);
+        NSUInteger to = MIN(NSMaxRange(range), baseText.length);
+        if (to > from) {
+            [baseText deleteCharactersInRange:NSMakeRange(from, to - from)];
+        }
+        NSInteger allowedCount = (NSInteger)legacyMaxLength - (NSInteger)[self p_calculateLengthForText:baseText];
+        if (self.css_textLengthBeyondLimit) {
+            self.css_textLengthBeyondLimit(@{});
+        }
+        if (allowedCount <= 0) {
+            return NO;
+        }
+        NSString *allowedString = [self p_prefixOfString:string composedCharacterCount:(NSUInteger)allowedCount];
+        if (allowedString.length == 0) {
+            return NO;
+        }
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (!strongSelf) {
+                return;
+            }
+            UITextPosition *start = [strongSelf positionFromPosition:strongSelf.beginningOfDocument offset:range.location];
+            UITextPosition *end = [strongSelf positionFromPosition:strongSelf.beginningOfDocument offset:NSMaxRange(range)];
+            if (!start || !end) {
+                return;
+            }
+            strongSelf->_applyingPartialInsert = YES;
+            strongSelf.selectedTextRange = [strongSelf textRangeFromPosition:start toPosition:end];
+            [strongSelf insertText:allowedString];
+            strongSelf->_applyingPartialInsert = NO;
+        });
+        return NO;
     }
 
     // 检查长度限制
@@ -679,6 +729,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)p_limitTextInput {
     UITextField *textView = self;
+    // 局部删除自身引发的文本变化不再递归处理
+    if (_applyingPartialInsert) {
+        return;
+    }
     // 判断是否存在高亮字符，不进行字数统计和字符串截断
     UITextRange *selectedRange = textView.markedTextRange;
     UITextPosition *position = [textView positionFromPosition:selectedRange.start offset:0];
@@ -705,6 +759,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             NSMutableAttributedString *truncatedAttributedString = [textView.attributedText mutableCopy];
             NSUInteger atIndex = MAX(location - 1, 0);
             NSUInteger deleteLength = 0;
+            // 记录真实删除区间（原文本坐标），用于后续做局部删除
+            NSUInteger deleteStart = NSNotFound;
+            NSUInteger deleteEnd = 0;
+            NSUInteger tailDeleted = 0;
 
             while ([self p_shouldTruncate:truncatedAttributedString maxLength:maxLength] && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
                 NSRange composedRange = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:atIndex]; // 避免切割emoji
@@ -712,6 +770,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                     break;
                 }
                 [truncatedAttributedString deleteCharactersInRange:composedRange];
+                deleteStart = (deleteStart == NSNotFound) ? composedRange.location : MIN(deleteStart, composedRange.location);
+                deleteEnd = MAX(deleteEnd, NSMaxRange(composedRange));
 
                 atIndex = composedRange.location -1;
                 deleteLength += composedRange.length;
@@ -723,6 +783,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                     break;
                 }
                 [truncatedAttributedString deleteCharactersInRange:range];
+                tailDeleted += range.length;
                 truncatedTail = YES;
             }
             if (truncatedTail) {
@@ -730,20 +791,51 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 deleteLength = 0;
             }
 
-            textView.attributedText = truncatedAttributedString;
             NSUInteger newOffset = MIN(MAX(location - deleteLength, 0), truncatedAttributedString.length);
+
+            // 局部删除替代整体赋值 attributedText：
+            // 赋值 attributedText 会让 UIKit 先把光标推到文本末尾并原生滚动过去，之后再把光标
+            // 设回目标位置又滚一次 —— 这就是超限时看到的滚动/闪烁。
+            // 改用 UITextInput 的 replaceRange:withText: 只删掉超限的那一段，光标停在删除点，
+            // 不产生「推到末尾再拉回」的往返滚动，剩余文本的富文本属性也不会被重建。
+            NSUInteger originalLength = textView.attributedText.length;
+            NSRange frontRange = NSMakeRange(NSNotFound, 0);
+            if (deleteStart != NSNotFound && deleteEnd > deleteStart) {
+                frontRange = NSMakeRange(deleteStart, deleteEnd - deleteStart);
+            }
+            NSRange tailRange = NSMakeRange(NSNotFound, 0);
+            if (tailDeleted > 0 && originalLength >= tailDeleted) {
+                tailRange = NSMakeRange(originalLength - tailDeleted, tailDeleted);
+            }
+            // 两段有重叠/相邻时合并成一段，避免先删尾部导致前段索引失效
+            if (frontRange.length > 0 && tailRange.length > 0 && tailRange.location <= NSMaxRange(frontRange)) {
+                NSUInteger start = MIN(frontRange.location, tailRange.location);
+                NSUInteger end = MAX(NSMaxRange(frontRange), NSMaxRange(tailRange));
+                frontRange = NSMakeRange(start, end - start);
+                tailRange = NSMakeRange(NSNotFound, 0);
+            }
+
+            _applyingPartialInsert = YES;
+            if (tailRange.length > 0) {
+                UITextRange *range = [self p_textRangeForNSRange:tailRange];
+                if (range) {
+                    [self replaceRange:range withText:@""];
+                }
+            }
+            if (frontRange.length > 0) {
+                UITextRange *range = [self p_textRangeForNSRange:frontRange];
+                if (range) {
+                    [self replaceRange:range withText:@""];
+                }
+            }
+            _applyingPartialInsert = NO;
+
             UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:newOffset];
 
             if (newPosition) {
                 _ignoreSelectionChange = YES;
                 self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
                 _ignoreSelectionChange = NO;
-
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    self->_ignoreSelectionChange = YES;
-                    self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-                    self->_ignoreSelectionChange = NO;
-                });
             }
 
         }
@@ -752,6 +844,42 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             self.css_textLengthBeyondLimit(@{});
         }
     }
+}
+
+/**
+ * 把以 NSString（UTF-16）下标计的 NSRange 转成 UITextRange，用于做局部文本编辑。
+ */
+- (UITextRange *)p_textRangeForNSRange:(NSRange)range {
+    NSUInteger length = self.attributedText.string.length;
+    NSUInteger location = MIN(range.location, length);
+    NSUInteger end = MIN(NSMaxRange(range), length);
+    UITextPosition *start = [self positionFromPosition:self.beginningOfDocument offset:location];
+    UITextPosition *stop = [self positionFromPosition:self.beginningOfDocument offset:end];
+    if (!start || !stop) {
+        return nil;
+    }
+    return [self textRangeFromPosition:start toPosition:stop];
+}
+
+/**
+ * 取字符串前 count 个 composed character（emoji 不会被切开），
+ * 用于把超限的插入内容裁剪到剩余容量。
+ */
+- (NSString *)p_prefixOfString:(NSString *)string composedCharacterCount:(NSUInteger)count {
+    if (string.length == 0 || count == 0) {
+        return @"";
+    }
+    NSUInteger index = 0;
+    NSUInteger taken = 0;
+    while (index < string.length && taken < count) {
+        NSRange unitRange = [string rangeOfComposedCharacterSequenceAtIndex:index];
+        index = NSMaxRange(unitRange);
+        taken++;
+    }
+    if (index == 0) {
+        return @"";
+    }
+    return [string substringToIndex:index];
 }
 
 - (NSUInteger)p_legacyMaxInputLengthWithString:(NSString *)string {

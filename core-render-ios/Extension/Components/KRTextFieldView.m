@@ -507,8 +507,19 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         return YES;
     }
 
-    // legacy 模式（css_lengthLimitType == nil 或 < 0）走 p_limitTextInput 后置截断，不在此拦截
+    // legacy 模式也做长度预检：与 p_limitTextInput 使用同一口径，
+    // 让超限内容在进入文本前就被拦住，避免组词期间文本先变长再截断导致的原生滚动。
     if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
+        NSInteger legacyMaxLength = [self p_legacyMaxInputLengthWithString:textField.text];
+        if (legacyMaxLength > 0) {
+            NSString *newRawText = [textField.text stringByReplacingCharactersInRange:range withString:string];
+            if ([self p_calculateLengthForText:newRawText] > legacyMaxLength) {
+                if (self.css_textLengthBeyondLimit) {
+                    self.css_textLengthBeyondLimit(@{});
+                }
+                return NO;
+            }
+        }
         return YES;
     }
 

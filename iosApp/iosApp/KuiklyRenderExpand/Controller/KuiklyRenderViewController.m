@@ -27,6 +27,8 @@
 
 /// TurboDisplay 专属测试页面名称，只有该页面启用 TurboDisplay AOT 渲染
 static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPage";
+/// 挂起Diff测试页面名称
+static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -260,7 +262,7 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 // 仅允许指定的测试页面走 TurboDisplay 渲染路径
 // 避免新安装无缓存时弹出错误弹窗影响其他业务页面的体验
 - (NSString *)turboDisplayKey {
-    if ([_pageName isEqualToString:kTurboDisplayTestPageName]) {
+    if ([_pageName isEqualToString:kTurboDisplayTestPageName] || [_pageName isEqualToString:kTBDeferDiffTestPageName]) {
         return _pageName;
     }
     return nil;
@@ -274,7 +276,13 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
     //    [config enableAutoUpdateTurboDisplay];
     //    [config disablePersistentRealTree];
         return config;
-      
+
+    }
+    if ([_pageName isEqualToString:kTBDeferDiffTestPageName]) {
+        KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+        // 挂起diff的测试Demo， enableSuspendDiff => 内置开启‘结构捕捉’ + 默认走‘延迟diff’
+        [config enableSuspendDiff];
+        return config;
     }
     return nil;
 }

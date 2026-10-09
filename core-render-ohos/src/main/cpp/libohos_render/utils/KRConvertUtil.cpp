@@ -100,6 +100,9 @@ ArkUI_TextAlignment ConvertToArkUITextAlign(const std::string &textAlign) {
     if (textAlign == "right") {
         return ARKUI_TEXT_ALIGNMENT_END;
     }
+    if (textAlign == "justify") {
+        return ARKUI_TEXT_ALIGNMENT_JUSTIFY;
+    }
     return ARKUI_TEXT_ALIGNMENT_START;
     // OH_Drawing_SetTextStyleDecoration(OH_Drawing_TextStyle *, int)
 }
@@ -113,6 +116,9 @@ OH_Drawing_TextAlign ConvertToTextAlign(const std::string &textAlign) {
     }
     if (textAlign == "right") {
         return TEXT_ALIGN_RIGHT;
+    }
+    if (textAlign == "justify") {
+        return TEXT_ALIGN_JUSTIFY;
     }
     return TEXT_ALIGN_LEFT;
     // OH_Drawing_SetTextStyleDecoration(OH_Drawing_TextStyle *, int)

@@ -92,10 +92,14 @@ class KRParagraphSelectionInfo {
  public:
     std::vector<KRRect> selection_rects;
     std::string text_content;
+    std::vector<std::tuple<int, int, int>> span_offsets;  // (spanIndex, begin, end)
     int start = 0;
     int end = 0;
     float first_char_width = 0;
     float last_char_width = 0;
+
+    // 排版下标把每个占位算作 1，text_content 不含占位。
+    int TextIndexForTypographyOffset(int offset) const;
 };
 
 enum SelectionStrategy {

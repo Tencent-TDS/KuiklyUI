@@ -3,7 +3,7 @@
 source 'https://cdn.cocoapods.org/'
 
 target 'iosApp' do
-  platform :ios, '14.1'
+  platform :ios, '15.0'
   pod 'SDWebImage', '~> 5.20.1'
   pod 'OpenKuiklyIOSRender', :path => '../'
   pod 'demo', :path => '../demo'

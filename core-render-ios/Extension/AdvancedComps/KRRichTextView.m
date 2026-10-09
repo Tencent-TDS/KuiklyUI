@@ -205,6 +205,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 /// KRRichTextShadow
 @interface KRRichTextShadow()
 
+- (NSDictionary *)p_fontStyleForPlaceholder:(NSDictionary *)propStyle;
+- (void)p_applyParagraphStyleToAttr:(NSMutableAttributedString *)attributedString
+                          propStyle:(NSDictionary *)propStyle;
+
 @end
 
 @implementation KRRichTextShadow {
@@ -305,9 +309,11 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     NSString *textPostProcessor = nil;
     NSMutableArray *richAttrArray = [NSMutableArray new];
     UIFont *mainFont = nil;
-    for (NSMutableDictionary * span in spans) {
+    for (NSInteger spanIndex = 0; spanIndex < spans.count; spanIndex++) {
+        NSMutableDictionary *span = spans[spanIndex];
         if (span[@"placeholderWidth"]) { // 属于占位span
-            NSAttributedString *placeholderSpanAttributedString = [self p_createPlaceholderSpanAttributedStringWithSpan:span];
+            NSAttributedString *placeholderSpanAttributedString = [self p_createPlaceholderSpanAttributedStringWithSpan:span
+                                                                                                             spanIndex:spanIndex];
             [richAttrArray addObject:placeholderSpanAttributedString];
             continue;
         }
@@ -342,7 +348,6 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         CGFloat headIndent = [KRConvertUtil CGFloat:propStyle[@"headIndent"]];
         UIColor *strokeColor = [UIView css_color:propStyle[@"strokeColor"]];
         CGFloat strokeWidth = [KRConvertUtil CGFloat:propStyle[@"strokeWidth"]];
-        NSInteger spanIndex = [spans indexOfObject:span];
 
         NSShadow *textShadow = nil;
         NSString *cssTextShadow = propStyle[@"textShadow"];
@@ -464,7 +469,8 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
                                  range:range
                               fontSize:attrs.font.pointSize
                             headIndent:attrs.headIndent
-                                  font:attrs.font];
+                                  font:attrs.font
+                        adjustBaseline:YES];
 
     if (attrs.strokeColor) {
         [attributedString addAttribute:NSStrokeColorAttributeName value:attrs.strokeColor range:range];
@@ -481,21 +487,14 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     return attributedString;
 }
 
-- (NSAttributedString *)p_createPlaceholderSpanAttributedStringWithSpan:(NSMutableDictionary *)span {
+- (NSAttributedString *)p_createPlaceholderSpanAttributedStringWithSpan:(NSMutableDictionary *)span
+                                                               spanIndex:(NSInteger)spanIndex {
     KRRichTextAttachment *attachment = [[KRRichTextAttachment alloc] init];
     CGFloat height = [span[@"placeholderHeight"] doubleValue];
     CGFloat width = [span[@"placeholderWidth"] doubleValue];
     NSMutableDictionary *propStyle = [(_props ? : @{}) mutableCopy];
     [propStyle addEntriesFromDictionary:span];
-    if (!propStyle[@"fontSize"]) {
-        for (NSDictionary * inSpan in _spans) {
-            if (inSpan[@"fontSize"]) {
-                [propStyle addEntriesFromDictionary:inSpan];
-                break;
-            }
-        }
-    }
-    UIFont *font = [KRConvertUtil UIFont:propStyle];
+    UIFont *font = [KRConvertUtil UIFont:[self p_fontStyleForPlaceholder:propStyle]];
 
     CGFloat lineHeight = [KRConvertUtil CGFloat:propStyle[@"lineHeight"]];
     if (lineHeight > 0) {
@@ -512,7 +511,54 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
     [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    // 段落样式与文本 span 一致，但不写基线偏移。占位符纵向位置由 attachment.bounds 决定。
+    [self p_applyParagraphStyleToAttr:mutableAttrString propStyle:propStyle];
+    [mutableAttrString addAttribute:KuiklyIndexAttributeName value:@(spanIndex) range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
+}
+
+- (NSDictionary *)p_fontStyleForPlaceholder:(NSDictionary *)propStyle {
+    if (propStyle[@"fontSize"]) {
+        return propStyle;
+    }
+    for (NSDictionary *inSpan in _spans) {
+        if (!inSpan[@"fontSize"]) {
+            continue;
+        }
+        NSMutableDictionary *fontStyle = [propStyle mutableCopy];
+        for (NSString *key in @[@"fontSize", @"fontFamily", @"fontWeight", @"fontStyle", @"contextParam"]) {
+            if (!fontStyle[key] && inSpan[key]) {
+                fontStyle[key] = inSpan[key];
+            }
+        }
+        return fontStyle;
+    }
+    return propStyle;
+}
+
+- (void)p_applyParagraphStyleToAttr:(NSMutableAttributedString *)attributedString
+                          propStyle:(NSDictionary *)propStyle {
+    NSRange range = NSMakeRange(0, attributedString.length);
+    NSTextAlignment textAlign = [KRConvertUtil NSTextAlignment:propStyle[@"textAlign"]];
+    NSNumber *lineHeight = nil;
+    NSNumber *lineSpacing = nil;
+    NSNumber *paragraphSpacing = propStyle[@"paragraphSpacing"] ? @([KRConvertUtil CGFloat:propStyle[@"paragraphSpacing"]]) : nil;
+    if (propStyle[@"lineHeight"]) {
+        lineHeight = @([KRConvertUtil CGFloat:propStyle[@"lineHeight"]]);
+    } else {
+        lineSpacing = @([KRConvertUtil CGFloat:propStyle[@"lineSpacing"]]);
+    }
+    CGFloat headIndent = [KRConvertUtil CGFloat:propStyle[@"headIndent"]];
+    [self p_applyTextAttributeWithAttr:attributedString
+                            textAliment:textAlign
+                           lineSpacing:lineSpacing
+                      paragraphSpacing:paragraphSpacing
+                            lineHeight:lineHeight
+                                 range:range
+                              fontSize:0
+                            headIndent:headIndent
+                                  font:nil
+                        adjustBaseline:NO];
 }
 
 
@@ -524,7 +570,8 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
                                range:(NSRange)range
                             fontSize:(CGFloat)fontSize
                           headIndent:(CGFloat)headIndent
-                                font:(UIFont *)font {
+                                font:(UIFont *)font
+                      adjustBaseline:(BOOL)adjustBaseline {
     NSMutableParagraphStyle *style  = [[NSMutableParagraphStyle alloc] init];
     style.alignment = textAliment;
     // 强制使用LTR文本方向，确保文本始终从左到右显示
@@ -535,8 +582,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     if (lineHeight) {
         style.maximumLineHeight = [lineHeight floatValue];
         style.minimumLineHeight = [lineHeight floatValue];
-        CGFloat baselineOffset = ([lineHeight floatValue]  - font.pointSize) / 2;
-        [attributedString addAttribute:NSBaselineOffsetAttributeName value:@(baselineOffset) range:range];
+        if (adjustBaseline && font) {
+            CGFloat baselineOffset = ([lineHeight floatValue] - font.pointSize) / 2;
+            [attributedString addAttribute:NSBaselineOffsetAttributeName value:@(baselineOffset) range:range];
+        }
     }
     if (paragraphSpacing) {
         style.paragraphSpacing = ceil([paragraphSpacing floatValue]) ;

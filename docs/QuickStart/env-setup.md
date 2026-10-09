@@ -10,6 +10,13 @@
     切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 2. 在``Android Studio``中安装``Kotlin``和``Kotlin MultiPlatform``插件，路径为**Setting->Preferences->Plugins->Marketplace**
    ![安装kotlin和kmp插件](../DevGuide/img/kotlin_and_kmm_plugin.png)
+
+   > 如果你的 Android Studio 版本大于(2026.x.x)，sync阶段可能会出现 
+
+   > `A problem occurred evaluating initialization script. Could not get unknown property 'lifecycle' for build of type org.gradle.invocation.Defaultfradle.`
+   
+   > 是因为在新版本IDE上KMP插件有gradle版本要求，需要大于(8.x)，若项目有其他影响不便于升级，可以使用过去版本IDE：[下载链接](https://developer.android.com/studio/archive)。
+
 3.  [点击查看并安装Kuikly Android Studio插件](../DevGuide/as-plugin.md#安装)
 
    注：若想通过插件生成Ohos工程，请更新插件至1.1.0版本以上。

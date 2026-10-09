@@ -218,9 +218,11 @@ internal fun TextAttr.applyShadow(shadow: Shadow?) {
 internal fun TextAttr.applyTextAlign(textAlign: TextAlign?) {
     // Perf: skip when stays at native default (left) and has never been set
     val align = when (textAlign) {
-        TextAlign.Left, TextAlign.Unspecified, null -> com.tencent.kuikly.core.views.TextAlign.LEFT.value
+        TextAlign.Left, TextAlign.Start, TextAlign.Unspecified, null ->
+            com.tencent.kuikly.core.views.TextAlign.LEFT.value
         TextAlign.Center -> com.tencent.kuikly.core.views.TextAlign.CENTER.value
-        TextAlign.Right -> com.tencent.kuikly.core.views.TextAlign.RIGHT.value
+        TextAlign.Right, TextAlign.End -> com.tencent.kuikly.core.views.TextAlign.RIGHT.value
+        TextAlign.Justify -> com.tencent.kuikly.core.views.TextAlign.JUSTIFY.value
         else -> com.tencent.kuikly.core.views.TextAlign.LEFT.value
     }
     if (align == com.tencent.kuikly.core.views.TextAlign.LEFT.value &&
@@ -356,20 +358,17 @@ internal fun RichTextAttr.applyAnnotatedString(
         val end = sortedPositions[i + 1]
 
         // Check if this range is a placeholder
-        val isPlaceholder = placeholders?.any {
-            it.start == start && it.end == end
-        } ?: false
+        val placeholder = placeholders?.find { it.start == start && it.end == end }
 
-        if (isPlaceholder) {
+        if (placeholder != null) {
             // Create PlaceholderSpan
-            placeholders!!.find { it.start == start }?.let { placeholder ->
-                spans.add(PlaceholderSpan().apply {
-                    placeholderSize(
-                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
-                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
-                    )
-                })
-            }
+            spans.add(PlaceholderSpan().apply {
+                placeholderSize(
+                    this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
+                    this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
+                )
+                description(annoText.text.substring(placeholder.start, placeholder.end))
+            })
         } else if (start < end) {
             // Create TextSpan for normal text
             spans.add(TextSpan().apply {
@@ -398,8 +397,13 @@ internal fun RichTextAttr.applyAnnotatedString(
 
                 // Apply LinkAnnotation styles if found
                 linkAnnotation?.let { range ->
-                    val spanStyle = range.item.styles?.style ?: SpanStyle()
-                    applySpanStyle(spanStyle, density)
+                    // A link without styles only carries interaction metadata.
+                    // Applying an empty SpanStyle would reset font props that
+                    // were inherited from enclosing spans (for example a custom
+                    // fontFamily under a whole-paragraph click annotation).
+                    range.item.styles?.style?.let { spanStyle ->
+                        applySpanStyle(spanStyle, density)
+                    }
 
                     // Add click event handler
                     click { _ ->
@@ -433,6 +437,11 @@ internal fun TextSpan.applySpanStyle(spanStyle: SpanStyle, density: Density) {
     if (spanStyle.fontSize.isSpecified) {
         fontSize(scaleToDensity(density, spanStyle.fontSize.value))
     }
+    // Overlapping spans are lowered onto the same TextSpan in order, so a
+    // null fontFamily means "inherit the enclosing span", not "reset".
+    // applyFontFamily(null) would clear a family already written by an
+    // outer span; FontFamily.Default still reaches the reset branch.
+    spanStyle.fontFamily?.let { applyFontFamily(it) }
     applyFontWeight(spanStyle.fontWeight)
     applyFontStyle(spanStyle.fontStyle)
     applyShadow(spanStyle.shadow)

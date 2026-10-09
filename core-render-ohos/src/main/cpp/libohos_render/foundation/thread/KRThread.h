@@ -27,6 +27,8 @@
 #include <string>
 #include <thread>
 
+#include "libohos_render/foundation/thread/CustomStackSizeThread.h"
+
 // KRThread：基于自建 uv_loop_t 的工作线程。
 // 关键约束（HarmonyOS libuv）：
 //   * uv_loop_init / uv_run / 所有非线程安全 uv_* 接口必须在 loop 线程；
@@ -105,7 +107,6 @@ class KRThread {
     void StartTimerInLoop(std::function<void()> task, int delayMs);
 
     // ---- 线程与 loop ----
-    std::thread m_workerThread;
     std::thread::id m_workerThreadId;
     uv_loop_t m_loop{};
     uv_async_t m_async{};
@@ -142,6 +143,9 @@ class KRThread {
     // 的 cv.wait 期间举旗/落旗；DirectRunOnCurThread 自旋时观察此旗实现 fast-fail 让步。
     // 语义就是一个跨线程可见的 bool 标志位，atomic 即可，无需 mutex 保护。
     std::atomic<bool> m_workerAwaitingMainTask{false};
+
+    // 必须放在最后：初始化列表里启动后，WorkerLoop 会立刻使用前面的成员。
+    kuikly::CustomStackSizeThread m_workerThread;
 };
 
 #endif  // CORE_RENDER_OHOS_KRTHREAD_H

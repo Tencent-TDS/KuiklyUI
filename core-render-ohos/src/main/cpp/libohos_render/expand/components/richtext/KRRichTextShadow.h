@@ -185,7 +185,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::string GetTextContent() const {
         return text_content_;
     }
-
     KRSize MainMeasureSize() {
         return main_measure_size_;
     }

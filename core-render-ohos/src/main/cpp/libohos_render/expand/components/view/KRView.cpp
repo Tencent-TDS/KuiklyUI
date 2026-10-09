@@ -168,6 +168,15 @@ bool KRView::IsSelectable() {
     return selectable_option_ != DISABLE;
 }
 
+int32_t KRView::GetChildCount() {
+    // 选区手柄不是业务子节点。计入后，后续插入的子节点会排到手柄下面。
+    int32_t count = IKRRenderViewExport::GetChildCount();
+    if (selection_info_.handle_nodes[0].wrapper != nullptr) {
+        count -= static_cast<int32_t>(sizeof(selection_info_.handle_nodes) / sizeof(selection_info_.handle_nodes[0]));
+    }
+    return count < 0 ? 0 : count;
+}
+
 void KRView::HandleCreateSelection(const KRAnyValue &params) {
     std::string str = params->toString();
     if (auto paramObj = kuikly::util::JSONObject::Parse(str)) {
@@ -752,6 +761,12 @@ void KRView::CleanupHandleNodes() {
     selection_info_ = {};
 }
 
+static void ConfigureSelectionHandleNode(ArkUI_NodeHandle node) {
+    // 高于文本和 ImageSpan，避免手柄被盖住。
+    constexpr int kSelectionHandleZIndex = 100;
+    kuikly::util::UpdateNodeZIndex(node, kSelectionHandleZIndex);
+}
+
 void KRView::UpdateSelectionHandles() {
     constexpr int kSelectorWidth = 20;
     constexpr int kSelectorCapWidth = 12;
@@ -771,6 +786,7 @@ void KRView::UpdateSelectionHandles() {
                                                                   kSelectorWidth / 2, kSelectorWidth / 2));
             kuikly::util::UpdateNodeBackgroundColor(head, kSelectorColor);
             kuikly::util::UpdateNodeBackgroundColor(body, kSelectorColor);
+            ConfigureSelectionHandleNode(wrapper);
 
             kuikly::util::UpdateNodeVisibility(wrapper, 0);
             nodeApi->addChild(wrapper, head);
@@ -790,12 +806,23 @@ void KRView::UpdateSelectionHandles() {
         }
     }
 
+    KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
+                        selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
+                        selection_info_.start.height + kSelectorCapWidth);
+    KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
+                            selection_info_.end.height + kSelectorCapWidth);
+    if (auto props = GetBasePropsHandler()) {
+        // 关闭裁剪会让其他越界子节点一起露出，只在手柄伸出容器时关闭。clipPath 存在时不改 NODE_CLIP。
+        auto frame = GetFrame();
+        auto outside = [&frame](const KRRect &rect) {
+            return rect.x < 0 || rect.y < 0 || rect.x + rect.width > frame.width ||
+                   rect.y + rect.height > frame.height;
+        };
+        props->SetContentClipSuspended(selection_info_.visible &&
+                                       (outside(wrapper_rect) || outside(end_wrapper_rect)));
+    }
+
     if (selection_info_.visible) {
-        constexpr int kSelectorWidth = 20;
-        constexpr int kSelectorCapWidth = 12;
-        KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
-                            selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
-                            selection_info_.start.height + kSelectorCapWidth);
         KRRect head_rect((kSelectorWidth - kSelectorCapWidth) / 2, 0, kSelectorCapWidth, kSelectorCapWidth);
         KRRect body_rect((kSelectorWidth - selection_info_.start.width) / 2, kSelectorCapWidth,
                          selection_info_.start.width, selection_info_.start.height);
@@ -804,8 +831,6 @@ void KRView::UpdateSelectionHandles() {
         kuikly::util::UpdateNodeFrame(selection_info_.handle_nodes[0].body, body_rect);
         kuikly::util::UpdateNodeVisibility(selection_info_.handle_nodes[0].wrapper, 1);
 
-        KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
-                                selection_info_.end.height + kSelectorCapWidth);
         KRRect end_head_rect((kSelectorWidth - kSelectorCapWidth) / 2, selection_info_.end.height, kSelectorCapWidth,
                              kSelectorCapWidth);
         KRRect end_body_rect((kSelectorWidth - selection_info_.end.width) / 2, 0, selection_info_.end.width,

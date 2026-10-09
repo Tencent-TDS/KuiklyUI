@@ -393,8 +393,17 @@ IKRRenderViewExport::GetSelectedTextAndScrollViews() {
 void IKRRenderViewExport::GetSelectedTextAndScrollViews(
     std::vector<std::shared_ptr<IKRRenderViewExport>> &text_views,
     std::vector<std::shared_ptr<IKRRenderViewExport>> &scroll_views) {
-    auto cmp = [](std::shared_ptr<IKRRenderViewExport> a, std::shared_ptr<IKRRenderViewExport> b) {
-        return a->GetFrame().Origin() < b->GetFrame().Origin();
+    // 原点相同时按指针区分，避免 RichText 与叠放的 ImageSpan 在 set 里互相覆盖。
+    auto cmp = [](const std::shared_ptr<IKRRenderViewExport> &a, const std::shared_ptr<IKRRenderViewExport> &b) {
+        const KRPoint origin_a = a->GetFrame().Origin();
+        const KRPoint origin_b = b->GetFrame().Origin();
+        if (origin_a < origin_b) {
+            return true;
+        }
+        if (origin_b < origin_a) {
+            return false;
+        }
+        return a.get() < b.get();
     };
     std::set<std::shared_ptr<IKRRenderViewExport>, decltype(cmp)> sorted_sub_render_views(cmp);
     sorted_sub_render_views.insert(sub_render_views_.begin(), sub_render_views_.end());

@@ -79,9 +79,7 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
         auto borderRadiuses = kuikly::util::ConverToBorderRadiuses(prop_value->toString());
         kuikly::util::UpdateNodeBorderRadius(node_, borderRadiuses);
         force_overflow_ = !borderRadiuses.isAllZero(); // 圆角不为0，需要强制clip 子孩子，避免超出自身边界
-        if (!has_clip_path_) {
-            kuikly::util::UpdateNodeOverflow(node_, css_overflow_ || force_overflow_);
-        }
+        ApplyContentClip();
         return true;
     }
     if (strcmp(prop_key.c_str(), kBorder) == 0) {  // 边框样式
@@ -123,9 +121,7 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
 
     if (strcmp(prop_key.c_str(), kOverflow) == 0) {  // 裁剪
         css_overflow_ = prop_value->toInt();
-        if (!has_clip_path_) {
-            kuikly::util::UpdateNodeOverflow(node_, css_overflow_ || force_overflow_);
-        }
+        ApplyContentClip();
         return true;
     }
 
@@ -181,8 +177,8 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
         auto pathCommand = kuikly::util::ConvertToPathCommand(prop_value->toString());
         has_clip_path_ = !pathCommand.empty();
         kuikly::util::UpdateNodeClipPath(node_, frame_.width, frame_.height, pathCommand);
-        if (!has_clip_path_ && (force_overflow_ || css_overflow_)) {
-            kuikly::util::UpdateNodeOverflow(node_, 1);
+        if (!has_clip_path_) {
+            ApplyContentClip();
         }
         return true;
     }
@@ -206,20 +202,37 @@ void KRBasePropsHandler::PrepareFirstAnimationProperty(const std::string &prop_k
     }
 }
 
+void KRBasePropsHandler::ApplyContentClip() {
+    if (node_ == nullptr || has_clip_path_) {
+        return;
+    }
+    kuikly::util::UpdateNodeOverflow(node_, content_clip_suspended_ ? 0 : (css_overflow_ || force_overflow_));
+}
+
+void KRBasePropsHandler::SetContentClipSuspended(bool suspended) {
+    if (node_ == nullptr || content_clip_suspended_ == suspended) {
+        return;
+    }
+    content_clip_suspended_ = suspended;
+    ApplyContentClip();
+}
+
 bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
     if (node_ == nullptr) {
         return false;
     }
-    force_overflow_ = false;
     if (strcmp(prop_key.c_str(), kBackgroundColor) == 0) {
         kuikly::util::UpdateNodeBackgroundColor(node_, 0x00000000);  // 透明
         kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_BACKGROUND_COLOR);
         return true;
     }
     if (strcmp(prop_key.c_str(), kBorderRadius) == 0) {  // 圆角
+        force_overflow_ = false;
         kuikly::util::UpdateNodeBorderRadius(node_, KRBorderRadiuses());
-        kuikly::util::UpdateNodeOverflow(node_, 0);
-        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_CLIP);
+        if (!content_clip_suspended_ && !has_clip_path_) {
+            kuikly::util::UpdateNodeOverflow(node_, 0);
+            kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_CLIP);
+        }
         kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_BORDER_RADIUS);
         return true;
     }
@@ -265,9 +278,11 @@ bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
     }
 
     if (strcmp(prop_key.c_str(), kOverflow) == 0) {  // 裁剪子孩子
-        kuikly::util::UpdateNodeOverflow(node_, 0);
         css_overflow_ = 0;
-        kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_CLIP);
+        if (!content_clip_suspended_ && !has_clip_path_) {
+            kuikly::util::UpdateNodeOverflow(node_, 0);
+            kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_CLIP);
+        }
         return true;
     }
 
@@ -320,6 +335,7 @@ bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
     if (strcmp(prop_key.c_str(), kClipPath) == 0) {
         has_clip_path_ = false;
         kuikly::util::UpdateNodeClipPath(node_, 0, 0, "");
+        ApplyContentClip();
         return true;
     }
 

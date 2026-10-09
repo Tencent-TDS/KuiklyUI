@@ -837,6 +837,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 - (void)p_boundsDidChanged {
+    // 圆角 / clipPath mask 也是手动挂上去的独立 CAShapeLayer（CSSShapeLayer 在 setFrame: 里同步重算 path），
+    // 同样不享受 UIView backing layer 的隐式动画屏蔽，属性变更会走 CA 默认的 0.25s，这里统一禁掉
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
         // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
@@ -861,6 +865,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
             #endif // [macOS]
         }
     }
+    [CATransaction commit];
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -1575,6 +1580,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
  */
 - (void)layoutSublayers {
     [super layoutSublayers];
+    // 边框 layer 是手动 addSublayer 的独立 CAShapeLayer，属性变更默认会带 0.25s 的隐式动画，
+    // 这里统一禁用，让边框与内容在同一帧到位
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     
     // 0. macOS: 确保边框在最顶层（NSScrollView/NSTextView 内部 sublayer 可能覆盖边框）
 #if TARGET_OS_OSX
@@ -1596,6 +1605,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
     // 仅在 clipPath 变化时为 YES）
     if (CGSizeEqualToSize(self.bounds.size, _lastSize) && !_needsRedraw) {
+        [CATransaction commit];
         return ;
     }
     _lastSize = self.bounds.size;
@@ -1661,6 +1671,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     #else
     self.path = path.CGPath;
     #endif
+    [CATransaction commit];
 }
 
 @end
@@ -1962,7 +1973,11 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 if (!self.isNativeV2) {
+                    // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIView.setAnimationCurve: → block-based animation API
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                     [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
+#pragma clang diagnostic pop
                 }
                 block();
             }];

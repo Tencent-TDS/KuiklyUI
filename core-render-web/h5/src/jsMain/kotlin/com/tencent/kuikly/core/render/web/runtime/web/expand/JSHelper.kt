@@ -35,6 +35,34 @@ fun createSizeI(width: Int, height: Int): SizeI = Pair(width, height)
 fun emptyListForJs(): List<Any> = emptyList()
 
 /**
+ * Internal helpers wrapping raw `js(...)` calls.
+ *
+ * IMPORTANT: Do NOT inline `js(...)` blocks inside functions annotated with
+ * `@JsExport`. Kotlin/JS 1.9.22 has a known code-gen bug: when an exported
+ * function body contains multiple `js(...)` blocks, the compiler outlines
+ * them into a helper (e.g. `jsValueToKotlin$outlinedJsCode$`) but sometimes
+ * DCE's the helper definition while still emitting the module-level export
+ * assignment referencing it, producing runtime `ReferenceError:
+ * jsValueToKotlin$outlinedJsCode$ is not defined` when the bundle loads.
+ *
+ * Wrapping each `js(...)` block in a private, non-`@JsExport` function keeps
+ * exported function bodies free of raw `js(...)` and avoids the outlining
+ * path entirely.
+ */
+private fun newEmptyJsObject(): dynamic = js("({})")
+
+private fun isJsArray(value: dynamic): Boolean = js("Array.isArray(value)").unsafeCast<Boolean>()
+
+private fun jsObjectOwnKeys(value: dynamic): Array<String> =
+    js("Object.keys(value)").unsafeCast<Array<String>>()
+
+private fun hasImageProcessorRequiredMethods(jsProcessor: dynamic): Boolean {
+    return jsTypeOf(jsProcessor.getImageAssetsSource) == "function" &&
+        jsTypeOf(jsProcessor.isSVGFilterSupported) == "function" &&
+        jsTypeOf(jsProcessor.applyTintColor) == "function"
+}
+
+/**
  * Convert a JS object to a Kotlin Map.
  *
  * Notes:
@@ -49,7 +77,7 @@ fun jsObjectToMap(jsObject: Any?, keys: Array<String> = emptyArray()): MutableMa
     return if (converted is MutableMap<*, *>) {
         converted.unsafeCast<MutableMap<String, Any?>>()
     } else {
-        FastMutableMap<String, Any?>(js("({})"))
+        FastMutableMap<String, Any?>(newEmptyJsObject())
     }
 }
 
@@ -69,6 +97,10 @@ fun jsArrayToList(jsArray: Array<Any?>): List<Any?> {
  * - JS Object => Kotlin MutableMap<String, Any?>
  * - JS Array  => Kotlin List<Any?>
  * - Primitive => unchanged
+ *
+ * NOTE: All `js(...)` blocks are intentionally delegated to the private
+ * helpers above to avoid a Kotlin/JS 1.9.22 code-gen bug on `@JsExport`
+ * functions (see comment on `newEmptyJsObject`).
  */
 @JsExport
 @JsName("jsValueToKotlin")
@@ -78,19 +110,17 @@ fun jsValueToKotlin(value: Any?): Any? {
     }
 
     val dynamicValue = value.asDynamic()
-    val jsType = js("typeof dynamicValue") as String
-    if (jsType != "object") {
+    if (jsTypeOf(dynamicValue) != "object") {
         return value
     }
 
-    val isArray = js("Array.isArray(dynamicValue)") as Boolean
-    if (isArray) {
+    if (isJsArray(dynamicValue)) {
         val arrayValue = dynamicValue.unsafeCast<Array<Any?>>()
         return jsArrayToList(arrayValue)
     }
 
-    val map = FastMutableMap<String, Any?>(js("({})"))
-    val keys = js("Object.keys(dynamicValue)").unsafeCast<Array<String>>()
+    val map = FastMutableMap<String, Any?>(newEmptyJsObject())
+    val keys = jsObjectOwnKeys(dynamicValue)
     keys.forEach { key ->
         map[key] = jsValueToKotlin(dynamicValue[key])
     }
@@ -135,13 +165,7 @@ fun setImageProcessor(imageProcessor: Any?): Boolean {
     }
 
     val jsProcessor = imageProcessor.asDynamic()
-    val hasRequiredMethods = js(
-        "typeof jsProcessor.getImageAssetsSource === 'function'" +
-            " && typeof jsProcessor.isSVGFilterSupported === 'function'" +
-            " && typeof jsProcessor.applyTintColor === 'function'"
-    ) as Boolean
-
-    if (!hasRequiredMethods) {
+    if (!hasImageProcessorRequiredMethods(jsProcessor)) {
         return false
     }
 

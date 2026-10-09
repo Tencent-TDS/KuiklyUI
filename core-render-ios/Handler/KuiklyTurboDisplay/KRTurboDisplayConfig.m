@@ -29,6 +29,7 @@
     _diffViewMode = KRNormalDiffView;     // 使用 普通diff（View），非延迟diff（View）
     _autoUpdateTurboDisplay = YES;        // 开启自动刷新，会自动执行 diff-DOM
     _persistentRealTree = YES;            // 默认开启真实树持久更新，保持兼容性
+    _diffExecuteMode = KRNormalExecuteDiff;  // 默认系统时机：首帧渲染完成后执行diff
 }
 
 - (id)copyWithZone:(NSZone *)zone {
@@ -37,6 +38,7 @@
     copy.diffViewMode = self.diffViewMode;
     copy.autoUpdateTurboDisplay = self.autoUpdateTurboDisplay;
     copy.persistentRealTree = self.persistentRealTree;
+    copy.diffExecuteMode = self.diffExecuteMode;
     return copy;
 }
 
@@ -56,6 +58,10 @@
 
 - (BOOL)isPersistentRealTreeEnabled {
     return _persistentRealTree;
+}
+
+- (BOOL)isSuspendDiffEnabled {
+    return _diffExecuteMode == KRSuspendExecuteDiff;
 }
 
 #pragma mark - 开关 getter/setter
@@ -90,6 +96,16 @@
 
 - (void)disablePersistentRealTree {
     _persistentRealTree = NO;
+}
+
+- (void)enableSuspendDiff {
+    _diffExecuteMode = KRSuspendExecuteDiff;
+    // 挂起 diff => 首屏存在响应式变更 => 属于结构变更，必须开启
+    _diffDOMMode = KRStructureAwareDiffDOM;
+}
+
+- (void)disableSuspendDiff {
+    _diffExecuteMode = KRNormalExecuteDiff;
 }
 
 

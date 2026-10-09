@@ -965,7 +965,7 @@ capture属性常用于以下场景：
 | -- | -- | -- |
 | type | 光标类型，使用 `CursorType` 常量，如 `CursorType.POINTER`、`CursorType.TEXT` | String |
 
-### interfaceStyle方法 <Badge text="仅 iOS" type="warn"/>
+### interfaceStyle方法 <Badge text="仅 iOS / macOS" type="warn"/>
 
 设置视图的界面样式，用于自动颜色适配。
 
@@ -973,31 +973,31 @@ capture属性常用于以下场景：
 | -- | -- | -- |
 | style | 界面样式，可选 AUTO / LIGHT / DARK | InterfaceStyle |
 
-### preventTouch方法
+### preventTouch方法 <Badge text="仅 Android、iOS、鸿蒙" type="warn"/>
 
-阻止该组件接收触摸事件。
-
-| 参数 | 描述 | 类型 |
-| -- | -- | -- |
-| enable | 是否阻止触摸 | Boolean |
-
-### consumeTouchDown方法
-
-消费该组件的按下事件，阻止事件继续向其父级传递。
+禁用该组件上的原生手势及父级滚动对触摸事件的处理，主要用于 Compose 触摸分发场景。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| enable | 是否消费按下事件 | Boolean |
+| enable | 是否禁用原生手势处理 | Boolean |
+
+### consumeTouchDown方法 <Badge text="仅 Android" type="warn"/>
+
+在 superTouch 模式下，当子节点未接收按下事件时，由该组件兜底消费本次按下事件。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否兜底消费按下事件 | Boolean |
 
 ### superTouch方法
 
-将触摸事件交由父级组件处理。
+将该组件标记为 Compose 根节点，由其统一接收并分发触摸事件给 Compose。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| enable | 是否交由父级处理 | Boolean |
+| enable | 是否启用 superTouch 模式 | Boolean |
 
-### testTag方法 <Badge text="2.18.1 及以上支持" type="warn"/>
+### testTag方法 <Badge text="仅 iOS、Android" type="warn"/> <Badge text="2.18.1 及以上支持" type="warn"/>
 
 为组件设置测试标识，供自动化测试定位使用。
 
@@ -1005,15 +1005,15 @@ capture属性常用于以下场景：
 | -- | -- | -- |
 | tag | 测试标识 | String |
 
-### screenFramePause方法
+### screenFramePause方法 <Badge text="仅 View 组件" type="warn"/> <Badge text="仅 Android、iOS、Web" type="warn"/>
 
-暂停该容器所在屏幕的刷新帧，用于降低非活跃页面的渲染开销。
+暂停该组件自身的 `screenFrame` 帧回调（端侧暂停对应的 VSYNC 监听），用于在不需要逐帧回调时降低开销。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | pause | 是否暂停 | Boolean |
 
-### highlightBackgroundColor方法
+### highlightBackgroundColor方法 <Badge text="仅 View 组件" type="warn"/>
 
 设置按下态的高亮背景色：手指按下时以该颜色高亮，抬起后恢复。
 
@@ -1025,7 +1025,7 @@ capture属性常用于以下场景：
 若按下区域内同时存在其他手势（如 `click`），高亮不会触发。
 ::::
 
-### backgroundImage方法
+### backgroundImage方法 <Badge text="仅 View 组件" type="warn"/>
 
 为容器设置背景图片，默认按 `cover` 方式缩放。
 
@@ -1287,7 +1287,7 @@ bottom方法是指将本组件的定位到距离**下边**的多少距离，而�
 View {
     attr {
         size(100f, 100f)
-        top(Percentage(0.5f))   // 距离父容器顶部为其高度的 50%
+        top(Percentage(50f))    // 距离父容器顶部为其高度的 50%
     }
 }
 ```
@@ -1755,7 +1755,7 @@ internal class AppearPercentageEventPage : BasePager() {
 }
 ```
 
-### pinch事件
+### pinch事件 <Badge text="仅鸿蒙" type="warn"/>
 
 捏合手势事件（双指缩放）。
 
@@ -1790,7 +1790,7 @@ internal class AppearPercentageEventPage : BasePager() {
 | `putPluginEvent(pluginName, event)` | 注册扩展事件中心 |
 | `getPluginEvent(pluginName)` | 获取扩展事件中心 |
 
-### screenFrame事件
+### screenFrame事件 <Badge text="仅 View 组件" type="warn"/> <Badge text="仅 Android、iOS、Web" type="warn"/>
 
 屏幕刷新帧（VSYNC 信号）回调。
 
@@ -1804,7 +1804,7 @@ internal class AppearPercentageEventPage : BasePager() {
 
 ### 触摸事件的追加与移除
 
-`touchDown`、`touchUp`、`touchMove`、`touchCancel` 除直接注册外，还支持注册多个监听并通过以下方法追加或移除。四个 `touch*` 方法均带 `isSync` 参数，表示是否需要实时同步（拖拽等场景），默认 `false`。
+`touchDown`、`touchUp` 除直接注册外，还支持注册多个监听并通过以下 `GroupEvent` 方法追加或移除（`touchMove`、`touchCancel` 不支持）。`touchDown`、`touchUp`、`touchMove`、`touchCancel` 四个 `touch*` 方法均带 `isSync` 参数，表示是否需要实时同步（拖拽等场景），默认 `false`。
 
 | 方法 | 说明 |
 | -- | -- |
@@ -1972,7 +1972,7 @@ ctx.viewRef?.view?.toImageScaled(DeclarativeBaseView.ImageType.DATA_URI, 2.0f) {
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | taskKey | 属性任务的唯一 key，一般取属性名（如 `"transform"`） | String |
-| frameTask | 布局结果回调，参数为当前节点的布局结果 | FrameTask |
+| frameTask | 布局结果回调，参数为当前节点的布局结果 | (Frame) -> Unit |
 
 ::::tip 回调时机
 若调用时该节点**已经有布局结果**，回调会立即执行一次；此后布局结果变化时再次回调。常用于 `transform`、`clipPath` 这类需要按 frame 计算的属性。

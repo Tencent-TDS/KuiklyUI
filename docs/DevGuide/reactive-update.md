@@ -310,7 +310,7 @@ internal class DemoPage : BasePager() {
             valueBlock = { "${firstName} ${lastName}" },
             byOwner = this
         ) { fullName ->
-            // 表达式结果变化时触发
+            // 表达式依赖的任一字段变化时触发（不比较新旧结果）
             KLog.i("DemoPage", "fullName = $fullName")
         }
     }
@@ -329,12 +329,12 @@ internal class DemoPage : BasePager() {
 
 ## 响应式与线程校验（调试用）
 
-Kuikly 提供了两个校验开关，用于在开发阶段发现「在非 UI 线程访问响应式字段」与「越权访问响应式字段」这两类问题，默认均关闭。
+Kuikly 提供了两个校验开关，用于在开发阶段发现「在非上下文线程操作 UI / 响应式字段」与「响应式观察者未初始化或找不到」这两类问题，默认均关闭。
 
 | 开关 | 说明 | 默认值 |
 | -- | -- | -- |
-| `Pager.VERIFY_THREAD` | 校验响应式字段是否在上下文线程访问 | false |
-| `Pager.VERIFY_REACTIVE_OBSERVER` | 校验是否存在越权的响应式访问 | false |
+| `Pager.VERIFY_THREAD` | 校验属性写入、事件注册/注销、View 创建、布局修改、回调创建及响应式字段读写是否在上下文线程执行；JS、JVM 平台为空实现，开启后不生效 | false |
+| `Pager.VERIFY_REACTIVE_OBSERVER` | 校验 `PagerScope` 的 pagerId 是否已初始化，以及能否按 pagerId 找到对应的 `ReactiveObserver` | false |
 | `Pager.verifyFailed(handler)` | 校验失败时的处理回调 | 默认直接抛出异常 |
 
 用法示例：

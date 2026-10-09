@@ -19,7 +19,7 @@
 
 ### ElevatedCard
 
-带阴影的卡片，参数与 `Card` 一致，默认阴影更高。
+带阴影的卡片，参数与 `Card` 基本一致（不支持 `border` 参数），默认阴影更高。
 
 ### OutlinedCard
 
@@ -56,7 +56,7 @@ Card(
 
 ### NavigationBarItem
 
-底部导航项，只能在 `NavigationBar` 的 `RowScope` 中调用。
+底部导航项，为 `RowScope` 扩展函数，通常放在 `NavigationBar` 内使用。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
@@ -68,7 +68,7 @@ Card(
 | label <Badge text="非必需" type="warn"/> | 文本标签 | @Composable (() -> Unit)? |
 | alwaysShowLabel <Badge text="非必需" type="warn"/> | 是否始终显示标签，false 时仅选中态显示 | Boolean |
 | colors <Badge text="非必需" type="warn"/> | 各状态下的配色 | NavigationBarItemColors |
-| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource |
+| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource? |
 
 :::: warning 关于图标
 Kuikly Compose 当前**未提供 `Icon` 组件**，`icon` 参数需要自行用 `Image`、`Canvas` 或 `Text` 组合实现。
@@ -93,13 +93,13 @@ NavigationBar {
 
 ## Popup
 
-浮层容器，相对父组件按 `alignment` 与 `offset` 定位，只要仍在组合树中就保持可见。适用于非模态的浮动菜单等场景。
+浮层容器，内部基于 `Dialog` 实现，相对整个窗口按 `alignment` 与 `offset` 定位（而非相对父组件），只要仍在组合树中就保持可见；点击外部是否回调 `onDismissRequest` 由 `properties.dismissOnClickOutside` 控制。适用于非模态的浮动菜单等场景。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| alignment <Badge text="必需" type="warn"/> | 相对父组件的对齐方式 | Alignment |
+| alignment <Badge text="必需" type="warn"/> | 相对窗口的对齐方式 | Alignment |
 | offset <Badge text="非必需" type="warn"/> | 基于对齐位置的偏移 | IntOffset |
-| onDismissRequest <Badge text="必需" type="warn"/> | 点击浮层外部时的回调 | (() -> Unit)? |
+| onDismissRequest <Badge text="必需" type="warn"/> | 点击浮层外部（受 `properties.dismissOnClickOutside` 控制）或按下系统返回键时的回调 | (() -> Unit)? |
 | properties <Badge text="必需" type="warn"/> | 浮层行为配置 | PopupProperties |
 | content <Badge text="必需" type="warn"/> | 浮层内容 | @Composable () -> Unit |
 
@@ -130,7 +130,7 @@ BackHandler {
 | modifier <Badge text="非必需" type="warn"/> | 修饰符 | Modifier |
 | enabled <Badge text="非必需" type="warn"/> | 是否可交互 | Boolean |
 | colors <Badge text="非必需" type="warn"/> | 各状态下的配色 | CheckboxColors |
-| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource |
+| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource? |
 
 ## 标签行
 
@@ -148,7 +148,7 @@ BackHandler {
 | enabled <Badge text="非必需" type="warn"/> | 是否可交互 | Boolean |
 | selectedContentColor <Badge text="非必需" type="warn"/> | 选中态内容色 | Color |
 | unselectedContentColor <Badge text="非必需" type="warn"/> | 未选中态内容色 | Color |
-| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource |
+| interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource? |
 
 ### PrimaryTabRow / SecondaryTabRow
 
@@ -171,17 +171,22 @@ Material3 的主 / 次级标签行，`Primary` 用于页面级切换，`Secondar
 **示例**
 
 ```kotlin
-PrimaryTabRow(selectedTabIndex = selectedIndex) {
-    Tab(
-        selected = selectedIndex == 0,
-        onClick = { selectedIndex = 0 },
-        text = { Text("推荐") }
-    )
-    Tab(
-        selected = selectedIndex == 1,
-        onClick = { selectedIndex = 1 },
-        text = { Text("关注") }
-    )
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DemoTabs() {
+    var selectedIndex by remember { mutableStateOf(0) }
+    PrimaryTabRow(selectedTabIndex = selectedIndex) {
+        Tab(
+            selected = selectedIndex == 0,
+            onClick = { selectedIndex = 0 },
+            text = { Text("推荐") }
+        )
+        Tab(
+            selected = selectedIndex == 1,
+            onClick = { selectedIndex = 1 },
+            text = { Text("关注") }
+        )
+    }
 }
 ```
 

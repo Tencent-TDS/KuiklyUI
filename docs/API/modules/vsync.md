@@ -2,13 +2,15 @@
 
 垂直同步（Vsync）信号监听模块，用于注册逐帧回调，适用于需要按帧驱动的动画或自定义绘制场景。
 
+<Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+
 :::warning 使用注意
-Vsync 回调为常驻回调（keepCallbackAlive），回调频率与屏幕刷新率一致。回调内应避免耗时操作，使用完毕后务必调用 `unRegisterVsync` 解除注册。
+Vsync 回调为常驻回调（keepCallbackAlive），回调频率通常跟随屏幕刷新，各端实现存在差异。回调内应避免耗时操作，使用完毕后务必调用 `unRegisterVsync` 解除注册。
 :::
 
 ## registerVsync方法
 
-注册 Vsync 回调，每帧触发一次。
+注册 Vsync 逐帧回调。
 
 **参数**
 
@@ -26,7 +28,7 @@ acquireModule<VsyncModule>(VsyncModule.MODULE_NAME).registerVsync {
 
 ## registerVsyncWithFrameInterval方法
 
-注册 Vsync 回调，并将帧间隔（纳秒）以原子方式回传给业务，避免每帧走 JSON 序列化，性能优于 `registerVsync`。
+注册 Vsync 回调，并将帧间隔（纳秒）以原子方式回传给业务。`registerVsync` 内部即调用本方法。
 
 **参数**
 

@@ -31,7 +31,6 @@ TurboDisplay 运行于 Render 侧，仅需在 Native 侧配置启动开关，无
 当业务需要在特定时机主动干预缓存内容时，如页面退出前保存当前状态、异常情况下清除缓存、特定交互后强制刷新缓存等，可通过 TurboDisplayModule 提供的方法进行操作：
 
 - **`setCurrentUIAsFirstScreenForNextLaunch(extraCacheContent)`** - 手动采集当前视图状态保存到缓存，调用后关闭自动采集
-- **`closeTurboDisplayMode()`** - 关闭 TurboDisplay 首屏直出渲染模式
 - **`clearCurrentPageCache()`** - 清除当前页面缓存
 - **`clearAllCache()`** - 清除所有页面缓存
 - **`isTurboDisplay()`** - 判断本次打开是否使用了缓存上屏

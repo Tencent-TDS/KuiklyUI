@@ -314,10 +314,10 @@ override fun created() {
 
 ## 可取消的 Job 与 delay <Badge text="2.14.0 及以上支持" type="warn"/>
 
-Kuikly 内建协程的 `Job` 与 `delay` 均支持取消：作用域被取消后，挂起中的 `delay` 会立刻结束，不再唤醒后续代码。
+Kuikly 内建协程的 `Job` 与 `delay` 均支持取消：`launch` / `async` 返回的 `Job` 被取消后，挂起中的 `delay` 会以 `CancellationException` 结束，不再执行后续代码。
 
 ```kotlin
-val job = launch {
+val job = lifecycleScope.launch {
     KLog.i("Demo", "start")
     delay(3000)                    // 可取消：job.cancel() 后不会再走到下一行
     KLog.i("Demo", "after delay")
@@ -327,18 +327,23 @@ val job = launch {
 job.cancel()
 ```
 
-`delay` 内部会把当前续体注册到 `Job`，取消时同步注销已注册的定时器，因此不会出现「协程已取消但定时器仍在跑」的残留。
+`delay` 内部会把当前续体注册到 `Job`，取消时会销毁 Kotlin 侧的定时回调，端侧定时器到期后不会再唤醒协程。
 
-自定义挂起函数时，可使用可取消版本：
+自定义挂起函数时，可使用可取消版本 `suspendCancellableCoroutine`。它是 `CoroutineScope` 的扩展函数，需以 `launch` / `async` 块的接收者（即块内的 `this`）调用，才能关联到对应的 `Job`：
 
 ```kotlin
-suspend fun awaitSomething(): String = suspendCancellableCoroutine { cont, cancel ->
-    // cont: 恢复续体；cancel: 在外部取消时被调用
+lifecycleScope.launch {
+    val result: String = suspendCancellableCoroutine { cont, onCancel ->
+        onCancel { cause ->
+            // 协程结束（含取消）时回调，可用于释放资源
+        }
+        // 异步完成后调用 cont.resume(...)
+    }
 }
 ```
 
 ::::tip 与 LifecycleScope 配合
-`Pager.lifecycleScope` 会随页面销毁自动取消，在其上启动的 `launch { delay(...) }` 无需手动取消；`GlobalScope` 上的协程则需要在业务侧自行管理取消时机。
+`Pager.lifecycleScope` 当前**不会**随页面销毁自动取消（其 context 不含 `Job`）。需要取消时，请持有 `launch` 返回的 `Job`，并在合适时机（如 `pageWillDestroy`）调用 `cancel()`；`GlobalScope` 上的协程同理。
 ::::
 
 ## 关于线程安全

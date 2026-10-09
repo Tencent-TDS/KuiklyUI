@@ -83,7 +83,7 @@ fun NestedScrollList(data: List<String>) {
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| enabled | 是否开启预取 | Boolean |
+| enabled | 是否开启预取，默认 `true` | Boolean |
 
 ```kotlin
 LazyColumn(

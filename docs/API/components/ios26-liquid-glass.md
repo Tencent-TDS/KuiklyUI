@@ -79,7 +79,7 @@ Kuikly 的液态玻璃能力分为「属性入口」与「内置组件」两部�
 属性入口的完整参数说明见 [View 组件 - glassEffectIOS](./view.md#glasseffectios)。
 
 ::::tip Compose 侧
-Compose DSL 提供等价的 Modifier 入口：`Modifier.liquidGlass()` 与 `Modifier.liquidGlassContainer(spacing)`，详见 [Compose 核心能力 - 液态玻璃](../../Compose/kuikly-modifiers.md)。
+Compose DSL 提供等价的 Modifier 入口：`Modifier.liquidGlass()` 与 `Modifier.liquidGlassContainer(spacing)`，详见 [Kuikly 扩展 Modifier - 液态玻璃](../../Compose/kuikly-modifiers.md)。
 ::::
 
 以下是各内置组件的启用示例：

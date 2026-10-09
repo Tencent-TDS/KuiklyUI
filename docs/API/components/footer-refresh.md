@@ -5,7 +5,7 @@
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ListViewDemoPage.kt)
 
 ::::warning 使用注意
-- FooterRefresh **必须布局在 Scroller 容器组件下**（实际业务中通常为 List 或 WaterfallList），否则会在运行时抛错。
+- FooterRefresh **必须布局在 Scroller 容器组件下**（实际业务中通常为 List 或 WaterfallList），否则不会触发加载更多。
 - 需拖拽过一次后才会触发加载更多。
 - 处于「无更多数据」状态时不会再触发刷新。
 ::::

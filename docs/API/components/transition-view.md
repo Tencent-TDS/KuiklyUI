@@ -57,12 +57,12 @@
 | animation | 动画配置 | Animation |
 
 ::::warning 使用限制
-`transitionAppear`、`customBeginAnimationAttr`、`customEndAnimationAttr`、`customAnimation` 均**不支持二次修改**，请在首次布局时完成设置。
+`customBeginAnimationAttr`、`customEndAnimationAttr`、`customAnimation` 均**不支持二次修改**，请在首次布局时完成设置。`transitionAppear` 可通过响应式字段修改，从 `true` 改为 `false` 时播放退场动画。
 ::::
 
 ## 事件
 
-支持所有[基础事件](basic-attr-event.md#事件)，此外还支持：
+支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
 
 ### transitionFinish
 

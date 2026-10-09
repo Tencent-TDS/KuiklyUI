@@ -4,13 +4,12 @@ Kuikly Compose 提供了 Material3 主题体系：`MaterialTheme` 作为主题�
 
 ## MaterialTheme
 
-`MaterialTheme` 是一个 `@Composable` 函数，用于在组合树中注入主题；同时提供同名的 `object MaterialTheme`，用于在 `@Composable` 中读取当前主题值。
+`MaterialTheme` 是一个 `@Composable` 函数，作为主题入口包裹页面内容；同时提供同名的 `object MaterialTheme`，用于在 `@Composable` 中读取当前主题值。
 
 **设置主题**
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| shapes <Badge text="非必需" type="warn"/> | 形状体系 | Shapes |
 | content <Badge text="必需" type="warn"/> | 主题作用域内的内容 | @Composable () -> Unit |
 
 ```kotlin
@@ -41,7 +40,7 @@ fun ThemedText() {
 ```
 
 :::: warning 当前支持范围
-`MaterialTheme()` 函数当前**仅开放 `shapes` 参数**，`colorScheme` 与 `typography` 使用框架默认值，不支持在调用处传入自定义配色与字体排印。
+`colorScheme`、`typography`、`shapes` 当前均使用框架默认值，**不支持**通过 `MaterialTheme()` 自定义。
 
 如需自定义颜色或文本样式，请在组件上直接传参，例如 `Text(color = ...)`、`Text(style = ...)`、`Modifier.background(color = ...)`。
 ::::
@@ -84,4 +83,4 @@ fun ThemedText() {
 
 ## Shapes
 
-`Shapes` 描述形状体系，`MaterialTheme()` 当前支持传入该参数以覆盖默认形状。
+`Shapes` 描述形状体系，通过 `MaterialTheme.shapes` 读取，当前为默认的 `Shapes()`。

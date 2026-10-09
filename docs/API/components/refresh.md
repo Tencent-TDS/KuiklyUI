@@ -16,6 +16,10 @@
 |---------------| ----------------------------- | ------- |
 | refreshEnable | 是否启用下拉刷新 | Boolean |
 
+::::tip 实例属性
+以下 `contentInsetTopWhenEndDrag`、`refreshState` 是 `RefreshView` 实例上的属性，需通过 `ref` 拿到实例后访问，**不能**在 `attr {}` 中设置。其中 `contentInsetTopWhenEndDrag` 仅用于设置；`refreshState` 用于读取当前状态，切换刷新状态请使用 `beginRefresh` / `endRefresh`。
+::::
+
 ### contentInsetTopWhenEndDrag
 
 当松开手指后，下拉刷新回到初始位置时，列表的内容边距
@@ -75,17 +79,13 @@
 
 ### beginRefresh
 
-手动开始下拉刷新, 默认为true
+手动开始下拉刷新
 
 | 参数           | 描述                      | 类型 |
 |--------------| ------------------------- |--|
-| animated | 是否需要动画 | Boolean |
+| animated | 是否需要动画，默认 true | Boolean |
 
 ### endRefresh
 
-结束下拉刷新
-
-| 参数           | 描述                      | 类型 |
-|--------------| ------------------------- |--|
-| animated | 结束下拉刷新 | Boolean |
+结束下拉刷新，无参数
 

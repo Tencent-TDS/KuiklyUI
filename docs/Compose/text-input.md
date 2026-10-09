@@ -3,7 +3,7 @@
 本篇说明 Compose DSL 下的文本渲染与输入组件：`BasicText`、`BasicTextField`、`TextFieldState`、`KeyboardOptions`。
 
 :::tip 与 material3 Text/TextField 的区别
-`BasicText`、`BasicTextField` 属于 foundation 层，**不消费主题样式**；`Text`、`TextField` 属于 material3 层，会自动读取 `MaterialTheme` 的样式。需要主题能力时优先使用后者（见[核心组件](./core-components.md)）。
+`BasicText`、`BasicTextField` 属于 foundation 层，**不消费主题样式**；`Text`、`TextField` 属于 material3 层，默认读取 `LocalTextStyle` / `LocalContentColor`（当前 `MaterialTheme()` 不注入文本样式）。需要主题能力时优先使用后者（见[核心组件](./core-components.md)）。
 :::
 
 ## BasicText
@@ -49,9 +49,9 @@ BasicText(
 | keyboardOptions <Badge text="非必需" type="warn"/> | 键盘配置 | KeyboardOptions |
 | keyboardActions <Badge text="非必需" type="warn"/> | IME 动作回调 | KeyboardActions |
 | singleLine <Badge text="非必需" type="warn"/> | 是否单行 | Boolean |
-| maxLines / minLines <Badge text="非必需" type="warn"/> | 最大/最小行数 | Int |
+| maxLines <Badge text="非必需" type="warn"/> | 最大行数，`singleLine` 为 true 时固定为 1 | Int |
 | inputTransformation <Badge text="非必需" type="warn"/> | 输入内容的转换与校验 | InputTransformation? |
-| outputTransformation <Badge text="非必需" type="warn"/> | 展示内容的转换 | OutputTransformation? |
+| outputTransformation <Badge text="非必需" type="warn"/> | 传入 `TextPostProcessorOutputTransformation` 以声明文本后置处理器 | OutputTransformation? |
 | onTextLayout <Badge text="非必需" type="warn"/> | 文本布局完成回调 | (TextLayoutResult) -> Unit |
 | interactionSource <Badge text="非必需" type="warn"/> | 交互源 | MutableInteractionSource? |
 | cursorBrush <Badge text="非必需" type="warn"/> | 光标画刷 | Brush |
@@ -116,7 +116,7 @@ KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
 
 ## 相关 Modifier
 
-文本输入相关的能力通过 Modifier 提供，详见[核心组件](./core-components.md)中的差异化章节：
+文本输入相关的能力通过 Modifier 提供，详见[核心组件 - TextField 组件扩展](./core-components.md#textfield-组件扩展)：
 
 | Modifier | 说明 |
 | -- | -- |

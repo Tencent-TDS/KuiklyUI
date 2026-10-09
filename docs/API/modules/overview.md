@@ -13,10 +13,10 @@
 * [CodecModule](codec.md)
 * [CalendarModule](calendar.md)
 * [PerformanceModule](performance.md)
-* [TurboDisplayModule](turbo-display.md) <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
-* [VsyncModule](vsync.md)
-* [BackPressModule](back-press.md) <Badge text="Android" type="warn"/> <Badge text="鸿蒙" type="warn"/>
-* [FontModule](font.md)
+* [TurboDisplayModule](turbo-display.md) <Badge text="仅 iOS" type="warn"/>
+* [VsyncModule](vsync.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+* [BackPressModule](back-press.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+* [FontModule](font.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/>
 * [FileModule](file.md)
 * [LogModule](log.md)
 
@@ -26,8 +26,8 @@
 
 | 方法 | 说明 |
 | -- | -- |
-| `syncToNativeMethod(methodName, data/callbackFn)` | 同步调用端侧方法（JSON 参数版 / 原子参数版） |
-| `asyncToNativeMethod(methodName, data/callbackFn)` | 异步调用端侧方法 |
+| `syncToNativeMethod(methodName, data: JSONObject?, callbackFn: CallbackFn?)` / `syncToNativeMethod(methodName, args: Array<Any>, callbackFn: AnyCallbackFn?)` | 同步调用端侧方法（JSON 参数版 / 原子参数版） |
+| `asyncToNativeMethod(methodName, data: JSONObject?, callbackFn: CallbackFn?)` / `asyncToNativeMethod(methodName, args: Array<Any>, callbackFn: AnyCallbackFn?)` | 异步调用端侧方法（JSON 参数版 / 原子参数版） |
 | `toNative(keepCallbackAlive, methodName, param, callback, syncCall)` | 通用端侧调用通道，回参自动转 JSONObject |
 | `toTDFNative(keepCallbackAlive, methodName, params, successCallback, errorCallback, syncCall)` | TDF 双回调通道，自动解包 `result` 字段 |
 | `removeCallback(callbackRef)` | 销毁全局回调引用 |

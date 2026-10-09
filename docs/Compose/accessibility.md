@@ -21,7 +21,7 @@ Kuikly Compose 通过 Semantics 向无障碍服务与自动化测试暴露节点
 
 ## Modifier.clearAndSetSemantics
 
-清除自身与子节点已有的语义，并重新设置。用于把一组细碎的可聚焦元素（如多个小按钮）收敛为一个语义实体。
+清除所有后代节点的语义，并设置新的语义。用于把一组细碎的可聚焦元素（如多个小按钮）收敛为一个语义实体。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
@@ -54,7 +54,7 @@ Text(
 Card(
     modifier = Modifier.clearAndSetSemantics {
         contentDescription = "商品卡片，点击查看详情"
-        onClick { /* 处理点击 */ }
+        onClick { /* 处理点击 */ true }
     }
 ) {
     // 内部零散的图标与文本

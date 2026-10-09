@@ -82,11 +82,11 @@
 
 ### returnKeyTypeNone方法
 
-设置输入法的下一步按钮类型为无（不显示下一步按钮）
+设置输入法的下一步按钮类型为无（不显示下一步按钮）。仅 Android 完整生效；iOS 回退为默认 Return 键，鸿蒙映射为换行键。
 
 ### returnKeyTypePrevious方法
 
-设置输入法的下一步按钮类型为上一项类型
+设置输入法的下一步按钮类型为上一项类型。iOS 不支持，回退为默认 Return 键。
 
 ### enablesReturnKeyAutomatically方法<Badge text="仅iOS" type="warn"/>
 
@@ -96,7 +96,7 @@
 
 设置是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘
 
-### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/> <Badge text="2.12.0 及以上支持" type="warn"/>
+### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/> <Badge text="2.8.0 及以上支持" type="warn"/>
 
 是否启用拼音输入回调。当设置为 `true` 时，在拼音输入过程中（未确认选择汉字时）也会触发 `textDidChange` 回调。
 
@@ -490,9 +490,9 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### textPostProcessor方法 <Badge text="Android/iOS/鸿蒙支持" type="info"/> <Badge text="2.18.1 及以上支持" type="warn"/>
+### textPostProcessor方法 <Badge text="Android 2.18.1 及以上支持" type="warn"/> <Badge text="鸿蒙 2.21.0 及以上支持" type="warn"/>
 
-声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan` / `NSTextAttachment` / ArkUI `ImageAttachment`）。具体处理逻辑需在各端实现对应适配器，详见 [`text-post-processor-guide.md`](../../DevGuide/text-post-processor-guide.md)。
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan` / ArkUI `ImageAttachment`）。iOS 如需自定义表情输入，请使用 [TextArea](text-area.md) 组件。具体处理逻辑需在各端实现对应适配器，详见 [`text-post-processor-guide.md`](../../DevGuide/text-post-processor-guide.md)。
 
 <div class="table-01">
 

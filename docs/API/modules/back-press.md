@@ -2,10 +2,10 @@
 
 返回键模块，用于通知宿主侧是否消费返回键按下事件。
 
-<Badge text="Android" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+<Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
 
 :::tip 与 BackPressHandler 的区别
-页面级返回键拦截使用 `BackPressHandler`（详见「返回键处理」章节）；本模块用于在拦截回调中把「是否消费」的结果**同步**回传给宿主。
+页面级返回键拦截请使用 `BackPressHandler`（详见[接入系统返回键](../../DevGuide/back-press-handler.md)）。框架在收到返回键事件时，会按「是否注册了 `BackPressCallback`」自动调用本模块的 `backHandle` 通知宿主，业务一般无需手动调用。
 :::
 
 ## backHandle方法
@@ -21,9 +21,10 @@
 **示例**
 
 ```kotlin
-getPager().getBackPressHandler().addCallback {
-    // 返回 true 表示页面自行处理返回逻辑，并同步通知宿主
-    acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(true)
-    true
-}
+// Pager 内注册返回键回调，框架会自动调用 backHandle(true) 通知宿主已消费
+getBackPressHandler().addCallback(object : BackPressCallback() {
+    override fun handleOnBackPressed() {
+        // 页面自行处理返回逻辑
+    }
+})
 ```

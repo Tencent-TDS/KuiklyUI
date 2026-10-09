@@ -481,7 +481,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### textOverFlowWordWrapping方法
+### textOverFlowWordWrapping方法<Badge text="仅 iOS" type="warn"/>
 
 文本超出最大行数时按单词边界换行，不显示"..."
 
@@ -803,7 +803,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### paragraphSpacing方法
+### paragraphSpacing方法 <Badge text="仅 iOS" type="warn"/>
 
 设置段落之间的间距。
 

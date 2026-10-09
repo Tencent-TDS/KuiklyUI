@@ -20,7 +20,7 @@ Kuikly 的页面数据 `PageData` 提供了 `isIOS`、`isAndroid` 等平台字�
 
 | 方法 | 说明 | 返回类型 |
 | -- | -- | -- |
-| `PlatformUtils.getPlatform()` | 当前平台名称，取值失败时返回 `"unknown"` | String |
+| `PlatformUtils.getPlatform()` | 当前平台名称；获取页面数据失败时返回 `"unknown"`，页面数据中缺少平台字段时返回空串 | String |
 | `PlatformUtils.getOSVersion()` | 当前系统版本，取值失败时返回空串 | String |
 
 ## 能力判定

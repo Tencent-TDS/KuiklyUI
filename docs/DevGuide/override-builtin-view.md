@@ -9,7 +9,7 @@
 | `Pager.registerViewCreator(viewClassName, viewCreator)` | 注册指定内置组件的创建器 |
 
 ::::warning 注册时机
-`registerViewCreator` **必须在 `Pager#body()` 之前调用**，推荐在 `willInit()` 或 `created()` 中注册。晚于 `body()` 注册不会生效。
+`registerViewCreator` **必须在 `Pager#body()` 之前调用**，推荐在 `willInit()` 或 `created()` 中注册。晚于 `body()` 注册时，对已创建的组件不生效。
 ::::
 
 **示例**
@@ -20,10 +20,10 @@ internal class DemoPage : Pager() {
 
     override fun willInit() {
         super.willInit()
-        registerViewCreator(ViewConst.TYPE_TEXT_CLASS_NAME) {
+        registerViewCreator(ViewConst.TYPE_TEXT_CLASS_NAME, object : IViewCreator {
             // 返回自定义的 TextView 实现
-            CustomTextView()
-        }
+            override fun createView(): DeclarativeBaseView<*, *> = CustomTextView()
+        })
     }
 
     override fun body(): ViewBuilder {
@@ -35,6 +35,8 @@ internal class DemoPage : Pager() {
     }
 }
 ```
+
+自定义类需继承对应的内置组件类（如 `CustomTextView` 继承 `TextView`），否则类型转换失败，会回退到默认实现。
 
 ## 可替换的组件
 

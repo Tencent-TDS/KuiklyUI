@@ -54,7 +54,7 @@
 
 **属性**：支持所有[基础属性](basic-attr-event.md#基础属性)与[布局属性](basic-attr-event.md#布局属性)，无自有属性。
 
-**事件**：支持所有[基础事件](basic-attr-event.md#事件)，无自有事件。
+**事件**：支持所有[基础事件](basic-attr-event.md#基础事件)，无自有事件。
 
 :::: tip 说明
 未添加任何 TabItem 时，Tabs 的指示条会自动隐藏。

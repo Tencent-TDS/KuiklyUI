@@ -24,21 +24,21 @@
 
 ### Modifier.enableLazyListPrefetch <Badge text="2.23.3 及以上支持" type="warn"/>
 
-为 `LazyColumn` / `LazyRow` 显式开启预取（opt-in），开启后会提前组合滚动方向上的后续 item。
+为单个 `LazyColumn` / `LazyRow` 覆盖预取开关，开启后会提前组合滚动方向上的后续 item。未设置时使用全局开关：runtime19 产物全局默认已开启，此时该 Modifier 主要用于传 `false` 关闭；legacy 产物不支持预取，该 Modifier 不生效。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| enabled | 是否开启预取 | Boolean |
+| enabled | 是否开启预取，默认 `true` | Boolean |
 
 ## 文本输入
 
-### Modifier.autoFocusOnTextInputState
+### Modifier.autoFocusOnTextInputState <Badge text="仅 iOS" type="warn"/>
 
-与 `TextInputState` 配合使用，在通过状态预填文本时自动获取焦点。
+控制程序化同步 `TextFieldValue`（原生 `setTextInputState`）时，非空文本是否自动获取焦点并弹起键盘。不设置时默认为 `false`，即进页带预填文本时不自动弹键盘；需要自动聚焦时显式传 `true`。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| enabled | 是否启用 | Boolean |
+| enabled | 是否自动获取焦点 | Boolean |
 
 ## 属性与事件透传
 
@@ -66,12 +66,12 @@
 
 ## 滚动控制
 
-### Modifier.flingEnable <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
+### Modifier.flingEnable <Badge text="2.23.0 及以上支持" type="warn"/>
 
 动态开关底层 Kuikly `ScrollerView` 的原生惯性滚动。
 
-::::tip 版本说明
-该能力在 Android 与鸿蒙上为基线能力，iOS 自 2.16.0 起支持。
+::::tip 平台说明
+Android、iOS、鸿蒙支持；Web 不支持。
 ::::
 
 | 参数 | 描述 | 类型 |
@@ -90,7 +90,7 @@
 `flingSpeedLimit` 仅在**鸿蒙 API 18 及以上**生效，低于该版本为 no-op。
 ::::
 
-## 液态玻璃（仅 iOS）
+## 液态玻璃（仅 iOS / macOS）
 
 ### Modifier.liquidGlass
 
@@ -112,7 +112,7 @@
 | spacing <Badge text="必需" type="warn"/> | 组件间距，用于控制融合强度，传负值会被纠正为 0 | Float |
 
 ::::warning 平台差异
-两个 Modifier 均**仅在 iOS 生效**，其余平台自动降级为透明效果，不会报错。
+两个 Modifier 均**仅在 iOS 26.0+ / macOS 26.0+ 生效**，其余平台与系统版本自动降级为透明效果，不会报错。
 
 使用 `PlatformUtils.isLiquidGlassSupported()` 可在运行时判断当前系统是否支持（iOS 26.0+ / macOS 26.0+）。
 ::::

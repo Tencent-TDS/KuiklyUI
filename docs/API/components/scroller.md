@@ -54,7 +54,7 @@
 是否允许惯性滚动（fling）。设置为 `false` 时，用户松手后列表立即停止滚动，不会有惯性滑动效果。
 
 ::::tip 版本说明
-本属性在 Android 与鸿蒙上为基线能力，iOS 自 2.16.0 起支持。
+Android 支持；鸿蒙自 2.6.0 起支持；iOS 自 2.16.0 起支持；Web 不支持。
 ::::
 
 | 参数                | 描述                                                         | 类型          |
@@ -106,6 +106,22 @@
 :::
 
 [visibleAreaIgnoreMargin 使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/VisibleAreaIgnoreMarginExamplePage.kt)
+
+### syncScroll
+
+设置是否同步滚动：开启后滚动时 Kotlin 线程的 UI 操作与 UI 线程同步更新。也可通过 `event { scroll(sync = true) { } }` 开启。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| syncEnable | 是否开启同步滚动 | Boolean |
+
+### scrollWithParent <Badge text="仅 Android" type="warn"/>
+
+设置是否与父组件滑动联动：自身滑动到目标方向的边缘时，继续触发父组件滑动，默认 true。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否允许父组件滑动联动 | Boolean |
 
 ## 事件
 
@@ -175,7 +191,7 @@
 | viewHeight | 列表View高度 | Float   |
 | isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
 
-### scrollToTop <Badge text="2.12.0 及以上支持" type="warn"/>
+### scrollToTop <Badge text="iOS 2.8.0 及以上支持" type="warn"/> <Badge text="Android 2.15.3 及以上支持" type="warn"/>
 
 监听系统触发的"回到顶部"事件。iOS和Android部分厂商，点击状态栏时会触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
 
@@ -185,12 +201,12 @@
 
 ### willDragEndBySync
 
-在惯性滚动（fling）即将结束时回调，可用于提前处理吸附、加载等逻辑。
+拖拽即将结束（手指松开、惯性滚动开始前）时回调，常用于在回调中调用 `setContentOffset` 指定自定义吸附位置。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | handler | 回调参数为 `WillEndDragParams` | (WillEndDragParams) -> Unit |
-| isSync | 是否需要实时同步，默认 true | Boolean |
+| isSync | 是否在平台主线程同步回调；仅传 `handler` 的单参重载默认为 true | Boolean |
 
 ### contentSizeChanged
 
@@ -201,27 +217,11 @@
 | width | 组件宽度 | Float   |
 | height | 组件高度 | Float   |
 
-### syncScroll
-
-设置与父级滚动容器同步滚动。
-
-| 参数 | 描述 | 类型 |
-| -- | -- | -- |
-| syncEnable | 是否同步滚动 | Boolean |
-
-### scrollWithParent
-
-设置是否与外层（父）滚动容器联动滚动。
-
-| 参数 | 描述 | 类型 |
-| -- | -- | -- |
-| enable | 是否随父容器滚动 | Boolean |
-
 ## 方法
 
 ### setHasPullToRefresh
 
-设置当前滚动容器是否挂载了下拉刷新，供渲染层做滚动行为优化。
+设置当前滚动容器是否挂载了下拉刷新。目前仅 Web 渲染层使用；`Refresh` 组件挂载/移除时会自动调用，业务通常无需手动调用。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
@@ -238,7 +238,7 @@
 
 ### setExternalScrollEventHandler / getExternalScrollEventHandler
 
-设置 / 获取外部滚动事件处理器，用于把滚动事件转发给外部容器统一处理。
+设置 / 获取额外的滚动事件处理器：组件在完成自身的滚动事件处理后再回调该处理器，不会覆盖组件内部的事件监听。仅对 `scroll`、`dragBegin`、`dragEnd`、`scrollEnd` 四个事件名生效，`handler` 传 `null` 表示移除。
 
 | 方法 | 说明 |
 | -- | -- |

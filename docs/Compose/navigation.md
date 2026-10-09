@@ -214,14 +214,9 @@ val graph = navController.createGraph(
 NavHost(navController, graph)
 ```
 
-## 多页面模块注册：@KuiklyModulePages <Badge text="2.27.0 及以上支持" type="warn"/>
+## 跨模块页面重名检查 <Badge text="2.27.0 及以上支持" type="warn"/>
 
-`@KuiklyModulePages` 用于把一个模块内的多个页面集中声明，配合 KSP 在编译期完成注册。
-
-```kotlin
-@KuiklyModulePages(pages = ["HomePage", "DetailPage"])
-object DemoModule
-```
+自 2.27.0 起，在[多模块](../DevGuide/multi_module.md)模式（KSP 参数 `enableMultiModule` 为 `true`）下，KSP 会为每个配置了 `moduleId` 的子模块自动生成带 `@KuiklyModulePages` 注解的页面登记类，主模块（`isMainModule` 为 `true`）编译时汇总各子模块的页面名并做重名校验。该注解由框架生成，业务无需手写。
 
 ::::warning 破坏性变更
 自 2.27.0 起，同一模块内出现**同名 `@Page`** 会在编译期直接报错。迁移时请先消除页面重名，再升级到该版本。

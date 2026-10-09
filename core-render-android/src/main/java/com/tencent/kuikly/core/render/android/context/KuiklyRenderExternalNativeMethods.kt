@@ -63,7 +63,7 @@ object KuiklyRenderExternalNativeMethods {
      * @return         The value to hand back to the Kuikly caller, or `null`
      *                 for void-like methods.
      */
-    fun interface Handler {
+    interface Handler {
         fun invoke(methodId: Int, args: List<Any?>): Any?
     }
 

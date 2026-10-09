@@ -448,20 +448,26 @@ private fun IndefiniteSnackbar() {
     }
 }
 
+// Kotlin 2.3 适配：将局部类提取为顶层类。
+// 原因：该局部类原先声明在 @Composable fun CustomSnackbar() 内部，
+// Kotlin 2.3 的 Kotlin/Native IR 序列化会为它生成 top-level 声明记录，
+// link 阶段反序列化时找不到对应 Idx，报
+// "Not found Idx for com.tencent.kuikly.demo.pages.compose/CustomSnackbar|CustomSnackbar(){}[0]"。
+// 提取为顶层类后不再产生该记录。
+class SnackbarVisualsWithError(override val message: String, val isError: Boolean) :
+    SnackbarVisuals {
+    override val actionLabel: String
+        get() = if (isError) "Error" else "OK"
+
+    override val withDismissAction: Boolean
+        get() = false
+
+    override val duration: SnackbarDuration
+        get() = SnackbarDuration.Indefinite
+}
+
 @Composable
 fun CustomSnackbar() {
-    class SnackbarVisualsWithError(override val message: String, val isError: Boolean) :
-        SnackbarVisuals {
-        override val actionLabel: String
-            get() = if (isError) "Error" else "OK"
-
-        override val withDismissAction: Boolean
-            get() = false
-
-        override val duration: SnackbarDuration
-            get() = SnackbarDuration.Indefinite
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     Box {

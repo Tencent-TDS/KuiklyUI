@@ -1,5 +1,3 @@
-@file:JsExport
-
 package com.tencent.kuikly.core.render.web.expand
 
 import kotlin.js.JsExport

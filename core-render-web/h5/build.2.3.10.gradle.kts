@@ -12,6 +12,7 @@ group = MavenConfig.GROUP_WEB
 // maven 产物版本，这里统一使用 render 的版本号
 version = Version.getCoreVersion()
 
+
 // 配置 maven 发布
 publishing {
     repositories {
@@ -37,13 +38,11 @@ publishing {
 
 kotlin {
     js(IR) {
-        // Kotlin 2.3 起 moduleName: String 已移除，改用 outputModuleName(Provider API)
-        outputModuleName.set("KuiklyCore-render-web-base")
+        outputModuleName.set("KuiklyCore-render-web-h5")
         // Output build products that support browser execution
         browser {
             webpackTask {
-                // Kotlin 2.3 起 outputFileName 更名为 mainOutputFileName
-                mainOutputFileName.set("KuiklyCore-render-web-base.js") // Final output name
+                mainOutputFileName.set("KuiklyCore-render-web-h5.js") // Final output name
             }
 
             commonWebpackConfig {
@@ -60,8 +59,9 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 // Import js standard library
-                implementation(kotlin("stdlib-js"))
+                api(project(":core-render-web:base"))
             }
         }
     }
 }
+

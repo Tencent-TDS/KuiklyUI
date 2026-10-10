@@ -15,6 +15,9 @@
 
 #include "KRPerformanceData.h"
 
+#include <cstring>
+
+#include "libohos_render/utils/json/Box.h"
 #include "thirdparty/cJSON/cJSON.h"
 
 constexpr char kKeyMode[] = "mode";
@@ -31,7 +34,7 @@ KRPerformanceData::KRPerformanceData(std::string page_name, int excute_mode, int
     : page_name_(page_name), excute_mode_(excute_mode), spent_time_(spent_time), is_cold_launch_(is_cold_launch),
       is_page_cold_launch_(is_page_cold_launch), launch_data_(launch_data), frame_data_(frame_data), memory_data_(memory_data) {}
 
-std::string KRPerformanceData::ToJsonString() {
+std::u16string KRPerformanceData::ToJsonString() {
     cJSON *performance_data = cJSON_CreateObject();
     cJSON_AddNumberToObject(performance_data, kKeyMode, excute_mode_);
     cJSON_AddNumberToObject(performance_data, kKeyPageExistTime, spent_time_);
@@ -49,8 +52,11 @@ std::string KRPerformanceData::ToJsonString() {
     }
     cJSON_AddStringToObject(performance_data, kKeyPageLoadTime, launch_data_.c_str());
     char* jsonStr = cJSON_Print(performance_data);
-    std::string result = jsonStr;
-    free(jsonStr);
+    std::u16string result;
+    if (jsonStr != nullptr) {
+        result = kuikly::util::json::UTF8ToUTF16(jsonStr, std::strlen(jsonStr));
+        free(jsonStr);
+    }
     cJSON_Delete(performance_data);
     return result;
 }

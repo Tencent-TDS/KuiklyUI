@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/modules/log/KRLogModule.h"
 
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRStringUtil.h"
 
@@ -35,13 +36,13 @@ KRAnyValue KRLogModule::CallMethod(bool sync, const std::string &method, KRAnyVa
             LogError(params);
         }
     } else {
-        auto instance_id = GetInstanceId();
+    auto instance_id = GetInstanceIdValue();
         auto method_name = method;
         KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, method_name, params] {
-            auto module_name = NewKRRenderValue("KRLogModuleArkTS");
+            auto module_name = KRRenderValue::Make(u"KRLogModuleArkTS");
 
             KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
-                                                          module_name, NewKRRenderValue(method_name), params, nullptr,
+                                                          module_name, KRRenderValue::Make(kuikly::util::AsciiToUTF16(method_name)), params, nullptr,
                                                           nullptr, nullptr);
         });
     }

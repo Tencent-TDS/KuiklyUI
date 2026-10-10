@@ -23,6 +23,7 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
 import platform.Foundation.dataWithBytes
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 actual fun Any.toPlatformObject(): Any {
     if (this is ByteArray) {
@@ -69,4 +70,12 @@ actual fun Any.toKotlinObject(): Any {
         return this.toByteArray()
     }
     return this
+}
+
+internal actual fun platformOpenPageParams(
+    pageName: String,
+    pageData: JSONObject?,
+    routeStartTimestampMs: Long,
+): Any {
+    return stringifyOpenPageParams(pageName, pageData)
 }

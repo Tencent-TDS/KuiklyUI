@@ -15,24 +15,28 @@
 
 #include "libohos_render/view/KRRenderView.h"
 
+#include <cstdio>
 #include <functional>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/scheduler/KRUIScheduler.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
-static constexpr char PAGER_EVENT_FIRST_FRAME_PAINT[] = "pageFirstFramePaint";
-static constexpr char KR_PERFORMANCE_MODULE[] = "KRPerformanceModule";
-static constexpr char NOTIFY_INIT_STATE[] = "notifyInitState";
+static constexpr char16_t PAGER_EVENT_FIRST_FRAME_PAINT[] = u"pageFirstFramePaint";
+static constexpr char16_t KR_PERFORMANCE_MODULE[] = u"KRPerformanceModule";
+static constexpr char16_t NOTIFY_INIT_STATE[] = u"notifyInitState";
 
 const unsigned int LOG_PRINT_DOMAIN = 0xFF01;
-static std::string GetIncreaseCallbackId() {
+static std::u16string GetIncreaseCallbackId() {
     static int gCallbackId = 0;
     gCallbackId++;
-    return NewKRRenderValue(gCallbackId)->toString();
+    char buf[16];
+    const int n = std::snprintf(buf, sizeof(buf), "%d", gCallbackId);
+    return kuikly::util::AsciiToUTF16(buf, n > 0 ? static_cast<size_t>(n) : 0);
 }
 
 KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_id) : IKRRenderView(), node_content_handle_((handle)) {
@@ -144,6 +148,39 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
     }
 }
 
+void KRRenderView::SendEvent(std::string event_name, const KRAnyValue &data) {
+    bool need_sync = syncSendEvent(event_name);
+    SendEvent(std::move(event_name), data, need_sync);
+}
+
+void KRRenderView::SendEvent(std::string event_name, const KRAnyValue &data, bool sync) {
+    if (core_) {
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
+        return core_->SendEvent(event_name, data, sync);
+    }
+}
+
+void KRRenderView::SendEvent(const KRAnyValue &event, const KRAnyValue &data) {
+    bool need_sync = syncSendEvent(event ? event->toString() : std::string());
+    SendEvent(event, data, need_sync);
+}
+
+void KRRenderView::SendEvent(const KRAnyValue &event, const KRAnyValue &data, bool sync) {
+    if (core_) {
+        const std::string event_name = event ? event->toString() : std::string();
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
+        return core_->SendEvent(event, data, sync);
+    }
+}
+
 bool KRRenderView::syncSendEvent(const std::string &event_name) {
     // 与 ETS 侧常量保持一致：'onBackPressed'
     if (event_name == "onBackPressed") {
@@ -251,7 +288,7 @@ void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_Co
     ui_context_handle_ = ui_context_handle;
     native_resources_manager_ = native_resources_manager;
     int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
-    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
+    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceIdValue(), context->ExecuteMode());
     performance_manager_->SetArkLaunchTime(launch_time);
     root_view_width_ = width;
     root_view_height_ = height;
@@ -304,7 +341,7 @@ void KRRenderView::InitRender(float width, float height) {
  * 注册参数Callback
  * @return 该Callback索引ID, 用于GetArgCallback
  */
-std::string KRRenderView::GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
+std::u16string KRRenderView::GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
                                                 bool arg_prefer_raw_napi_value) {
     auto callback_id = GetIncreaseCallbackId();
     method_arg_callback_map_[callback_id] =
@@ -315,7 +352,7 @@ std::string KRRenderView::GenerateArgCallbackId(const KRRenderCallback &callback
 /**
  * 根据callbackid获取Callback
  */
-KRRenderCallback KRRenderView::GetArgCallback(std::string callbackId, bool &arg_prefer_raw_napi_value) {
+KRRenderCallback KRRenderView::GetArgCallback(const std::u16string &callbackId, bool &arg_prefer_raw_napi_value) {
     if (method_arg_callback_map_.find(callbackId) != method_arg_callback_map_.end()) {
         auto callback_wrapper = method_arg_callback_map_[callbackId];
         if (!callback_wrapper->IsKeepAlive()) {
@@ -329,7 +366,7 @@ KRRenderCallback KRRenderView::GetArgCallback(std::string callbackId, bool &arg_
 
 void KRRenderView::OnFirstFramePaint() {
     DispatchInitState(KRInitState::kStateFirstFramePaint);
-    SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
+    SendEvent(KRRenderValue::Make(PAGER_EVENT_FIRST_FRAME_PAINT), KRRenderValue::Make(KRRenderValue::Map{}));
 }
 
 KRPoint KRRenderView::GetRootNodePositionInWindow() const {
@@ -378,10 +415,10 @@ void KRRenderView::DispatchInitState(KRInitState state) {
         break;
     }
     // 通知ArkTS侧
-    std::string instance_id = context_->InstanceId();
-    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, state] {
-        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
-            NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
+    auto instance_id_value = context_->InstanceIdValue();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id_value, state] {
+        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id_value, KRNativeCallArkTSMethod::CallModuleMethod,
+            KRRenderValue::Make(KR_PERFORMANCE_MODULE), KRRenderValue::Make(NOTIFY_INIT_STATE),
             NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
     });
 }

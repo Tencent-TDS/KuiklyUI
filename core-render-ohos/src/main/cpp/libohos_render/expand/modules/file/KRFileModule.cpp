@@ -22,6 +22,7 @@
 #include <string>
 #include <thread>
 
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
 namespace kuikly {
@@ -45,9 +46,9 @@ static void MkdirIfNeeded(const std::string &dir) {
 // ---------------------------------------------------------------------------
 // 工具：构建回调结果 map
 // ---------------------------------------------------------------------------
-static KRAnyValue MakeResult(const std::string &key, const std::string &value) {
+static KRAnyValue MakeResult(const char16_t *key, KRRenderValue value) {
     KRRenderValueMap result;
-    result[key] = KRRenderValue::Make(value);
+    result[key] = std::move(value);
     return KRRenderValue::Make(result);
 }
 
@@ -77,13 +78,13 @@ void KRFileModule::WriteFile(const KRAnyValue &params, const KRRenderCallback &c
     const std::string content  = jsonObj->GetString("content");
 
     if (filename.empty() || content.empty()) {
-        if (callback) callback(MakeResult("error", "missing filename or content"));
+        if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"missing filename or content")));
         return;
     }
 
     const std::string dir = GetProfilerDir();
     if (dir.empty()) {
-        if (callback) callback(MakeResult("error", "context unavailable"));
+        if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"context unavailable")));
         return;
     }
 
@@ -92,12 +93,12 @@ void KRFileModule::WriteFile(const KRAnyValue &params, const KRRenderCallback &c
     std::thread([filePath, content, callback]() {
         FILE *fp = fopen(filePath.c_str(), "w");
         if (!fp) {
-            if (callback) callback(MakeResult("error", "fopen failed"));
+            if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"fopen failed")));
             return;
         }
         fwrite(content.c_str(), 1, content.size(), fp);
         fclose(fp);
-        if (callback) callback(MakeResult("path", filePath));
+        if (callback) callback(MakeResult(u"path", KRRenderValue::Make(kuikly::util::UTF8ToUTF16(filePath))));
     }).detach();
 }
 
@@ -110,13 +111,13 @@ void KRFileModule::AppendFile(const KRAnyValue &params, const KRRenderCallback &
     const std::string content  = jsonObj->GetString("content");
 
     if (filename.empty() || content.empty()) {
-        if (callback) callback(MakeResult("error", "missing filename or content"));
+        if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"missing filename or content")));
         return;
     }
 
     const std::string dir = GetProfilerDir();
     if (dir.empty()) {
-        if (callback) callback(MakeResult("error", "context unavailable"));
+        if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"context unavailable")));
         return;
     }
 
@@ -125,14 +126,14 @@ void KRFileModule::AppendFile(const KRAnyValue &params, const KRRenderCallback &
     std::thread([filePath, content, callback]() {
         FILE *fp = fopen(filePath.c_str(), "a");
         if (!fp) {
-            if (callback) callback(MakeResult("error", "fopen failed"));
+            if (callback) callback(MakeResult(u"error", KRRenderValue::Make(u"fopen failed")));
             return;
         }
         // 追加内容 + 换行，适合 JSONL 格式
         fwrite(content.c_str(), 1, content.size(), fp);
         fwrite("\n", 1, 1, fp);
         fclose(fp);
-        if (callback) callback(MakeResult("path", filePath));
+        if (callback) callback(MakeResult(u"path", KRRenderValue::Make(kuikly::util::UTF8ToUTF16(filePath))));
     }).detach();
 }
 
@@ -143,9 +144,9 @@ void KRFileModule::GetFilesDir(const KRRenderCallback &callback) {
     if (!callback) return;
     const std::string dir = GetProfilerDir();
     if (dir.empty()) {
-        callback(MakeResult("error", "context unavailable"));
+        callback(MakeResult(u"error", KRRenderValue::Make(u"context unavailable")));
     } else {
-        callback(MakeResult("path", dir));
+        callback(MakeResult(u"path", KRRenderValue::Make(kuikly::util::UTF8ToUTF16(dir))));
     }
 }
 

@@ -87,7 +87,7 @@ class IKRRenderLayer {
      * @param constraintHeight 测量高度宽度
      * @return 计算得到的尺寸，"${width}|${height}" 格式封装返回
      */
-    virtual std::string CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) = 0;
+    virtual std::u16string CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) = 0;
 
     /**
      * 调用渲染视图方法

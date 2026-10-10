@@ -16,8 +16,6 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <algorithm>
-#include <codecvt>
-#include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_path.h>
@@ -34,6 +32,7 @@
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,17 +52,6 @@ extern size_t OH_Drawing_GetEndFromRange(OH_Drawing_Range* range) __attribute__(
 #ifdef __cplusplus
 }
 #endif
-
-// UTF-8 to UTF-16
-static std::u16string utf8_to_utf16(const std::string& utf8_string) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.from_bytes(utf8_string);
-}
-// UTF-16 to UTF-8
-static std::string utf16_to_utf8(const std::u16string& utf16_string) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.to_bytes(utf16_string);
-}
 
 static const char * kPropNameLineBreakMargin = "lineBreakMargin";
 static const char * kPropNameClick = "click";
@@ -427,12 +415,10 @@ static int GetOffsetInLine(KRLineInfo &info, KRPoint point_in, SelectionStrategy
 }
 
 std::pair<int, int> KRParagraphInfo::GetSentenceBoundary(int offset) {
-    (void)utf8_to_utf16(text_content_);
     return std::make_pair(offset, offset);
 }
 
 std::pair<int, int> KRParagraphInfo::GetParagraphBoundary(int offset) {
-    (void)utf8_to_utf16(text_content_);
     return std::make_pair(offset, offset);
 }
 
@@ -697,8 +683,7 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     paragraph_info.width_ = frame.width;
     paragraph_info.height_ = frame.height;
 
-    std::string text_content = textShadow->GetTextContent();
-    paragraph_info.text_content_ = text_content;
+    paragraph_info.text_content_ = textShadow->GetTextContent();
     paragraph_info.span_offsets_ = textShadow->span_offsets_;
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
@@ -774,26 +759,19 @@ int KRParagraphSelectionInfo::TextIndexForTypographyOffset(int offset) const {
     return text_index;
 }
 
-std::string KRRichTextView::GetSelectedContent(std::string &pre, std::string &post) {
-    std::u16string str16 = utf8_to_utf16(selection_rects_.text_content);
-    size_t sel_end = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.end)),
-                              str16.size());
-    size_t sel_begin = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.start)),
-                                sel_end);
-
-    if (sel_begin > 0) {
-        std::u16string pre_u16 = str16.substr(0, sel_begin);
-        pre = utf16_to_utf8(pre_u16);
+std::u16string KRRichTextView::GetSelectedContent(std::u16string &pre, std::u16string &post) {
+    const std::u16string &str16 = selection_rects_.text_content;
+    const size_t n = str16.size();
+    size_t sel_end = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.end)), n);
+    size_t sel_start =
+        std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.start)), sel_end);
+    if (sel_start > 0) {
+        pre = str16.substr(0, sel_start);
     }
-    std::u16string selected_u16 = str16.substr(sel_begin, sel_end - sel_begin);
-    std::string selected_u8 = utf16_to_utf8(selected_u16);
-
-    if (sel_end < str16.size()) {
-        std::u16string post_u16 = str16.substr(sel_end);
-        post = utf16_to_utf8(post_u16);
+    if (sel_end < n) {
+        post = str16.substr(sel_end);
     }
-
-    return selected_u8;
+    return str16.substr(sel_start, sel_end - sel_start);
 }
 
 bool KRRichTextView::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,

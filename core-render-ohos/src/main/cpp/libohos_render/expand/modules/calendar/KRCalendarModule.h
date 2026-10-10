@@ -55,17 +55,17 @@ class KRCalendarModule : public IKRRenderModuleExport {
 
     util::Date CalDate(util::Date &date, const std::string &op);
 
-    std::string CurrentTimestamp(const KRAnyValue &params);
+    std::u16string CurrentTimestamp(const KRAnyValue &params);
 
-    std::string GetField(const KRAnyValue &params);
+    std::u16string GetField(const KRAnyValue &params);
 
-    std::string GetTimeMillis(const KRAnyValue &params);
+    std::u16string GetTimeMillis(const KRAnyValue &params);
 
     std::string ZeroPadded(int num, int digits);
 
-    std::string Format(const KRAnyValue &params);
+    std::u16string Format(const KRAnyValue &params);
 
-    std::string Parse(const KRAnyValue &params);
+    std::u16string Parse(const KRAnyValue &params);
 
     void Replace(std::string &str, const char *format, std::string substr);
 };

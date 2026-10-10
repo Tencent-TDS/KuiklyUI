@@ -21,7 +21,7 @@ import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.CallbackRef
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.nvi.serialization.json.asBridgeJSONObject
 
 class RenderView(private val pagerId: String, private val viewRef: Int, private val viewName: String) {
 
@@ -58,11 +58,8 @@ class RenderView(private val pagerId: String, private val viewRef: Int, private 
             callbackRef = GlobalFunctions.createFunction(pagerId) { data ->
                 val trace = PagerManager.getPagerEventTrace(pagerId)
                 trace?.onViewCallbackStart(viewName, viewRef, methodName, peekedCallbackRef)
-                var res : JSONObject? = null
-                if (data != null && data is String) {
-                    res = JSONObject(data)
-                }
-                cb(res)
+                // 端上回参可能是历史 JSON 字符串，也可能是平台结构化数据包成的惰性 JSONObject
+                cb(asBridgeJSONObject(data))
                 trace?.onViewCallbackEnd(viewName, viewRef, methodName, peekedCallbackRef)
                 false
             }

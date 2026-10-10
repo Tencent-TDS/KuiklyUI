@@ -13,15 +13,21 @@
  * limitations under the License.
  */
 
-import { KRAny, KRRecord, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRAny, KRJsonValue, KRRecord, KuiklyRenderCallback } from '../utils/KRDataTypes';
 import { KuiklyRenderAdapterManager } from '../adapter/KRAdapterManager';
 import { KuiklyRenderBaseModule } from './base/KRBaseModule';
 import { KRRenderLog } from '../adapter/KRRenderLog';
+import { KRJSON } from '../utils/KRJSON';
 import { common } from '@kit.AbilityKit';
+import render from 'libkuikly.so';
 
 export class KRRouterModule extends KuiklyRenderBaseModule {
   syncMode(): boolean {
     return false;
+  }
+
+  acceptsKRJSON(): boolean {
+    return true;
   }
 
   static readonly MODULE_NAME = 'KRRouterModule';
@@ -31,7 +37,7 @@ export class KRRouterModule extends KuiklyRenderBaseModule {
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     switch (method) {
       case KRRouterModule.OPEN_PAGE:
-        this.openPage(params as string);
+        this.openPage(params);
         return null;
       case KRRouterModule.CLOSE_PAGE:
         this.closePage();
@@ -44,14 +50,30 @@ export class KRRouterModule extends KuiklyRenderBaseModule {
   onDestroy(): void {
   }
 
-  // 打开页面
-  private openPage(params: string) {
+  // C++ containers now arrive as KRJsonValue. Historical JSON text remains
+  // supported and is materialized only for that legacy input path.
+  private openPage(params: KRAny) {
     try {
-      const paramsJSON = JSON.parse(params) as KRRecord;
-      const pageName = paramsJSON['pageName'] as string;
-      const pageData = (paramsJSON['pageData'] as KRRecord | undefined) ?? {};
+      let nativeParams: KRJsonValue | undefined =
+        KRJSON.isNative(params) ? params as KRJsonValue : undefined;
+      // A JSON-text envelope is parsed once in C++ so pageData stays a KRJsonValue.
+      if (nativeParams === undefined && typeof params === 'string') {
+        nativeParams = render.parseKRJson(params) as KRJsonValue;
+      }
+      const legacyParams: KRRecord | undefined =
+        nativeParams === undefined ? KRJSON.asRecord(params) : undefined;
+      const pageName = (nativeParams?.get('pageName') ??
+        legacyParams?.['pageName']) as string;
+      const pageData = (nativeParams?.get('pageData') ??
+        legacyParams?.['pageData']) as KRAny | undefined;
       const ctx = getContext() as common.UIAbilityContext;
-      KuiklyRenderAdapterManager.krRouterAdapter?.openPage(ctx, pageName, pageData);
+      const adapter = KuiklyRenderAdapterManager.krRouterAdapter;
+      if (KRJSON.isNative(pageData) &&
+          adapter?.openPageWithKRJson !== undefined) {
+        adapter.openPageWithKRJson(ctx, pageName, pageData as KRJsonValue);
+      } else {
+        adapter?.openPage(ctx, pageName, KRJSON.asRecord(pageData));
+      }
     } catch (e) {
       KRRenderLog.e(KRRouterModule.MODULE_NAME, `openPage error ${e}`);
     }

@@ -34,6 +34,10 @@ export abstract class KuiklyRenderBaseModule implements IKuiklyRenderModuleExpor
     return null;
   }
 
+  acceptsKRJSON(): boolean {
+    return false;
+  }
+
   onDestroy(): void {
   }
 

@@ -18,24 +18,25 @@
 #include <sys/stat.h>
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 KRRenderAdapterManager &KRRenderAdapterManager::GetInstance() {
     static KRRenderAdapterManager adapter_manager;
     return adapter_manager;
 }
 
-void KRRenderAdapterManager::OnFatalException(const std::string &instance_id, const std::string &stack) {
+void KRRenderAdapterManager::OnFatalException(const KRAnyValue &instance_id, const std::string &stack) {
     CallArkTsExceptionModule(instance_id, "onException", stack);
 }
 
-void KRRenderAdapterManager::CallArkTsExceptionModule(const std::string &instance_id, const std::string &method_name,
+void KRRenderAdapterManager::CallArkTsExceptionModule(const KRAnyValue &instance_id, const std::string &method_name,
                                                       const std::string &stack) {
     KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, method_name, stack] {
-        auto module_name = NewKRRenderValue("KRExceptionModule");
+        auto module_name = KRRenderValue::Make(u"KRExceptionModule");
         KRRenderValueMap params;
-        params["stack"] = NewKRRenderValue(std::move(stack));
+        params[u"stack"] = KRRenderValue::Make(kuikly::util::UTF8ToUTF16(stack));
         KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
-                                                      module_name, NewKRRenderValue(method_name),
+                                                      module_name, KRRenderValue::Make(kuikly::util::AsciiToUTF16(method_name)),
                                                       NewKRRenderValue(params), nullptr, nullptr, nullptr);
     });
 }

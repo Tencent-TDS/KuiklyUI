@@ -287,6 +287,17 @@ std::string ArkTS::GetString(napi_value value) {
     return buffer;
 }
 
+std::u16string ArkTS::GetStringUTF16(napi_value value) {
+    size_t units = 0;
+    napi_status status = napi_get_value_string_utf16(env_, value, nullptr, 0, &units);
+    this->MaybeThrowFromStatus(status, "Failed to get the length of the u16string");
+    std::u16string buffer(units, u'\0');
+    status = napi_get_value_string_utf16(env_, value, buffer.data(), units + 1, &units);
+    this->MaybeThrowFromStatus(status, "Failed to get the u16string data");
+    buffer.resize(units);
+    return buffer;
+}
+
 bool ArkTS::GetArrayBufferInfo(napi_value value, void **data, size_t *byte_length) {
     napi_status status;
     status = napi_get_arraybuffer_info(env_, value, data, byte_length);

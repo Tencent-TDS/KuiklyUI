@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRRecord } from '../utils/KRDataTypes';
+import { KRJsonValue, KRRecord } from '../utils/KRDataTypes';
 import { common } from '@kit.AbilityKit';
 
 export interface IKRRouterAdapter {
@@ -24,6 +24,19 @@ export interface IKRRouterAdapter {
    * @param pageData 页面参数
    */
   openPage(context: common.UIAbilityContext, pageName: string, pageData: KRRecord): void;
+
+  /**
+   * Optional high-performance route API. The payload is a N-API KRJSON
+   * wrapper, so implementations can forward it without JSON stringify/parse.
+   *
+   * The historical [openPage] method remains the compatibility fallback for
+   * adapters that require a normal KRRecord.
+   */
+  openPageWithKRJson?(
+    context: common.UIAbilityContext,
+    pageName: string,
+    pageData: KRJsonValue,
+  ): void;
 
   /**
    * 关闭当前页面

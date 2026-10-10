@@ -24,9 +24,13 @@
 #include <unistd.h>
 
 #include "libohos_render/foundation/KRCommon.h"
+#include "libohos_render/foundation/type/KRRenderValueNapi.h"
+
+using kuikly::util::NapiValue;
 #include "libohos_render/foundation/ark_ts.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRBase64Util.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 constexpr static int TIME_TO_UPDATE_SNAPSHOT_URI_MS = 100;
 constexpr static int MAX_DELAY_DURATION_MS = 1000;
@@ -131,7 +135,7 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
         std::string base64Data = KRBase64Util::Encode(imageData);
         std::stringstream base64ImageSS;
         base64ImageSS << "data:" << opts.format << ";base64," << base64Data;
-        resultData.data = base64ImageSS.str();
+        resultData.data = kuikly::util::AsciiToUTF16(base64ImageSS.str());
         resultData.code = 0;
     }
     free(outData);
@@ -179,49 +183,43 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
                                                                weak_view);
         }
     }
-    resultData.data = key;
+    resultData.data = kuikly::util::AsciiToUTF16(key);
     resultData.code = 0;
 
     return resultData;
 }
 
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithFileType(
-    napi_env env, napi_value pixelMap, const std::string &path, const std::string &pathUri,
+    napi_env env, napi_value pixelMap, const std::string &path, const std::u16string &pathUri,
     ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
     struct ResultData resultData;
     resultData.code = 0;
-    if (resultData.code == 0) {
-        resultData.data = pathUri;
-    } else {
-        resultData.message = "ERROR: FAILED TO SAVE SNAPSHOT";
-    }
-
+    resultData.data = pathUri;
     return resultData;
 }
 
-void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::string &method_name,
+void KRSnapshotManager::TakeSnapshot(const KRAnyValue &instance_id, const std::string &method_name,
                                      const std::string &nodeId, const KRAnyValue &params, const KRRenderCallback &cb,
                                      std::weak_ptr<IKRRenderViewExport> weak_view) {
     KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, method_name, nodeId, params, cb, weak_view] {
-        auto module_name = NewKRRenderValue("KRSnapshotModule");
+        auto module_name = KRRenderValue::Make(u"KRSnapshotModule");
         KRRenderValueMap valueMap;
-        valueMap["node_id"] = NewKRRenderValue(nodeId);
-        valueMap["params"] = params;
+        valueMap[u"node_id"] = KRRenderValue::Make(kuikly::util::AsciiToUTF16(nodeId));
+        valueMap[u"params"] = params;
         KRRenderCallback callback = cb;
         KRRenderCallback toImageCb = [params, callback, weak_view](KRAnyValue result) {
             bool isNapiValue = result->isNapiValue();
             auto strongView = weak_view.lock();
             if (isNapiValue && strongView) {
-                auto paramsMap = params->toMap();
-                std::string type = paramsMap["type"]->toString();
+                std::string type = params.Parsed().opt(u"type").toString();
                 if (type.empty()) {
                     KRRenderValue::Map resultMap;
-                    resultMap["code"] = KRRenderValue::Make(-1);
-                    resultMap["message"] = KRRenderValue::Make("type is required");
+                    resultMap[u"code"] = KRRenderValue::Make(-1);
+                    resultMap[u"message"] = KRRenderValue::Make(u"type is required");
                     callback(KRRenderValue::Make(resultMap));
                     return;
                 }
-                NapiValue napiValue = result->toNapiValue();
+                NapiValue napiValue = NapiValue::RawHandle(result);
                 auto env = napiValue.env;
                 ArkTS arkTs(napiValue.env);
 
@@ -231,23 +229,23 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                 // 优先根据type分流，而费用 drawableDescriptorPtr 对象判断 file,dataUri,cacheKey 三种模式
                 if (type == "file") {
                     napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
-                    std::string pathStr = arkTs.GetString(path);
+                    std::u16string path16 = arkTs.GetStringUTF16(path);
                     napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
-                    std::string pathURI = arkTs.GetString(uri);
-                    if (pathStr.empty()) {
+                    std::u16string pathURI16 = arkTs.GetStringUTF16(uri);
+                    if (path16.empty()) {
                         resultData.code = -1;
-                        resultData.message = "snapshot path is empty";
+                        resultData.message = u"snapshot path is empty";
                     } else {
                         if (auto root = strongView->GetRootView().lock()) {
                             auto snapshotManager = root->GetSnapshotManager();
                             resultData = snapshotManager->ProcessSnapshotResultWithFileType(
-                                env, nullptr, pathStr, pathURI, nullptr, weak_view);
+                                env, nullptr, kuikly::util::UTF16ToUTF8(path16), pathURI16, nullptr, weak_view);
                         }
                     }
                 } else {
                     napi_value drawableDescriptor = arkTs.GetObjectProperty(snapshotData, "drawableDescriptor");
                     if (arkTs.IsNull(drawableDescriptor) || arkTs.IsUndefined(drawableDescriptor)) {
-                        resultData.message = arkTs.GetString(arkTs.GetObjectProperty(snapshotData, "message"));
+                        resultData.message = arkTs.GetStringUTF16(arkTs.GetObjectProperty(snapshotData, "message"));
                         resultData.code = -1;
                     } else {
                         napi_value pixelMap = arkTs.GetObjectProperty(snapshotData, "pixelMap");
@@ -263,9 +261,10 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                                     env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
                             } else if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
-                                pathStr = arkTs.GetString(path);
+                                std::u16string path16 = arkTs.GetStringUTF16(path);
+                                pathStr = kuikly::util::UTF16ToUTF8(path16);
                                 napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
-                                pathURI = arkTs.GetString(uri);
+                                pathURI = kuikly::util::UTF16ToUTF8(arkTs.GetStringUTF16(uri));
                                 resultData = snapshotManager->ProcessSnapshotResultWithCacheKeyType(
                                     env, pixelMap, drawableDescriptor, pathStr, pathURI, drawableDescriptorPtr,
                                     weak_view);
@@ -274,22 +273,22 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                     }
                 }
                 KRRenderValue::Map resultMap;
-                resultMap["code"] = KRRenderValue::Make(resultData.code);
+                resultMap[u"code"] = KRRenderValue::Make(resultData.code);
                 if (resultData.code == 0) {
-                    resultMap["data"] = KRRenderValue::Make(resultData.data);
+                    resultMap[u"data"] = KRRenderValue::Make(resultData.data);
                 } else {
-                    resultMap["message"] = KRRenderValue::Make(resultData.message);
+                    resultMap[u"message"] = KRRenderValue::Make(resultData.message);
                 }
                 callback(KRRenderValue::Make(resultMap));
             } else {
                 KRRenderValue::Map resultMap;
-                resultMap["code"] = KRRenderValue::Make(-1);
-                resultMap["message"] = KRRenderValue::Make("invalid result from arkts");
+                resultMap[u"code"] = KRRenderValue::Make(-1);
+                resultMap[u"message"] = KRRenderValue::Make(u"invalid result from arkts");
                 callback(KRRenderValue::Make(resultMap));
             }
         };
         KRArkTSManager::GetInstance().CallArkTSMethod(
-            instance_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name, NewKRRenderValue(method_name),
+            instance_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name, KRRenderValue::Make(kuikly::util::AsciiToUTF16(method_name)),
             NewKRRenderValue(valueMap), nullptr, nullptr, toImageCb, false, nullptr, true);
     });
 }

@@ -47,8 +47,8 @@ namespace features {
 
 void RegisterFeatureModules();
 
-std::shared_ptr<KRRenderValue> PreparePageDataForKotlin(const std::shared_ptr<KRRenderValue> &page_data,
-                                                        const std::shared_ptr<IKRRenderLayer> &layer);
+KRRenderValue PreparePageDataForKotlin(const KRRenderValue &page_data,
+                                       const std::shared_ptr<IKRRenderLayer> &layer);
 
 }  // namespace features
 }  // namespace kuikly

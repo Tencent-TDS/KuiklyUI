@@ -13,27 +13,41 @@
  * limitations under the License.
  */
 
-import { IKRRouterAdapter, KRRecord } from '@kuikly-open/render';
+import { IKRRouterAdapter, KRJsonValue, KRRecord } from '@kuikly-open/render';
 import router from '@ohos.router';
 import { common } from '@kit.AbilityKit';
 import kuiklyEntry from 'libkuikly_entry.so';
 
 export class AppKRRouterAdapter implements IKRRouterAdapter {
   openPage(context: common.UIAbilityContext, pageName: string, pageData: KRRecord): void {
-    // 输入控件新/老实现对比页：入口页通过 pageData.useTextEditorImpl 指定本次要跑哪一套实现，
-    // 在这里（真正 pushUrl 之前）同步写入 OHOS 侧全局标志位，保证目标页里新建的
-    // Input/TextArea 在 RegisterViewCreator 的 lambda 中能读到正确的值。
-    // 该逻辑仅服务对比页；EmojiTextInputDemo 所需的新输入组件已在 initKuikly 的 native
-    // 初始化阶段统一开启，不再依赖路由前显式写开关。
-    if (pageName === 'InputCompareDemoPage') {
-      const useTextEditorImpl = (pageData as Record<string, string>)['useTextEditorImpl'];
-      try {
-        kuiklyEntry.setUseNewTextInputComponent(useTextEditorImpl === '1' ? 1 : 0);
-      } catch (e) {
-        console.error(`[AppKRRouterAdapter] setUseNewTextInputComponent failed: ${(e as Error).message}`);
-      }
-    }
+    this.applyTextEditorImpl(pageName, (pageData as Record<string, string>)['useTextEditorImpl']);
+    this.pushPage(pageName, pageData);
+  }
 
+  openPageWithKRJson(context: common.UIAbilityContext, pageName: string, pageData: KRJsonValue): void {
+    this.applyTextEditorImpl(pageName, pageData.get('useTextEditorImpl') as string | undefined);
+    // KRJsonValue.toJSON() produces a small router-safe token and keeps the
+    // native payload in the N-API registry automatically.
+    this.pushPage(pageName, pageData);
+  }
+
+  // 输入控件新/老实现对比页：入口页通过 pageData.useTextEditorImpl 指定本次要跑哪一套实现，
+  // 在这里（真正 pushUrl 之前）同步写入 OHOS 侧全局标志位，保证目标页里新建的
+  // Input/TextArea 在 RegisterViewCreator 的 lambda 中能读到正确的值。
+  // 该逻辑仅服务对比页；EmojiTextInputDemo 所需的新输入组件已在 initKuikly 的 native
+  // 初始化阶段统一开启，不再依赖路由前显式写开关。
+  private applyTextEditorImpl(pageName: string, useTextEditorImpl: string | undefined): void {
+    if (pageName !== 'InputCompareDemoPage') {
+      return;
+    }
+    try {
+      kuiklyEntry.setUseNewTextInputComponent(useTextEditorImpl === '1' ? 1 : 0);
+    } catch (e) {
+      console.error(`[AppKRRouterAdapter] setUseNewTextInputComponent failed: ${(e as Error).message}`);
+    }
+  }
+
+  private pushPage(pageName: string, pageData: KRRecord | KRJsonValue): void {
     let url: string;
     if (pageName.startsWith('OverNativeClickDemo')) {
       url = 'pages/GestureThrough';

@@ -34,8 +34,8 @@ class KRSharedPreferencesModule : public IKRRenderModuleExport {
  private:
     static const char GET_ITEM[];
     static const char SET_ITEM[];
-    std::string GetItem(const KRAnyValue &params);
-    std::string SetItem(const KRAnyValue &params);
+    std::u16string GetItem(const KRAnyValue &params);
+    std::u16string SetItem(const KRAnyValue &params);
     util::DataPreferences* preferences = nullptr;
     void InitIfNeeded();
 };

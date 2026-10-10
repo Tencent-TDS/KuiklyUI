@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.module
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.datetime.DateTime
 
 /*
  * Kuikly默认的路由模块，用于打开Kuikly页面和关闭Kuikly页面
@@ -27,16 +28,15 @@ class RouterModule : Module() {
      * @param pageData 页面的传参，数据类型为JsonObject, 目标页面可通过PageData.params获得
      */
     fun openPage(pageName: String, pageData: JSONObject?= null) {
-        val params = JSONObject().apply {
-            put("pageName", pageName)
-            pageData?.also {
-                put("pageData", it)
-            }
-        }
+        val params = platformOpenPageParams(
+            pageName = pageName,
+            pageData = pageData,
+            routeStartTimestampMs = DateTime.currentTimestamp(),
+        )
         toNative(
             false,
             METHOD_OPEN_PAGE,
-            params.toString()
+            params
         )
     }
 

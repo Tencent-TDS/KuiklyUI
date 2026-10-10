@@ -34,6 +34,7 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             addImport("kotlinx.cinterop", "alloc")
             addImport("kotlinx.cinterop", "ptr")
             addImport("com.tencent.kuikly.core.utils", "asString")
+            addImport("com.tencent.kuikly.core.utils", "toAny")
             addImport("com.tencent.kuikly.core.manager", "KotlinMethod")
             addImport("kotlinx.cinterop", "staticCFunction")
             addImport("ohos", "com_tencent_kuikly_SetCallKotlin")
@@ -65,23 +66,46 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             .addStatement("}\n")
             .addStatement("""
                 return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
+                            // 按方法只转换真正用到的入参；容器 toAny() 会 retain
+                            // 自己的 KRJSON 节点，未使用参数不产生 Kotlin 壳。
                             val callKotlinClosure = {
-                                if (methodId == KotlinMethod.CREATE_INSTANCE) {
-                                    val nativeBridge = NativeBridge()
-                                    nativeBridge.callNativeCallback = { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
-                                        callNative(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
+                                when (methodId) {
+                                    KotlinMethod.CREATE_INSTANCE -> {
+                                        val instanceId = arg0.asString()
+                                        val nativeBridge = NativeBridge()
+                                        nativeBridge.callNativeCallback = { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
+                                            callNative(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
+                                        }
+                                        BridgeManager.registerNativeBridge(instanceId, nativeBridge)
+                                        BridgeManager.callKotlinMethod(
+                                            methodId, instanceId, arg1.toAny(), arg2.toAny(), null, null, null
+                                        )
                                     }
-                                    BridgeManager.registerNativeBridge(arg0.asString(), nativeBridge)
+                                    KotlinMethod.LAYOUT_VIEW -> {
+                                        BridgeManager.callKotlinMethod(methodId, arg0.toAny(), null, null, null, null, null)
+                                    }
+                                    KotlinMethod.FIRE_VIEW_EVENT -> {
+                                        BridgeManager.callKotlinMethod(
+                                            methodId, arg0.toAny(), arg1.toAny(), arg2.toAny(), arg3.toAny(), null, null
+                                        )
+                                    }
+                                    KotlinMethod.FIRE_CALLBACK, KotlinMethod.UPDATE_INSTANCE, KotlinMethod.DESTROY_INSTANCE -> {
+                                        BridgeManager.callKotlinMethod(
+                                            methodId, arg0.toAny(), arg1.toAny(), arg2.toAny(), null, null, null
+                                        )
+                                    }
+                                    else -> {
+                                        BridgeManager.callKotlinMethod(
+                                             methodId,
+                                             arg0.toAny(),
+                                             arg1.toAny(),
+                                             arg2.toAny(),
+                                             arg3.toAny(),
+                                             arg4.toAny(),
+                                             arg5.toAny()
+                                        )
+                                    }
                                 }
-                                BridgeManager.callKotlinMethod(
-                                     methodId,
-                                     arg0.toAny(),
-                                     arg1.toAny(),
-                                     arg2.toAny(),
-                                     arg3.toAny(),
-                                     arg4.toAny(),
-                                     arg5.toAny()
-                                )
                             }
                              
                             if (BridgeManager.catchException){
@@ -111,7 +135,7 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
         val experimentalForeignApi = ClassName("kotlinx.cinterop", "ExperimentalForeignApi")
         val experimentalNativeApi = ClassName("kotlin.experimental", "ExperimentalNativeApi")
         val toKRRenderCValue = ClassName("com.tencent.kuikly.core.utils", "toKRRenderCValue")
-        val toAny = ClassName("com.tencent.kuikly.core.utils", "toAny")
+        val consumeToAny = ClassName("com.tencent.kuikly.core.utils", "consumeToAny")
 
         return FunSpec.builder("callNative")
             .addModifiers(KModifier.PRIVATE)
@@ -129,26 +153,29 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             .returns(Any::class.asTypeName().copy(nullable = true))
             .addCode(
                 """
-            |return memScoped {
-            |    // 优化：直接在 arena 上 alloc + 填充，避免 cValue<T> 产生的中间 ByteArray
-            |    val cv0 = alloc<ohos.KRRenderCValue>(); arg0.%T(this, cv0)
-            |    val cv1 = alloc<ohos.KRRenderCValue>(); arg1.%T(this, cv1)
-            |    val cv2 = alloc<ohos.KRRenderCValue>(); arg2.%T(this, cv2)
-            |    val cv3 = alloc<ohos.KRRenderCValue>(); arg3.%T(this, cv3)
-            |    val cv4 = alloc<ohos.KRRenderCValue>(); arg4.%T(this, cv4)
-            |    val cv5 = alloc<ohos.KRRenderCValue>(); arg5.%T(this, cv5)
-            |    val result = alloc<ohos.KRRenderCValue>()
+            |var cv0 = ohos.KRJSON_INVALID
+            |var cv1 = ohos.KRJSON_INVALID
+            |var cv2 = ohos.KRJSON_INVALID
+            |var cv3 = ohos.KRJSON_INVALID
+            |var cv4 = ohos.KRJSON_INVALID
+            |var cv5 = ohos.KRJSON_INVALID
+            |return try {
+            |    cv0 = arg0.%T()
+            |    cv1 = arg1.%T()
+            |    cv2 = arg2.%T()
+            |    cv3 = arg3.%T()
+            |    cv4 = arg4.%T()
+            |    cv5 = arg5.%T()
             |    ohos.com_tencent_kuikly_CallNative(
-            |        methodId,
-            |        cv0.ptr,
-            |        cv1.ptr,
-            |        cv2.ptr,
-            |        cv3.ptr,
-            |        cv4.ptr,
-            |        cv5.ptr,
-            |        result.ptr
-            |    )
-            |    result.%T()
+            |        methodId, cv0, cv1, cv2, cv3, cv4, cv5
+            |    ).%T()
+            |} finally {
+            |    ohos.KRJSONRelease(cv0)
+            |    ohos.KRJSONRelease(cv1)
+            |    ohos.KRJSONRelease(cv2)
+            |    ohos.KRJSONRelease(cv3)
+            |    ohos.KRJSONRelease(cv4)
+            |    ohos.KRJSONRelease(cv5)
             |}
         """.trimMargin(),
                 toKRRenderCValue,
@@ -157,7 +184,7 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
                 toKRRenderCValue,
                 toKRRenderCValue,
                 toKRRenderCValue,
-                toAny
+                consumeToAny
             )
             .build()
     }

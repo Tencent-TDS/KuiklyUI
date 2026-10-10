@@ -99,7 +99,8 @@ class JSONStringer {
                 newline()
             }
             context == Scope.DANGLING_KEY -> { // value for key
-                out.append(": ")
+                // 紧凑 JSON：冒号后无空格。": " 是 org.json 的排版习惯，不是 RFC 8259 要求。
+                out.append(":")
                 replaceTop(Scope.NONEMPTY_OBJECT)
             }
             context != Scope.NULL_OBJ -> {
@@ -142,11 +143,12 @@ class JSONStringer {
         while (i < length) {
             val c = value[i]
             when (c) {
-                '"', '\\', '/' -> out.append('\\').append(c)
+                '"', '\\' -> out.append('\\').append(c)
                 '\t' -> out.append("\\t")
                 '\b' -> out.append("\\b")
                 '\n' -> out.append("\\n")
                 '\r' -> out.append("\\r")
+                '\u000C' -> out.append("\\f")
                 else -> if (c.toInt() <= 0x1F) {
                     out.append("\\u${c.toInt().toString(16).padStart(4, '0')}")
                 } else {

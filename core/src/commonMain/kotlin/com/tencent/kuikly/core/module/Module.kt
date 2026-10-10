@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.global.GlobalFunctionRef
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
+import com.tencent.kuikly.core.nvi.serialization.json.JSONException
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.nvi.serialization.serialization
 import com.tencent.kuikly.core.pager.PageCreateTrace
@@ -85,6 +86,27 @@ abstract class Module {
         args: Array<Any>, // 参数列表(参数类型仅支持String，Int，Float，ByteArray类型)
         callbackFn: AnyCallbackFn?
     ): Any? {
+        return syncArgsToNative(methodName, args, callbackFn?.let { cb -> { res -> cb(res.toLegacyAtomic()) } })
+            .toLegacyAtomic()
+    }
+
+    /*
+     * @brief 同 [syncToNativeMethod]（args 版本），但回参与返回值保留结构：
+     * 端上的字典为 [JSONObject]，数组为 [JSONArray]（惰性视图，免去 JSON 文本往返），
+     * 含二进制的数组仍为 Array。
+     * 端侧以 JSON 文本回传对象 / 数组时同样解析为 [JSONObject] / [JSONArray]，因此以 `{` 或 `[`
+     * 开头的字符串回参会被当作 JSON 解析（解析失败则保持为 String）。
+     */
+    fun syncToNativeMethodStructured(
+        methodName: String,
+        args: Array<Any>,
+        callbackFn: AnyCallbackFn?
+    ): Any? {
+        return syncArgsToNative(methodName, args, callbackFn?.let { cb -> { res -> cb(res.toStructured()) } })
+            .toStructured()
+    }
+
+    private fun syncArgsToNative(methodName: String, args: Array<Any>, callbackFn: AnyCallbackFn?): Any? {
         // 转成平台数据结构
         val argsValue = fastMutableListOf<Any>()
         args.forEach {
@@ -129,6 +151,25 @@ abstract class Module {
         args: Array<Any>, // 参数列表(参数类型仅支持String，Int，Float，ByteArray类型)
         callbackFn: AnyCallbackFn?
     ) {
+        asyncArgsToNative(methodName, args, callbackFn?.let { cb -> { res -> cb(res.toLegacyAtomic()) } })
+    }
+
+    /*
+     * @brief 同 [asyncToNativeMethod]（args 版本），但回参保留结构：
+     * 端上的字典为 [JSONObject]，数组为 [JSONArray]（惰性视图，免去 JSON 文本往返），
+     * 含二进制的数组仍为 Array。
+     * 端侧以 JSON 文本回传对象 / 数组时同样解析为 [JSONObject] / [JSONArray]，因此以 `{` 或 `[`
+     * 开头的字符串回参会被当作 JSON 解析（解析失败则保持为 String）。
+     */
+    fun asyncToNativeMethodStructured(
+        methodName: String,
+        args: Array<Any>,
+        callbackFn: AnyCallbackFn?
+    ) {
+        asyncArgsToNative(methodName, args, callbackFn?.let { cb -> { res -> cb(res.toStructured()) } })
+    }
+
+    private fun asyncArgsToNative(methodName: String, args: Array<Any>, callbackFn: AnyCallbackFn?) {
         // 转成平台数据结构
         val argsValue = fastMutableListOf<Any>()
         args.forEach {
@@ -300,6 +341,31 @@ abstract class Module {
     }
 }
 // 平台侧回参为JSONObject场景使用
+/**
+ * args 版本 API 的历史回参约定：端上的字典 / 数组以 JSON 文本到达。
+ */
+private fun Any?.toLegacyAtomic(): Any? =
+    if (this is JSONObject || this is JSONArray) toString() else this
+
+/**
+ * *Structured 版本的回参约定：端侧仍以 JSON 文本回传的对象 / 数组也解析成结构化容器。
+ */
+private fun Any?.toStructured(): Any? {
+    if (this !is String) {
+        return this
+    }
+    val first = firstOrNull { !it.isWhitespace() } ?: return this
+    return try {
+        when (first) {
+            '{' -> JSONObject(this)
+            '[' -> JSONArray(this)
+            else -> this
+        }
+    } catch (e: JSONException) {
+        this
+    }
+}
+
 typealias CallbackFn = (data: JSONObject?) -> Unit
 // 平台侧回参为非JSONObject场景使用
 typealias AnyCallbackFn = (data: Any?) -> Unit

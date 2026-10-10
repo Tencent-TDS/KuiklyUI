@@ -18,18 +18,19 @@
 #include "libohos_render/expand/modules/performance/KRPerformanceModule.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/performance/KRPerformanceData.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/performance/frame/KRFrameMonitor.h"
 #include "libohos_render/performance/memory//KRMemoryMonitor.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
-static constexpr char ON_GET_LAUNCH_DATA_DATA[] = "onGetLaunchData";
-static constexpr char ON_GET_PERFORMANCE_DATA_DATA[] = "onGetPerformanceData";
+static constexpr char16_t ON_GET_LAUNCH_DATA_DATA[] = u"onGetLaunchData";
+static constexpr char16_t ON_GET_PERFORMANCE_DATA_DATA[] = u"onGetPerformanceData";
 
 bool KRPerformanceManager::cold_launch_flag = true;
 std::list<std::string> KRPerformanceManager::page_record_;
 
-KRPerformanceManager::KRPerformanceManager(int performance_monitor_types_mask, std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode)
-    : performance_monitor_types_mask_(performance_monitor_types_mask), page_name_(std::move(page_name)), instance_id_(std::move(instance_id)), mode_(mode) {
+KRPerformanceManager::KRPerformanceManager(int performance_monitor_types_mask, std::string page_name, const KRRenderValue &instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode)
+    : performance_monitor_types_mask_(performance_monitor_types_mask), page_name_(std::move(page_name)), instance_id_(instance_id.toString()), instance_id_value_(instance_id), mode_(mode) {
     if (performance_monitor_types_mask_ & kMonitorTypeLaunch) {
         auto launch_monitor = std::make_shared<KRLaunchMonitor>();
         monitors_[KRLaunchMonitor::kMonitorName] = launch_monitor;
@@ -164,9 +165,9 @@ std::string KRPerformanceManager::GetMemoryData() {  //  获取内存数据
     return "";
 }
 
-std::string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能数据
+std::u16string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能数据
     if (performance_monitor_types_mask_ == 0) {
-        return "";
+        return std::u16string();
     }
     
     auto now = std::chrono::system_clock::
@@ -201,11 +202,15 @@ void KRPerformanceManager::OnResult() {
     CallArkTsPerformanceModule(ON_GET_PERFORMANCE_DATA_DATA, data);
 }
 
-void KRPerformanceManager::CallArkTsPerformanceModule(const char* method_name, std::string &data) {
-    auto instance_id = GetInstanceId();
+void KRPerformanceManager::CallArkTsPerformanceModule(const char16_t *method_name, std::string &data) {
+    CallArkTsPerformanceModule(method_name, kuikly::util::UTF8ToUTF16(data));
+}
+
+void KRPerformanceManager::CallArkTsPerformanceModule(const char16_t *method_name, const std::u16string &data) {
+    auto instance_id = instance_id_value_;
     KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, method_name, data] {
         KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
-            NewKRRenderValue("KRPerformanceModule"), NewKRRenderValue(method_name),
-            NewKRRenderValue(data), nullptr, nullptr, nullptr);
+            KRRenderValue::Make(u"KRPerformanceModule"), KRRenderValue::Make(method_name),
+            KRRenderValue::Make(data), nullptr, nullptr, nullptr);
     });
 }

@@ -89,7 +89,7 @@ class JSONStringer {
             }
 
             context == Scope.DANGLING_KEY -> { // value for key
-                out.append(": ")
+                out.append(":")
                 replaceTop(Scope.NONEMPTY_OBJECT)
             }
 
@@ -130,11 +130,12 @@ class JSONStringer {
         val length = value.length
         while (i < length) {
             when (val c = value[i]) {
-                '"', '\\', '/' -> out.append('\\').append(c)
+                '"', '\\' -> out.append('\\').append(c)
                 '\t' -> out.append("\\t")
                 '\b' -> out.append("\\b")
                 '\n' -> out.append("\\n")
                 '\r' -> out.append("\\r")
+                '\u000C' -> out.append("\\f")
                 else -> if (c.code <= 0x1F) {
                     out.append("\\u${c.code.toString(16).padStart(4, '0')}")
                 } else {

@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_KRAPNGVIEW_H
 #define CORE_RENDER_OHOS_KRAPNGVIEW_H
 #include <cstdint>
+#include <string>
 #include "libohos_render/export/IKRRenderViewExport.h"
 
 class APNGAnimateView;
@@ -39,7 +40,7 @@ class KRApngView : public IKRRenderViewExport {
     KRRenderCallback load_failure_callback_ = nullptr;
     KRRenderCallback animation_start_callback_ = nullptr;
     KRRenderCallback animation_end_callback_ = nullptr;
-    void SetSrc(std::string &src);
+    void SetSrc(std::string &src, std::u16string src16);
     void SetAutoPlay(bool auto_play);
     void SetRepeatCount(int count);
     void LoadFile(std::string &file_path);

@@ -179,6 +179,29 @@ internal class NetworkExamplePage: BasePager() {
                     }
                 }
             }
+            Row {
+                Button {
+                    attr {
+                        size(150f, 40f)
+                        borderRadius(20f)
+                        marginLeft(10f)
+                        marginTop(5f)
+                        backgroundColor(Color(0x6200ee, 1f))
+                        titleAttr {
+                            text("binaryEcho(local)")
+                            color(Color.WHITE)
+                        }
+                        highlightBackgroundColor(Color.GRAY)
+                    }
+                    event {
+                        click {
+                            ctx.output = "requestBinaryEcho..."
+                            ctx.src = ""
+                            ctx.requestBinaryEcho()
+                        }
+                    }
+                }
+            }
             View {
                 attr {
                     marginLeft(10f)
@@ -342,6 +365,32 @@ internal class NetworkExamplePage: BasePager() {
                 | statusCode=${response.statusCode},
                 | 
                 | headers=${response.headerFields}""".trimMargin()
+        }
+    }
+
+    /**
+     * Binary round trip without external network: POSTs all 256 byte values and expects the
+     * server to echo the body verbatim. Point the device at a local echo server, e.g.
+     * `hdc rport tcp:18080 tcp:18080` plus a host-side server answering POST /echo.
+     * The host server must accept IPv6 loopback (dual-stack `::`): hdc connects via `localhost`.
+     */
+    private fun requestBinaryEcho() {
+        val sent = ByteArray(256) { it.toByte() }
+        acquireModule<NetworkModule>(NetworkModule.MODULE_NAME).requestPostBinary(
+            "http://127.0.0.1:18080/echo",
+            sent,
+        ) { data, success, errorMsg, response ->
+            val verdict = if (success && data.contentEquals(sent)) "PASS" else "FAIL"
+            output = """Binary echo $verdict:
+                | success=$success,
+                | 
+                | sent=${sent.size} bytes, received=${data.size} bytes,
+                | 
+                | head=${data.take(8).joinToString(",")}, tail=${data.takeLast(4).joinToString(",")},
+                | 
+                | errorMsg=$errorMsg,
+                | 
+                | statusCode=${response.statusCode}""".trimMargin()
         }
     }
 

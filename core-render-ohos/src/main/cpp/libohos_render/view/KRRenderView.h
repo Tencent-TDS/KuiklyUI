@@ -19,6 +19,8 @@
 #include <ace/xcomponent/native_interface_xcomponent.h>
 #include <arkui/native_node.h>
 #include <rawfile/raw_file_manager.h>
+#include <string>
+#include <unordered_map>
 #include "libohos_render/context/KRRenderContextParams.h"
 #include "libohos_render/core/KRRenderCore.h"
 #include "libohos_render/foundation/KRCallbackData.h"
@@ -41,6 +43,10 @@ class KRRenderView : public IKRRenderView {
      */
     void SendEvent(std::string event_name, const std::string &json_data) override;
     void SendEvent(std::string event_name, const std::string &json_data, bool sync) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data, bool sync) override;
+    void SendEvent(const KRAnyValue &event, const KRAnyValue &data) override;
+    void SendEvent(const KRAnyValue &event, const KRAnyValue &data, bool sync) override;
     
     /**
      * 是否需要同步发送事件
@@ -117,13 +123,13 @@ class KRRenderView : public IKRRenderView {
      * 根据Callback生成callback_id
      * @return 该Callback索引ID, 用于GetArgCallback
      */
-    std::string GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
+    std::u16string GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
                                       bool arg_prefer_raw_napi_value);
 
     /**
      * 根据callbackid获取Callback
      */
-    KRRenderCallback GetArgCallback(std::string callbackId, bool &arg_prefer_raw_napi_value);
+    KRRenderCallback GetArgCallback(const std::u16string &callbackId, bool &arg_prefer_raw_napi_value);
 
     /**
      * 派发页面加载初始化事件
@@ -167,7 +173,7 @@ class KRRenderView : public IKRRenderView {
     NativeResourceManager *native_resources_manager_;
     std::shared_ptr<KRRenderCore> core_;
     // Callback管理索引表
-    std::unordered_map<std::string, std::shared_ptr<KRArkTsCallbackWrapper>> method_arg_callback_map_;
+    std::unordered_map<std::u16string, std::shared_ptr<KRArkTsCallbackWrapper>> method_arg_callback_map_;
     KRSnapshotManager snapshot_manager_;
     std::shared_ptr<KRPerformanceManager> performance_manager_ = nullptr;
     bool is_load_finish = false;  //  是否已经初始化过标记

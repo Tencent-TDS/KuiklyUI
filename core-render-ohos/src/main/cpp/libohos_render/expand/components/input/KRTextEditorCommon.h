@@ -300,12 +300,12 @@ static constexpr const char kEventTextInputStateChange[] = "textInputStateChange
 static constexpr const char kEventSelectionChange[] = "selectionChange";
 
 // textInputState payload 字段（与 Kotlin TextInputState.encode/decode 完全对齐）
-static constexpr const char kKeyText[] = "text";
-static constexpr const char kKeySelectionStart[] = "selectionStart";
-static constexpr const char kKeySelectionEnd[] = "selectionEnd";
-static constexpr const char kKeyCompositionStart[] = "compositionStart";
-static constexpr const char kKeyCompositionEnd[] = "compositionEnd";
-static constexpr const char kKeyLength[] = "length";
+static constexpr const char16_t kKeyText[] = u"text";
+static constexpr const char16_t kKeySelectionStart[] = u"selectionStart";
+static constexpr const char16_t kKeySelectionEnd[] = u"selectionEnd";
+static constexpr const char16_t kKeyCompositionStart[] = u"compositionStart";
+static constexpr const char16_t kKeyCompositionEnd[] = u"compositionEnd";
+static constexpr const char16_t kKeyLength[] = u"length";
 // composition 区间的"无值"哨兵，与 Android NO_COMPOSITION / iOS -1 一致。
 // OHOS TEXT_EDITOR API 不暴露 IME composition 区间，本端固定回填 -1。
 static constexpr int32_t kNoComposition = -1;

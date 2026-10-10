@@ -15,7 +15,7 @@
 
 import { KRExceptionCallback } from './manager/KRNativeInstance';
 import render from 'libkuikly.so';
-import { AvoidAreaChangeParams, Insets, KRAny, KRRecord, KRValue } from './utils/KRDataTypes';
+import { AvoidAreaChangeParams, Insets, KRAny, KRJsonValue, KRPageData, KRRecord, KRValue } from './utils/KRDataTypes';
 import { KRNativeManager } from './manager/KRNativeManager';
 import { KRConvertUtil } from './utils/KRConvertUtil';
 import { common, EnvironmentCallback } from '@kit.AbilityKit';
@@ -132,7 +132,7 @@ export class KRNativeRenderController {
   /**
    * 透传给KR侧的页面数据
    */
-  pageParams: KRRecord = {};
+  pageParams: KRPageData = {};
   /**
    * 鸿蒙侧，向用户提供新旧两种KRSharedPreferencesMoudle使用的控制开关（变量）
    */
@@ -320,7 +320,7 @@ export class KRNativeRenderController {
     uiAbilityContext: common.UIAbilityContext,
     executeMode: KRRenderExecuteModeBase,
     pageName: string,
-    pageParams: KRRecord,
+    pageParams: KRPageData,
     contextCode: string,
     imeMode: boolean,
     assetsDir: string,
@@ -418,7 +418,7 @@ export class KRNativeRenderController {
     const data: KRRecord = {};
     data[KRWidthKey] = width;
     data[KRHeightKey] = height;
-    render.sendEvent(this.instanceId, KRWindowSizeDidChangedEventKey, JSON.stringify(data));
+    render.sendEvent(this.instanceId, KRWindowSizeDidChangedEventKey, data);
   }
 
   paramsReady(): boolean {
@@ -467,7 +467,7 @@ export class KRNativeRenderController {
     render.updateConfig(this.instanceId, JSON.stringify(data));
 
     // notify core to mark text elements dirty
-    render.sendEvent(this.instanceId, KRConfigurationUpdateEventKey, JSON.stringify(data));
+    render.sendEvent(this.instanceId, KRConfigurationUpdateEventKey, data);
   }
 
   /**
@@ -685,7 +685,7 @@ export class KRNativeRenderController {
   onBackPress() {
     const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {}, this.syncSendEvent(KROnBackPressedKey));
-    const result = render.isBackPressConsumed(this.instanceId, sendTime);
+    const result: number = render.isBackPressConsumed(this.instanceId, sendTime);
     if (result === KRBackPressConsumedState.Consumed) {
       return true;
     } else if (result === KRBackPressConsumedState.NotConsumed) {
@@ -733,10 +733,11 @@ export class KRNativeRenderController {
   private doSendEvent(event: string, data: KRRecord, sync?: boolean) {
     this.runKRRenderTask(() => {
       const shouldSync = sync ?? this.syncSendEvent(event);
+      // Record 直接下发：Native 侧构造 Map → NATIVE_JSON，避免 JSON.stringify + Kotlin 重解析
       if (shouldSync) {
-        render.sendEventSync(this.instanceId, event, KRConvertUtil.anyToCObject(data), true);
+        render.sendEventSync(this.instanceId, event, data, true);
       } else {
-        render.sendEvent(this.instanceId, event, KRConvertUtil.anyToCObject(data));
+        render.sendEvent(this.instanceId, event, data);
       }
     });
   }
@@ -756,10 +757,9 @@ export class KRNativeRenderController {
       return;
     }
     this.didInit = true;
-    let pageData = this.createPageParams(this.pageParams, this.viewRect.width, this.viewRect.height);
+    const pageData = this.createPageParams(this.pageParams, this.viewRect.width, this.viewRect.height);
     // 初始下发基线快照（deviceWidth/deviceHeight 初值来自物理屏幕 screenSize）
-    let configJson = this.createConfigJson(new KRSize(this.viewRect.width, this.viewRect.height));
-
+    const configJson = this.createConfigJson(new KRSize(this.viewRect.width, this.viewRect.height));
     render.onInitRenderView(this.instanceId, this.pageName, this.contextCode, this.executeMode.mode, pageData,
       this.viewRect.width, this.viewRect.height, configJson, this.uiContext,
       this.uiContext?.getHostContext()?.resourceManager);
@@ -819,11 +819,19 @@ export class KRNativeRenderController {
     });
   }
 
-  private createPageParams(params: KRRecord, viewWidth: number, viewHeight: number): string {
+  private createPageParams(params: KRPageData, viewWidth: number, viewHeight: number): KRRecord {
     let screenSize = KRConvertUtil.screenSize();
-    let pageData: Record<string, string | number | KRRecord> = {};
-    params[KRSystemLanguageKey] = i18n.System.getSystemLanguages()[0];
-    pageData[KRParamKey] = params;
+    let pageData: Record<string, string | number | KRPageData> = {};
+    const sysLang = i18n.System.getSystemLanguages()[0];
+    // A KRJsonValue may be shared by the source page, the route store and this page, so it gets
+    // a copy carrying sysLang instead of an in-place write.
+    let pageParams: KRPageData = params;
+    if (render.isKRJSON(params)) {
+      pageParams = render.krJsonWithEntry(params as object, KRSystemLanguageKey, sysLang) as KRJsonValue;
+    } else {
+      (params as KRRecord)[KRSystemLanguageKey] = sysLang;
+    }
+    pageData[KRParamKey] = pageParams;
     pageData[KRRootViewWidthKey] = viewWidth;
     pageData[KRRootViewHeightKey] = viewHeight;
     pageData[KRUrlKey] = this.pageName;
@@ -857,7 +865,7 @@ export class KRNativeRenderController {
     pageData[KRFeature] = {
       "box_shadow_fill" : 1
     };
-    return JSON.stringify(pageData);
+    return pageData;
   }
 
   private createConfigJson(screenSize: KRSize): string {

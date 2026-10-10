@@ -16,6 +16,7 @@
 #include "KRCodecModule.h"
 
 #include "libohos_render/expand/modules/codec/KRCodec.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 namespace kuikly {
 namespace module {
@@ -55,31 +56,31 @@ KRAnyValue KRCodecModule::CallMethod(bool sync, const std::string &method, KRAny
 }
 
 KRAnyValue KRCodecModule::UrlEncode(const std::string str) {
-    return KRRenderValue::Make(KREncodeURLComponent(str));
+    return KRRenderValue::Make(kuikly::util::UTF8ToUTF16(KREncodeURLComponent(str)));
 }
 
 KRAnyValue KRCodecModule::UrlDecode(const std::string str) {
-    return KRRenderValue::Make(KRDecodeURLComponent(str));
+    return KRRenderValue::Make(kuikly::util::UTF8ToUTF16(KRDecodeURLComponent(str)));
 }
 
 KRAnyValue KRCodecModule::Base64Encode(const std::string str) {
-    return KRRenderValue::Make(KRBase64Encode(str));
+    return KRRenderValue::Make(kuikly::util::UTF8ToUTF16(KRBase64Encode(str)));
 }
 
 KRAnyValue KRCodecModule::Base64Decode(const std::string str) {
-    return KRRenderValue::Make(KRBase64Decode(str));
+    return KRRenderValue::Make(kuikly::util::UTF8ToUTF16(KRBase64Decode(str)));
 }
 
 KRAnyValue KRCodecModule::Md5(const std::string str) {
-    return KRRenderValue::Make(KRMd5(str));
+    return KRRenderValue::Make(kuikly::util::AsciiToUTF16(KRMd5(str)));
 }
 
 KRAnyValue KRCodecModule::Md5With32(const std::string str) {
-    return KRRenderValue::Make(KRMd5With32(str));
+    return KRRenderValue::Make(kuikly::util::AsciiToUTF16(KRMd5With32(str)));
 }
 
 KRAnyValue KRCodecModule::Sha256(const std::string str) {
-    return KRRenderValue::Make(KRSha256(str));
+    return KRRenderValue::Make(kuikly::util::AsciiToUTF16(KRSha256(str)));
 }
 }  // namespace module
 }  // namespace kuikly

@@ -15,6 +15,6 @@
 
 #include "libohos_render/expand/modules/network/KRNetworkModule.h"
 
-void KRNetworkModule::FetchFileByDownloadOrCache(std::string &cdn_url, const KRRenderCallback &callback) {
-    CallArkTSMethod("FetchFileByDownloadOrCache", NewKRRenderValue(cdn_url), callback);
+void KRNetworkModule::FetchFileByDownloadOrCache(std::u16string cdn_url, const KRRenderCallback &callback) {
+    CallArkTSMethod(u"FetchFileByDownloadOrCache", KRRenderValue::Make(cdn_url), callback);
 }

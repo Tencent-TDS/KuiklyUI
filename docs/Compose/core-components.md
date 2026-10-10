@@ -22,6 +22,14 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 - **Scaffold** - 页面脚手架（支持 TopBar、BottomBar、SnackbarHost 等插槽）
 - **Surface** - 基础容器组件，提供背景色、内容色等配置
 
+> **Warning**
+>
+> **Surface `shadowElevation` 行为变更（2.29.0）**：2.28.0 及之前版本存在 `shadowElevation` 双重单位换算 bug（原实现将 dp→px 转换执行了两次，导致阴影在非 density=1 设备上异常放大）。修复后 `Surface(shadowElevation = 4.dp)` 与 `Box(Modifier.shadow(4.dp))` 的阴影大小一致。
+>
+> **回归建议**：所有使用 `Surface(shadowElevation = ...)` 的页面及以下组件需验证阴影效果：
+> - `Card`、`Button`、`Snackbar` — 直接传递 `shadowElevation` 给 `Surface`
+> - `AppBar`、`NavigationBar`、`TabRow`、`ModalBottomSheet`、`ModalNavigationDrawer`、`Scaffold` — 使用 `Surface` 容器
+
 ### 按钮
 - **Button** / **ElevatedButton** / **FilledTonalButton** - 实心按钮、带阴影按钮、色彩弱化按钮
 - **OutlinedButton** / **TextButton** - 轮廓按钮、文字按钮

@@ -852,25 +852,24 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
             OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
             return;
         }
-        // 超限：先拒绝本次插入，再在下一轮 loop 写入「裁剪到剩余容量」的内容，
-        // 与 iOS/Android 的「部分插入」对齐——文本只变一次，光标落在插入内容之后。
+        // 超限：不整体重写文本（SetContentText 会让 ArkUI 先把光标推到末尾再被我们拉回，
+        // 渲染出来就是滚动），改为临时收紧节点级 maxLength，让 ArkUI 原生把这次插入
+        // 截到剩余容量——文本走正常输入链路，光标自然停在插入内容之后。
         NotifyTextLengthBeyondLimit();
-        ArkUI_NumberValue ret[] = {false};
-        OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
         if (allowed > 0) {
             std::u32string prefix_u32 = insert_u32.substr(0, static_cast<size_t>(allowed));
-            std::string prefix = kuikly::util::ConvertToNormalString(prefix_u32);
-            std::string new_text = destText.substr(0, u8_start) + prefix + destText.substr(u8_end);
-            uint32_t caret_u16 = GetUTF16Length(destText.substr(0, u8_start)) +
-                                 kuikly::util::U32PrefixUtf16Length(prefix_u32, prefix_u32.length());
-            KRMainThread::RunOnMainThreadForNextLoop(
-                [weakSelf = weak_from_this(), new_text, caret_u16]() {
-                    if (auto strongSelf = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock())) {
-                        strongSelf->SetContentText(new_text);
-                        strongSelf->SetCursorIndex(caret_u16);
-                    }
-                });
+            uint32_t base_utf16 = GetUTF16Length(base_text);
+            uint32_t prefix_utf16 = kuikly::util::U32PrefixUtf16Length(prefix_u32, prefix_u32.length());
+            uint32_t real_max_length = base_utf16 + prefix_utf16;
+            UpdateInputNodeMaxLength(static_cast<int>(real_max_length));
+            DelayResetMaxLength();
+            ArkUI_NumberValue ret[] = {true};
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            return;
         }
+        // 一点剩余容量都没有才整词拒绝
+        ArkUI_NumberValue ret[] = {false};
+        OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
         return;
     }
     if (max_length_ != -1 && length_limit_type_ != -1) {

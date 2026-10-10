@@ -870,15 +870,26 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         bool reject = false;
         bool has_partial = false;
         std::string pending_text;
-        uint32_t pending_caret_u16 = 0;
+        uint32_t pending_raw_cursor = 0;
         if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
             if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
                 ARKUI_ERROR_CODE_NO_ERROR) {
                 std::string repl_str = kuikly::text_editor::ReadDescriptorString(g.desc());
                 if (!repl_str.empty()) {
-                    auto dest = GetContentText();
-                    int u8_start = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_start);
-                    int u8_end = kuikly::text_editor::GetUTF8ByteCount(dest, 0, r_end);
+                    // 长度按「码点」计（legacy 语义），但文本一律在 raw 空间上拼：
+                    // GetContentText() 可能是 ArkUI flat（image span 被压成占位空格），
+                    // 而 SetStyledText 期待 raw（含 [smile] 短码），拿 flat 拼好再写回会丢表情。
+                    // 与上方 image span 分支保持同一套 raw/flat 换算。
+                    uint32_t raw_start =
+                        kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_start);
+                    uint32_t raw_end =
+                        kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_end);
+                    std::string dest = state_.cached_text_;
+                    if (dest.empty()) {
+                        dest = GetContentText();
+                    }
+                    int u8_start = kuikly::text_editor::GetUTF8ByteCount(dest, 0, raw_start);
+                    int u8_end = kuikly::text_editor::GetUTF8ByteCount(dest, 0, raw_end);
                     // 去掉本次替换区间后的正文，用于计算「剩余容量」
                     std::string base_text = dest.substr(0, u8_start) + dest.substr(u8_end);
                     auto base_u32 = kuikly::util::ConvertToU32String(base_text);
@@ -895,9 +906,8 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
                             std::u32string prefix_u32 = repl_u32.substr(0, static_cast<size_t>(allowed));
                             std::string prefix = kuikly::util::ConvertToNormalString(prefix_u32);
                             pending_text = dest.substr(0, u8_start) + prefix + dest.substr(u8_end);
-                            pending_caret_u16 =
-                                kuikly::text_editor::GetUTF16Length(dest.substr(0, u8_start)) +
-                                kuikly::util::U32PrefixUtf16Length(prefix_u32, prefix_u32.length());
+                            pending_raw_cursor =
+                                raw_start + static_cast<uint32_t>(kuikly::text_editor::GetUTF16Length(prefix));
                             has_partial = true;
                         }
                     }
@@ -908,12 +918,34 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
             ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
             OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
             if (has_partial) {
+                // 与 image span 分支同一套写入约定：置位期间静默写入，写入完成后
+                // 再统一补发 textDidChange / textInputStateChange，
+                // 避免用 SetContentText 在外层收尾前多发一次回调。
+                state_.is_setting_text_input_state_ = true;
+                SetContentTextSilent(pending_text);
                 KRMainThread::RunOnMainThreadForNextLoop(
-                    [weakSelf = weak_from_this(), pending_text, pending_caret_u16] {
-                        if (auto strongSelf =
-                                std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock())) {
-                            strongSelf->SetContentText(pending_text);
-                            strongSelf->SetCursorIndex(pending_caret_u16);
+                    [weakSelf = weak_from_this(), pending_text, pending_raw_cursor] {
+                        auto strongSelf = std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+                        if (!strongSelf || !strongSelf->state_.controller_) {
+                            return;
+                        }
+                        uint32_t flat_cursor = kuikly::text_editor::RawUtf16ToFlatUtf16(
+                            strongSelf->state_.image_spans_, pending_raw_cursor);
+                        kuikly::text_editor::SetCaretOffset(strongSelf->state_, static_cast<int32_t>(flat_cursor));
+                        strongSelf->state_.is_setting_text_input_state_ = false;
+                        if (strongSelf->state_.text_did_change_callback_) {
+                            KRRenderValueMap map;
+                            map["text"] = NewKRRenderValue(pending_text);
+                            strongSelf->state_.text_did_change_callback_(NewKRRenderValue(map));
+                            strongSelf->state_.pending_text_did_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_did_change_ = true;
+                        }
+                        if (strongSelf->state_.text_input_state_change_callback_) {
+                            strongSelf->EmitTextInputStateChange();
+                            strongSelf->state_.pending_text_input_state_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_input_state_change_ = true;
                         }
                     });
             }

@@ -864,6 +864,95 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         }
     }
 
+    // legacy 模式（length_limit_type == -1）：与老 KRTextFieldView / iOS 预检对齐，
+    // 在内容进入文本前按「码点长度」拦截，避免后置截断带来的文本重写与光标往返（滚动/闪烁）。
+    if (state_.max_length_ != -1 && state_.length_limit_type_ == -1) {
+        bool reject = false;
+        bool has_partial = false;
+        std::string pending_text;
+        uint32_t pending_raw_cursor = 0;
+        if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
+            if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
+                ARKUI_ERROR_CODE_NO_ERROR) {
+                std::string repl_str = kuikly::text_editor::ReadDescriptorString(g.desc());
+                if (!repl_str.empty()) {
+                    // 长度按「码点」计（legacy 语义），但文本一律在 raw 空间上拼：
+                    // GetContentText() 可能是 ArkUI flat（image span 被压成占位空格），
+                    // 而 SetStyledText 期待 raw（含 [smile] 短码），拿 flat 拼好再写回会丢表情。
+                    // 与上方 image span 分支保持同一套 raw/flat 换算。
+                    uint32_t raw_start =
+                        kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_start);
+                    uint32_t raw_end =
+                        kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_end);
+                    std::string dest = state_.cached_text_;
+                    if (dest.empty()) {
+                        dest = GetContentText();
+                    }
+                    int u8_start = kuikly::text_editor::GetUTF8ByteCount(dest, 0, raw_start);
+                    int u8_end = kuikly::text_editor::GetUTF8ByteCount(dest, 0, raw_end);
+                    // 去掉本次替换区间后的正文，用于计算「剩余容量」
+                    std::string base_text = dest.substr(0, u8_start) + dest.substr(u8_end);
+                    auto base_u32 = kuikly::util::ConvertToU32String(base_text);
+                    auto repl_u32 = kuikly::util::ConvertToU32String(repl_str);
+                    int32_t base_len = static_cast<int32_t>(base_u32.length());
+                    int32_t repl_len = static_cast<int32_t>(repl_u32.length());
+                    int32_t allowed = state_.max_length_ - base_len;
+                    if (repl_len > allowed) {
+                        // 超限：先拒绝本次插入，再在下一轮 loop 写入「裁剪到剩余容量」的内容，
+                        // 与 iOS/Android 的「部分插入」对齐——文本只变一次，光标落在插入内容之后。
+                        NotifyTextLengthBeyondLimit();
+                        reject = true;
+                        if (allowed > 0) {
+                            std::u32string prefix_u32 = repl_u32.substr(0, static_cast<size_t>(allowed));
+                            std::string prefix = kuikly::util::ConvertToNormalString(prefix_u32);
+                            pending_text = dest.substr(0, u8_start) + prefix + dest.substr(u8_end);
+                            pending_raw_cursor =
+                                raw_start + static_cast<uint32_t>(kuikly::text_editor::GetUTF16Length(prefix));
+                            has_partial = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (reject) {
+            ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            if (has_partial) {
+                // 与 image span 分支同一套写入约定：置位期间静默写入，写入完成后
+                // 再统一补发 textDidChange / textInputStateChange，
+                // 避免用 SetContentText 在外层收尾前多发一次回调。
+                state_.is_setting_text_input_state_ = true;
+                SetContentTextSilent(pending_text);
+                KRMainThread::RunOnMainThreadForNextLoop(
+                    [weakSelf = weak_from_this(), pending_text, pending_raw_cursor] {
+                        auto strongSelf = std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+                        if (!strongSelf || !strongSelf->state_.controller_) {
+                            return;
+                        }
+                        uint32_t flat_cursor = kuikly::text_editor::RawUtf16ToFlatUtf16(
+                            strongSelf->state_.image_spans_, pending_raw_cursor);
+                        kuikly::text_editor::SetCaretOffset(strongSelf->state_, static_cast<int32_t>(flat_cursor));
+                        strongSelf->state_.is_setting_text_input_state_ = false;
+                        if (strongSelf->state_.text_did_change_callback_) {
+                            KRRenderValueMap map;
+                            map["text"] = NewKRRenderValue(pending_text);
+                            strongSelf->state_.text_did_change_callback_(NewKRRenderValue(map));
+                            strongSelf->state_.pending_text_did_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_did_change_ = true;
+                        }
+                        if (strongSelf->state_.text_input_state_change_callback_) {
+                            strongSelf->EmitTextInputStateChange();
+                            strongSelf->state_.pending_text_input_state_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_input_state_change_ = true;
+                        }
+                    });
+            }
+            return;
+        }
+    }
+
     // max-length 过滤（length_limit_type != -1 时手动过滤）
     if (state_.max_length_ != -1 && state_.length_limit_type_ != -1) {
         // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
@@ -968,10 +1057,34 @@ bool KRTextEditorFieldView::LimitInputContentTextInMaxLength() {
     if (state_.length_limit_type_ == -1) {
         auto text32 = kuikly::util::ConvertToU32String(GetContentText());
         if (static_cast<int32_t>(text32.length()) > state_.max_length_) {
-            text32 = text32.substr(0, state_.max_length_);
+            // 与老 KRTextFieldView / iOS p_limitTextInput 保持一致：删除「光标前刚输入的内容」，
+            // 而不是 substr 截掉文本尾部，避免达到上限后继续输入残留字符且光标跳到末尾。
+            uint32_t caret_u16 = GetSelectionStartPosition();
+            uint32_t caret_u32 = kuikly::util::Utf16OffsetToU32Index(text32, caret_u16);
+            uint32_t overflow =
+                static_cast<uint32_t>(text32.length() - static_cast<size_t>(state_.max_length_));
+            uint32_t remove_begin = caret_u32 > overflow ? (caret_u32 - overflow) : 0;
+            uint32_t remove_count = caret_u32 - remove_begin;
+            uint32_t tail_remove_count = overflow - remove_count;
+            text32.erase(remove_begin, remove_count);
+            if (tail_remove_count > 0) {
+                uint32_t tail_begin = static_cast<uint32_t>(text32.length()) > tail_remove_count
+                                          ? static_cast<uint32_t>(text32.length()) - tail_remove_count
+                                          : 0;
+                text32.erase(tail_begin, tail_remove_count);
+                remove_begin = static_cast<uint32_t>(text32.length());
+            }
+            uint32_t new_caret_u16 = kuikly::util::U32PrefixUtf16Length(text32, remove_begin);
             // 内部截断走静默写入：外层 OnTextDidChanged 会在本函数返回后统一发一次回调
             SetContentTextSilent(kuikly::util::ConvertToNormalString(text32));
             NotifyTextLengthBeyondLimit();
+            KRMainThread::RunOnMainThread(
+                [weakSelf = weak_from_this(), new_caret_u16] {
+                    if (auto strongSelf =
+                            std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock())) {
+                        strongSelf->SetCursorIndex(new_caret_u16);
+                    }
+                });
             return true;
         }
         return false;

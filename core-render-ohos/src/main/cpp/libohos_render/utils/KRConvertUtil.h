@@ -36,6 +36,18 @@ std::u32string ConvertToU32String(const std::string &input);
 
 std::string ConvertToNormalString(const std::u32string &input);
 
+/**
+ * 把以 UTF-16 code unit 计的下标换算为 UTF-32（码点）下标。
+ * 超出文本长度时返回码点总数，便于调用方直接做截断边界计算。
+ */
+uint32_t Utf16OffsetToU32Index(const std::u32string &text, uint32_t utf16_offset);
+
+/**
+ * 计算 UTF-32 前 count 个码点对应的 UTF-16 code unit 长度。
+ * 用于把「码点下标」换算回 ArkUI 选区 API 需要的 UTF-16 下标。
+ */
+uint32_t U32PrefixUtf16Length(const std::u32string &text, uint32_t count);
+
 ArkUI_TextAlignment ConvertToArkUITextAlign(const std::string &textAlign);
 
 OH_Drawing_TextAlign ConvertToTextAlign(const std::string &textAlign);

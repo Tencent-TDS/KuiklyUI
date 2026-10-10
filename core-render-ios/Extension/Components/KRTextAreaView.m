@@ -123,6 +123,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         self.delegate = self;
         self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
         self.css_autoFocusOnTextInputState = @0;
+#if !TARGET_OS_OSX
+        if (@available(iOS 11.0, *)) {
+            // 关闭 iOS 智能插入/删除：默认会在粘贴内容前后自动补空格，
+            // 补出来的空格会占用 maxTextLength 的剩余容量（与单行保持一致）。
+            self.smartInsertDeleteType = UITextSmartInsertDeleteTypeNo;
+        }
+#endif
 #if TARGET_OS_OSX // [macOS]
         self.textContainerInset = NSZeroSize;
         // macOS: 启用 layer-backed 支持 clipPath

@@ -18,6 +18,7 @@ import { KRNativeManager } from '../manager/KRNativeManager';
 import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
 import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
+import { KRImmersiveLightSenseView } from './KRImmersiveLightSenseView';
 import { KRBlurView } from './KRBlurView';
 
 /**
@@ -44,6 +45,13 @@ export class ViewsRegisterEntry {
     KRNativeManager.getInstance().registerViewCreator('KRVideoView', (): KuiklyRenderBaseView => {
       return new KRVideoView();
     });
+
+    // 鸿蒙沉浸光感容器：走 V2 转发通道，子节点挂进 ArkTS 组件内部的 ContentSlot，
+    // 从而落入系统规定的沉浸光感生效区域（Navigation 标题栏 scope）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveLightSenseView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveLightSenseView();
+      });
   }
 
   /**

@@ -87,6 +87,14 @@ export struct KRNativeRender {
    */
   imeMode = false;
   initialSize?: Size;
+  /**
+   * 二阶段验证开关：true 时把整棵 Kuikly 页面挂到 Navigation 标题栏内。
+   * 二阶段结论已得出（自绘节点进 scope 即可生效），现改为由业务侧的
+   * 标题栏容器组件（KRTitleBarView）自行承载 Navigation，故恢复为 false。
+   */
+  navScopeTest: boolean = false;
+  navTitleWidth: number = 400;
+  navTitleHeight: number = 500;
   private controller?: KRNativeRenderController;
   private nodeContent: Content = new NodeContent();
   private loaded = false;
@@ -144,14 +152,20 @@ export struct KRNativeRender {
     this.controller?.onAboutToDisappear();
   }
 
-  build() {
+  /**
+   * 把 Kuikly 原生节点树（ContentSlot）放进 Navigation 标题栏，
+   * 用于验证"自绘节点只要落在官方规定的生效区域内，沉浸光感是否就能渲染"。
+   * 验证完毕后应恢复为 false。
+   */
+  @Builder
+  KuiklyInNavigationTitleBar() {
     Stack({ alignContent: Alignment.TopStart }) {
       // Use content slot as a bridge
       ContentSlot(this.nodeContent);
     }
     .hitTestBehavior(HitTestMode.None)
-    .width('100%')
-    .height('100%')
+    .width(this.navTitleWidth)
+    .height(this.navTitleHeight)
     .onAttach(() => {
       this.loadNativeLibIfNeeded()
       this.controller!.onAttach();
@@ -162,5 +176,43 @@ export struct KRNativeRender {
     .onSizeChange((_: SizeOptions, newValue: SizeOptions) => {
       this.controller!.onSizeChange(newValue);
     });
+  }
+
+  build() {
+    if (this.navScopeTest) {
+      // 测试态：Kuikly 根挂在 Navigation 标题栏内（官方规定的生效区域）
+      Navigation() {
+        Column() {
+          Text('Kuikly 内容区（空）— 节点已挂到标题栏').fontSize(14)
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor(Color.Orange)
+      }
+      .title({ builder: this.KuiklyInNavigationTitleBar, height: this.navTitleHeight },
+        { barStyle: BarStyle.STACK })
+      .titleMode(NavigationTitleMode.Mini)
+      .hideTitleBar(false)
+      .width('100%')
+      .height('100%')
+    } else {
+      Stack({ alignContent: Alignment.TopStart }) {
+        // Use content slot as a bridge
+        ContentSlot(this.nodeContent);
+      }
+      .hitTestBehavior(HitTestMode.None)
+      .width('100%')
+      .height('100%')
+      .onAttach(() => {
+        this.loadNativeLibIfNeeded()
+        this.controller!.onAttach();
+      })
+      .onAreaChange((_: Area, newValue: Area) => {
+        this.controller!.onAreaChange(newValue);
+      })
+      .onSizeChange((_: SizeOptions, newValue: SizeOptions) => {
+        this.controller!.onSizeChange(newValue);
+      });
+    }
   }
 }

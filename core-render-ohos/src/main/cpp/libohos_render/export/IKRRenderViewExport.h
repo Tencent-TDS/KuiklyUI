@@ -30,6 +30,7 @@
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRSystemMaterialUtil.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -193,10 +194,25 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
      */
     virtual void WillReuse() {}
 
+    /**
+     * 鸿蒙沉浸光感：解析 Kotlin 侧下发的 "system-material-ohos" 描述串并应用到本节点。
+     * 统一放在基类处理，使 KRView 系（View/Mask/Modal）与直接继承 IKRRenderViewExport
+     * 的组件（Text/Image/Scroller 等）都能覆盖到，避免漏组件。
+     */
+    bool ApplySystemMaterial(const std::string &value);
+    void ClearSystemMaterial();
+    /**
+     * 沉浸式系统材质配置变化回调（设置/清除后触发）。子类可覆盖，用于同步到自己的
+     * 宿主，例如 KRModalView 需要把材质同步到 NativeDialog 背板。
+     * 覆盖时以 has_system_material_ / system_material_options_ 为当前配置来源。
+     */
+    virtual void OnSystemMaterialChanged() {}
+
     void ToDestroy() {
         KREnsureMainThread();
 
         OnDestroy();
+        ClearSystemMaterial();
         if (parent_node_ != nullptr && node_ != nullptr) {
             ToRemoveFromSuperView();
         }
@@ -589,6 +605,12 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
 
  protected:
     ArkUI_NodeHandle node_ = nullptr;
+    // 鸿蒙沉浸式系统材质对象（ArkUI_ImmersiveMaterialHandle），由本 view 持有并在销毁时释放
+    void *system_material_ = nullptr;
+    // 最近一次解析成功的材质配置。放在基类是为了让 KRModalView 这类子类在
+    // 创建 NativeDialog 之后仍能拿到配置（属性已被基类提前消费，子类 SetProp 收不到）。
+    bool has_system_material_ = false;
+    kuikly::util::SystemMaterialOptions system_material_options_;
  private:
     std::weak_ptr<IKRRenderView> root_view_;
     std::string instance_id_;

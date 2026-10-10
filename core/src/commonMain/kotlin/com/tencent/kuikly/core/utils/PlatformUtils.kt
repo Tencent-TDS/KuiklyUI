@@ -123,4 +123,23 @@ object PlatformUtils {
         }
     }
 
+    /**
+     * 判断当前平台是否支持鸿蒙「沉浸光感」（Immersive Light Sense）。
+     *
+     * 与 iOS 的 [isLiquidGlassSupported] 是两个独立赛道：沉浸光感的视觉表现、生效范围
+     * 与 API 都与液态玻璃不同，因此不做跨端统一，鸿蒙单独提供一套能力。
+     *
+     * 取值来源是渲染层上报的 feature 标记（由系统接口判定真实设备能力），
+     * 而不是 OS 版本号——同一版本号的机型也可能因算力档不支持。
+     *
+     * 注意：即使本接口返回 true，材质也只在系统规定的生效区域内渲染
+     * （弹窗类接口、原生 Slider/Toggle/Select，或 Navigation 标题栏 / 底部 TabBar 内）。
+     */
+    fun isImmersiveMaterialSupported(): Boolean {
+        if (!isOhOs()) {
+            return false
+        }
+        return getCurrentPageData()?.hasFeature("immersive_material") ?: false
+    }
+
 }

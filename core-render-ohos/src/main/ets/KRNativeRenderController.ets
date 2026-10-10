@@ -20,7 +20,7 @@ import { KRNativeManager } from './manager/KRNativeManager';
 import { KRConvertUtil } from './utils/KRConvertUtil';
 import { common, EnvironmentCallback } from '@kit.AbilityKit';
 import { KRSize } from './foundation/KRSize';
-import { display, window } from '@kit.ArkUI';
+import { display, uiMaterial, window } from '@kit.ArkUI';
 import { KRRect } from './foundation/KRRect';
 import { KRRenderViewExportCreator } from './components/base/KRBaseViewExport';
 import { KRRenderModuleExportCreator } from './modules/base/IKRModuleExport';
@@ -855,9 +855,24 @@ export class KRNativeRenderController {
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRDensity] = this.getWindowActiveDensity();
     pageData[KRFeature] = {
-      "box_shadow_fill" : 1
+      "box_shadow_fill" : 1,
+      // 鸿蒙沉浸光感（Immersive Light Sense）能力标记，由系统接口判定设备是否支持。
+      // 仅在支持时置 1，业务侧通过 PlatformUtils.isImmersiveMaterialSupported() 读取。
+      "immersive_material" : KRNativeRenderController.isImmersiveMaterialSupported() ? 1 : 0
     };
     return JSON.stringify(pageData);
+  }
+
+  /**
+   * 设备是否支持鸿蒙沉浸光感（API 26+ 的系统材质能力）。
+   * 该接口在低版本系统上不存在，访问会抛异常，故做兜底返回 false。
+   */
+  private static isImmersiveMaterialSupported(): boolean {
+    try {
+      return uiMaterial.isImmersiveMaterialSupported();
+    } catch (e) {
+      return false;
+    }
   }
 
   private createConfigJson(screenSize: KRSize): string {

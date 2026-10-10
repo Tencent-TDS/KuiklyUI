@@ -48,6 +48,15 @@ void KRForwardArkTSViewV2::DestroyNode(){
 }
 void KRForwardArkTSViewV2::ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                            const KRRenderCallback event_call_back){
+    // V2 转发 view 原先把属性整个透传给 ArkTS，绕过了基类 ToSetProp。而基类里才做了两件事：
+    //   1) 把 frame 应用到原生节点（转发节点因此才有尺寸）；
+    //   2) frame 变化时回调 SetRenderViewFrame → ArkTS 的 sizeDidChanged。
+    // 跳过之后 ArkTS 组件永远拿不到自身尺寸，依赖尺寸的布局（如 Navigation 标题栏高度）
+    // 会一直是 0，表现为"节点树里存在、屏幕上不渲染"。
+    // 这里对 frame 补一次基类处理，其余属性仍照旧透传给 ArkTS。
+    if (prop_key == "frame" && prop_value != nullptr) {
+        IKRRenderViewExport::ToSetProp(prop_key, prop_value, nullptr);
+    }
     SetProp(prop_key, prop_value, event_call_back);
 }
 
@@ -99,6 +108,12 @@ bool KRForwardArkTSViewV2::SetProp(const std::string &prop_key, const KRAnyValue
 
 void KRForwardArkTSViewV2::SetRenderViewFrame(const KRRect &frame) {
     if (ark_node_ != nullptr) {
+        // V2 的 props handler（KRArkTSViewBasePropsHandler）对所有属性都返回 false，
+        // 通用属性链路不会执行，因此节点尺寸只能在这里显式维护；
+        // 否则 ArkTS 转发节点没有尺寸，其子树里的百分比布局（width/height 100%）无从计算。
+        kuikly::util::UpdateNodeFrame(ark_node_, frame);
+        KR_LOG_INFO << "ImmLightTest: SetRenderViewFrame w=" << frame.width << ", h=" << frame.height
+                    << ", x=" << frame.x << ", y=" << frame.y;
         KRArkTSManager::GetInstance().CallArkTSMethod(
             this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
             KRRenderValue::Make(this->GetViewTag()), KRRenderValue::Make(frame.width),
@@ -129,6 +144,9 @@ ArkUI_NodeHandle KRForwardArkTSViewV2::CreateNode(){
         }
         ark_node_ = node;
         kuikly::util::GetNodeApi()->registerNodeCreatedFromArkTS(node);
+        // 若 frame 早于节点创建到达（props handler 不处理通用属性，会丢掉那次 frame），
+        // 这里补一次当前已知的 frame。
+        kuikly::util::UpdateNodeFrame(node, GetFrame());
         return node;
     }
     return nullptr;

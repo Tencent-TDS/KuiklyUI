@@ -95,6 +95,7 @@ set(SOURCE_SET
         libohos_render/utils/KRJSONObject.cpp
         libohos_render/utils/KRStringUtil.cpp
         libohos_render/utils/KRViewUtil.cpp
+        libohos_render/utils/KRSystemMaterialUtil.cpp
         libohos_render/utils/KRThreadChecker.cpp
         libohos_render/utils/KRJsUtil.cpp
         libohos_render/utils/NAPIUtil.cpp

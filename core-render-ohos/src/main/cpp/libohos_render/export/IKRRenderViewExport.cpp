@@ -20,6 +20,8 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
+#include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/utils/KRSystemMaterialUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +61,7 @@ std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::
         case KRArkTSViewNameRegistry::ViewKindV2:{
             auto it = GetRegisterViewCreator().find(std::string(FORWARD_ARKTS_VIEW_NAME_V2));
             if (it != GetRegisterViewCreator().end()) {
-                KR_LOG_DEBUG << "Creating View with Forwarder V1 for View:"<<view_name;
+                KR_LOG_DEBUG << "Creating View with Forwarder V2 for View:"<<view_name;
                 return it->second();
             }
         }
@@ -197,6 +199,13 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
         CollectReuseKeyIfNeed(prop_key);
     }
 
+    // 鸿蒙沉浸光感：统一在基类消费，覆盖所有组件（含不继承 KRView 的 Text/Image/Scroller）
+    if (kuikly::util::isEqual(prop_key, kuikly::util::kPropNameSystemMaterialOhos)) {
+        ApplySystemMaterial(prop_value->toString());
+        DidSetProp(prop_key);
+        return;
+    }
+
     auto didHanded = false;
     if (base_props_handler_ != nullptr) {
         auto isFrameProp = kuikly::util::isEqual(prop_key, "frame");
@@ -227,7 +236,48 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
 }
 
 bool IKRRenderViewExport::ResetProp(const std::string &prop_key) {
+    if (kuikly::util::isEqual(prop_key, kuikly::util::kPropNameSystemMaterialOhos)) {
+        ClearSystemMaterial();
+        return true;
+    }
     return gExternalPropHandlerOnReset ? gExternalPropHandlerOnReset(GetNode(), prop_key.c_str()) : false;
+}
+
+bool IKRRenderViewExport::ApplySystemMaterial(const std::string &value) {
+    kuikly::util::SystemMaterialOptions options;
+    if (!kuikly::util::ParseSystemMaterialOptions(value, options)) {
+        // "off" 或非法值：清除材质
+        ClearSystemMaterial();
+        return true;
+    }
+    // 记录解析结果：属性已被基类提前消费，子类 SetProp 收不到，
+    // KRModalView 需要靠这两个字段在创建 NativeDialog 后走弹窗专用通道。
+    has_system_material_ = true;
+    system_material_options_ = options;
+    KR_LOG_INFO << "ImmLightTest: apply prop, value=" << value << ", view=" << this;
+    if (system_material_ != nullptr) {
+        kuikly::util::DestroySystemMaterial(system_material_);
+        system_material_ = nullptr;
+    }
+    system_material_ = kuikly::util::CreateSystemMaterial(options);
+    if (system_material_ != nullptr) {
+        kuikly::util::ApplySystemMaterialToNode(GetNode(), system_material_);
+    }
+    OnSystemMaterialChanged();
+    return true;
+}
+
+void IKRRenderViewExport::ClearSystemMaterial() {
+    if (has_system_material_) {
+        KR_LOG_INFO << "ImmLightTest: clear prop, view=" << this;
+    }
+    has_system_material_ = false;
+    kuikly::util::ResetSystemMaterialOfNode(GetNode());
+    if (system_material_ != nullptr) {
+        kuikly::util::DestroySystemMaterial(system_material_);
+        system_material_ = nullptr;
+    }
+    OnSystemMaterialChanged();
 }
 
 bool IKRRenderViewExport::CanReuse() {

@@ -680,6 +680,72 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         StyleConst.SUPER_TOUCH with enable
     }
 
+    /**
+     * 鸿蒙沉浸光感（Immersive Light Sense / 沉浸式系统材质）。
+     *
+     * 仅在 HarmonyOS API 26+ 且设备支持（OH_ArkUI_NativeModule_GetSystemMaterialSupported）
+     * 时生效，其余平台与设备自动忽略，不会覆盖组件已设置的通用属性。
+     *
+     * 生效范围受系统约束：弹窗类组件/接口、Slider、Toggle、Select 可全页面生效，
+     * 其余组件仅在 Navigation 标题栏或底部 TabBar 中生效。
+     *
+     * @param enable false 表示不设置材质
+     * @param style 材质厚薄：0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK
+     * @param interactive 按压时材质是否产生弹性形变
+     * @param applyShadow 是否使用材质自带阴影（true 时优先于 shadow 通用属性）
+     * @param lightEffectColor 触点光效颜色，null 表示不设置；传 Color.TRANSPARENT 表示禁用
+     * @param materialColor 材质层赋色，必须带透明度，不透明色会遮挡材质
+     */
+    fun systemMaterialOhos(
+        enable: Boolean = true,
+        style: Int = 2,
+        interactive: Boolean? = null,
+        applyShadow: Boolean? = null,
+        lightEffectColor: Color? = null,
+        materialColor: Color? = null
+    ): Attr {
+        if (!enable) {
+            StyleConst.SYSTEM_MATERIAL_OHOS with "off"
+            return this
+        }
+        val builder = StringBuilder()
+        builder.append("style=").append(style)
+        if (interactive != null) {
+            builder.append(",interactive=").append(if (interactive) 1 else 0)
+        }
+        if (applyShadow != null) {
+            builder.append(",applyShadow=").append(if (applyShadow) 1 else 0)
+        }
+        if (lightEffectColor != null) {
+            builder.append(",lightColor=").append(lightEffectColor.toString())
+        }
+        if (materialColor != null) {
+            builder.append(",materialColor=").append(materialColor.toString())
+        }
+        StyleConst.SYSTEM_MATERIAL_OHOS with builder.toString()
+        return this
+    }
+
+    /**
+     * 鸿蒙 Modal 是否启用 customStyle（对应 NativeDialog 的 enableCustomStyle，默认 true）。
+     *
+     * 官方明确 CustomDialog 背板自定义（customStyle=true）时不支持沉浸材质，
+     * 置为 false 可验证该约束是否同样作用于 NativeDialog。仅鸿蒙生效。
+     */
+    fun modalCustomStyleOhos(enable: Boolean): Attr {
+        StyleConst.MODAL_CUSTOM_STYLE_OHOS with enable
+        return this
+    }
+
+    /**
+     * 鸿蒙 Modal 内容是否相对屏幕居中（默认 false，沿用 Kuikly 原有的左上对齐）。
+     * 打开后 dialog 尺寸随内容自适应并居中显示。仅鸿蒙生效。
+     */
+    fun modalAlignCenterOhos(enable: Boolean = true): Attr {
+        StyleConst.MODAL_ALIGN_CENTER_OHOS with enable
+        return this
+    }
+
     object StyleConst {
         const val ACCESSIBILITY_INFO = "accessibilityInfo"
         const val BACKGROUND_COLOR = "backgroundColor"
@@ -724,6 +790,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val GLASS_EFFECT_TINT_COLOR = "glassEffectTintColor"
         const val GLASS_EFFECT_STYLE = "glassEffectStyle"
         const val GLASS_EFFECT_SPACING = "glassEffectSpacing"
+
+        // ohos immersive system material
+        const val SYSTEM_MATERIAL_OHOS = "system-material-ohos"
+        const val MODAL_CUSTOM_STYLE_OHOS = "modal-custom-style-ohos"
+        const val MODAL_ALIGN_CENTER_OHOS = "modal-align-center-ohos"
     }
 }
 

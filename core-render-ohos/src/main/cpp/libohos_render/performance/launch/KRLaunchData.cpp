@@ -15,7 +15,6 @@
 
 #include "KRLaunchData.h"
 
-#include "libohos_render/utils/KRJSONObject.h"
 #include "thirdparty/cJSON/cJSON.h"
 
 constexpr char kKeyInitViewCost[] = "initViewCost";

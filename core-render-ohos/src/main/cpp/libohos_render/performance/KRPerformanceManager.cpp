@@ -177,7 +177,6 @@ std::string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能
     auto launch_data = GetLaunchData();
     auto frame_data = GetFrameData();
     auto memory_data = GetMemoryData();
-    auto monitor = GetMonitor(KRLaunchMonitor::kMonitorName);
     KRPerformanceData performance =
         KRPerformanceData(page_name_, kuikly_core_mode_value, spent_time, is_cold_launch, is_page_cold_launch,
                               launch_data, frame_data, memory_data);

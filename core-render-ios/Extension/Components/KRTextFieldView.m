@@ -534,8 +534,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         if (textField.markedTextRange) {
             return YES;
         }
+        // 口径说明：legacy 的剩余容量是 UTF-16 口径 ——
+        // p_legacyMaxInputLengthWithString: 返回 UTF-16 下标，p_shouldTruncate 的 legacy 分支
+        // 比对的也是 rawText.length（UTF-16）。这里必须同样用 UTF-16，不能用 kr_length（字素数），
+        // 否则含 emoji 时会把剩余容量算大，插入后又被 p_limitTextInput 按 UTF-16 截回去。
         NSString *newRawText = [textField.text stringByReplacingCharactersInRange:range withString:string];
-        if ([self p_calculateLengthForText:newRawText] <= legacyMaxLength) {
+        if (newRawText.length <= legacyMaxLength) {
             return YES;
         }
         // 超限：把本次插入裁剪到剩余容量后局部插入。
@@ -548,14 +552,14 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         if (to > from) {
             [baseText deleteCharactersInRange:NSMakeRange(from, to - from)];
         }
-        NSInteger allowedCount = (NSInteger)legacyMaxLength - (NSInteger)[self p_calculateLengthForText:baseText];
+        NSInteger allowedCount = (NSInteger)legacyMaxLength - (NSInteger)baseText.length;
         if (self.css_textLengthBeyondLimit) {
             self.css_textLengthBeyondLimit(@{});
         }
         if (allowedCount <= 0) {
             return NO;
         }
-        NSString *allowedString = [self p_prefixOfString:string composedCharacterCount:(NSUInteger)allowedCount];
+        NSString *allowedString = [self p_prefixOfString:string utf16Budget:(NSUInteger)allowedCount];
         if (allowedString.length == 0) {
             return NO;
         }
@@ -888,18 +892,20 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 /**
  * 取字符串前 count 个 composed character（emoji 不会被切开），
- * 用于把超限的插入内容裁剪到剩余容量。
+ * 按 UTF-16 预算裁剪（legacy 剩余容量为 UTF-16 口径），按 composed character 取整，
+ * 保证 emoji 不会被切成半个代理对。
  */
-- (NSString *)p_prefixOfString:(NSString *)string composedCharacterCount:(NSUInteger)count {
-    if (string.length == 0 || count == 0) {
+- (NSString *)p_prefixOfString:(NSString *)string utf16Budget:(NSUInteger)budget {
+    if (string.length == 0 || budget == 0) {
         return @"";
     }
     NSUInteger index = 0;
-    NSUInteger taken = 0;
-    while (index < string.length && taken < count) {
+    while (index < string.length) {
         NSRange unitRange = [string rangeOfComposedCharacterSequenceAtIndex:index];
+        if (NSMaxRange(unitRange) > budget) {
+            break;
+        }
         index = NSMaxRange(unitRange);
-        taken++;
     }
     if (index == 0) {
         return @"";

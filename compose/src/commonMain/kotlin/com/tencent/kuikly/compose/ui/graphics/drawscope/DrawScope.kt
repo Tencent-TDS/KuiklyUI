@@ -35,7 +35,7 @@ import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
 import com.tencent.kuikly.compose.ui.graphics.degrees
-//import com.tencent.kuikly.compose.ui.graphics.PathEffect
+import com.tencent.kuikly.compose.ui.graphics.PathEffect
 //import com.tencent.kuikly.compose.ui.graphics.PointMode
 //import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 //import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
@@ -379,11 +379,23 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
     )
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    fun drawLine(
+        brush: Brush,
+        start: Offset,
+        end: Offset,
+        strokeWidth: Float = Stroke.HairlineWidth,
+        cap: StrokeCap = Stroke.DefaultCap,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
+//        colorFilter: ColorFilter? = null,
+//        blendMode: BlendMode = DefaultBlendMode
+    ) = drawLine(brush, start, end, strokeWidth, cap, null, alpha)
 
     /**
      * Draws a line between the given points using the given paint. The line is
@@ -406,11 +418,23 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
     )
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    fun drawLine(
+        color: Color,
+        start: Offset,
+        end: Offset,
+        strokeWidth: Float = Stroke.HairlineWidth,
+        cap: StrokeCap = Stroke.DefaultCap,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
+//        colorFilter: ColorFilter? = null,
+//        blendMode: BlendMode = DefaultBlendMode
+    ) = drawLine(color, start, end, strokeWidth, cap, null, alpha)
 
     /**
      * Draws a rectangle with the given offset and size. If no offset from the top left is provided,
@@ -849,11 +873,23 @@ interface DrawScope : Density {
         color: Color,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
     )
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    fun drawPoints(
+        points: List<Offset>,
+        pointMode: PointMode,
+        color: Color,
+        strokeWidth: Float = Stroke.HairlineWidth,
+        cap: StrokeCap = StrokeCap.Butt,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
+//        colorFilter: ColorFilter? = null,
+//        blendMode: BlendMode = DefaultBlendMode
+    ) = drawPoints(points, pointMode, color, strokeWidth, cap, null, alpha)
 
     /**
      * Draws a sequence of points according to the given [PointMode].
@@ -877,11 +913,23 @@ interface DrawScope : Density {
         brush: Brush,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
     )
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    fun drawPoints(
+        points: List<Offset>,
+        pointMode: PointMode,
+        brush: Brush,
+        strokeWidth: Float = Stroke.HairlineWidth,
+        cap: StrokeCap = StrokeCap.Butt,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
+//        colorFilter: ColorFilter? = null,
+//        blendMode: BlendMode = DefaultBlendMode
+    ) = drawPoints(points, pointMode, brush, strokeWidth, cap, null, alpha)
 
     /**
      * Helper method to offset the provided size with the offset in box width and height
@@ -936,8 +984,17 @@ class Stroke(
     val miter: Float = DefaultMiter,
     val cap: StrokeCap = DefaultCap,
     val join: StrokeJoin = DefaultJoin,
-//    val pathEffect: PathEffect? = null
+    val pathEffect: PathEffect? = null
 ) : DrawStyle() {
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    constructor(
+        width: Float = 0.0f,
+        miter: Float = DefaultMiter,
+        cap: StrokeCap = DefaultCap,
+        join: StrokeJoin = DefaultJoin,
+    ) : this(width, miter, cap, join, null)
+
     companion object {
 
         /**
@@ -969,7 +1026,7 @@ class Stroke(
         if (miter != other.miter) return false
         if (cap != other.cap) return false
         if (join != other.join) return false
-//        if (pathEffect != other.pathEffect) return false
+        if (pathEffect != other.pathEffect) return false
 
         return true
     }
@@ -979,12 +1036,11 @@ class Stroke(
         result = 31 * result + miter.hashCode()
         result = 31 * result + cap.hashCode()
         result = 31 * result + join.hashCode()
-//        result = 31 * result + (pathEffect?.hashCode() ?: 0)
+        result = 31 * result + (pathEffect?.hashCode() ?: 0)
         return result
     }
 
     override fun toString(): String {
-        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join)"
-//        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join, pathEffect=$pathEffect)"
+        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join, pathEffect=$pathEffect)"
     }
 }

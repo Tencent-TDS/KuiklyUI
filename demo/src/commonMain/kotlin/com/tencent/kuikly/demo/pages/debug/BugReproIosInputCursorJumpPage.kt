@@ -64,6 +64,15 @@ private const val VISIBILITY_NARROW_WIDTH = 96f
 /** 业务同款窄输入框宽度，用于复刻业务可见性现象 */
 private const val BUSINESS_NARROW_WIDTH = 160f
 
+/** emoji 对照组的长度上限（legacy 口径下 emoji 占 2 个 UTF-16 位置） */
+private const val EMOJI_MAX_LENGTH = 10
+
+/** emoji 对照组填充文本：5 个 emoji = 10 个 UTF-16，正好打满上限 */
+private const val EMOJI_FILL_TEXT = "\uD83D\uDE00\uD83D\uDE00\uD83D\uDE00\uD83D\uDE00\uD83D\uDE00"
+
+/** emoji 对照组光标测试位置：第 2 个 emoji 之后（UTF-16 下标 4） */
+private const val EMOJI_CURSOR_INDEX = 4
+
 /**
  * 业务场景真实文案，长度等于 [BUSINESS_MAX_LENGTH]。
  * 用于替代重复字符，贴近线上真实输入内容。
@@ -87,6 +96,8 @@ internal class BugReproIosInputCursorJumpPage : BasePager() {
     lateinit var narrowInputRef: ViewRef<InputView>
     lateinit var narrowBusinessInputRef: ViewRef<InputView>
     lateinit var multiLineInputRef: ViewRef<TextAreaView>
+    lateinit var emojiInputRef: ViewRef<InputView>
+    lateinit var emojiTextAreaRef: ViewRef<TextAreaView>
 
     var businessSummary by observable("尚未收到业务输入框状态")
     var stressSummary by observable("尚未收到对照输入框状态")
@@ -94,6 +105,8 @@ internal class BugReproIosInputCursorJumpPage : BasePager() {
     var narrowSummary by observable("尚未收到窄输入框状态")
     var narrowBusinessSummary by observable("尚未收到业务窄输入框状态")
     var multiLineSummary by observable("尚未收到多行输入框状态")
+    var emojiSummary by observable("尚未收到 emoji 输入框状态")
+    var emojiAreaSummary by observable("尚未收到 emoji 多行输入框状态")
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -1064,6 +1077,348 @@ internal class BugReproIosInputCursorJumpPage : BasePager() {
 
                 View {
                     attr {
+                        margin(left = 12f, right = 12f, bottom = 12f)
+                        padding(all = 12f)
+                        borderRadius(8f)
+                        backgroundColor(Color(0xFF1B2540L))
+                        flexDirectionColumn()
+                    }
+                    Text {
+                        attr {
+                            fontSize(15f)
+                            fontWeightBold()
+                            color(Color.WHITE)
+                            text("Case 7 emoji 单行 maxTextLength($EMOJI_MAX_LENGTH) 光标 $EMOJI_CURSOR_INDEX")
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(6f)
+                            fontSize(11f)
+                            lineHeight(16f)
+                            color(Color(0xFF9AA6C8L))
+                            text("legacy 口径下 emoji 占 2 个 UTF-16 位置，5 个 emoji 正好打满 $EMOJI_MAX_LENGTH。填充后把光标放到 $EMOJI_CURSOR_INDEX（第 2 个 emoji 之后）继续输入，观察是否部分插入、emoji 是否完整、有没有滚动。")
+                        }
+                    }
+                    View {
+                        attr {
+                            marginTop(10f)
+                            flexDirectionRow()
+                        }
+                        Input {
+                            ref {
+                                ctx.emojiInputRef = it
+                            }
+                            attr {
+                                flex(1f)
+                                height(30f)
+                                fontSize(14f)
+                                useDpFontSizeDim(true)
+                                color(Color(0xFFE2EAFFL, 0.8f))
+                                placeholder("emoji 输入框")
+                                placeholderColor(Color(0xFFE2EAFFL, 0.4f))
+                                autofocus(false)
+                                maxTextLength(EMOJI_MAX_LENGTH)
+                                returnKeyTypeSearch()
+                            }
+                            event {
+                                textDidChange {
+                                    KLog.i(TAG, "[Emoji][textDidChange] length=${it.length}")
+                                    ctx.emojiInputRef.view?.getTextInputState { state ->
+                                        ctx.recordEmojiState("textDidChangeState", state)
+                                    }
+                                }
+                                textInputStateChange {
+                                    ctx.recordEmojiState("textInputStateChange", it)
+                                }
+                                selectionChange {
+                                    ctx.recordEmojiState("selectionChange", it)
+                                }
+                                textLengthBeyondLimit {
+                                    KLog.i(TAG, "[Emoji][textLengthBeyondLimit] payload=$it")
+                                    ctx.readEmojiState("afterTextLengthBeyondLimit")
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(8f)
+                            fontSize(11f)
+                            lineHeight(16f)
+                            color(Color(0xFF9AA6C8L))
+                            text(ctx.emojiSummary)
+                        }
+                    }
+                    View {
+                        attr {
+                            marginTop(8f)
+                            flexDirectionRow()
+                            flexWrapWrap()
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF1677FFL))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("填充 5 个 emoji")
+                                }
+                            }
+                            event {
+                                click {
+                                    KLog.i(TAG, "[Emoji][action] fillEmoji length=${EMOJI_FILL_TEXT.length}")
+                                    ctx.emojiInputRef.view?.setText(EMOJI_FILL_TEXT)
+                                    ctx.emojiInputRef.view?.focus()
+                                    ctx.readEmojiState("afterFill")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF2E7D32L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("光标设为 $EMOJI_CURSOR_INDEX 并聚焦")
+                                }
+                            }
+                            event {
+                                click {
+                                    KLog.i(TAG, "[Emoji][action] setCursorIndex($EMOJI_CURSOR_INDEX)")
+                                    ctx.emojiInputRef.view?.setCursorIndex(EMOJI_CURSOR_INDEX)
+                                    ctx.emojiInputRef.view?.focus()
+                                    ctx.readEmojiState("afterSetCursor")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF667085L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("读取状态")
+                                }
+                            }
+                            event {
+                                click {
+                                    ctx.readEmojiState("manualRead")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFFB42318L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("清空")
+                                }
+                            }
+                            event {
+                                click {
+                                    ctx.emojiInputRef.view?.setText("")
+                                    ctx.readEmojiState("afterClear")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                View {
+                    attr {
+                        margin(left = 12f, right = 12f, bottom = 12f)
+                        padding(all = 12f)
+                        borderRadius(8f)
+                        backgroundColor(Color(0xFF1B2540L))
+                        flexDirectionColumn()
+                    }
+                    Text {
+                        attr {
+                            fontSize(15f)
+                            fontWeightBold()
+                            color(Color.WHITE)
+                            text("Case 8 emoji 多行 maxTextLength($EMOJI_MAX_LENGTH) 光标 $EMOJI_CURSOR_INDEX")
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(6f)
+                            fontSize(11f)
+                            lineHeight(16f)
+                            color(Color(0xFF9AA6C8L))
+                            text("与 Case 7 同样文本与光标，换成多行 TextArea。重点验证鸿蒙侧短码 / image span 表情在超限写入后不会变成空格丢掉。")
+                        }
+                    }
+                    View {
+                        attr {
+                            marginTop(10f)
+                            flexDirectionRow()
+                        }
+                        TextArea {
+                            ref {
+                                ctx.emojiTextAreaRef = it
+                            }
+                            attr {
+                                flex(1f)
+                                height(80f)
+                                fontSize(14f)
+                                useDpFontSizeDim(true)
+                                color(Color(0xFFE2EAFFL, 0.8f))
+                                placeholder("emoji 多行输入框")
+                                placeholderColor(Color(0xFFE2EAFFL, 0.4f))
+                                autofocus(false)
+                                maxTextLength(EMOJI_MAX_LENGTH)
+                                returnKeyTypeSearch()
+                            }
+                            event {
+                                textDidChange {
+                                    KLog.i(TAG, "[EmojiArea][textDidChange] length=${it.length}")
+                                    ctx.emojiTextAreaRef.view?.getTextInputState { state ->
+                                        ctx.recordEmojiAreaState("textDidChangeState", state)
+                                    }
+                                }
+                                textInputStateChange {
+                                    ctx.recordEmojiAreaState("textInputStateChange", it)
+                                }
+                                selectionChange {
+                                    ctx.recordEmojiAreaState("selectionChange", it)
+                                }
+                                textLengthBeyondLimit {
+                                    KLog.i(TAG, "[EmojiArea][textLengthBeyondLimit] payload=$it")
+                                    ctx.readEmojiAreaState("afterTextLengthBeyondLimit")
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(8f)
+                            fontSize(11f)
+                            lineHeight(16f)
+                            color(Color(0xFF9AA6C8L))
+                            text(ctx.emojiAreaSummary)
+                        }
+                    }
+                    View {
+                        attr {
+                            marginTop(8f)
+                            flexDirectionRow()
+                            flexWrapWrap()
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF1677FFL))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("填充 5 个 emoji")
+                                }
+                            }
+                            event {
+                                click {
+                                    KLog.i(TAG, "[EmojiArea][action] fillEmoji length=${EMOJI_FILL_TEXT.length}")
+                                    ctx.emojiTextAreaRef.view?.setText(EMOJI_FILL_TEXT)
+                                    ctx.emojiTextAreaRef.view?.focus()
+                                    ctx.readEmojiAreaState("afterFill")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF2E7D32L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("光标设为 $EMOJI_CURSOR_INDEX 并聚焦")
+                                }
+                            }
+                            event {
+                                click {
+                                    KLog.i(TAG, "[EmojiArea][action] setCursorIndex($EMOJI_CURSOR_INDEX)")
+                                    ctx.emojiTextAreaRef.view?.setCursorIndex(EMOJI_CURSOR_INDEX)
+                                    ctx.emojiTextAreaRef.view?.focus()
+                                    ctx.readEmojiAreaState("afterSetCursor")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(right = 8f, bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFF667085L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("读取状态")
+                                }
+                            }
+                            event {
+                                click {
+                                    ctx.readEmojiAreaState("manualRead")
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                margin(bottom = 8f)
+                                padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                                borderRadius(4f)
+                                backgroundColor(Color(0xFFB42318L))
+                            }
+                            Text {
+                                attr {
+                                    fontSize(12f)
+                                    color(Color.WHITE)
+                                    text("清空")
+                                }
+                            }
+                            event {
+                                click {
+                                    ctx.emojiTextAreaRef.view?.setText("")
+                                    ctx.readEmojiAreaState("afterClear")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                View {
+                    attr {
                         padding(all = 12f)
                         flexDirectionColumn()
                     }
@@ -1160,6 +1515,30 @@ internal class BugReproIosInputCursorJumpPage : BasePager() {
     private fun readMultiLineState(source: String) {
         multiLineInputRef.view?.getTextInputState { state ->
             recordMultiLineState(source, state)
+        }
+    }
+
+    private fun recordEmojiState(source: String, state: TextInputState) {
+        val summary = formatState(source, state)
+        KLog.i(TAG, "[Emoji] $summary")
+        emojiSummary = summary
+    }
+
+    private fun readEmojiState(source: String) {
+        emojiInputRef.view?.getTextInputState { state ->
+            recordEmojiState(source, state)
+        }
+    }
+
+    private fun recordEmojiAreaState(source: String, state: TextInputState) {
+        val summary = formatState(source, state)
+        KLog.i(TAG, "[EmojiArea] $summary")
+        emojiAreaSummary = summary
+    }
+
+    private fun readEmojiAreaState(source: String) {
+        emojiTextAreaRef.view?.getTextInputState { state ->
+            recordEmojiAreaState(source, state)
         }
     }
 }

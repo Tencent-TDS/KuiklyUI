@@ -32,6 +32,17 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
+/// 【新增】字体适配器 — 业务方根据 fontFamily 直接返回 UIFont
+/// @param fontFamily Kotlin 侧设置的 fontFamily 字符串
+/// @param fontSize   字体大小
+/// @param fontWeight 字体粗细（UIFontWeight）
+/// @param contextParam 上下文参数（可用于获取资源路径等）
+/// @return 返回业务方构建好的 UIFont；返回 nil 则走框架默认逻辑
+- (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                                  fontSize:(CGFloat)fontSize
+                                fontWeight:(UIFontWeight)fontWeight
+                             contextParams:(nullable KuiklyContextParam *)contextParam;
+
 @end
 
 /**
@@ -48,6 +59,12 @@ NS_ASSUME_NONNULL_BEGIN
  * 向IOS环境内动态加载字体
  */
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
+
+/// 【新增】通过字体适配器获取 UIFont
++ (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                                  fontSize:(CGFloat)fontSize
+                                fontWeight:(UIFontWeight)fontWeight
+                             contextParams:(nullable KuiklyContextParam *)contextParam;
 
 @end
 

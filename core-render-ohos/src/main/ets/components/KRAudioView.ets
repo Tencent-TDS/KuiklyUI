@@ -47,10 +47,10 @@ export class KRAudioView extends KuiklyRenderBaseView implements IKRAudioViewLis
     this.controller?.addListener(this);
   }
 
-  onPlayStateDidChanged = (state: KRAudioPlayState, viewController: IKRAudioViewController) => {
+  onPlayStateDidChanged = (state: KRAudioPlayState, viewController: IKRAudioViewController, extInfo?: Map<string, string>) => {
     this.isPlaying = (state === KRAudioPlayState.Playing);
     if (this.playStateDidChangedEvent) {
-      this.playStateDidChangedEvent({ 'state': state });
+      this.playStateDidChangedEvent({ 'state': state, 'extInfo': extInfo ?? {} });
     }
   };
   onPlayTimeDidChanged = (currentTime: number, totalTime: number, viewController: IKRAudioViewController) => {

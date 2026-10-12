@@ -69,8 +69,11 @@ export interface IKRAudioViewController {
 export interface IKRAudioViewListener {
   /*
    * 播放状态发生变化时回调
+   * @param state 播放状态
+   * @param viewController 对应音频播放控制器
+   * @param extInfo 扩展信息（如错误码、缓冲进度等），由宿主实现方按需上报
    */
-  onPlayStateDidChanged?: (state: KRAudioPlayState, viewController: IKRAudioViewController) => void;
+  onPlayStateDidChanged?: (state: KRAudioPlayState, viewController: IKRAudioViewController, extInfo?: Map<string, string>) => void;
 
   /*
    * 播放时间发生变化时回调

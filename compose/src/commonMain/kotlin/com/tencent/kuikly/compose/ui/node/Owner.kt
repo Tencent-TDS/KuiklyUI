@@ -233,6 +233,15 @@ internal interface Owner {
     fun measureAndLayout(layoutNode: LayoutNode, constraints: Constraints)
 
     /**
+     * Requests a draw when the outermost [measureAndLayout] returns.
+     *
+     * Measurement outside [com.tencent.kuikly.compose.ui.scene.BaseComposeScene.render]'s draw,
+     * such as [LayoutNode.forceRemeasure] from a scroll callback, invalidates nodes that this
+     * frame will not draw. The draw runs before that measure call returns.
+     */
+    fun requestDrawFlush()
+
+    /**
      * Makes sure the passed [layoutNode] and its subtree is remeasured and has the final sizes.
      */
     fun forceMeasureTheSubtree(layoutNode: LayoutNode, affectsLookahead: Boolean = false)

@@ -226,6 +226,11 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     override fun invalidateDraw() {
+        // Unplaced nodes (e.g. prefetched items) are skipped by draw; placing them
+        // invalidates the parent, which requests the flush.
+        if (isPlaced) {
+            owner?.requestDrawFlush()
+        }
         if (!drawInvalidated) {
             drawInvalidated = true
             parent?.invalidateDraw()

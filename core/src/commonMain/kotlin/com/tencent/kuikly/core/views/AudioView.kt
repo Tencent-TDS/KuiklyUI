@@ -122,13 +122,13 @@ class AudioEvent : Event() {
      * @param handlerFn 自定义事件处理函数。
      */
     fun customEvent(handlerFn: EventHandlerFn) {
-        register(CUSTUM_EVENT, handlerFn)
+        register(CUSTOM_EVENT, handlerFn)
     }
 
     companion object {
         const val PLAY_STATE_CHANGE = "stateChange"
         const val PLAY_TIME_CHANGE = "playTimeChange"
-        const val CUSTUM_EVENT = "customEvent"
+        const val CUSTOM_EVENT = "customEvent"
     }
 }
 

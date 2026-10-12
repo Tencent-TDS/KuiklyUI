@@ -86,7 +86,7 @@ typedef NS_ENUM(NSInteger, KRAudioPlayState) {
     KRAudioPlayStateCaching = 2, // 缓冲中
     KRAudioPlayStatePaused = 3,  // 播放暂停
     KRAudioPlayStatePlayEnd = 4, // 播放结束
-    KRAudioPlayStateFaild = 5,   // 播放失败
+    KRAudioPlayStateFailed = 5,   // 播放失败
 };
 
 

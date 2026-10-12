@@ -196,5 +196,5 @@ enum class KRAudioPlayState {
     KRAudioPlayStateCaching, // 缓冲中
     KRAudioPlayStatePaused,  // 播放暂停
     KRAudioPlayStatePlayEnd, // 播放结束
-    KRAudioPlayStateFaild    // 播放失败
+    KRAudioPlayStateFailed    // 播放失败
 }

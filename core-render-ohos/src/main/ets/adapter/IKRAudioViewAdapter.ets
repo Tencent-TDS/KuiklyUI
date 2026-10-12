@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
 import { KuiklyRenderBaseView } from '../components/base/KRBaseViewExport';
 import { ComponentContent } from '@kit.ArkUI';
 import { KRAudioPlayState } from '../components/KRAudioView';
@@ -64,6 +64,16 @@ export interface IKRAudioViewController {
    * @param seekToTimeMs 时间，单位毫秒
    */
   seekToTime(seekToTimeMs: number): void;
+
+  /**
+   * kuikly 侧调用方法，一般用于业务扩展使用
+   * 对齐 Android 的 IKRAudioView.call、iOS 的 kra_callWithMethod:params:
+   * 可选实现：既有宿主实现无需改动即可继续编译通过
+   * @param method 方法名
+   * @param params 方法参数（透传 kotlin 侧数据，类型可为 string / Array / Int8Array / number）
+   * @param callback 可选回调
+   */
+  call?(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void;
 }
 
 export interface IKRAudioViewListener {

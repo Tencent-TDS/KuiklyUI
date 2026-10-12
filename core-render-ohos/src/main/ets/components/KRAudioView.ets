@@ -129,7 +129,10 @@ export class KRAudioView extends KuiklyRenderBaseView implements IKRAudioViewLis
   }
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
-
+    // 透传给宿主实现，支持业务自定义扩展方法（对齐 Android IKRAudioView.call、iOS kra_callWithMethod:params:）
+    this.controller?.call?.(method, params, callback);
+    // 兜底：accessibilityAnnounce / accessibilityFocus 等基础能力交给基类
+    super.call(method, params, callback);
   }
 
   createArkUIView(): ComponentContent<KuiklyRenderBaseView> {

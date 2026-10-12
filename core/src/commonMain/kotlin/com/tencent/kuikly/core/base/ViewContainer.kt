@@ -322,7 +322,7 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         for (i in 0 until count) {
             // if "from" is after "to," the from index moves because we're inserting before it
             val fromIndex = if (from > to) from + i else from
-            val toIndex = if (from > to) to + i else to + count - 2
+            val toIndex = if (from > to) to + i else to + count - 1
             val child = children.removeAt(fromIndex)
 
             children.add(toIndex, child)

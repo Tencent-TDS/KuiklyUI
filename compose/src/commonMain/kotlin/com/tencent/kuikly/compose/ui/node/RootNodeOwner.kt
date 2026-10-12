@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.extension.KuiklySemantisHandler
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
+import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.focus.FocusOwner
 import com.tencent.kuikly.compose.ui.focus.FocusOwnerImpl
@@ -164,6 +165,7 @@ internal class RootNodeOwner(
 
     private var needClearObservations = false
     private var semanticsChangePending = false
+    private var drawFlushRequested = false
 
     private fun clearInvalidObservations() {
         if (needClearObservations) {
@@ -204,6 +206,7 @@ internal class RootNodeOwner(
     }
 
     fun draw(canvas: Canvas) {
+        drawFlushRequested = false
         owner.root.draw(
             canvas = canvas,
 //            graphicsLayer = null // the root node will provide the root graphics layer
@@ -301,19 +304,58 @@ internal class RootNodeOwner(
             semanticsKuiklyHandler.clearCache()
         }
 
-        override fun measureAndLayout(sendPointerUpdate: Boolean) {
-            // only run the logic when we have something pending
-            if (measureAndLayoutDelegate.hasPendingMeasureOrLayout ||
-                measureAndLayoutDelegate.hasPendingOnPositionedCallbacks
-            ) {
-//                 {
-                val resend = if (sendPointerUpdate) inputHandler::onPointerUpdate else null
-                val rootNodeResized = measureAndLayoutDelegate.measureAndLayout(resend)
-                if (rootNodeResized) {
+        private var measureAndLayoutDepth = 0
+        private var flushingDraw = false
+
+        override fun requestDrawFlush() {
+            drawFlushRequested = true
+        }
+
+        private inline fun inMeasureAndLayout(block: () -> Unit) {
+            measureAndLayoutDepth++
+            try {
+                block()
+            } finally {
+                measureAndLayoutDepth--
+                if (measureAndLayoutDepth == 0) {
+                    flushPendingDraw()
+                }
+            }
+        }
+
+        private fun flushPendingDraw() {
+            if (flushingDraw || !drawFlushRequested) {
+                return
+            }
+            flushingDraw = true
+            try {
+                var pass = 0
+                while (drawFlushRequested && pass < MaxDrawFlushPasses) {
+                    drawFlushRequested = false
+                    pass++
+                    root.draw(KuiklyCanvas())
+                }
+                if (drawFlushRequested) {
                     snapshotInvalidationTracker.requestDraw()
                 }
-                measureAndLayoutDelegate.dispatchOnPositionedCallbacks()
-//                }
+            } finally {
+                flushingDraw = false
+            }
+        }
+
+        override fun measureAndLayout(sendPointerUpdate: Boolean) {
+            inMeasureAndLayout {
+                // only run the logic when we have something pending
+                if (measureAndLayoutDelegate.hasPendingMeasureOrLayout ||
+                    measureAndLayoutDelegate.hasPendingOnPositionedCallbacks
+                ) {
+                    val resend = if (sendPointerUpdate) inputHandler::onPointerUpdate else null
+                    val rootNodeResized = measureAndLayoutDelegate.measureAndLayout(resend)
+                    if (rootNodeResized) {
+                        snapshotInvalidationTracker.requestDraw()
+                    }
+                    measureAndLayoutDelegate.dispatchOnPositionedCallbacks()
+                }
             }
         }
 
@@ -321,13 +363,15 @@ internal class RootNodeOwner(
             layoutNode: LayoutNode,
             constraints: Constraints,
         ) {
-            measureAndLayoutDelegate.measureAndLayout(layoutNode, constraints)
-            inputHandler.onPointerUpdate()
-            // only dispatch the callbacks if we don't have other nodes to process as otherwise
-            // we will have one more measureAndLayout() pass anyway in the same frame.
-            // it allows us to not traverse the hierarchy twice.
-            if (!measureAndLayoutDelegate.hasPendingMeasureOrLayout) {
-                measureAndLayoutDelegate.dispatchOnPositionedCallbacks()
+            inMeasureAndLayout {
+                measureAndLayoutDelegate.measureAndLayout(layoutNode, constraints)
+                inputHandler.onPointerUpdate()
+                // only dispatch the callbacks if we don't have other nodes to process as otherwise
+                // we will have one more measureAndLayout() pass anyway in the same frame.
+                // it allows us to not traverse the hierarchy twice.
+                if (!measureAndLayoutDelegate.hasPendingMeasureOrLayout) {
+                    measureAndLayoutDelegate.dispatchOnPositionedCallbacks()
+                }
             }
         }
 
@@ -460,6 +504,12 @@ internal class RootNodeOwner(
         }
     }
 }
+
+/**
+ * A draw started by [Owner.requestDrawFlush] can invalidate again.
+ * Further passes stop after this many draws; the rest is left to the next frame.
+ */
+private const val MaxDrawFlushPasses = 3
 
 // TODO a proper way is to provide API in Constraints to get this value
 

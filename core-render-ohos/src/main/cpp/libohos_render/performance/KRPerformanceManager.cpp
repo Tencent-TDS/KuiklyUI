@@ -150,7 +150,6 @@ std::string KRPerformanceManager::GetLaunchData() {  //  收集启动数据
 std::string KRPerformanceManager::GetFrameData() {  //  获取帧数据
     auto monitor = GetMonitor(KRFrameMonitor::kMonitorName);
     if (monitor) {
-        auto temp = monitor->GetMonitorData();
         return monitor->GetMonitorData();
     }
     return "";

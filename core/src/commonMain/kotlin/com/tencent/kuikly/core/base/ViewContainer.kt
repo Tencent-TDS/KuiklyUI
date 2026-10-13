@@ -49,21 +49,29 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
     private var createRenderViewing = false
 
     /**
-     * When set to `true`, this container AND all its descendants opt out of
-     * flat-layer optimization (i.e. every DSL container inside this subtree
-     * gets its own native RenderView, even when it has no visual attrs).
+     * Per-subtree flat-layer opt-out flag. When set to `true` on a container,
+     * that container — and, via one-way propagation in [internalAddChild],
+     * every descendant container attached afterwards — is treated as a
+     * RenderView by [isRenderViewForFlatLayer], so every DSL container inside
+     * the subtree gets its own native RenderView even when it has no visual
+     * attrs.
      *
-     * This is a **per-subtree** alternative to the global
-     * [CrossPlatFeature.isIgnoreRenderViewForFlatLayer] switch. Meant for
-     * scenarios where dynamically-added subtrees must always materialize as
-     * native views (e.g. Embedded surfaces inside a Kuikly DSL page,
-     * where components are added imperatively after the initial layout and
-     * flat-layer would otherwise skip creating native views for pure-layout
-     * containers).
+     * Semantics:
+     *   - Write-once / monotonic: once set to `true`, assigning `false` is a no-op.
+     *     This keeps propagation safe — a descendant whose flag was lit up by its
+     *     parent cannot be accidentally cleared by a later direct write.
+     *   - Scoped: unlike the global [CrossPlatFeature.isIgnoreRenderViewForFlatLayer]
+     *     switch, this flag only affects the subtree rooted at the container that
+     *     opted in (plus any subsequent child containers attached to it).
      *
-     * Default is `false` so existing pages retain their flat-layer optimization.
+     * Typical caller: A2UI embedded DSL surface, which must materialize every
+     * dynamically-added layout container as a native view regardless of attrs.
      */
     var forceRenderViewSubtree: Boolean = false
+        set(value) {
+            // Monotonic: only transition false -> true; ignore attempts to clear.
+            if (value && !field) field = true
+        }
 
     open fun <T : DeclarativeBaseView<*, *>> addChild(child: T, init: T.() -> Unit) {
         addChild(child, init, -1)
@@ -355,6 +363,15 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
             children.add(index, child)
         }
         child.parentRef = nativeRef
+        // One-way propagation of the per-subtree flat-layer opt-out:
+        // when this container has [forceRenderViewSubtree] enabled, mark the
+        // newly-attached child container as well, so [isRenderViewForFlatLayer]
+        // only needs a local (non-traversing) read. The flag is write-once by
+        // design, so re-attaching a child under a non-force parent will not
+        // clear a previously-set flag.
+        if (forceRenderViewSubtree && child is ViewContainer<*, *>) {
+            child.forceRenderViewSubtree = true
+        }
         child.didMoveToParentView()
     }
 
@@ -390,13 +407,12 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         if (CrossPlatFeature.isIgnoreRenderViewForFlatLayer) {
             return true
         }
-        // Per-subtree opt-out: if this container or any ancestor has
-        // forceRenderViewSubtree=true, treat every container in the subtree
-        // as a RenderView (matches the global switch's behavior but scoped
-        // to a single subtree). See [forceRenderViewSubtree] for rationale.
-        // This check is guarded by [CrossPlatFeature.isSupportForceRenderViewSubtree]
-        // to avoid parent-chain traversal cost when the feature is not needed.
-        if (CrossPlatFeature.isSupportForceRenderViewSubtree && isForceRenderViewSubtree()) {
+        // Per-subtree opt-out: when this container has
+        // [forceRenderViewSubtree] set (either directly, or propagated down
+        // from an ancestor by [internalAddChild]), treat it as a RenderView.
+        // This is a cheap local read — no parent-chain traversal needed,
+        // because the flag is propagated at insert time.
+        if (forceRenderViewSubtree) {
             return true
         }
         if (getPager().isDebugUIInspector) {
@@ -416,21 +432,6 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
             return false
         }
         return super.isRenderView()
-    }
-
-    /**
-     * Return `true` if this container itself, or any of its ancestors up the
-     * DSL tree, has [forceRenderViewSubtree] set. Used by [isRenderViewForFlatLayer]
-     * to implement the per-subtree flat-layer opt-out.
-     */
-    private fun isForceRenderViewSubtree(): Boolean {
-        if (forceRenderViewSubtree) return true
-        var p = parent
-        while (p != null) {
-            if (p is ViewContainer<*, *> && p.forceRenderViewSubtree) return true
-            p = p.parent
-        }
-        return false
     }
 
     internal fun markChildTextViewsDirty(){

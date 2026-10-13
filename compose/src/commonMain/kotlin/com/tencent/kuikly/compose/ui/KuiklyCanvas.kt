@@ -342,7 +342,8 @@ internal class KuiklyCanvas : Canvas {
      * Draws a single line of [text] with the renderer's text primitive. [origin] is the
      * alphabetic baseline point in pixels; [align] decides which side of `origin.x` the run
      * extends to, like `textAlign` on an HTML canvas. Filled with [paint] unless its style
-     * is [PaintingStyle.Stroke], in which case the outline is stroked.
+     * is [PaintingStyle.Stroke], in which case the outline is stroked with the paint's width
+     * and cap, as path strokes are; the renderer text stroke has no join or miter controls.
      */
     internal fun drawText(
         text: String,
@@ -362,6 +363,7 @@ internal class KuiklyCanvas : Canvas {
             } else {
                 strokeStyle(paint.toKuiklyColor())
                 lineWidth(paint.strokeWidth / densityValue)
+                applyStrokeCap(paint.strokeCap)
                 strokeText(text, x, y)
             }
         }

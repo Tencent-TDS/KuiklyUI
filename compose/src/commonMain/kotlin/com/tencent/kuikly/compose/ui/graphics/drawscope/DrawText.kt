@@ -93,7 +93,9 @@ class CanvasTextMetrics(val width: Float, val ascent: Float, val descent: Float)
  * @param origin baseline point, in pixels, relative to the current transform
  * @param style typography and color of the run; an unspecified color draws black
  * @param alpha opacity applied to the text color, 0f (transparent) to 1f (opaque)
- * @param drawStyle [Fill] fills the glyphs, a [Stroke] outlines them with its width
+ * @param drawStyle [Fill] fills the glyphs, a [Stroke] outlines them with its width and cap;
+ *   the renderer text stroke has no join or miter controls, so [Stroke.join] and
+ *   [Stroke.miter] are not lowered
  */
 fun DrawScope.drawText(
     text: String,

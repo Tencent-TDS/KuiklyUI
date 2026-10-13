@@ -121,7 +121,7 @@ class KuiklyCanvasTextLoweringTest {
     }
 
     @Test
-    fun strokedDrawTextUsesStrokeTextWithTheStrokeWidth() {
+    fun strokedDrawTextUsesStrokeTextWithTheStrokeWidthAndCap() {
         withCanvasFixture { fixture ->
             fixture.draw {
                 drawText(
@@ -132,10 +132,24 @@ class KuiklyCanvasTextLoweringTest {
                 )
             }
             assertEquals(
-                listOf("font", "textAlign", "strokeStyle", "lineWidth", "strokeText"),
+                listOf("font", "textAlign", "strokeStyle", "lineWidth", "lineCap", "strokeText"),
                 fixture.commandNames()
             )
             assertEquals(1.5, fixture.commandsNamed("lineWidth").single().json().optDouble("width"))
+            assertEquals("round", fixture.commandsNamed("lineCap").single().json().optString("style"))
+        }
+    }
+
+    @Test
+    fun strokedDrawTextSkipsTheLineCapWhenItMatchesTheRendererState() {
+        withCanvasFixture { fixture ->
+            fixture.draw {
+                // `reset` on bind leaves the renderer on butt caps, so the first run sends none.
+                drawText("a", Offset(0f, 0f), drawStyle = Stroke(width = 2f, cap = StrokeCap.Butt))
+                drawText("b", Offset(0f, 0f), drawStyle = Stroke(width = 2f, cap = StrokeCap.Square))
+                drawText("c", Offset(0f, 0f), drawStyle = Stroke(width = 2f, cap = StrokeCap.Square))
+            }
+            assertEquals(listOf("square"), fixture.commandsNamed("lineCap").map { it.json().optString("style") })
         }
     }
 

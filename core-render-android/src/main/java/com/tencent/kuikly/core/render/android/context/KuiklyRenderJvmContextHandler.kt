@@ -75,9 +75,8 @@ class KuiklyRenderJvmContextHandler : KuiklyRenderCommonContextHandler(), IKuikl
     ): Any? {
         assert(!isMainThread())
         try {
-            val enumMethod = KuiklyRenderNativeMethod.fromInt(methodId)
             val result = callNativeCallback?.invoke(
-                enumMethod, listOf(
+                KuiklyRenderNativeMethod.fromInt(methodId), listOf(
                     arg0,
                     arg1,
                     arg2,

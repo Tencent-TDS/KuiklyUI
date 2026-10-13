@@ -43,6 +43,11 @@ interface StreamEventData {
   statusCode?: number;
 }
 
+interface StreamRequestState {
+  httpRequest: http.HttpRequest;
+  idleTimer: number;
+}
+
 export class KRNetworkModule extends KuiklyRenderBaseModule {
   syncMode(): boolean {
     return false;
@@ -55,7 +60,12 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   private static readonly METHOD_CLOSE_STREAM_REQUEST = 'closeStreamRequest';
   private static readonly DEFAULT_TIMEOUT_S = 30;
   private static readonly STATE_CODE_UNKNOWN = -1000;
-  private activeStreamRequests: Map<string, http.HttpRequest> = new Map();
+  private static readonly STATE_CODE_TIMEOUT = -1001;
+  // readTimeout maps to CURLOPT_TIMEOUT_MS, a total-duration limit. Streams use a module-managed
+  // idle timer instead, so the native limit is pushed out of reach (must stay within uint32).
+  private static readonly STREAM_NATIVE_READ_TIMEOUT_MS = 0x7FFFFFFF;
+  private static readonly CONTENT_TYPE_FORM = 'application/x-www-form-urlencoded; charset=UTF-8';
+  private activeStreamRequests: Map<string, StreamRequestState> = new Map();
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     switch (method) {
@@ -84,8 +94,9 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   }
 
   onDestroy(): void {
-    this.activeStreamRequests.forEach((httpReq) => {
-      this.cleanupHttpRequest(httpReq);
+    this.activeStreamRequests.forEach((state) => {
+      clearTimeout(state.idleTimer);
+      this.cleanupHttpRequest(state.httpRequest);
     });
     this.activeStreamRequests.clear();
   }
@@ -118,14 +129,43 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   }
 
   /**
-   * 清理指定 requestId 对应的流式请求，包含事件反注册、销毁与 Map 移除。
+   * 清理指定 requestId 对应的流式请求，包含停止空闲计时、事件反注册、销毁与 Map 移除。
+   * 返回 false 表示该请求已被关闭或已发出终态。
    */
-  private finalizeStreamRequest(requestId: string): void {
-    const httpReq = this.activeStreamRequests.get(requestId);
-    if (httpReq) {
-      this.cleanupHttpRequest(httpReq);
+  private finalizeStreamRequest(requestId: string): boolean {
+    const state = this.activeStreamRequests.get(requestId);
+    if (!state) {
+      return false;
     }
     this.activeStreamRequests.delete(requestId);
+    clearTimeout(state.idleTimer);
+    this.cleanupHttpRequest(state.httpRequest);
+    return true;
+  }
+
+  /**
+   * 流式请求唯一的终态入口：先完成状态转换与资源清理，再通知业务，
+   * 保证每个请求最多发出一次 complete/error，且业务回调重入时不会看到中间状态。
+   */
+  private finishStreamRequest(requestId: string, callback: KuiklyRenderCallback | null,
+    events: StreamEventData[]): void {
+    if (!this.finalizeStreamRequest(requestId) || !callback) {
+      return;
+    }
+    for (const eventData of events) {
+      callback(eventData);
+    }
+  }
+
+  private static streamEvent(event: string, data: string, statusCode?: number, headers?: string): StreamEventData {
+    const eventData: StreamEventData = { event: event, data: data };
+    if (statusCode !== undefined) {
+      eventData.statusCode = statusCode;
+    }
+    if (headers !== undefined) {
+      eventData.headers = headers;
+    }
+    return eventData;
   }
 
   private httpStreamRequest(paramsStr: string, callback: KuiklyRenderCallback | null): void {
@@ -165,62 +205,42 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
 
       const urlOptions = this.createURLAndOptions(params, null);
       if (urlOptions == null) {
+        if (callback) {
+          callback(KRNetworkModule.streamEvent('error', 'invalid request params', KRNetworkModule.STATE_CODE_UNKNOWN));
+        }
         return;
       }
 
       const url = urlOptions[0];
       const options = urlOptions[1];
+      this.applyStreamRequestOptions(params, options);
+      const idleTimeoutMs = (params.timeout > 0 ? params.timeout : KRNetworkModule.DEFAULT_TIMEOUT_S) * 1000;
 
-      httpRequest = http.createHttp();
-      this.activeStreamRequests.set(requestId, httpRequest);
+      const currentRequest = http.createHttp();
+      httpRequest = currentRequest;
+      const state: StreamRequestState = { httpRequest: currentRequest, idleTimer: -1 };
+      this.activeStreamRequests.set(requestId, state);
+
+      // 与 Android/iOS/Web 一致：timeout 表示“连续无数据”的空闲超时，收到数据即重新计时，
+      // 不限制持续推送的总时长。
+      const armIdleTimer = () => {
+        clearTimeout(state.idleTimer);
+        state.idleTimer = setTimeout(() => {
+          this.finishStreamRequest(requestId, callback, [
+            KRNetworkModule.streamEvent('error', 'request timeout', KRNetworkModule.STATE_CODE_TIMEOUT)
+          ]);
+        }, idleTimeoutMs);
+      };
+      armIdleTimer();
 
       const decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true });
       let isFirstCallback = true;
       let responseHeaders = '';
-      let responseCode = 0;
-
-      httpRequest.on('dataReceive', (data: ArrayBuffer) => {
-        // 若 requestId 已从 activeStreamRequests 中移除，说明业务侧已通过 closeStreamRequest
-        // 主动关闭（或 onDestroy 已触发），此时静默丢弃后续 chunk 即可。
-        // 注意：这里不需要再做 off/destroy 清理——资源释放由 close 路径的 finalizeStreamRequest 统一完成，
-        // 之所以仍可能收到回调，是因为 native 侧已入队的事件在 off 之前就 post 到了 ArkTS 事件循环。
-        if (!callback || !this.activeStreamRequests.has(requestId)) return;
-        // Keep an incomplete UTF-8 suffix inside TextDecoder until the next chunk.
-        const text = decoder.decodeToString(new Uint8Array(data), { stream: true });
-        const eventData: StreamEventData = {
-          event: 'data',
-          data: text
-        };
-        if (isFirstCallback) {
-          isFirstCallback = false;
-          eventData.headers = responseHeaders;
-          eventData.statusCode = responseCode;
-        }
-        callback(eventData);
-      });
-
-      httpRequest.on('dataEnd', () => {
-        // 与 dataReceive 同理：若已被主动关闭，这里静默返回；资源清理已由 close 路径完成。
-        if (!this.activeStreamRequests.has(requestId)) return;
-        if (callback) {
-          const tail = decoder.decodeToString(new Uint8Array(0), { stream: false });
-          if (tail) {
-            callback({
-              event: 'data',
-              data: tail
-            } as StreamEventData);
-          }
-          const eventData: StreamEventData = {
-            event: 'complete',
-            data: ''
-          };
-          callback(eventData);
-        }
-        this.finalizeStreamRequest(requestId);
-      });
 
       // 监听 headersReceive 以获取响应头
-      httpRequest.on('headersReceive', (header: Object) => {
+      currentRequest.on('headersReceive', (header: Object) => {
+        if (!this.activeStreamRequests.has(requestId)) return;
+        armIdleTimer();
         try {
           responseHeaders = JSON.stringify(header);
         } catch (_) {
@@ -228,40 +248,54 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         }
       });
 
+      currentRequest.on('dataReceive', (data: ArrayBuffer) => {
+        // 若 requestId 已从 activeStreamRequests 中移除，说明请求已被主动关闭、已超时或已发出终态，
+        // 此时静默丢弃后续 chunk 即可：native 侧已入队的事件可能在 off 之前就 post 到了 ArkTS 事件循环。
+        if (!this.activeStreamRequests.has(requestId)) return;
+        armIdleTimer();
+        if (!callback) return;
+        // Keep an incomplete UTF-8 suffix inside TextDecoder until the next chunk.
+        const text = decoder.decodeToString(new Uint8Array(data), { stream: true });
+        if (!text) return;
+        const eventData = KRNetworkModule.streamEvent('data', text);
+        if (isFirstCallback) {
+          isFirstCallback = false;
+          // requestInStream 只有在请求结束时才给出状态码，headersReceive 也不承诺包含状态码，
+          // 因此首帧只携带响应头，不把未知状态码当作 0 暴露给业务。
+          eventData.headers = responseHeaders;
+        }
+        callback(eventData);
+      });
+
+      // 不监听 dataEnd 来决定终态：OpenHarmony 先派发 dataEnd 再 resolve requestInStream，
+      // 若在 dataEnd 里发 complete，401/500 等错误响应会被误报为成功。Promise 结果是终态的唯一来源。
       options.expectDataType = http.HttpDataType.STRING;
 
-      httpRequest.requestInStream(url.toString(), options).then((code: number) => {
-        responseCode = code;
+      currentRequest.requestInStream(url.toString(), options).then((code: number) => {
         if (code >= 200 && code <= 299) {
-          // 成功，数据通过 dataReceive/dataEnd 事件回调处理
+          const events: StreamEventData[] = [];
+          const tail = decoder.decodeToString(new Uint8Array(0), { stream: false });
+          if (tail) {
+            events.push(KRNetworkModule.streamEvent('data', tail, undefined, isFirstCallback ? responseHeaders : undefined));
+          }
+          events.push(KRNetworkModule.streamEvent('complete', ''));
+          this.finishStreamRequest(requestId, callback, events);
         } else {
-          // 非 2xx 响应（含 3xx / 4xx / 5xx）统一按错误处理并清理资源。
+          // 非 2xx 响应（含 3xx / 4xx / 5xx）统一按错误处理。
           // 关于 3xx：HarmonyOS http 底层（libcurl）默认会自动跟随重定向，业务侧通常只会看到最终响应码；
           // 但 requestInStream 未开放 FOLLOWLOCATION 选项，若底层未跟随（如跨协议 http→https 被拒、
           // 或 Location 头缺失），3xx 会直接透传到这里——此时对 SSE 场景已无法继续流式读取，
           // 作为 error 回调给业务侧是合适的。
-          if (callback && this.activeStreamRequests.has(requestId)) {
-            const eventData: StreamEventData = {
-              event: 'error',
-              data: `HTTP error ${code}`,
-              statusCode: code
-            };
-            callback(eventData);
-          }
-          this.finalizeStreamRequest(requestId);
+          this.finishStreamRequest(requestId, callback, [
+            KRNetworkModule.streamEvent('error', `HTTP error ${code}`, code, responseHeaders)
+          ]);
         }
       }).catch((err: Error) => {
         KRRenderLog.e("NetworkModule", `Stream request error: ${err.message}`);
-        // 如果是主动关闭导致的异常（requestId 已被 closeStreamRequest 移除），不回调 error
-        if (callback && this.activeStreamRequests.has(requestId)) {
-          const eventData: StreamEventData = {
-            event: 'error',
-            data: err.message,
-            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
-          };
-          callback(eventData);
-        }
-        this.finalizeStreamRequest(requestId);
+        // 主动关闭导致的异常（requestId 已被移除）由 finishStreamRequest 静默忽略
+        this.finishStreamRequest(requestId, callback, [
+          KRNetworkModule.streamEvent('error', err.message, KRNetworkModule.STATE_CODE_UNKNOWN)
+        ]);
       });
     } catch (e) {
       const errmsg = `stream request error: ${(e as BusinessError).message}`;
@@ -274,27 +308,70 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       //      → 此时 map 里没有条目，只需 cleanupHttpRequest 释放句柄，避免泄漏。
       // 分支互斥：命中分支 1 时 httpRequest 指向的对象已被 finalizeStreamRequest 清理，
       // 因此 else if 不会（也不应该）再重复清理。
-      if (requestId && this.activeStreamRequests.has(requestId)) {
-        this.finalizeStreamRequest(requestId);
-      } else if (httpRequest) {
+      const finalized = requestId ? this.finalizeStreamRequest(requestId) : false;
+      if (!finalized && httpRequest) {
         this.cleanupHttpRequest(httpRequest);
       }
       if (callback) {
-        const eventData: StreamEventData = {
-          event: 'error',
-          data: errmsg,
-          statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
-        };
-        callback(eventData);
+        callback(KRNetworkModule.streamEvent('error', errmsg, KRNetworkModule.STATE_CODE_UNKNOWN));
       }
     }
+  }
+
+  /**
+   * 流式请求的 body 与超时契约（四端一致）：
+   * - Content-Type 含 json 时发送 JSON；否则按 UTF-8 application/x-www-form-urlencoded 编码，
+   *   未指定 Content-Type 时显式补齐（鸿蒙默认 content-type 为 application/json，必须覆盖）。
+   * - 空闲超时由模块自行计时，native readTimeout 只作兜底。
+   */
+  private applyStreamRequestOptions(params: StreamParamsObject, options: http.HttpRequestOptions): void {
+    options.readTimeout = KRNetworkModule.STREAM_NATIVE_READ_TIMEOUT_MS;
+    if (params.method != 'POST' || params.param == null) {
+      return;
+    }
+    const headers: Record<string, string> = {};
+    if (options.header) {
+      const original = options.header as Record<string, string>;
+      Object.keys(original).forEach((key) => {
+        headers[key] = original[key];
+      });
+    }
+    const contentTypeKey = Object.keys(headers).find((key) => key.toLowerCase() == 'content-type');
+    const contentType = contentTypeKey ? headers[contentTypeKey] : undefined;
+    if (contentType && contentType.toLowerCase().indexOf('json') >= 0) {
+      options.extraData = JSON.stringify(params.param);
+    } else {
+      const formParams = new Url.URLParams();
+      const record = params.param as KRRecord;
+      Object.keys(record).forEach((key) => {
+        formParams.append(key, KRNetworkModule.toFormValue(record[key]));
+      });
+      options.extraData = formParams.toString();
+      if (!contentType) {
+        headers['Content-Type'] = KRNetworkModule.CONTENT_TYPE_FORM;
+      }
+    }
+    options.header = headers;
+  }
+
+  private static toFormValue(value: KRAny | undefined): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'string') {
+      return value as string;
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return value.toString();
   }
 
   private closeStreamRequest(paramsStr: string): void {
     try {
       const params = JSON.parse(paramsStr) as Record<string, string>;
       const requestId = params['requestId'];
-      if (requestId && this.activeStreamRequests.has(requestId)) {
+      if (requestId) {
         this.finalizeStreamRequest(requestId);
       }
     } catch (e) {
@@ -420,14 +497,16 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       }
     }
 
-    // set reqeuset headers
-    if (params.headers) {
+    // set reqeuset headers; cookie must be applied even when no custom headers are given
+    if (params.headers || params.cookie) {
       let headers: Record<string, string> = {};
-      let originalHeaders = params.headers as KRRecord;
-      Object.keys(originalHeaders).forEach((key) => {
-        let value: string = originalHeaders[key] as string;
-        headers[key] = value;
-      });
+      if (params.headers) {
+        let originalHeaders = params.headers as KRRecord;
+        Object.keys(originalHeaders).forEach((key) => {
+          let value: string = originalHeaders[key] as string;
+          headers[key] = value;
+        });
+      }
 
       // update cookie
       if (params.cookie) {

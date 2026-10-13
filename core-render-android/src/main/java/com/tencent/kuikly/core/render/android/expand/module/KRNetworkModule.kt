@@ -31,10 +31,17 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 import java.net.URLConnection
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Created by kam on 2023/4/19.
@@ -72,21 +79,23 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     )
                     return null
                 }
-                val threadAdapter = KuiklyRenderAdapterManager.krThreadAdapter
-                if (threadAdapter == null) {
+                // Streams block a worker for their whole lifetime, so they must not share the
+                // krThreadAdapter pool with ordinary requests.
+                try {
+                    streamExecutor.execute {
+                        httpStreamRequest(params, callback)
+                    }
+                } catch (e: RejectedExecutionException) {
                     pendingStreamRequests.remove(requestId)
                     callback?.invoke(
                         mapOf(
                             KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                            KEY_STREAM_DATA to "thread adapter is unavailable",
+                            KEY_STREAM_DATA to "too many concurrent stream requests (max $MAX_CONCURRENT_STREAMS)",
                             KEY_STATUS_CODE to STATE_CODE_UNKNOWN
                         )
                     )
-                    return null
                 }
-                threadAdapter.executeOnSubThread {
-                    httpStreamRequest(params, callback)
-                }
+                null
             }
             METHOD_CLOSE_STREAM_REQUEST -> {
                 // Do not enqueue close behind long-lived stream reads. A small shared pool can
@@ -188,24 +197,26 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 connection.disconnect()
                 return
             }
+            // readTimeout bounds each blocking read, so this is an idle timeout rather than a
+            // limit on the total stream duration.
             val timeoutMs = if (timeoutS > 0) timeoutS * 1000 else DEFAULT_TIMEOUT_S * 1000
             connection.connectTimeout = timeoutMs
             connection.readTimeout = timeoutMs
             connection.useCaches = false
             connection.doInput = true
-            addHeaderToConnection(connection, header, cookie)
-            addBodyParamsIfNeed(connection, method, header, param, null)
             setRequestMethod(connection, method)
+            addHeaderToConnection(connection, header, cookie)
+            addStreamBodyIfNeed(connection, method, header, param)
 
             val responseCode = connection.responseCode
+            val headers: String = try {
+                if (connection.headerFields != null) connection.headerFields.toJSONObject().toString() else ""
+            } catch (e: Throwable) {
+                KuiklyRenderLog.e(MODULE_NAME, "stream headerFields to json exception: $e")
+                ""
+            }
             if (responseCode >= 200 && responseCode <= 299) {
                 val rawStream = connection.inputStream
-                val headers: String = try {
-                    if (connection.headerFields != null) connection.headerFields.toJSONObject().toString() else ""
-                } catch (e: Throwable) {
-                    KuiklyRenderLog.e(MODULE_NAME, "stream headerFields to json exception: $e")
-                    ""
-                }
                 reader = InputStreamReader(rawStream, Charsets.UTF_8)
                 var isFirstCallback = true
                 val buffer = CharArray(8192)
@@ -246,6 +257,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     mapOf(
                         KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
                         KEY_STREAM_DATA to errorMsg,
+                        KEY_HEADERS to headers,
                         KEY_STATUS_CODE to responseCode
                     )
                 )
@@ -257,11 +269,12 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 pendingStreamRequests.remove(requestId) || activeStreamConnections.containsKey(requestId)
             }
             if (shouldReportError) {
+                val isTimeout = e is SocketTimeoutException
                 callback?.invoke(
                     mapOf(
                         KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                        KEY_STREAM_DATA to (e.message ?: "io exception"),
-                        KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                        KEY_STREAM_DATA to if (isTimeout) "request timeout" else (e.message ?: "io exception"),
+                        KEY_STATUS_CODE to if (isTimeout) STATE_CODE_TIMEOUT else STATE_CODE_UNKNOWN
                     )
                 )
             }
@@ -326,9 +339,9 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             connection.readTimeout = timeoutS * 1000
             connection.useCaches = false
             connection.doInput = true
+            setRequestMethod(connection, method)
             addHeaderToConnection(connection, header, cookie)
             addBodyParamsIfNeed(connection, method, header, param, bytes)
-            setRequestMethod(connection, method)
 
             val responseCode = connection.responseCode
             if (responseCode >= 200 && responseCode <= 299) {
@@ -462,6 +475,58 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         }
     }
 
+    /**
+     * Stream requests use the cross-platform body contract: JSON when Content-Type contains
+     * "json", otherwise UTF-8 application/x-www-form-urlencoded.
+     */
+    private fun addStreamBodyIfNeed(
+        connection: URLConnection,
+        method: String,
+        header: JSONObject?,
+        param: JSONObject?
+    ) {
+        if (method != HTTP_METHOD_POST || param == null) {
+            return
+        }
+        val contentType = findHeaderIgnoreCase(header, HEADER_CONTENT_TYPE)
+        val body = if (contentType?.contains("json", ignoreCase = true) == true) {
+            param.toString()
+        } else {
+            if (contentType == null) {
+                connection.setRequestProperty(HEADER_CONTENT_TYPE, CONTENT_TYPE_FORM)
+            }
+            buildFormUrlEncodedBody(param)
+        }
+        connection.doOutput = true
+        DataOutputStream(connection.getOutputStream()).use { out ->
+            out.write(body.toByteArray(Charsets.UTF_8))
+        }
+    }
+
+    private fun buildFormUrlEncodedBody(param: JSONObject): String {
+        val sb = StringBuilder()
+        for (key in param.keys()) {
+            if (sb.isNotEmpty()) {
+                sb.append('&')
+            }
+            val value = param.opt(key)?.toString() ?: ""
+            sb.append(URLEncoder.encode(key, "UTF-8"))
+                .append('=')
+                .append(URLEncoder.encode(value, "UTF-8"))
+        }
+        return sb.toString()
+    }
+
+    private fun findHeaderIgnoreCase(header: JSONObject?, name: String): String? {
+        header ?: return null
+        for (key in header.keys()) {
+            if (key.equals(name, ignoreCase = true)) {
+                return header.opt(key)?.toString()
+            }
+        }
+        return null
+    }
+
     private fun addHeaderToConnection(
         connection: URLConnection,
         header: JSONObject?,
@@ -587,8 +652,33 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val STREAM_EVENT_COMPLETE = "complete"
         private const val STREAM_EVENT_ERROR = "error"
 
-        private const val STATE_CODE_UNKNOWN = -1000
-        private const val DEFAULT_TIMEOUT_S = 30
+        private const val HEADER_CONTENT_TYPE = "Content-Type"
+        private const val CONTENT_TYPE_FORM = "application/x-www-form-urlencoded; charset=UTF-8"
 
+        private const val STATE_CODE_UNKNOWN = -1000
+        private const val STATE_CODE_TIMEOUT = -1001
+        private const val DEFAULT_TIMEOUT_S = 30
+        private const val MAX_CONCURRENT_STREAMS = 8
+
+        private val streamThreadIndex = AtomicInteger()
+
+        /**
+         * Process-wide pool for long-lived stream reads. SynchronousQueue makes requests beyond
+         * [MAX_CONCURRENT_STREAMS] fail fast instead of queueing without any timeout.
+         */
+        private val streamExecutor: ThreadPoolExecutor by lazy {
+            ThreadPoolExecutor(
+                0,
+                MAX_CONCURRENT_STREAMS,
+                30L,
+                TimeUnit.SECONDS,
+                SynchronousQueue(),
+                ThreadFactory { runnable ->
+                    Thread(runnable, "KRNetworkStream-${streamThreadIndex.incrementAndGet()}").apply {
+                        isDaemon = true
+                    }
+                }
+            )
+        }
     }
 }

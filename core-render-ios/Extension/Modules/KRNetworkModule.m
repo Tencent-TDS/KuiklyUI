@@ -16,6 +16,70 @@
 #import "KRNetworkModule.h"
 #import "KRHttpRequestTool.h"
 
+#pragma mark - Incremental UTF-8 decoding
+
+/// Validates UTF-8 following the WHATWG decoder: every invalid sequence becomes U+FFFD, matching
+/// TextDecoder (Web/HarmonyOS) and InputStreamReader (Android). Appends the sanitized bytes to
+/// `output` and returns how many input bytes were consumed; when `flush` is NO, a trailing
+/// incomplete sequence (at most 3 bytes) is left unconsumed for the next chunk.
+static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length, BOOL flush, NSMutableData *output) {
+    static const uint8_t kReplacement[] = {0xEF, 0xBF, 0xBD};
+    NSUInteger i = 0;
+    while (i < length) {
+        NSUInteger start = i;
+        uint8_t lead = bytes[i];
+        if (lead <= 0x7F) {
+            [output appendBytes:&bytes[i] length:1];
+            i++;
+            continue;
+        }
+        NSUInteger needed = 0;
+        uint8_t lower = 0x80;
+        uint8_t upper = 0xBF;
+        if (lead >= 0xC2 && lead <= 0xDF) {
+            needed = 1;
+        } else if (lead >= 0xE0 && lead <= 0xEF) {
+            if (lead == 0xE0) lower = 0xA0;
+            if (lead == 0xED) upper = 0x9F;
+            needed = 2;
+        } else if (lead >= 0xF0 && lead <= 0xF4) {
+            if (lead == 0xF0) lower = 0x90;
+            if (lead == 0xF4) upper = 0x8F;
+            needed = 3;
+        } else {
+            [output appendBytes:kReplacement length:sizeof(kReplacement)];
+            i++;
+            continue;
+        }
+        NSUInteger j = i + 1;
+        BOOL valid = YES;
+        for (NSUInteger seen = 0; seen < needed; seen++, j++) {
+            if (j >= length) {
+                if (!flush) {
+                    return start;
+                }
+                [output appendBytes:kReplacement length:sizeof(kReplacement)];
+                return length;
+            }
+            uint8_t continuation = bytes[j];
+            if (continuation < lower || continuation > upper) {
+                valid = NO;
+                break;
+            }
+            lower = 0x80;
+            upper = 0xBF;
+        }
+        if (valid) {
+            [output appendBytes:&bytes[start] length:j - start];
+        } else {
+            // The offending byte is not consumed; it may start the next sequence.
+            [output appendBytes:kReplacement length:sizeof(kReplacement)];
+        }
+        i = j;
+    }
+    return length;
+}
+
 #pragma mark - KRStreamSessionDelegate
 
 @interface KRStreamSessionDelegate : NSObject <NSURLSessionDataDelegate>
@@ -67,20 +131,12 @@
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
     if (!self.callback) return;
-    [self.pendingUTF8Data appendData:data];
-    NSString *text = nil;
-    NSUInteger decodableLength = self.pendingUTF8Data.length;
-    // A UTF-8 scalar is at most four bytes. If a network chunk ends in the middle
-    // of one, retain only that incomplete suffix for the next delegate callback.
-    for (NSUInteger trailingBytes = 0; trailingBytes <= MIN((NSUInteger)3, self.pendingUTF8Data.length); trailingBytes++) {
-        decodableLength = self.pendingUTF8Data.length - trailingBytes;
-        NSData *candidate = [self.pendingUTF8Data subdataWithRange:NSMakeRange(0, decodableLength)];
-        text = [[NSString alloc] initWithData:candidate encoding:NSUTF8StringEncoding];
-        if (text) break;
-    }
-    if (!text || decodableLength == 0) return;
-    NSData *suffix = [self.pendingUTF8Data subdataWithRange:NSMakeRange(decodableLength, self.pendingUTF8Data.length - decodableLength)];
-    self.pendingUTF8Data = [suffix mutableCopy];
+    NSString *text = [self decodeUTF8Data:data flush:NO];
+    if (text.length == 0) return;
+    [self emitDataText:text];
+}
+
+- (void)emitDataText:(NSString *)text {
     NSMutableDictionary *eventData = [@{
         @"event": @"data",
         @"data": text
@@ -94,21 +150,36 @@
     self.callback([eventData copy]);
 }
 
+/// Only the incomplete trailing sequence (at most 3 bytes) is kept across callbacks, so invalid
+/// bytes can neither block later output nor make the buffer grow for the lifetime of the stream.
+- (NSString *)decodeUTF8Data:(NSData *)data flush:(BOOL)flush {
+    if (data.length > 0) {
+        [self.pendingUTF8Data appendData:data];
+    }
+    NSUInteger length = self.pendingUTF8Data.length;
+    if (length == 0) return @"";
+    NSMutableData *sanitized = [NSMutableData dataWithCapacity:length];
+    NSUInteger consumed = KRAppendSanitizedUTF8(self.pendingUTF8Data.bytes, length, flush, sanitized);
+    [self.pendingUTF8Data replaceBytesInRange:NSMakeRange(0, consumed) withBytes:NULL length:0];
+    if (sanitized.length == 0) return @"";
+    return [[NSString alloc] initWithData:sanitized encoding:NSUTF8StringEncoding] ?: @"";
+}
+
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
     if (self.callback) {
         if (error) {
             if (error.code != NSURLErrorCancelled) {
+                BOOL isTimeout = error.code == NSURLErrorTimedOut;
                 self.callback(@{
                     @"event": @"error",
-                    @"data": error.localizedDescription ?: @"unknown error",
-                    @"statusCode": @(-1000)
+                    @"data": isTimeout ? @"request timeout" : (error.localizedDescription ?: @"unknown error"),
+                    @"statusCode": @(isTimeout ? -1001 : -1000)
                 });
             }
         } else {
-            if (self.pendingUTF8Data.length > 0) {
-                NSString *tail = [[NSString alloc] initWithData:self.pendingUTF8Data encoding:NSUTF8StringEncoding] ?: @"\uFFFD";
-                self.callback(@{ @"event": @"data", @"data": tail });
-                [self.pendingUTF8Data setLength:0];
+            NSString *tail = [self decodeUTF8Data:nil flush:YES];
+            if (tail.length > 0) {
+                [self emitDataText:tail];
             }
             self.callback(@{
                 @"event": @"complete",
@@ -256,6 +327,45 @@
         _activeStreamSessions = [NSMutableDictionary dictionary];
     }
     return _activeStreamSessions;
+}
+
+- (NSString *)kr_formURLEncodedComponent:(NSString *)string {
+    static NSCharacterSet *allowed = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // application/x-www-form-urlencoded keeps only ASCII alphanumerics and "*-._" unescaped.
+        allowed = [NSCharacterSet characterSetWithCharactersInString:
+                   @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._ "];
+    });
+    NSString *encoded = [string stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
+    return [encoded stringByReplacingOccurrencesOfString:@" " withString:@"+"];
+}
+
+- (NSString *)kr_formValueString:(id)value {
+    if (!value || value == [NSNull null]) {
+        return @"";
+    }
+    if ([value isKindOfClass:[NSString class]]) {
+        return value;
+    }
+    if ([value isKindOfClass:[NSNumber class]] && CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID()) {
+        return [value boolValue] ? @"true" : @"false";
+    }
+    if ([value isKindOfClass:[NSDictionary class]] || [value isKindOfClass:[NSArray class]]) {
+        NSData *json = [NSJSONSerialization dataWithJSONObject:value options:0 error:nil];
+        return json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @"";
+    }
+    return [value description];
+}
+
+- (NSString *)kr_formURLEncodedStringFromParams:(NSDictionary *)params {
+    NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:params.count];
+    for (id key in params) {
+        NSString *name = [self kr_formURLEncodedComponent:[key description]];
+        NSString *value = [self kr_formURLEncodedComponent:[self kr_formValueString:params[key]]];
+        [parts addObject:[NSString stringWithFormat:@"%@=%@", name, value]];
+    }
+    return [parts componentsJoinedByString:@"&"];
 }
 
 /// 统一清理指定 requestId 关联的 session/task/delegate。
@@ -425,6 +535,9 @@
 
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];
     request.HTTPMethod = method ?: @"GET";
+    // NSURLSession treats timeoutInterval as an idle timeout (reset whenever data arrives), which
+    // is the cross-platform stream contract; the total duration is bounded only by
+    // timeoutIntervalForResource (7 days by default).
     request.timeoutInterval = timeout > 0 ? timeout : 30;
 
     if (cookie.length > 0) {
@@ -436,17 +549,20 @@
         }
     }
 
-    if ([method isEqualToString:@"POST"] && requestParam) {
-        NSString *contentType = headers[@"Content-Type"] ?: headers[@"content-type"] ?: @"";
-        if ([contentType containsString:@"application/json"]) {
-            NSData *body = [NSJSONSerialization dataWithJSONObject:requestParam options:0 error:nil];
-            request.HTTPBody = body;
+    if ([method isEqualToString:@"POST"] && [requestParam isKindOfClass:[NSDictionary class]]) {
+        // Same body contract as Android/HarmonyOS/Web: JSON when Content-Type contains "json",
+        // otherwise UTF-8 application/x-www-form-urlencoded.
+        NSString *contentType = [request valueForHTTPHeaderField:@"Content-Type"];
+        if ([contentType rangeOfString:@"json" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            // Keep the original key order, as httpRequest: does, so request signatures still match.
+            NSString *rawParamStr = [self kr_extractJsonObjectForKey:@"param" fromString:args[KR_PARAM_KEY]];
+            request.HTTPBody = rawParamStr ? [rawParamStr dataUsingEncoding:NSUTF8StringEncoding]
+                                           : [NSJSONSerialization dataWithJSONObject:requestParam options:0 error:nil];
         } else {
-            NSMutableArray *parts = [NSMutableArray array];
-            for (NSString *key in requestParam) {
-                [parts addObject:[NSString stringWithFormat:@"%@=%@", key, requestParam[key]]];
+            if (contentType.length == 0) {
+                [request setValue:@"application/x-www-form-urlencoded; charset=UTF-8" forHTTPHeaderField:@"Content-Type"];
             }
-            request.HTTPBody = [[parts componentsJoinedByString:@"&"] dataUsingEncoding:NSUTF8StringEncoding];
+            request.HTTPBody = [[self kr_formURLEncodedStringFromParams:requestParam] dataUsingEncoding:NSUTF8StringEncoding];
         }
     }
 

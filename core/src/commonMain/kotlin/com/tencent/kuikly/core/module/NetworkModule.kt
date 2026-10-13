@@ -27,9 +27,15 @@ typealias NMDataResponse = (data: ByteArray, success: Boolean, errorMsg: String,
 /**
  * SSE 流式请求事件回调。
  *
- * @param event 事件类型：
- * @param data 事件数据：
- * @param response 网络响应信息（headers、statusCode），仅在首次回调中有值，后续为 null
+ * 每个请求最多收到一次终态事件（complete 或 error），之后不再回调；主动调用
+ * [NetworkModule.StreamRequestHandle.close] 后不会再收到任何事件。
+ *
+ * @param event 事件类型："data" | "complete" | "error"
+ * @param data "data" 时为本次收到的 UTF-8 文本块（按网络分片切分，不保证是完整的 SSE 事件，
+ *             非法字节会被替换为 U+FFFD）；"complete" 时为空字符串；"error" 时为错误描述
+ * @param response 首次 "data" 事件携带响应头与状态码；HTTP 错误导致的 "error" 事件同样携带；
+ *                 其余事件为 null。鸿蒙平台在数据到达时无法取得状态码，首次 "data" 的
+ *                 statusCode 为 null，非 2xx 响应以 "error" 事件的 statusCode 为准
  */
 typealias NMStreamEventCallback = (event: String, data: String, response: NetworkResponse?) -> Unit
 
@@ -229,10 +235,12 @@ class NetworkModule : Module() {
      * SSE 流式 HTTP 请求。
      * @param url 请求 URL
      * @param isPost 是否为 POST 请求
-     * @param param 请求参数（GET 时拼接到 URL，POST 时作为 body）
+     * @param param 请求参数。GET 时拼接到 URL；POST 时作为 body：Content-Type 含 json 时序列化为 JSON，
+     *              否则按 UTF-8 application/x-www-form-urlencoded 编码（未指定 Content-Type 时自动补齐）
      * @param headers 自定义请求头
      * @param cookie Cookie 字符串
-     * @param timeout 超时时间（秒）
+     * @param timeout 连接超时与空闲超时（秒）：连续 timeout 秒没有收到数据即以 error 结束，收到数据会重新计时，
+     *                不限制持续推送的总时长；<= 0 时使用默认值 30 秒
      * @param eventCallback 流式事件回调
      * @return StreamRequestHandle 流式请求句柄
      */
@@ -305,7 +313,7 @@ class NetworkModule : Module() {
     }
 
     /**
-     * 关闭 SSE 连接。
+     * 流式请求句柄，用于主动关闭 SSE 连接。
      */
     class StreamRequestHandle internal constructor(
         private val module: NetworkModule,
@@ -315,7 +323,7 @@ class NetworkModule : Module() {
         private var closed = false
 
         /**
-         * 关闭流式连接并释放资源。
+         * 关闭流式连接并释放资源。可重复调用；关闭后不会再回调任何事件（包括 complete/error）。
          */
         fun close() {
             if (closed) return

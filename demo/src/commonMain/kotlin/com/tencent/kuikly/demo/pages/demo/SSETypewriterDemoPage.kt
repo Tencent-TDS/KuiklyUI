@@ -3,6 +3,7 @@ package com.tencent.kuikly.demo.pages.demo
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.NetworkModule
 import com.tencent.kuikly.core.module.NetworkResponse
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
@@ -34,12 +35,13 @@ internal class SSETypewriterDemoPage : BasePager() {
     private var currentHandle: NetworkModule.StreamRequestHandle? = null
     /** 已收到的数据块数量 */
     private var chunkCount by observable(0)
-    /** 尚未收到 SSE 空行分隔符的跨网络块数据。 */
-    private var pendingSSEData = ""
+    /** 跨网络块的增量 SSE 解析器 */
+    private val sseParser = SSEEventParser { consumeSSEMessage(it) }
     /** 用户输入的提问内容 */
     private var userPrompt by observable("请用简洁的语言介绍一下你自己，以及你能做什么？")
 
     companion object {
+        private const val TAG = "SSETypewriterDemoPage"
         // 使用前需填写以下参数
         /** API 地址（兼容 OpenAI 格式） */
         private const val API_URL = "xxx"
@@ -273,7 +275,7 @@ internal class SSETypewriterDemoPage : BasePager() {
      */
     private fun startStream() {
         displayText = ""
-        pendingSSEData = ""
+        sseParser.reset()
         chunkCount = 0
         statusText = "正在连接..."
         isStreaming = true
@@ -322,48 +324,37 @@ internal class SSETypewriterDemoPage : BasePager() {
             "data" -> {
                 chunkCount++
                 if (response != null) {
-                    statusText = "已连接 (HTTP ${response.statusCode})，接收中..."
+                    // 部分平台（如鸿蒙）在数据到达时还拿不到状态码，此时 statusCode 为 null
+                    statusText = response.statusCode?.let { "已连接 (HTTP $it)，接收中..." } ?: "已连接，接收中..."
                 }
-
-                pendingSSEData += data.replace("\r\n", "\n")
-                var separatorIndex = pendingSSEData.indexOf("\n\n")
-                while (separatorIndex >= 0) {
-                    consumeSSEMessage(pendingSSEData.substring(0, separatorIndex))
-                    pendingSSEData = pendingSSEData.substring(separatorIndex + 2)
-                    separatorIndex = pendingSSEData.indexOf("\n\n")
-                }
+                sseParser.feed(data)
             }
             "complete" -> {
-                if (pendingSSEData.isNotBlank()) {
-                    consumeSSEMessage(pendingSSEData)
-                    pendingSSEData = ""
-                }
+                // 按 SSE 规范，流结束时未以空行结束的事件直接丢弃
+                sseParser.reset()
                 statusText = "回复完成，共收到 $chunkCount 块数据"
                 isStreaming = false
                 currentHandle = null
             }
             "error" -> {
-                pendingSSEData = ""
-                statusText = "错误: $data"
+                sseParser.reset()
+                val code = response?.statusCode?.let { " (HTTP $it)" } ?: ""
+                statusText = "错误$code: $data"
                 isStreaming = false
                 currentHandle = null
             }
         }
     }
 
-    private fun consumeSSEMessage(message: String) {
-        val payload = message.lineSequence()
-            .filter { it.startsWith("data:") }
-            .joinToString("\n") { it.removePrefix("data:").trimStart() }
-            .ifEmpty { message.trim().takeIf { it.startsWith("{") } ?: return }
+    private fun consumeSSEMessage(payload: String) {
         if (payload == "[DONE]") return
         try {
             val choices = JSONObject(payload).optJSONArray("choices") ?: return
             val delta = choices.optJSONObject(0)?.optJSONObject("delta")
             val content = delta?.optString("content", "") ?: ""
             if (content.isNotEmpty()) displayText += content
-        } catch (_: Exception) {
-            // Ignore malformed terminal payloads; incomplete chunks remain buffered above.
+        } catch (e: Exception) {
+            KLog.e(TAG, "malformed SSE event: $payload, error: $e")
         }
     }
 
@@ -373,7 +364,7 @@ internal class SSETypewriterDemoPage : BasePager() {
     private fun stopStream() {
         currentHandle?.close()
         currentHandle = null
-        pendingSSEData = ""
+        sseParser.reset()
         statusText = "已停止，共收到 $chunkCount 块数据"
         isStreaming = false
     }
@@ -383,8 +374,73 @@ internal class SSETypewriterDemoPage : BasePager() {
      */
     private fun clearAll() {
         displayText = ""
-        pendingSSEData = ""
+        sseParser.reset()
         chunkCount = 0
         statusText = "就绪"
+    }
+}
+
+/**
+ * 增量 SSE 解析器，按 WHATWG event-stream 规则处理任意切分的文本块：
+ * 行结束符可以是 CRLF、LF 或单独的 CR，且 CRLF 可能被拆到两个块中；
+ * 遇到空行才派发事件，`data:` 后只移除一个可选空格。
+ * 本 Demo 只关心 data 字段，event/id/retry 字段被忽略。
+ */
+internal class SSEEventParser(private val onEvent: (data: String) -> Unit) {
+    private val line = StringBuilder()
+    private val data = StringBuilder()
+    private var hasData = false
+    private var lastCharWasCR = false
+
+    fun feed(chunk: String) {
+        for (c in chunk) {
+            if (lastCharWasCR) {
+                lastCharWasCR = false
+                if (c == '\n') continue
+            }
+            when (c) {
+                '\r' -> {
+                    lastCharWasCR = true
+                    processLine()
+                }
+                '\n' -> processLine()
+                else -> line.append(c)
+            }
+        }
+    }
+
+    fun reset() {
+        line.clear()
+        data.clear()
+        hasData = false
+        lastCharWasCR = false
+    }
+
+    private fun processLine() {
+        if (line.isEmpty()) {
+            dispatch()
+            return
+        }
+        val text = line.toString()
+        line.clear()
+        if (text.startsWith(":")) return
+        val colon = text.indexOf(':')
+        val field = if (colon >= 0) text.substring(0, colon) else text
+        var value = if (colon >= 0) text.substring(colon + 1) else ""
+        if (value.startsWith(" ")) value = value.substring(1)
+        if (field == "data") {
+            if (hasData) data.append('\n')
+            data.append(value)
+            hasData = true
+        }
+    }
+
+    private fun dispatch() {
+        if (hasData) {
+            val payload = data.toString()
+            data.clear()
+            hasData = false
+            onEvent(payload)
+        }
     }
 }

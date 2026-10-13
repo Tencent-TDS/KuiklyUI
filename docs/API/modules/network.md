@@ -97,9 +97,9 @@ HTTP请求模块
 
 ## httpStreamRequest方法
 
-发送 SSE（Server-Sent Events）流式 HTTP 请求。适用于大模型流式输出、实时数据推送等场景。
+流式 HTTP 文本接口：发起 HTTP 请求，在响应体到达过程中按网络分片逐块回调 UTF-8 文本，无需等待完整响应。适用于大模型流式输出、实时数据推送等场景。
 
-服务端通过 SSE 协议持续推送数据，客户端通过事件回调逐步接收，无需等待完整响应。
+该接口只负责传输文本，**不解析任何上层协议**：`data` 事件给出的是文本分片（chunk），不是完整的 SSE 事件、JSON 行或其他消息。对接 SSE（Server-Sent Events）、NDJSON 等协议时，需要业务侧将分片按顺序拼接后自行做增量解析。
 
 <br/>
 
@@ -129,6 +129,42 @@ HTTP请求模块
 - **空响应**：2xx 且响应体为空时，直接收到 `complete`，不会收到 `data` 事件（因此也拿不到 `response`）。
 - **并发**：Android 端同时进行的流式请求最多 8 个，超出时立即以 `error` 返回，不会占用普通网络请求的线程池。
 - **平台支持**：目前仅支持 Android、iOS、鸿蒙，Web 与小程序暂不支持。
+
+**示例：对接 SSE 接口**
+
+下面的示例把分片交给业务侧的 SSE 解析器，解析出完整事件后再处理。`SSEEventParser` 的完整实现见 Demo 中的 `SSETypewriterDemoPage.kt`，它按 SSE 规范处理跨分片的换行（含被拆开的 `\r\n`），遇到空行才派发一条事件。
+
+```kotlin
+val parser = SSEEventParser { eventData ->
+    // eventData 是一条完整 SSE 事件中 data 字段的内容
+    if (eventData != "[DONE]") {
+        handleMessage(JSONObject(eventData))
+    }
+}
+
+val handle = acquireModule<NetworkModule>(NetworkModule.MODULE_NAME).httpStreamRequest(
+    url = "https://example.com/v1/chat/completions",
+    isPost = true,
+    param = requestBody,
+    headers = JSONObject().apply {
+        put("Content-Type", "application/json")
+        put("Accept", "text/event-stream")
+    },
+    timeout = 60
+) { event, data, response ->
+    when (event) {
+        "data" -> parser.feed(data) // data 只是文本分片，可能是半条或多条事件
+        "complete" -> parser.reset()
+        "error" -> {
+            parser.reset()
+            showError(data, response?.statusCode)
+        }
+    }
+}
+
+// 页面退出或用户取消时主动关闭，关闭后不会再收到任何事件
+handle.close()
+```
 
 ---
 
@@ -172,12 +208,12 @@ NMStreamEventCallback = (event: String, data: String, response: NetworkResponse?
 
 | 事件值 | 描述 |
 |:------|:-----|
-| `data` | 收到服务端推送的数据块。首次回调时 `response` 包含 HTTP 响应头和状态码 |
-| `complete` | 流式传输正常结束。`data` 为空字符串 |
+| `data` | 收到一段响应文本分片，`data` 为该分片内容。首次回调时 `response` 包含 HTTP 响应头和状态码 |
+| `complete` | 响应体已全部接收，请求正常结束。`data` 为空字符串 |
 | `error` | 请求发生错误。`data` 包含错误信息描述；HTTP 非 2xx 时 `response` 携带响应头和状态码 |
 
 ::: tip 注意
-- `data` 事件中的文本按网络分片切分，**不保证是一条完整的 SSE 事件**，一个分片可能包含半条或多条事件，行结束符（`\r\n`）也可能被拆到两个分片中。业务需自行做增量解析，可参考 Demo 中的 `SSEEventParser`。
+- `data` 事件中的文本按网络分片切分，分片边界由网络决定，与业务消息边界无关：一个分片可能包含半条或多条消息，行结束符（`\r\n`）也可能被拆到两个分片中。请不要对单个分片直接做 JSON 解析或按行切分，应按顺序拼接后增量解析，SSE 可参考 Demo 中的 `SSEEventParser`。
 - 响应按 UTF-8 解码，多字节字符跨分片时会被正确拼接；非法字节会被替换为 `U+FFFD`。
 - 鸿蒙平台在数据到达时无法取得 HTTP 状态码，首次 `data` 事件中 `response.statusCode` 为 null；非 2xx 响应的错误响应体可能先以 `data` 事件到达，最终以携带状态码的 `error` 事件结束，请以终态事件为准。
 :::

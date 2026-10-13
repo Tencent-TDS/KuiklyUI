@@ -329,16 +329,47 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
     return _activeStreamSessions;
 }
 
-- (NSString *)kr_formURLEncodedComponent:(NSString *)string {
+/// Percent-encodes everything except ASCII alphanumerics and "*-._", so a literal "+" always becomes
+/// "%2B". Spaces become "+" for form bodies and "%20" for URL queries, matching Android.
+- (NSString *)kr_percentEncode:(NSString *)string spaceAsPlus:(BOOL)spaceAsPlus {
     static NSCharacterSet *allowed = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        // application/x-www-form-urlencoded keeps only ASCII alphanumerics and "*-._" unescaped.
         allowed = [NSCharacterSet characterSetWithCharactersInString:
-                   @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._ "];
+                   @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._"];
     });
     NSString *encoded = [string stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
-    return [encoded stringByReplacingOccurrencesOfString:@" " withString:@"+"];
+    return spaceAsPlus ? [encoded stringByReplacingOccurrencesOfString:@"%20" withString:@"+"] : encoded;
+}
+
+/// Validates the URL (http/https with a host) and appends GET params to its query. Query values
+/// are percent-encoded by hand because NSURLQueryItem leaves a literal "+", which form-style
+/// query decoders on the server turn into a space. Returns nil if the URL is invalid.
+- (NSURL *)kr_streamRequestURLWithString:(id)urlString method:(NSString *)method params:(id)params {
+    if (![urlString isKindOfClass:[NSString class]] || [(NSString *)urlString length] == 0) {
+        return nil;
+    }
+    NSURLComponents *components = [NSURLComponents componentsWithString:urlString];
+    NSString *scheme = components.scheme.lowercaseString;
+    if (!components || !([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]) ||
+        components.host.length == 0) {
+        return nil;
+    }
+    if ([[method uppercaseString] isEqualToString:@"GET"] && [params isKindOfClass:[NSDictionary class]] &&
+        [(NSDictionary *)params count] > 0) {
+        NSMutableArray<NSString *> *parts = [NSMutableArray array];
+        NSString *existingQuery = components.percentEncodedQuery;
+        if (existingQuery.length > 0) {
+            [parts addObject:existingQuery];
+        }
+        for (id key in (NSDictionary *)params) {
+            NSString *name = [self kr_percentEncode:[key description] spaceAsPlus:NO];
+            NSString *value = [self kr_percentEncode:[self kr_formValueString:params[key]] spaceAsPlus:NO];
+            [parts addObject:[NSString stringWithFormat:@"%@=%@", name, value]];
+        }
+        components.percentEncodedQuery = [parts componentsJoinedByString:@"&"];
+    }
+    return components.URL;
 }
 
 - (NSString *)kr_formValueString:(id)value {
@@ -361,8 +392,8 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
 - (NSString *)kr_formURLEncodedStringFromParams:(NSDictionary *)params {
     NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:params.count];
     for (id key in params) {
-        NSString *name = [self kr_formURLEncodedComponent:[key description]];
-        NSString *value = [self kr_formURLEncodedComponent:[self kr_formValueString:params[key]]];
+        NSString *name = [self kr_percentEncode:[key description] spaceAsPlus:YES];
+        NSString *value = [self kr_percentEncode:[self kr_formValueString:params[key]] spaceAsPlus:YES];
         [parts addObject:[NSString stringWithFormat:@"%@=%@", name, value]];
     }
     return [parts componentsJoinedByString:@"&"];
@@ -485,7 +516,7 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
 }
 
 /*
- * SSE 流式Http请求接口
+ * 流式 HTTP 文本请求接口：按网络分片回调 UTF-8 文本，不解析 SSE 等上层协议
  */
 - (void)httpStreamRequest:(NSDictionary *)args {
     NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
@@ -521,19 +552,19 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
         return;
     }
 
-    if ([[method uppercaseString] isEqualToString:@"GET"] && requestParam.count > 0) {
-        NSURLComponents *components = [NSURLComponents componentsWithString:url];
-        if (components) {
-            NSMutableArray<NSURLQueryItem *> *queryItems = [NSMutableArray arrayWithArray:components.queryItems ?: @[]];
-            for (NSString *key in requestParam) {
-                [queryItems addObject:[NSURLQueryItem queryItemWithName:key value:[requestParam[key] description]]];
-            }
-            components.queryItems = queryItems;
-            url = components.URL.absoluteString ?: url;
+    NSURL *requestURL = [self kr_streamRequestURLWithString:url method:method params:requestParam];
+    if (!requestURL) {
+        if (callback) {
+            callback(@{
+                @"event": @"error",
+                @"data": [NSString stringWithFormat:@"invalid url: %@", url],
+                @"statusCode": @(-1000)
+            });
         }
+        return;
     }
 
-    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:requestURL];
     request.HTTPMethod = method ?: @"GET";
     // NSURLSession treats timeoutInterval as an idle timeout (reset whenever data arrives), which
     // is the cross-platform stream contract; the total duration is bounded only by
@@ -576,7 +607,7 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
     //    onFinish 里对 activeStreamXXX 三个字典的读写天然串行，无需额外加锁。
     // 2. Kuikly Module 的 httpStreamRequest: / closeStreamRequest: 本身也在主线程调用，
     //    统一线程后不存在多线程并发读写 NSMutableDictionary 的隐患。
-    // 3. SSE 每帧数据量小、解码轻量（仅 initWithData:encoding:），对主线程负担可忽略；
+    // 3. 流式响应每个分片数据量通常较小、解码轻量（仅 initWithData:encoding:），对主线程负担可忽略；
     //    业务侧收到 data 事件后通常要更新 UI，本就需要主线程，避免了一次额外的线程切换。
     NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:[NSOperationQueue mainQueue]];
     NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
@@ -597,7 +628,7 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
 }
 
 /*
- * 关闭 SSE 流式请求
+ * 关闭流式请求
  */
 - (void)closeStreamRequest:(NSDictionary *)args {
     NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];

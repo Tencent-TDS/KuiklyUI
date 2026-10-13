@@ -284,7 +284,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
           // 非 2xx 响应（含 3xx / 4xx / 5xx）统一按错误处理。
           // 关于 3xx：HarmonyOS http 底层（libcurl）默认会自动跟随重定向，业务侧通常只会看到最终响应码；
           // 但 requestInStream 未开放 FOLLOWLOCATION 选项，若底层未跟随（如跨协议 http→https 被拒、
-          // 或 Location 头缺失），3xx 会直接透传到这里——此时对 SSE 场景已无法继续流式读取，
+          // 或 Location 头缺失），3xx 会直接透传到这里——此时已无法继续流式读取，
           // 作为 error 回调给业务侧是合适的。
           this.finishStreamRequest(requestId, callback, [
             KRNetworkModule.streamEvent('error', `HTTP error ${code}`, code, responseHeaders)

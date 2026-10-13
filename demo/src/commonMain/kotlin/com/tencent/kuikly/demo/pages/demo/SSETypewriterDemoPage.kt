@@ -19,8 +19,10 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 /**
- * SSE 流式效果 Demo
- * 展示大模型逐 token 输出的效果。
+ * 流式 HTTP 文本接口 Demo：展示大模型逐 token 输出的效果。
+ *
+ * [NetworkModule.httpStreamRequest] 只按网络分片回调文本，不解析协议；
+ * 本页在业务侧用 [SSEEventParser] 把分片拼接、解析为完整的 SSE 事件后再渲染。
  */
 @Page("SSETypewriterDemoPage")
 internal class SSETypewriterDemoPage : BasePager() {
@@ -35,7 +37,7 @@ internal class SSETypewriterDemoPage : BasePager() {
     private var currentHandle: NetworkModule.StreamRequestHandle? = null
     /** 已收到的数据块数量 */
     private var chunkCount by observable(0)
-    /** 跨网络块的增量 SSE 解析器 */
+    /** 业务侧 SSE 解析器：输入文本分片，输出完整事件 */
     private val sseParser = SSEEventParser { consumeSSEMessage(it) }
     /** 用户输入的提问内容 */
     private var userPrompt by observable("请用简洁的语言介绍一下你自己，以及你能做什么？")
@@ -308,14 +310,15 @@ internal class SSETypewriterDemoPage : BasePager() {
                 },
                 timeout = 60
             ) { event, data, response ->
-                handleSSEEvent(event, data, response)
+                handleStreamEvent(event, data, response)
             }
     }
 
     /**
-     * 处理 SSE 流式事件
+     * 处理流式请求事件。"data" 只是文本分片，交给 [sseParser] 拼接解析，
+     * 解析出完整 SSE 事件后由 [consumeSSEMessage] 处理。
      */
-    private fun handleSSEEvent(
+    private fun handleStreamEvent(
         event: String,
         data: String,
         response: NetworkResponse?
@@ -381,7 +384,7 @@ internal class SSETypewriterDemoPage : BasePager() {
 }
 
 /**
- * 增量 SSE 解析器，按 WHATWG event-stream 规则处理任意切分的文本块：
+ * 业务侧增量 SSE 解析器，把 httpStreamRequest 回调的文本分片按 WHATWG event-stream 规则解析为完整事件：
  * 行结束符可以是 CRLF、LF 或单独的 CR，且 CRLF 可能被拆到两个块中；
  * 遇到空行才派发事件，`data:` 后只移除一个可选空格。
  * 本 Demo 只关心 data 字段，event/id/retry 字段被忽略。
@@ -391,9 +394,15 @@ internal class SSEEventParser(private val onEvent: (data: String) -> Unit) {
     private val data = StringBuilder()
     private var hasData = false
     private var lastCharWasCR = false
+    private var atStreamStart = true
 
     fun feed(chunk: String) {
         for (c in chunk) {
+            if (atStreamStart) {
+                // 规范要求忽略整条流开头的一个 BOM（解码器可能把它保留在首个分片里）
+                atStreamStart = false
+                if (c == '\uFEFF') continue
+            }
             if (lastCharWasCR) {
                 lastCharWasCR = false
                 if (c == '\n') continue
@@ -414,6 +423,7 @@ internal class SSEEventParser(private val onEvent: (data: String) -> Unit) {
         data.clear()
         hasData = false
         lastCharWasCR = false
+        atStreamStart = true
     }
 
     private fun processLine() {

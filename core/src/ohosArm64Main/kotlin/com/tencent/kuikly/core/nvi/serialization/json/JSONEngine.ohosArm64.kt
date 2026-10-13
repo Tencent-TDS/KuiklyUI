@@ -17,8 +17,22 @@ package com.tencent.kuikly.core.nvi.serialization.json
 
 actual object JSONEngine {
 
+    /**
+     * 解析实现开关：true 用 K/N 专项优化的 [JSONTokenerOhos]，false 用 commonMain
+     * 的 [JSONTokener]。默认 false（legacy）。两者解析语义一致（由 JsonPerfTestPage
+     * 的一致性用例集守护），可随时整体切换：线上疑似解析问题时用它快速排除优化版，
+     * 做 A/B 时用它在同一个包里对比两条实现。
+     *
+     * 非线程安全，且不保证切换瞬间在途的解析用哪一份实现，只应在初始化阶段或测试中改。
+     */
+    var useOptimizedTokener: Boolean = false
+
     actual fun parse(jsonStr: String): Any? {
-        return JSONTokener(jsonStr).nextValue()
+        return if (useOptimizedTokener) {
+            JSONTokenerOhos(jsonStr).nextValue()
+        } else {
+            JSONTokener(jsonStr).nextValue()
+        }
     }
 
     actual fun stringify(jsonObject: JSONObject) = commonStringify(jsonObject)

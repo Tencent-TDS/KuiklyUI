@@ -221,7 +221,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       const state: StreamRequestState = { httpRequest: currentRequest, idleTimer: -1 };
       this.activeStreamRequests.set(requestId, state);
 
-      // 与 Android/iOS/Web 一致：timeout 表示“连续无数据”的空闲超时，收到数据即重新计时，
+      // 与 Android/iOS 一致：timeout 表示“连续无数据”的空闲超时，收到数据即重新计时，
       // 不限制持续推送的总时长。
       const armIdleTimer = () => {
         clearTimeout(state.idleTimer);

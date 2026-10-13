@@ -232,7 +232,7 @@ class NetworkModule : Module() {
     }
 
     /**
-     * SSE 流式 HTTP 请求。
+     * SSE 流式 HTTP 请求。目前仅支持 Android、iOS、鸿蒙。
      * @param url 请求 URL
      * @param isPost 是否为 POST 请求
      * @param param 请求参数。GET 时拼接到 URL；POST 时作为 body：Content-Type 含 json 时序列化为 JSON，

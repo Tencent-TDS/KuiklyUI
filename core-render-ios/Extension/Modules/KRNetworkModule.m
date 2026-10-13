@@ -19,7 +19,7 @@
 #pragma mark - Incremental UTF-8 decoding
 
 /// Validates UTF-8 following the WHATWG decoder: every invalid sequence becomes U+FFFD, matching
-/// TextDecoder (Web/HarmonyOS) and InputStreamReader (Android). Appends the sanitized bytes to
+/// util.TextDecoder (HarmonyOS) and InputStreamReader (Android). Appends the sanitized bytes to
 /// `output` and returns how many input bytes were consumed; when `flush` is NO, a trailing
 /// incomplete sequence (at most 3 bytes) is left unconsumed for the next chunk.
 static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length, BOOL flush, NSMutableData *output) {
@@ -550,10 +550,13 @@ static NSUInteger KRAppendSanitizedUTF8(const uint8_t *bytes, NSUInteger length,
     }
 
     if ([method isEqualToString:@"POST"] && [requestParam isKindOfClass:[NSDictionary class]]) {
-        // Same body contract as Android/HarmonyOS/Web: JSON when Content-Type contains "json",
+        // Same body contract as Android/HarmonyOS: JSON when Content-Type contains "json",
         // otherwise UTF-8 application/x-www-form-urlencoded.
         NSString *contentType = [request valueForHTTPHeaderField:@"Content-Type"];
-        if ([contentType rangeOfString:@"json" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+        // Messaging nil returns a zeroed NSRange (location 0), so the length check is required.
+        BOOL isJSON = contentType.length > 0 &&
+            [contentType rangeOfString:@"json" options:NSCaseInsensitiveSearch].location != NSNotFound;
+        if (isJSON) {
             // Keep the original key order, as httpRequest: does, so request signatures still match.
             NSString *rawParamStr = [self kr_extractJsonObjectForKey:@"param" fromString:args[KR_PARAM_KEY]];
             request.HTTPBody = rawParamStr ? [rawParamStr dataUsingEncoding:NSUTF8StringEncoding]

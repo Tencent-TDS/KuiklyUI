@@ -126,6 +126,11 @@ class KRRenderView : public IKRRenderView {
     KRRenderCallback GetArgCallback(std::string callbackId, bool &arg_prefer_raw_napi_value);
 
     /**
+     * 释放callback_id对应的Callback（含keepAlive Callback）
+     */
+    void RemoveArgCallback(const std::string &callbackId);
+
+    /**
      * 派发页面加载初始化事件
      * @param state
      */

@@ -161,11 +161,26 @@ void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t
 void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_t arg_size) {
     auto pager_id = KRRenderValue::Make(env, args[0])->toString();
     auto callback_id = KRRenderValue::Make(env, args[2])->toString();
+    // args[4] 为 true：本次回调后释放该 Callback（含 keepAlive）；此时 data 为 null 表示只释放、不回调
+    bool release = false;
+    bool release_only = false;
+    if (arg_size > 4) {
+        auto release_value = KRRenderValue::Make(env, args[4]);
+        release = release_value->isBool() && release_value->toBool();
+    }
+    if (release) {
+        napi_valuetype data_type = napi_undefined;
+        napi_typeof(env, args[3], &data_type);
+        release_only = data_type == napi_null || data_type == napi_undefined;
+    }
     auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
     if (renderView != nullptr) {
         bool arg_prefer_raw_napi_value = false;
         auto callback = renderView->GetArgCallback(callback_id, arg_prefer_raw_napi_value);
-        if (callback != nullptr) {
+        if (release) {
+            renderView->RemoveArgCallback(callback_id);
+        }
+        if (callback != nullptr && !release_only) {
             std::shared_ptr<KRRenderValue> data;
             if (arg_prefer_raw_napi_value) {
                 data = KRRenderValue::Make(NapiValue(env, args[3]));

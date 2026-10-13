@@ -258,7 +258,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 }
             } else {
                 errorStream = conn.errorStream
-                val errorMsg = readInputStreamAsString(errorStream)
+                val errorMsg = readStreamErrorBody(errorStream).ifEmpty { "HTTP error $responseCode" }
                 if (claimStreamTerminal(request)) {
                     callback?.invoke(
                         mapOf(
@@ -292,6 +292,27 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 KuiklyRenderLog.e(MODULE_NAME, "Stream request close error: $e")
             }
         }
+    }
+
+    /**
+     * Reads at most [MAX_STREAM_ERROR_BODY_BYTES] of an HTTP error body. A read failure only
+     * truncates the body, so the caller still reports the status code and headers it already has.
+     */
+    private fun readStreamErrorBody(inputStream: InputStream?): String {
+        inputStream ?: return ""
+        val output = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(4096)
+        try {
+            while (output.size() < MAX_STREAM_ERROR_BODY_BYTES) {
+                val toRead = minOf(buffer.size, MAX_STREAM_ERROR_BODY_BYTES - output.size())
+                val len = inputStream.read(buffer, 0, toRead)
+                if (len == -1) break
+                output.write(buffer, 0, len)
+            }
+        } catch (e: IOException) {
+            KuiklyRenderLog.e(MODULE_NAME, "Stream error body read error: $e")
+        }
+        return String(output.toByteArray(), Charsets.UTF_8)
     }
 
     private fun streamErrorEvent(message: String, statusCode: Int = STATE_CODE_UNKNOWN): Map<String, Any> {
@@ -706,6 +727,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val STATE_CODE_TIMEOUT = -1001
         private const val DEFAULT_TIMEOUT_S = 30
         private const val MAX_CONCURRENT_STREAMS = 8
+        private const val MAX_STREAM_ERROR_BODY_BYTES = 64 * 1024
         /** Room for workers of closed requests that are still blocked in DNS / connect. */
         private const val MAX_STREAM_THREADS = MAX_CONCURRENT_STREAMS * 4
         private const val TOO_MANY_STREAMS_MESSAGE =

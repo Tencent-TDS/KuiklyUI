@@ -62,6 +62,8 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   private static readonly DEFAULT_TIMEOUT_S = 30;
   private static readonly STATE_CODE_UNKNOWN = -1000;
   private static readonly STATE_CODE_TIMEOUT = -1001;
+  // @ohos.net.http "Operation timeout"
+  private static readonly HTTP_ERROR_CODE_TIMEOUT = 2300028;
   // readTimeout maps to CURLOPT_TIMEOUT_MS, a total-duration limit. Streams use a module-managed
   // idle timer instead, so the native limit is pushed out of reach (must stay within uint32).
   private static readonly STREAM_NATIVE_READ_TIMEOUT_MS = 0x7FFFFFFF;
@@ -292,11 +294,14 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             KRNetworkModule.streamEvent('error', `HTTP error ${code}`, code, responseHeaders)
           ]);
         }
-      }).catch((err: Error) => {
-        KRRenderLog.e("NetworkModule", `Stream request error: ${err.message}`);
+      }).catch((err: BusinessError) => {
+        KRRenderLog.e("NetworkModule", `Stream request error: ${err.code} ${err.message}`);
         // 主动关闭导致的异常（requestId 已被移除）由 finishStreamRequest 静默忽略
+        const isTimeout = err.code == KRNetworkModule.HTTP_ERROR_CODE_TIMEOUT;
         this.finishStreamRequest(requestId, callback, [
-          KRNetworkModule.streamEvent('error', err.message, KRNetworkModule.STATE_CODE_UNKNOWN)
+          isTimeout ?
+            KRNetworkModule.streamEvent('error', 'request timeout', KRNetworkModule.STATE_CODE_TIMEOUT) :
+            KRNetworkModule.streamEvent('error', err.message, KRNetworkModule.STATE_CODE_UNKNOWN)
         ]);
       });
     } catch (e) {
@@ -326,9 +331,11 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
    *   未指定 Content-Type 时显式补齐（鸿蒙默认 content-type 为 application/json，必须覆盖）。
    * - GET 参数追加到 URL 已有查询参数之后；参数值的转换规则与表单 body 相同（见 toFormValue）。
    * - 空闲超时由模块自行计时，native readTimeout 只作兜底。
+   * - 不使用 http 缓存：缓存命中时 requestInStream 只返回状态码，正文不经过 dataReceive。
    */
   private applyStreamRequestOptions(params: StreamParamsObject, url: Url.URL, options: http.HttpRequestOptions): void {
     options.readTimeout = KRNetworkModule.STREAM_NATIVE_READ_TIMEOUT_MS;
+    options.usingCache = false;
     if (params.param == null) {
       return;
     }

@@ -124,10 +124,11 @@ HTTP请求模块
 **行为约定（Android、iOS、鸿蒙一致）**
 
 - **POST body**：`headers` 中 `Content-Type`（不区分大小写）包含 `json` 时，`param` 序列化为 JSON；否则按 UTF-8 `application/x-www-form-urlencoded` 编码（`&`、`=`、`+`、空格、中文等均会被转义），未指定 `Content-Type` 时自动补齐为 `application/x-www-form-urlencoded; charset=UTF-8`。
+- **表单与 GET 参数取值**：key 与 value 均按 UTF-8 转义；`null` 编码为空值（`key=`），布尔值为 `true`/`false`，对象与数组为 JSON 字符串。GET 参数追加在 URL 已有查询参数之后。
 - **timeout**：表示连接超时与空闲超时。连续 `timeout` 秒没有收到任何数据时以 `error` 结束（`statusCode` 为 -1001）；收到数据即重新计时，因此持续推送的长连接不会因总时长被中断。
 - **终态**：每个请求最多收到一次 `complete` 或 `error`，之后不再回调。HTTP 非 2xx 一律以 `error` 结束，不会收到 `complete`。
 - **空响应**：2xx 且响应体为空时，直接收到 `complete`，不会收到 `data` 事件（因此也拿不到 `response`）。
-- **并发**：Android 端同时进行的流式请求最多 8 个，超出时立即以 `error` 返回，不会占用普通网络请求的线程池。
+- **并发**：Android 端同时进行的流式请求最多 8 个，超出时立即以 `error` 返回，不会占用普通网络请求的线程池。已 `close()` 的请求立即释放名额，即使其连接仍在后台超时退出。
 - **平台支持**：目前仅支持 Android、iOS、鸿蒙，Web 与小程序暂不支持。
 
 **示例：对接 SSE 接口**

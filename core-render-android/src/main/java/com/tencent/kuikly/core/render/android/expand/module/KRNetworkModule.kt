@@ -37,6 +37,7 @@ import java.net.URLConnection
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.Semaphore
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
@@ -53,7 +54,10 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
      * [streamRequestLock], so close() and the worker agree on whether a connection may still start.
      */
     private class StreamRequest(val requestId: String) {
-        /** Set by close/onDestroy or once a terminal event has been claimed; never cleared. */
+        /**
+         * Set by close/onDestroy or once a terminal event has been claimed; never cleared.
+         * Only flipped through [markStreamFinished], which also returns the request's stream slot.
+         */
         @Volatile
         var finished = false
         var connection: HttpURLConnection? = null
@@ -70,24 +74,19 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             METHOD_HTTP_STREAM_REQUEST -> {
                 val requestId = params.toJSONObjectSafely().optString("requestId")
                 val request = StreamRequest(requestId)
-                val requestAlreadyExists = synchronized(streamRequestLock) {
-                    if (requestId.isEmpty()) {
-                        false
-                    } else if (streamRequests.containsKey(requestId)) {
-                        true
-                    } else {
-                        streamRequests[requestId] = request
-                        false
+                val rejectReason = synchronized(streamRequestLock) {
+                    when {
+                        requestId.isEmpty() -> "requestId is empty"
+                        streamRequests.containsKey(requestId) -> "duplicate requestId"
+                        !streamSlots.tryAcquire() -> TOO_MANY_STREAMS_MESSAGE
+                        else -> {
+                            streamRequests[requestId] = request
+                            null
+                        }
                     }
                 }
-                if (requestId.isEmpty() || requestAlreadyExists) {
-                    callback?.invoke(
-                        mapOf(
-                            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                            KEY_STREAM_DATA to if (requestId.isEmpty()) "requestId is empty" else "duplicate requestId",
-                            KEY_STATUS_CODE to STATE_CODE_UNKNOWN
-                        )
-                    )
+                if (rejectReason != null) {
+                    callback?.invoke(streamErrorEvent(rejectReason))
                     return null
                 }
                 // Streams block a worker for their whole lifetime, so they must not share the
@@ -97,17 +96,8 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                         httpStreamRequest(request, params, callback)
                     }
                 } catch (e: RejectedExecutionException) {
-                    synchronized(streamRequestLock) {
-                        request.finished = true
-                        streamRequests.remove(requestId, request)
-                    }
-                    callback?.invoke(
-                        mapOf(
-                            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                            KEY_STREAM_DATA to "too many concurrent stream requests (max $MAX_CONCURRENT_STREAMS)",
-                            KEY_STATUS_CODE to STATE_CODE_UNKNOWN
-                        )
-                    )
+                    markStreamFinished(request)
+                    callback?.invoke(streamErrorEvent(TOO_MANY_STREAMS_MESSAGE))
                 }
                 null
             }
@@ -197,7 +187,8 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         var errorStream: InputStream? = null
         var connection: HttpURLConnection? = null
         try {
-            val conn = openConnection(url, method, param) as HttpURLConnection
+            val requestUrl = if (method == HTTP_METHOD_GET) createRequestUrl(url, param, nullAsEmpty = true) else url
+            val conn = URL(requestUrl).openConnection() as HttpURLConnection
             connection = conn
             // readTimeout bounds each blocking read, so this is an idle timeout rather than a
             // limit on the total stream duration.
@@ -211,10 +202,11 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             val body = prepareStreamBody(conn, method, header, param)
 
             if (!attachStreamConnection(request, conn)) return
+            // disconnect() can abort an in-flight socket connect, but not DNS resolution or a
+            // close() that lands before connect() has created its engine. Such a worker may stay
+            // blocked until connectTimeout; close() has already released its stream slot, and the
+            // flag check below keeps it from sending the request.
             conn.connect()
-            // disconnect() is a no-op until connect() has created the underlying engine, so a
-            // close() racing with connect() is only observable through the flag. Check it again
-            // before the request is written; once connected, disconnect() aborts any blocking call.
             if (request.finished) return
             if (body != null) {
                 DataOutputStream(conn.outputStream).use { out -> out.write(body) }
@@ -284,18 +276,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             if (claimStreamTerminal(request)) {
                 val isTimeout = e is SocketTimeoutException
                 callback?.invoke(
-                    mapOf(
-                        KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
-                        KEY_STREAM_DATA to if (isTimeout) "request timeout" else (e.message ?: "io exception"),
-                        KEY_STATUS_CODE to if (isTimeout) STATE_CODE_TIMEOUT else STATE_CODE_UNKNOWN
+                    streamErrorEvent(
+                        if (isTimeout) "request timeout" else (e.message ?: "io exception"),
+                        if (isTimeout) STATE_CODE_TIMEOUT else STATE_CODE_UNKNOWN
                     )
                 )
             }
         } finally {
-            synchronized(streamRequestLock) {
-                request.finished = true
-                streamRequests.remove(request.requestId, request)
-            }
+            markStreamFinished(request)
             try {
                 reader?.close()
                 errorStream?.close()
@@ -304,6 +292,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 KuiklyRenderLog.e(MODULE_NAME, "Stream request close error: $e")
             }
         }
+    }
+
+    private fun streamErrorEvent(message: String, statusCode: Int = STATE_CODE_UNKNOWN): Map<String, Any> {
+        return mapOf(
+            KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+            KEY_STREAM_DATA to message,
+            KEY_STATUS_CODE to statusCode
+        )
     }
 
     /** Returns false if the request was closed before the connection could be published. */
@@ -316,18 +312,25 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     }
 
     /** Claims the single terminal event; false if the request was closed or already terminated. */
-    private fun claimStreamTerminal(request: StreamRequest): Boolean {
+    private fun claimStreamTerminal(request: StreamRequest): Boolean = markStreamFinished(request)
+
+    /**
+     * Moves the request to its final state exactly once: unregisters it and returns its stream
+     * slot, even if the worker thread is still blocked. Returns false if it was already finished.
+     */
+    private fun markStreamFinished(request: StreamRequest): Boolean {
         synchronized(streamRequestLock) {
             if (request.finished) return false
             request.finished = true
             streamRequests.remove(request.requestId, request)
+            streamSlots.release()
             return true
         }
     }
 
     private fun cancelStreamRequest(request: StreamRequest) {
         val connection = synchronized(streamRequestLock) {
-            request.finished = true
+            markStreamFinished(request)
             request.connection
         }
         try {
@@ -541,12 +544,19 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             if (sb.isNotEmpty()) {
                 sb.append('&')
             }
-            val value = param.opt(key)?.toString() ?: ""
             sb.append(URLEncoder.encode(key, "UTF-8"))
                 .append('=')
-                .append(URLEncoder.encode(value, "UTF-8"))
+                .append(URLEncoder.encode(streamParamValue(param.opt(key)), "UTF-8"))
         }
         return sb.toString()
+    }
+
+    /**
+     * Stream form / query value rule shared with iOS and HarmonyOS: JSON null becomes an empty
+     * value (`key=`), booleans become true/false, objects and arrays become JSON text.
+     */
+    private fun streamParamValue(value: Any?): String {
+        return if (value == null || value == JSONObject.NULL) "" else value.toString()
     }
 
     private fun findHeaderIgnoreCase(header: JSONObject?, name: String): String? {
@@ -575,35 +585,40 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         }
     }
 
-    private fun createRequestUrl(url: String, param: JSONObject?): String {
-        if (param == null) {
+    /**
+     * Appends [param] to the query of [url] (before any fragment). Keys and values are UTF-8
+     * percent-encoded. [nullAsEmpty] applies the stream value rule ([streamParamValue]);
+     * ordinary requests keep sending JSON null as "null".
+     */
+    private fun createRequestUrl(url: String, param: JSONObject?, nullAsEmpty: Boolean = false): String {
+        if (param == null || param.length() == 0) {
             return url
         }
 
-        val keys = param.keys()
-        var paramsStringBuilder: java.lang.StringBuilder? = null
-        for (key in keys) {
-            var value = URLEncoder.encode(param.opt(key)?.toString())
-            if (value.isNotEmpty()) {
-                value = value.replace("+", "%20") // 安卓中，空格会被转码成"+"号，实际应该按HTTP标准转码为"%20"
+        val query = StringBuilder()
+        for (key in param.keys()) {
+            val rawValue = param.opt(key)
+            val value = if (nullAsEmpty) streamParamValue(rawValue) else rawValue?.toString() ?: ""
+            if (query.isNotEmpty()) {
+                query.append('&')
             }
-            if (paramsStringBuilder == null) {
-                paramsStringBuilder = java.lang.StringBuilder()
-                if (!url.contains("?")) {
-                    paramsStringBuilder.append("?")
-                } else {
-                    paramsStringBuilder.append("&")
-                }
-            } else {
-                paramsStringBuilder.append("&")
-            }
-            paramsStringBuilder.append(key).append("=").append(value)
+            query.append(encodeQueryComponent(key)).append('=').append(encodeQueryComponent(value))
         }
-        return if (paramsStringBuilder?.isNotEmpty() == true) {
-            url + paramsStringBuilder.toString()
-        } else {
-            url
+
+        val fragmentIndex = url.indexOf('#')
+        val base = if (fragmentIndex >= 0) url.substring(0, fragmentIndex) else url
+        val fragment = if (fragmentIndex >= 0) url.substring(fragmentIndex) else ""
+        val separator = when {
+            !base.contains('?') -> "?"
+            base.endsWith('?') || base.endsWith('&') -> ""
+            else -> "&"
         }
+        return base + separator + query + fragment
+    }
+
+    private fun encodeQueryComponent(value: String): String {
+        // URLEncoder produces form encoding; a literal '+' is already %2B, so only spaces map here.
+        return URLEncoder.encode(value, "UTF-8").replace("+", "%20")
     }
 
     private fun buildBodyParamStr(param: JSONObject?): String {
@@ -691,17 +706,24 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val STATE_CODE_TIMEOUT = -1001
         private const val DEFAULT_TIMEOUT_S = 30
         private const val MAX_CONCURRENT_STREAMS = 8
+        /** Room for workers of closed requests that are still blocked in DNS / connect. */
+        private const val MAX_STREAM_THREADS = MAX_CONCURRENT_STREAMS * 4
+        private const val TOO_MANY_STREAMS_MESSAGE =
+            "too many concurrent stream requests (max $MAX_CONCURRENT_STREAMS)"
 
         private val streamThreadIndex = AtomicInteger()
 
+        /** Process-wide limit of open (not yet finished or closed) stream requests. */
+        private val streamSlots = Semaphore(MAX_CONCURRENT_STREAMS)
+
         /**
-         * Process-wide pool for long-lived stream reads. SynchronousQueue makes requests beyond
-         * [MAX_CONCURRENT_STREAMS] fail fast instead of queueing without any timeout.
+         * Process-wide pool for long-lived stream reads. SynchronousQueue makes submissions fail
+         * fast instead of queueing without any timeout.
          */
         private val streamExecutor: ThreadPoolExecutor by lazy {
             ThreadPoolExecutor(
                 0,
-                MAX_CONCURRENT_STREAMS,
+                MAX_STREAM_THREADS,
                 30L,
                 TimeUnit.SECONDS,
                 SynchronousQueue(),

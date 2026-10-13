@@ -19,7 +19,13 @@ export type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | o
 export type KRArray = Array<KRValue | Record<string, KRValue>>
 export type KRRecord = Record<string, KRValue | KRArray | Record<string, KRValue | KRArray | Record<string, KRValue>>>
 export type KRAny = KRValue | KRArray | KRRecord | null
-export type KuiklyRenderCallback = (result: KRAny) => void;
+/**
+ * Native 回调
+ * @param result 回调数据
+ * @param release 为 true 时本次调用后释放 native 侧的回调登记（用于 keepAlive 回调的最后一次调用），
+ *                此后不应再调用该回调；result 为 null 时只释放、不回调
+ */
+export type KuiklyRenderCallback = (result: KRAny, release?: boolean) => void;
 export interface Insets {
   left: number,
   top: number,

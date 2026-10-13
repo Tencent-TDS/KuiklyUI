@@ -46,6 +46,7 @@ interface StreamEventData {
 interface StreamRequestState {
   httpRequest: http.HttpRequest;
   idleTimer: number;
+  callback: KuiklyRenderCallback | null;
 }
 
 export class KRNetworkModule extends KuiklyRenderBaseModule {
@@ -146,14 +147,15 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   /**
    * 流式请求唯一的终态入口：先完成状态转换与资源清理，再通知业务，
    * 保证每个请求最多发出一次 complete/error，且业务回调重入时不会看到中间状态。
+   * 最后一个事件携带 release 标记，释放 native 侧的 keepAlive 回调登记。
    */
   private finishStreamRequest(requestId: string, callback: KuiklyRenderCallback | null,
     events: StreamEventData[]): void {
     if (!this.finalizeStreamRequest(requestId) || !callback) {
       return;
     }
-    for (const eventData of events) {
-      callback(eventData);
+    for (let i = 0; i < events.length; i++) {
+      callback(events[i], i == events.length - 1);
     }
   }
 
@@ -179,12 +181,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       if (!requestId) {
         KRRenderLog.e("NetworkModule", "Stream request error: requestId is empty");
         if (callback) {
-          const eventData: StreamEventData = {
-            event: 'error',
-            data: 'requestId is empty',
-            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
-          };
-          callback(eventData);
+          callback(KRNetworkModule.streamEvent('error', 'requestId is empty', KRNetworkModule.STATE_CODE_UNKNOWN), true);
         }
         return;
       }
@@ -193,32 +190,37 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       if (this.activeStreamRequests.has(requestId)) {
         KRRenderLog.e("NetworkModule", `Stream request error: duplicate requestId=${requestId}`);
         if (callback) {
-          const eventData: StreamEventData = {
-            event: 'error',
-            data: 'duplicate requestId',
-            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
-          };
-          callback(eventData);
+          callback(KRNetworkModule.streamEvent('error', 'duplicate requestId', KRNetworkModule.STATE_CODE_UNKNOWN), true);
         }
         return;
       }
 
-      const urlOptions = this.createURLAndOptions(params, null);
+      // GET 查询参数由 applyStreamRequestOptions 按流式请求的取值规则拼接
+      const baseParams: ParamsObject = {
+        url: params.url,
+        method: params.method,
+        param: params.method == 'GET' ? null : params.param,
+        headers: params.headers,
+        cookie: params.cookie,
+        timeout: params.timeout
+      };
+      const urlOptions = this.createURLAndOptions(baseParams, null);
       if (urlOptions == null) {
         if (callback) {
-          callback(KRNetworkModule.streamEvent('error', 'invalid request params', KRNetworkModule.STATE_CODE_UNKNOWN));
+          callback(KRNetworkModule.streamEvent('error', 'invalid request params', KRNetworkModule.STATE_CODE_UNKNOWN),
+            true);
         }
         return;
       }
 
       const url = urlOptions[0];
       const options = urlOptions[1];
-      this.applyStreamRequestOptions(params, options);
+      this.applyStreamRequestOptions(params, url, options);
       const idleTimeoutMs = (params.timeout > 0 ? params.timeout : KRNetworkModule.DEFAULT_TIMEOUT_S) * 1000;
 
       const currentRequest = http.createHttp();
       httpRequest = currentRequest;
-      const state: StreamRequestState = { httpRequest: currentRequest, idleTimer: -1 };
+      const state: StreamRequestState = { httpRequest: currentRequest, idleTimer: -1, callback: callback };
       this.activeStreamRequests.set(requestId, state);
 
       // 与 Android/iOS 一致：timeout 表示“连续无数据”的空闲超时，收到数据即重新计时，
@@ -313,20 +315,33 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         this.cleanupHttpRequest(httpRequest);
       }
       if (callback) {
-        callback(KRNetworkModule.streamEvent('error', errmsg, KRNetworkModule.STATE_CODE_UNKNOWN));
+        callback(KRNetworkModule.streamEvent('error', errmsg, KRNetworkModule.STATE_CODE_UNKNOWN), true);
       }
     }
   }
 
   /**
-   * 流式请求的 body 与超时契约（四端一致）：
+   * 流式请求的 body 与超时契约（Android / iOS / 鸿蒙一致）：
    * - Content-Type 含 json 时发送 JSON；否则按 UTF-8 application/x-www-form-urlencoded 编码，
    *   未指定 Content-Type 时显式补齐（鸿蒙默认 content-type 为 application/json，必须覆盖）。
+   * - GET 参数追加到 URL 已有查询参数之后；参数值的转换规则与表单 body 相同（见 toFormValue）。
    * - 空闲超时由模块自行计时，native readTimeout 只作兜底。
    */
-  private applyStreamRequestOptions(params: StreamParamsObject, options: http.HttpRequestOptions): void {
+  private applyStreamRequestOptions(params: StreamParamsObject, url: Url.URL, options: http.HttpRequestOptions): void {
     options.readTimeout = KRNetworkModule.STREAM_NATIVE_READ_TIMEOUT_MS;
-    if (params.method != 'POST' || params.param == null) {
+    if (params.param == null) {
+      return;
+    }
+    if (params.method == 'GET') {
+      const queryParams = new Url.URLParams(url.search);
+      const query = params.param as KRRecord;
+      Object.keys(query).forEach((key) => {
+        queryParams.append(key, KRNetworkModule.toFormValue(query[key]));
+      });
+      url.search = queryParams.toString();
+      return;
+    }
+    if (params.method != 'POST') {
       return;
     }
     const headers: Record<string, string> = {};
@@ -354,6 +369,10 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     options.header = headers;
   }
 
+  /**
+   * 表单 / GET 参数值转换（三端一致）：null 编码为空值（key=），boolean 为 true/false，
+   * 对象与数组为 JSON 字符串。
+   */
   private static toFormValue(value: KRAny | undefined): string {
     if (value === null || value === undefined) {
       return '';
@@ -371,8 +390,10 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     try {
       const params = JSON.parse(paramsStr) as Record<string, string>;
       const requestId = params['requestId'];
-      if (requestId) {
-        this.finalizeStreamRequest(requestId);
+      const state = requestId ? this.activeStreamRequests.get(requestId) : undefined;
+      if (state && this.finalizeStreamRequest(requestId) && state.callback) {
+        // 主动关闭不再回调业务，只释放 native 侧的 keepAlive 回调登记
+        state.callback(null, true);
       }
     } catch (e) {
       KRRenderLog.e("NetworkModule", `close stream error: ${(e as BusinessError).message}`);

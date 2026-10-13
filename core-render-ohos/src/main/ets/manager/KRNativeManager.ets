@@ -158,8 +158,8 @@ export class KRNativeManager {
         if (methodId == KRNativeCallArkTSMethod.CallModuleMethod.valueOf()) { // 调用module方法
           let callback: KuiklyRenderCallback | null = null;
           if (callbackId != null && callbackId.length) { // 构造一个callback
-            callback = (res: KRAny) => {
-              this.fireCallback(instanceId, callbackId, res);
+            callback = (res: KRAny, release?: boolean) => {
+              this.fireCallback(instanceId, callbackId, res, release === true);
             };
           }
           return nativeInstance.callModuleMethodFromNative(arg0, arg1, arg2, arg3, arg4, callback);
@@ -179,8 +179,8 @@ export class KRNativeManager {
         } else if (methodId == KRNativeCallArkTSMethod.CallViewMethod.valueOf()) { // 调用view方法
           let callback: KuiklyRenderCallback | null = null;
           if (callbackId != null && callbackId.length) { // 构造一个callback
-            callback = (res: KRAny) => {
-              this.fireCallback(instanceId, callbackId, res);
+            callback = (res: KRAny, release?: boolean) => {
+              this.fireCallback(instanceId, callbackId, res, release === true);
             };
           }
           nativeInstance.callViewMethod(arg0 as number, arg1 as string, arg2, callback);
@@ -247,8 +247,8 @@ export class KRNativeManager {
       null, null, null);
   }
 
-  private fireCallback(instanceId: string, callbackId: string, data: KRAny) {
-    this.arkTSCallNative(instanceId, KRCallNativeMethod.FireCallback.valueOf(), callbackId, data, null, null, null,
+  private fireCallback(instanceId: string, callbackId: string, data: KRAny, release: boolean) {
+    this.arkTSCallNative(instanceId, KRCallNativeMethod.FireCallback.valueOf(), callbackId, data, release, null, null,
       null);
   }
 

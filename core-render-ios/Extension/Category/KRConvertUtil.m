@@ -37,25 +37,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
     KuiklyContextParam* contextParam = json[@"contextParam"];
     
-    if (fontFamily && fontFamily.length) {
-        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
-        if (font) {
-            return font;
-        }
-        
-        // 未静态注册，则调用业务方hr_loadCustomFont
-        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
-            if (font) {
-                return font;
-            }
-        } else {
-            // 动态加载字体失败，返回系统默认字体
-            return [UIFont systemFontOfSize:fontSize];
-        }
-    }
-    
-    // 执行默认字体加载，所覆盖的场景有：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
+    // fontWeight 需先于所有字体解析路径确定，供字体适配器及兜底系统字体使用
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{
@@ -76,21 +58,39 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
     
     if (fontFamily.length) {
-        UIFont *font = nil;
+        // 情形 1: 字体已静态注册（info.plist）
+        UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
+        if (font) {
+            return font;
+        }
+        
+        // 情形 2: 字体适配器直接返回 UIFont（对齐 Android/鸿蒙，支持 fontFamily 为别名）
+        font = [KRFontModule hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight contextParams:contextParam];
+        if (font) {
+            return font;
+        }
+        
+        // 情形 3: 业务方通过 hr_loadCustomFont 动态注册字体后再按 fontFamily 获取
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
+        }
+        
+        // 情形 4: componentExpandHandler 旧兼容逻辑
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
         }
         if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
         }
-        if (font == nil) {
-            font = [UIFont fontWithName:fontFamily size:fontSize];
-        }
         if (font) {
             return font;
         }
     }
     
+    // 情形 5: fontFamily 为空或以上全部失败，走系统字体并保留 weight/style
     if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }

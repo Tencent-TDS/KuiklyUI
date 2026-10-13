@@ -17,8 +17,7 @@
 #import "KRFontModule.h"
 #import "KuiklyContextParam.h"
 #import <CoreText/CoreText.h>
-
-
+#import "KuiklyContextMode.h"
 
 
 @implementation KRFontHanlder
@@ -37,56 +36,76 @@
     if ([[UIFont familyNames] containsObject:fontFamily]) {
         return YES;
     }
-
-    // 2 构建动态化模式下，三方字体资源的路径
-    NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
-    NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
-
-
-    // 3 执行HotReload动态化模式下，字体资源已被加载到本地，因此字体加载实际是加载本地URL（走else部分）
-    // 若指定通过网络URL的方式加载字体资源，将由业务方自行设定加载逻辑，且注意加载时的异步 与 在主线程返回加载完成的UIFont 如何实现相互配合
-    if ([fontPathURL.scheme hasPrefix:@"http"]) {
-        // 待实现
-        return NO;
-    } else {
-        // 加载本地URL加载字体资源
-        return [self registerFontAtLocalURL:fontPathURL];
-    }
+    NSURL *fontPathURL = [self p_localFontURLWithFontFamily:fontFamily contextParams:contextParam];
+    return fontPathURL && [self registerFontAtLocalURL:fontPathURL] != nil;
 }
 
-/*
- * 字体动态加载函数
- */
-- (BOOL)registerFontAtLocalURL:(NSURL *)fontURL {
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                    contextParams:(KuiklyContextParam *)contextParam {
+    // fontFamily 可为别名，注册后用字体文件内真实的 PostScript Name 创建 UIFont
+    // 多字重字体族可按 fontWeight 映射到对应字体文件（如 CustomSans-Bold）
+    // Demo 示例：别名 SatisfyAlias 映射到 bundle 内 Satisfy-Regular.ttf（见 BugReproIosGenericFontWeightPage）
+    NSURL *fontPathURL = [fontFamily isEqualToString:@"SatisfyAlias"]
+        ? [[NSBundle mainBundle] URLForResource:@"Satisfy-Regular" withExtension:@"ttf"]
+        : [self p_localFontURLWithFontFamily:fontFamily contextParams:contextParam];
+    NSString *postScriptName = fontPathURL ? [self registerFontAtLocalURL:fontPathURL] : nil;
+    return postScriptName.length ? [UIFont fontWithName:postScriptName size:fontSize] : nil;
+}
 
+#pragma mark - Private
+
+/// 构建动态化模式下三方字体资源的本地路径
+- (nullable NSURL *)p_localFontURLWithFontFamily:(NSString *)fontFamily
+                                   contextParams:(KuiklyContextParam *)contextParam {
+    NSURL *baseURL = contextParam.resourceFolderUrl;
+    if ([contextParam.contextMode isKindOfClass:[KuiklyContextModeJS class]]) {
+        KuiklyContextModeJS *jsMode = (KuiklyContextModeJS *)contextParam.contextMode;
+        baseURL = jsMode.assetsPathUrl;
+    }
+    if (baseURL == nil) {
+        return nil;
+    }
+    NSURL *fontPathURL = [baseURL URLByAppendingPathComponent:fontFamily];
+    // HotReload 动态化模式下字体资源已在本地；网络 URL 需业务方自行处理异步加载与主线程返回 UIFont 的配合
+    if ([fontPathURL.scheme hasPrefix:@"http"]) {
+        return nil;
+    }
+    return fontPathURL;
+}
+
+/// 注册本地字体文件，返回字体真实的 PostScript Name；失败返回 nil
+- (nullable NSString *)registerFontAtLocalURL:(NSURL *)fontURL {
     CGDataProviderRef fontDataProvider = CGDataProviderCreateWithURL((__bridge CFURLRef)fontURL);
     if (!fontDataProvider) {
-        return NO;
+        return nil;
     }
-
-    // 创建目标字体Provider
     CGFontRef newFont = CGFontCreateWithDataProvider(fontDataProvider);
     CGDataProviderRelease(fontDataProvider);
-
     if (!newFont) {
-        return NO;
+        return nil;
     }
-
-    // 字体加载成功，进行字体注册
+    NSString *postScriptName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(newFont);
+    CGFontRelease(newFont);
+    if (!postScriptName.length) {
+        return nil;
+    }
+    // 已注册过则不重复注册
+    if ([UIFont fontWithName:postScriptName size:12]) {
+        return postScriptName;
+    }
     CFErrorRef error = NULL;
-    BOOL success = CTFontManagerRegisterFontsForURL((__bridge  CFURLRef)fontURL,
+    BOOL success = CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL,
                                                     kCTFontManagerScopeProcess,
                                                     &error);
-
-    // 获取字体的名称
-    CGFontRelease(newFont);
     if (!success) {
         if (error) {
             CFRelease(error);
         }
-        return NO;
+        return nil;
     }
-    return YES;
+    return postScriptName;
 }
 
 @end

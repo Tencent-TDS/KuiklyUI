@@ -32,6 +32,15 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
+/**
+ * 字体适配器：业务方根据 fontFamily 直接返回 UIFont（fontFamily 可为业务别名，无需与字体 PostScript Name 一致）
+ * 返回 nil 则继续走框架默认加载逻辑
+ */
+- (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                                  fontSize:(CGFloat)fontSize
+                                fontWeight:(UIFontWeight)fontWeight
+                             contextParams:(nullable KuiklyContextParam *)contextParam;
+
 @end
 
 /**
@@ -48,6 +57,14 @@ NS_ASSUME_NONNULL_BEGIN
  * 向IOS环境内动态加载字体
  */
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
+
+/**
+ * 通过字体适配器获取 UIFont
+ */
++ (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                                  fontSize:(CGFloat)fontSize
+                                fontWeight:(UIFontWeight)fontWeight
+                             contextParams:(nullable KuiklyContextParam *)contextParam;
 
 @end
 

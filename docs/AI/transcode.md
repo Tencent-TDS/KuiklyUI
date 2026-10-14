@@ -14,7 +14,7 @@ tag:
 > * **React2Kuikly**：[https://github.com/Tencent-TDS/React2Kuikly](https://github.com/Tencent-TDS/React2Kuikly)
 > * **Vue2Kuikly**：[https://github.com/Tencent-TDS/Vue2Kuikly](https://github.com/Tencent-TDS/Vue2Kuikly)
 
-随着 Kuikly 在腾讯多条大型业务线（如手 Q 证券、QQ 音乐、搜狗输入法、腾讯视频等）的全面铺开，大量存量历史页面（React、React Native、Vue 2、Vue 3、Hippy）面临向 Kuikly 跨端架构迁移的需求。
+随着 Kuikly 在腾讯多条大型业务线的全面铺开，大量存量历史页面（React、React Native、Vue 2、Vue 3、Hippy）面临向 Kuikly 跨端架构迁移的需求。
 
 如果全靠人工“人肉改写”，单个复杂页面通常需要 3~5 天的开发与排期，且极易遗漏边角业务逻辑。Kuikly 团队研发了**基于 AI Agent 的智能转码工作流与工具链**，实现存量代码向 Kuikly Kotlin 代码的高效、高保真迁移。
 

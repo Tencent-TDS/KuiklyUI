@@ -23,6 +23,7 @@
 #include "libohos_render/expand/components/apng/APNGAnimateView.h"
 #include "libohos_render/expand/components/image/KRImageView.h"
 #include "libohos_render/expand/modules/network/KRNetworkModule.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRURIHelper.h"
 #include "libohos_render/utils/KRStringUtil.h"
 
@@ -36,8 +37,9 @@ constexpr char kEventAnimatedEnd[] = "animationEnd";
 bool KRApngView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                          const KRRenderCallback event_call_back) {
     if (kuikly::util::isEqual(prop_key, kPropNameSrc)) {  // setSrc
+                auto src16 = prop_value->toU16String();
         auto src = prop_value->toString();
-        SetSrc(src);
+        SetSrc(src, src16);
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kPropNameAutoPlay)) {  // setSrc
@@ -89,7 +91,7 @@ void KRApngView::SetRenderViewFrame(const KRRect &frame) {
     CreateAnimatedViewIfNeed();
 }
 
-void KRApngView::SetSrc(std::string &src) {
+void KRApngView::SetSrc(std::string &src, std::u16string src16) {
     if (src_ != src) {
         src_ = src;
         if (src.rfind(KR_ASSET_PREFIX, 0) == 0) {
@@ -118,7 +120,7 @@ void KRApngView::SetSrc(std::string &src) {
             if (network_module) {
                 auto url = src;
                 std::weak_ptr<IKRRenderViewExport> weak_self = shared_from_this();
-                network_module->FetchFileByDownloadOrCache(url, [weak_self, url](KRAnyValue res) {
+                network_module->FetchFileByDownloadOrCache(std::move(src16), [weak_self, url](KRAnyValue res) {
                     if (auto self = weak_self.lock()) {
                         auto *apngView = reinterpret_cast<KRApngView *>(self.get());
                         // 一致性判断，以防竞态条件下晚加载完成的图覆盖已加载的正确的图

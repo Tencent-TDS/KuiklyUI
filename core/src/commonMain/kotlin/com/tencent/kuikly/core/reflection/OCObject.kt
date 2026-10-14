@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.reflection
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.module.ReflectionModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.nvi.serialization.json.asBridgeJSONObject
 
 open class OCObject(objectID: String) : NativeObject<OCObject>(objectID) {
 
@@ -47,7 +48,8 @@ open class OCObject(objectID: String) : NativeObject<OCObject>(objectID) {
     protected fun encodeBlockArgToString(arg: Any, type: String): String {
         val callbackRef =
             GlobalFunctions.createFunction(ReflectionModule.instance().pagerId) { dataStr ->
-                val res = JSONObject(if (dataStr is String) dataStr else "{}")
+                // 端上回参可能是 JSON 字符串，也可能是 NSDictionary 包成的惰性 JSONObject
+                val res = asBridgeJSONObject(dataStr) ?: JSONObject()
                 val arg1 =
                     if (res.has("arg1")) createNativeObject(res.optString("arg1")) else null
                 val arg2 =

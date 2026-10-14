@@ -130,7 +130,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool IsFlingStateToDraggingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToFlingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_state);
-    std::shared_ptr<KRRenderValue> GetCommonScrollParams();
+    KRAnyValue GetCommonScrollParams();
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);

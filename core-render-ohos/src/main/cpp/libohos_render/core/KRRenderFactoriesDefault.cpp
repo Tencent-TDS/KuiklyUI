@@ -48,8 +48,8 @@ void RegisterFeatureModules() {
     ActiveFeatures::RegisterModules();
 }
 
-std::shared_ptr<KRRenderValue> PreparePageDataForKotlin(const std::shared_ptr<KRRenderValue> &page_data,
-                                                        const std::shared_ptr<IKRRenderLayer> &) {
+KRRenderValue PreparePageDataForKotlin(const KRRenderValue &page_data,
+                                       const std::shared_ptr<IKRRenderLayer> &) {
     return page_data;
 }
 

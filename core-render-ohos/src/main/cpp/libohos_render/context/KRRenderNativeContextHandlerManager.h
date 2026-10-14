@@ -16,8 +16,6 @@
 #ifndef CORE_RENDER_OHOS_KRRENDERNATIVECONTEXTHANDLERMANAGER_H
 #define CORE_RENDER_OHOS_KRRENDERNATIVECONTEXTHANDLERMANAGER_H
 
-#include <atomic>
-#include <mutex>
 #include <unordered_map>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 #include "libohos_render/context/KRRenderContextParams.h"
@@ -72,13 +70,9 @@ class KRRenderNativeContextHandlerManager {
 
  private:
     KRRenderNativeContextHandlerManager() {}
-    void ScheduleDeallocRenderValues(std::shared_ptr<KRRenderValue> will_dealloc_render_value);
 
  private:
     KRThreadSafeMap<std::string, std::shared_ptr<IKRRenderNativeContextHandler>> context_handler_map_;
-    std::atomic<bool> scheduling_dealloc_render_values_{false};
-    std::vector<std::shared_ptr<KRRenderValue>> pending_dealloc_render_values_;
-    KRSpinLock pending_dealloc_render_values_lock_;
 
     static KRRenderNativeContextHandlerManager *instance_;
 };

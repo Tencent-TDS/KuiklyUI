@@ -19,12 +19,17 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <ark_runtime/jsvm.h>
+#include <js_native_api.h>
+#include "libohos_render/foundation/ark_ts.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
+#include "libohos_render/utils/KRJsUtil.h"
+#include "libohos_render/utils/NAPIUtil.h"
 
 #define KREmptyValue() KRRenderValue::Make()
 #define NewKRRenderValue(value) KRRenderValue::Make(value)
 
-using KRAnyValue = std::shared_ptr<KRRenderValue>;
+using KRAnyValue = KRRenderValue;
 using KRRenderCallback = std::function<void(KRAnyValue)>;
 using KRRenderValueMap = KRRenderValue::Map;
 using KRRenderValueArray = KRRenderValue::Array;

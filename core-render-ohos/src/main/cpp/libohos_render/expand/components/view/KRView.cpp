@@ -22,6 +22,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRJSONObject.h"
 #include "libohos_render/utils/KRViewUtil.h"
 #include "libohos_render/view/KRRenderView.h"
@@ -332,24 +333,24 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     bool postContentInserted = false;
 
     if (pre && !pre->GetTextContent().empty()) {
-        preContent.push_back(NewKRRenderValue(pre->GetTextContent()));
+        preContent.push_back(KRRenderValue::Make(pre->GetTextContent()));
     }
 
     if (post && !post->GetTextContent().empty()) {
-        postContent.push_back(NewKRRenderValue(post->GetTextContent()));
+        postContent.push_back(KRRenderValue::Make(post->GetTextContent()));
     }
     for (auto item : selected_text_views) {
-        std::string preText;
-        std::string postText;
-        content.push_back(NewKRRenderValue(item->GetSelectedContent(preText, postText)));
+        std::u16string preText;
+        std::u16string postText;
+        content.push_back(KRRenderValue::Make(item->GetSelectedContent(preText, postText)));
 
         if (!preContentInserted && !preText.empty()) {
-            preContent.push_back(NewKRRenderValue(preText));
+            preContent.push_back(KRRenderValue::Make(preText));
             preContentInserted = true;
         }
 
         if (!postContentInserted && !postText.empty()) {
-            postContent.insert(postContent.begin(), NewKRRenderValue(postText));
+            postContent.insert(postContent.begin(), KRRenderValue::Make(postText));
             postContentInserted = true;
         }
     }
@@ -360,9 +361,9 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     }
 
     KRRenderValueMap dict;
-    dict["preContent"] = NewKRRenderValue(preContent);
-    dict["content"] = NewKRRenderValue(content);
-    dict["postContent"] = NewKRRenderValue(postContent);
+    dict[u"preContent"] = NewKRRenderValue(preContent);
+    dict[u"content"] = NewKRRenderValue(content);
+    dict[u"postContent"] = NewKRRenderValue(postContent);
     cb(NewKRRenderValue(dict));
 }
 
@@ -605,6 +606,7 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     }
 
     KRRenderValueArray touches;
+    KRRenderValueMap first_touch;
     for (int i = 0; i < pointer_count; i++) {
         auto point = kuikly::util::GetArkUIInputEventPoint(input_event, i);
         auto window_point = kuikly::util::GetArkUIInputEventWindowPoint(input_event, i);
@@ -613,20 +615,22 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
         float container_relative_y = window_point.y - container_position.y;
 
         KRRenderValueMap touch_map;
-        touch_map["x"] = NewKRRenderValue(point.x);
-        touch_map["y"] = NewKRRenderValue(point.y);
-        touch_map["pageX"] = NewKRRenderValue(container_relative_x);
-        touch_map["pageY"] = NewKRRenderValue(container_relative_y);
-        touch_map["pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
-        touches.push_back(NewKRRenderValue(touch_map));
+        touch_map[u"x"] = NewKRRenderValue(point.x);
+        touch_map[u"y"] = NewKRRenderValue(point.y);
+        touch_map[u"pageX"] = NewKRRenderValue(container_relative_x);
+        touch_map[u"pageY"] = NewKRRenderValue(container_relative_y);
+        touch_map[u"pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
+        if (i == 0) {
+            first_touch = touch_map;
+        }
+        touches.push_back(NewKRRenderValue(std::move(touch_map)));
     }
-    auto first_touch = touches[0]->toMap();
-    first_touch["touches"] = NewKRRenderValue(touches);
-    first_touch["action"] = NewKRRenderValue(action);
+    first_touch[u"touches"] = NewKRRenderValue(touches);
+    first_touch[u"action"] = NewKRRenderValue(action);
     auto event_time_millis = kuikly::util::GetArkUIInputEventTime(input_event) / NS_PER_MS;
-    first_touch["timestamp"] = NewKRRenderValue(event_time_millis);
+    first_touch[u"timestamp"] = NewKRRenderValue(event_time_millis);
     if (super_touch_handler_) {
-        first_touch["consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
+        first_touch[u"consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
     }
     return NewKRRenderValue(first_touch);
 }
@@ -861,10 +865,10 @@ void KRView::FireSelectionEvent(SelectionEventKind kind) {
     KRRect rect = GetSelectionFrame();
 
     KRRenderValueMap dict;
-    dict["x"] = NewKRRenderValue(rect.x);
-    dict["y"] = NewKRRenderValue(rect.y);
-    dict["width"] = NewKRRenderValue(rect.width);
-    dict["height"] = NewKRRenderValue(rect.height);
+    dict[u"x"] = NewKRRenderValue(rect.x);
+    dict[u"y"] = NewKRRenderValue(rect.y);
+    dict[u"width"] = NewKRRenderValue(rect.width);
+    dict[u"height"] = NewKRRenderValue(rect.height);
     auto param = NewKRRenderValue(dict);
 
     switch (kind) {

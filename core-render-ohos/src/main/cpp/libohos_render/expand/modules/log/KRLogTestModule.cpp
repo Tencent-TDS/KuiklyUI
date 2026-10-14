@@ -23,12 +23,12 @@ KRAnyValue KRLogTestModule::CallMethod(bool sync, const std::string &method, KRA
 KRAnyValue KRLogTestModule::test(const KRAnyValue &params) {
     // 深层嵌套 Object
     KRRenderValue::Map level3;
-    level3["level3"] = KRRenderValue::Make("深层嵌套");
+    level3[u"level3"] = KRRenderValue::Make(u"深层嵌套");
     
     KRRenderValue::Map deep;
-    deep["key1"] = KRRenderValue::Make("value1");
-    deep["key2"] = KRRenderValue::Make("value2");
-    deep["deep"] = KRRenderValue::Make(level3);
+    deep[u"key1"] = KRRenderValue::Make(u"value1");
+    deep[u"key2"] = KRRenderValue::Make(u"value2");
+    deep[u"deep"] = KRRenderValue::Make(level3);
     
     // 数组
     KRRenderValue::Array intArray;
@@ -37,17 +37,17 @@ KRAnyValue KRLogTestModule::test(const KRAnyValue &params) {
     intArray.push_back(KRRenderValue::Make(3));
     
     KRRenderValue::Array strArray;
-    strArray.push_back(KRRenderValue::Make("a"));
-    strArray.push_back(KRRenderValue::Make("b"));
-    strArray.push_back(KRRenderValue::Make("c"));
+    strArray.push_back(KRRenderValue::Make(u"a"));
+    strArray.push_back(KRRenderValue::Make(u"b"));
+    strArray.push_back(KRRenderValue::Make(u"c"));
     
     // 混合数组
     KRRenderValue::Map innerObj;
-    innerObj["innerKey"] = KRRenderValue::Make("innerValue");
+    innerObj[u"innerKey"] = KRRenderValue::Make(u"innerValue");
     
     KRRenderValue::Array mixedArray;
     mixedArray.push_back(KRRenderValue::Make(1));
-    mixedArray.push_back(KRRenderValue::Make("str"));
+    mixedArray.push_back(KRRenderValue::Make(u"str"));
     mixedArray.push_back(KRRenderValue::Make(true));
     mixedArray.push_back(KRRenderValue::Make(innerObj));
     
@@ -57,21 +57,21 @@ KRAnyValue KRLogTestModule::test(const KRAnyValue &params) {
     
     // 主结果
     KRRenderValue::Map result;
-    result["nested"] = KRRenderValue::Make(deep);
-    result["string"] = KRRenderValue::Make("中文测试🎉");
-    result["int"] = KRRenderValue::Make(100);
-    result["float"] = KRRenderValue::Make(3.14159);
-    result["negative"] = KRRenderValue::Make(-50);
-    result["boolTrue"] = KRRenderValue::Make(true);
-    result["boolFalse"] = KRRenderValue::Make(false);
-    result["intArray"] = KRRenderValue::Make(intArray);
-    result["strArray"] = KRRenderValue::Make(strArray);
-    result["mixedArray"] = KRRenderValue::Make(mixedArray);
-    result["emptyObj"] = KRRenderValue::Make(emptyObj);
-    result["emptyArr"] = KRRenderValue::Make(emptyArr);
-    result["emptyStr"] = KRRenderValue::Make("");
-    result["zero"] = KRRenderValue::Make(0);
-    result["largeNum"] = KRRenderValue::Make(static_cast<int64_t>(9999999999LL));
+    result[u"nested"] = KRRenderValue::Make(deep);
+    result[u"string"] = KRRenderValue::Make(u"中文测试🎉");
+    result[u"int"] = KRRenderValue::Make(100);
+    result[u"float"] = KRRenderValue::Make(3.14159);
+    result[u"negative"] = KRRenderValue::Make(-50);
+    result[u"boolTrue"] = KRRenderValue::Make(true);
+    result[u"boolFalse"] = KRRenderValue::Make(false);
+    result[u"intArray"] = KRRenderValue::Make(intArray);
+    result[u"strArray"] = KRRenderValue::Make(strArray);
+    result[u"mixedArray"] = KRRenderValue::Make(mixedArray);
+    result[u"emptyObj"] = KRRenderValue::Make(emptyObj);
+    result[u"emptyArr"] = KRRenderValue::Make(emptyArr);
+    result[u"emptyStr"] = KRRenderValue::Make(u"");
+    result[u"zero"] = KRRenderValue::Make(0);
+    result[u"largeNum"] = KRRenderValue::Make(static_cast<int64_t>(9999999999LL));
     
     return KRRenderValue::Make(result);
 }

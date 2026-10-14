@@ -22,7 +22,6 @@
 
 #include "libohos_render/core/KRRenderFactories.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
-#include "thirdparty/cJSON/cJSON.h"
 
 namespace kuikly {
 namespace features {
@@ -61,17 +60,8 @@ struct HasPreparePageData : std::false_type {};
 
 template <typename T>
 struct HasPreparePageData<
-    T, std::void_t<decltype(T::PreparePageDataForKotlin(std::declval<cJSON *>(),
+    T, std::void_t<decltype(T::PreparePageDataForKotlin(std::declval<const KRRenderValue &>(),
                                                         std::declval<const std::shared_ptr<IKRRenderLayer> &>()))>>
-    : std::true_type {};
-
-template <typename T, typename = void>
-struct HasShouldPreparePageData : std::false_type {};
-
-template <typename T>
-struct HasShouldPreparePageData<
-    T, std::void_t<decltype(T::ShouldPreparePageData(std::declval<const std::shared_ptr<KRRenderValue> &>(),
-                                                     std::declval<const std::shared_ptr<IKRRenderLayer> &>()))>>
     : std::true_type {};
 
 template <typename F>
@@ -120,21 +110,9 @@ void TryRegisterModules() {
 }
 
 template <typename F>
-bool TryShouldPreparePageData(const std::shared_ptr<KRRenderValue> &page_data,
-                             const std::shared_ptr<IKRRenderLayer> &layer) {
-    if constexpr (HasShouldPreparePageData<F>::value) {
-        return F::ShouldPreparePageData(page_data, layer);
-    }
+void TryPreparePageData(KRRenderValue &page_data, const std::shared_ptr<IKRRenderLayer> &layer) {
     if constexpr (HasPreparePageData<F>::value) {
-        return true;
-    }
-    return false;
-}
-
-template <typename F>
-void TryPreparePageData(cJSON *page_data, const std::shared_ptr<IKRRenderLayer> &layer) {
-    if constexpr (HasPreparePageData<F>::value) {
-        F::PreparePageDataForKotlin(page_data, layer);
+        page_data = F::PreparePageDataForKotlin(page_data, layer);
     }
 }
 
@@ -165,31 +143,16 @@ struct KRFeatureRegistry {
         (TryRegisterModules<Features>(), ...);
     }
 
-    static std::shared_ptr<KRRenderValue> PreparePageDataForKotlin(const std::shared_ptr<KRRenderValue> &page_data,
-                                                                  const std::shared_ptr<IKRRenderLayer> &layer) {
-        if (!page_data) {
-            return page_data;
+    // Input is the parsed pageData object. Each feature returns either the same
+    // value (unchanged) or a new object; the input is never mutated in place.
+    static KRRenderValue PreparePageDataForKotlin(const KRRenderValue &page_data,
+                                                 const std::shared_ptr<IKRRenderLayer> &layer) {
+        KRRenderValue result = page_data;
+        if (!result.isMap()) {
+            return result;
         }
-        if (!(TryShouldPreparePageData<Features>(page_data, layer) || ...)) {
-            return page_data;
-        }
-        const std::string page_data_json = page_data->toString();
-        cJSON *page_data_obj = cJSON_Parse(page_data_json.c_str());
-        if (page_data_obj != nullptr && cJSON_IsObject(page_data_obj)) {
-            (TryPreparePageData<Features>(page_data_obj, layer), ...);
-            if (char *json = cJSON_PrintUnformatted(page_data_obj)) {
-                auto result = KRRenderValue::Make(std::string(json));
-                cJSON_free(json);
-                cJSON_Delete(page_data_obj);
-                return result;
-            }
-            cJSON_Delete(page_data_obj);
-            return page_data;
-        }
-        if (page_data_obj != nullptr) {
-            cJSON_Delete(page_data_obj);
-        }
-        return page_data;
+        (TryPreparePageData<Features>(result, layer), ...);
+        return result;
     }
 };
 

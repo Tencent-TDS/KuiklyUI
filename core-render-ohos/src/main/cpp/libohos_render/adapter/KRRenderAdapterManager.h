@@ -19,6 +19,7 @@
 #include <hilog/log.h>
 #include <string>
 #include "libohos_render/expand/components/image/KRImageLoadOption.h"
+#include "libohos_render/foundation/KRCommon.h"
 
 class IKRColorParseAdapter {
  public:
@@ -46,7 +47,7 @@ class IKRImageAdapter {
 
 class KRRenderAdapterManager {
  public:
-    void OnFatalException(const std::string &instance_id, const std::string &stack);
+    void OnFatalException(const KRAnyValue &instance_id, const std::string &stack);
     void Log(const LogLevel &log_level, const std::string &tag, const std::string &msg);
 
     static KRRenderAdapterManager &GetInstance();
@@ -81,7 +82,7 @@ class KRRenderAdapterManager {
     void LogInfo(const std::string &tag, const std::string &msg);
     void LogDebug(const std::string &tag, const std::string &msg);
     void LogError(const std::string &tag, const std::string &msg);
-    void CallArkTsExceptionModule(const std::string &instance_id, const std::string &method_name,
+    void CallArkTsExceptionModule(const KRAnyValue &instance_id, const std::string &method_name,
                                   const std::string &stack);
 };
 

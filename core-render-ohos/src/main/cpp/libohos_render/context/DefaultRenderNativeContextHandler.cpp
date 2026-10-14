@@ -20,12 +20,9 @@
 extern CallKotlin callKotlin_;
 
 void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderContextMethod &method,
-                                                         const std::shared_ptr<KRRenderValue> &arg0,
-                                                         const std::shared_ptr<KRRenderValue> &arg1,
-                                                         const std::shared_ptr<KRRenderValue> &arg2,
-                                                         const std::shared_ptr<KRRenderValue> &arg3,
-                                                         const std::shared_ptr<KRRenderValue> &arg4,
-                                                         const std::shared_ptr<KRRenderValue> &arg5) {
+                                                         const KRAnyValue &arg0, const KRAnyValue &arg1,
+                                                         const KRAnyValue &arg2, const KRAnyValue &arg3,
+                                                         const KRAnyValue &arg4, const KRAnyValue &arg5) {
     if (callKotlin_ == nullptr) {
         __assert_fail("Tips: make sure initKuikly() has been called!", __FILE__, __LINE__, __func__);
     }
@@ -34,6 +31,14 @@ void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderConte
     // 但实测 K/N 会因为观察到 "C++ 已 catch 过" 而不再触发 unhandled-exception hook，
     // 导致丢失 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈。
     // 为保留 hook 触发窗口，放弃 C++ 侧的补充诊断日志（method_id 可在 Kotlin 栈中反查）。
-    callKotlin_(static_cast<int>(method), arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
+    // CREATE_INSTANCE：DidInit 把原始 pageData 放在 arg2、解析后的 object 放在 arg3。
+    // Native Kotlin 优先用 object，避免再拷字符串 / JSONObject(str)。
+    // 其它 method（如 FIRE_VIEW_EVENT）的 arg3 是业务载荷，不能套这条替换。
+    const KRAnyValue &kotlin_arg2 =
+        (method == KuiklyRenderContextMethod::KuiklyRenderContextMethodCreateInstance && arg3 &&
+         !arg3->isNull() && arg3->isMap())
+            ? arg3
+            : arg2;
+    callKotlin_(static_cast<int>(method), arg0->toCValue(), arg1->toCValue(), kotlin_arg2->toCValue(), arg3->toCValue(),
                 arg4->toCValue(), arg5->toCValue());
 }

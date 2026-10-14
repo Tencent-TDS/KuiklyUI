@@ -268,6 +268,33 @@ export const zhSidebar = sidebar({
     ],
     "/AI/": false,
     "/Blog": [
+        {
+            text: "公众号文章",
+            collapsible: true,
+            children: [
+                "长小牛 × 腾讯Kuikly：金融类AI APP三端跨平台架构落地实践.md",
+                "Kotlin 15 周年 × Kuikly 生态日｜一场关于跨端与 AI 的技术盛宴.md",
+                "iPhone Duo来了，腾讯 Kuikly 助 App 从容适配.md",
+                "我用腾讯 Kuikly，把 DeepSeek Harness装进了口袋.md",
+                "7.5 小时搞定安卓／iOS／鸿蒙三端！AI + Kuikly 「多模态聊天 App」 实战.md",
+                "跨端页面秒开，腾讯开源框架Kuikly是怎么做到的？.md",
+                "Kuikly Compose DSL 正式发布：六端原生渲染的标准 Compose 实践.md",
+                "AI智能转码 + 原生高性能：QQ音乐存量代码迁移Kuikly实践.md",
+                "Kuikly Roadmap（2026）.md",
+                "Kuikly AI：为跨端开发构建 Harness 工程基座，开源首批 Rules 与 Skills.md",
+                "OpenClaw给我发来了它写的第一个Kuikly apk.md",
+                "搜狗输入法 Kuikly AI 工程化：Spec coding 的探索与落地.md",
+                "腾讯开源Kuikly框架能力、生态再升级，诚邀你携手，共筑跨端技术新生态.md",
+                "多端开发背景下，腾讯的应对方式和效果如何？.md",
+                "一套代码搞定多端！HelloTalk使用Kuikly的历程和心得.md",
+                "腾讯开源框架 Kuikly 再升级！率先适配 “液态玻璃”，原生体验更极致.md",
+                "腾讯Kuikly框架进一步开源，新增支持Web，开启一码五端新体验！.md",
+                "适配鸿蒙操作系统！！腾讯游戏直播SDK基于Kuikly三端一码开发实践.md",
+                "重磅！支持纯血鸿蒙！腾讯视频ovCompose跨平台框架发布.md",
+                "腾讯Kuikly框架鸿蒙版正式开源 —— 揭秘卓越性能适配之旅.md",
+                "腾讯开源跨平台开发框架 Kuikly，能显著提升多端开发效率.md",
+            ]
+        },
         "roadmap2026.md",
         "roadmap2025.md",
         {

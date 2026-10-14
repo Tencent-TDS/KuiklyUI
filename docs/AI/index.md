@@ -25,7 +25,7 @@ MCP 实时检索     →     视觉稿转码 Deco     →     UI Inspector      
 生产线之外，还可以按场景使用：
 
 - **转码 Agent**：存量页面迁移
-- **Workshop Agent**：面向产品和设计师，从一句话生成可在真机运行的原型和轻量 App
+- **Workshop Agent**：面向产品、设计师和其他非客户端开发角色，从一句话生成可在真机运行的原型和轻量 App
 - **AI Chat 组件与 A2UI**：在业务 App 里接入对话界面，并渲染 Agent 下发的可交互界面
 
 下面按能力逐项介绍。知识库、Kuikly Rules、Kuikly Skills、转码 Agent、AI Chat 组件已发布，其余能力随 Kuikly AI 逐步开放。
@@ -126,7 +126,7 @@ Figma 转码 · 高还原度 · 资源同步
 
 辅助将 React、Vue、Hippy 等存量页面迁移为 Kuikly 代码，减少重复改写。Agent 分析源码里的组件关系和页面结构，完成框架语法和 API 映射。
 
-- **多框架**：覆盖 React、Vue、Hippy 等前端和跨端存量页面。
+- **多框架**：覆盖 React、Vue、Hippy，以及安卓原生界面、iOS 原生界面和 HTML 页面。
 - **转换有效率 80%+**：处理组件映射、样式转换和生命周期适配，先得到可编译、可对照的页面骨架。
 - **重构耗时从 3 天到 1 天**：基础迁移交给 Agent，人工重点放在复杂交互和验收。
 
@@ -174,4 +174,4 @@ Kuikly A2UI 用 Kuikly 的渲染能力，在 Android、iOS、HarmonyOS 上原生
 3. **多端预览**：生成后在 Android、iOS、鸿蒙上查看运行效果，并用 Inspector 检查组件。
 4. **一键验证**：做编译检查、代码审查和白盒测试，确认交付物可以接着开发，而不是停在一份还编不过的草稿。
 
-产品和设计师如果要从一句话做出可运行原型，走 [Workshop Agent](./workshop-agent.md)。开发侧的重复工程步骤留在这条流程里，业务规则和交互取舍仍由人决定。
+产品、设计师和其他非客户端开发角色如果要从一句话做出可运行原型，走 [Workshop Agent](./workshop-agent.md)。开发侧的重复工程步骤留在这条流程里，业务规则和交互取舍仍由人决定。

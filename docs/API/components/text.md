@@ -4,6 +4,25 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/tree/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/TextExamplePage.kt)
 
+::: warning 交叉轴拉伸需显式设置 alignSelfStretch()
+为向前兼容，Text 默认包裹文字内容，不响应父容器的 `alignItemsStretch()`。需要在交叉轴上铺满父容器时，在 Text 自身显式设置 `alignSelfStretch()`：
+
+```kotlin
+View {
+    attr {
+        flexDirectionColumn()
+        alignItemsStretch() // ❌ 对 Text 无效
+    }
+    Text {
+        attr {
+            alignSelfStretch() // ✅ 宽度撑满父容器
+            text("撑满宽度")
+        }
+    }
+}
+```
+:::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)

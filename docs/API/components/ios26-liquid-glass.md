@@ -77,6 +77,11 @@ LiquidGlass {
     }
 }
 
+```
+
+> **交互态（按压反馈）的平台要求**：`glassEffectInteractive(true)` 与 `glassEffectIOS(interactive = true)` 在 iOS 26+ 生效；macOS 上对应的系统能力 `NSGlassEffectView.effectIsInteractive` 从 **macOS 27** 才提供，且渲染器需用 **macOS 27 SDK（Xcode 27+）** 编译，macOS 26 上玻璃没有按压态。
+
+```kotlin
 // 液态玻璃容器组合
 GlassEffectContainer {
     attr {
@@ -289,14 +294,12 @@ View {
 
 **停留在 macOS 26 时设置四角不同圆角的异常表现**
 
-macOS 26 上玻璃统一取左上角半径，但子内容裁剪与 `border` 描边仍按四个角各自的半径绘制，两者轮廓不重合。以 62 高的条为例：
+macOS 26 上玻璃统一取左上角半径，而子内容裁剪与 `border` 描边仍按四个角各自的半径绘制，两者轮廓不重合（`View + glassEffectIOS()` 与 `LiquidGlass` 控件行为一致）。以 62 高的条为例：
 
-- **`View + glassEffectIOS()`**
-  - 某个角的半径**小于**左上角（如 `borderRadius(31f, 10f, 31f, 10f)` 的右侧两角）：玻璃在该角是 31 的大圆角，而子内容与描边是 10 的小圆角，内容和描边的角会**探出玻璃轮廓**，看起来像玻璃没包住内容。
-  - 某个角的半径**大于**左上角（如 `borderRadius(10f, 31f, 10f, 31f)` 的右侧两角）：玻璃在该角只有 10 的小圆角，内容与描边是 31 的大圆角，玻璃的**方角露在内容圆角之外**，与"玻璃外壳直角、四角露出尖角"的问题现象相同。
-- **`LiquidGlass` 控件**：玻璃四角统一为左上角半径，`border` 描边仍按四个角各自的半径绘制，**描边与玻璃边缘错位**。
+- 某个角的半径**小于**左上角（如 `borderRadius(31f, 10f, 31f, 10f)` 的右侧两角）：玻璃在该角是 31 的大圆角，而子内容与描边是 10 的小圆角，内容和描边的角会**探出玻璃轮廓**，看起来像玻璃没包住内容。
+- 某个角的半径**大于**左上角（如 `borderRadius(10f, 31f, 10f, 31f)` 的右侧两角）：玻璃在该角只有 10 的小圆角，内容与描边是 31 的大圆角，玻璃的**方角露在内容圆角之外**，与"玻璃外壳直角、四角露出尖角"的问题现象相同。
 
-因此需要四角不同圆角的业务，请将 ![img.png](img.png)macOS 最低运行版本提升到 27；若必须支持 macOS 26，请对 26 使用四角一致的圆角（可用 `PlatformUtils.getOSVersion()` 区分）。
+因此需要四角不同圆角的业务，请将 macOS 最低运行版本提升到 27；若必须支持 macOS 26，请对 26 使用四角一致的圆角（可用 `PlatformUtils.getOSVersion()` 区分）。
 
 ### 6. 与 boxShadow 互斥
 

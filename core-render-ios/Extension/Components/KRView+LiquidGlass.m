@@ -424,9 +424,17 @@ void KRGlassMacApplyCornerRadius(NSGlassEffectView *view, NSString *cssBorderRad
 #endif
     }
 #else
-    // [macOS] NSGlassEffectView does not have interactive property
-    // Store the value but do nothing with it
+    // [macOS] NSGlassEffectView 的交互态（effectIsInteractive）从 macOS 27 才提供；
+    // macOS 26 无对应 API，仅保存值，升级到 27 的系统上创建包装层时仍会应用。
     self.kr_glassEffectInteractive = interactive;
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (@available(macOS 27.0, *)) {
+        KRGlassEffectWrapperView *effectView = self.kr_effectView;
+        if (effectView.glassEffectView) {
+            effectView.glassEffectView.effectIsInteractive = interactive.boolValue;
+        }
+    }
+#endif
 #endif // [macOS]
 }
 
@@ -638,6 +646,12 @@ void KRGlassApplyCornerConfiguration(UIView *view, NSString *cssBorderRadius) {
                 if (self.kr_glassEffectStyle) {
                     effectView.glassEffectView.style = [KRConvertUtil KRGlassEffectStyle:self.kr_glassEffectStyle];
                 }
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+                if (@available(macOS 27.0, *)) {
+                    // 与 iOS 对齐：interactive 属性可能先于包装层创建下发
+                    effectView.glassEffectView.effectIsInteractive = self.kr_glassEffectInteractive.boolValue;
+                }
+#endif
                 
                 // Now set contentView after wrapper is configured
                 effectView.glassEffectView.contentView = self;

@@ -154,12 +154,19 @@
 
 @implementation KRLiquidGlassView {
     id _kr_cornerConfiguration; // NSViewCornerConfiguration（macOS 27+）
+    /// 玻璃的 contentView：由本控件持有，所有 Kuikly 子视图都插入其中，子内容的圆角裁剪 mask 也挂在这里。
+    /// 不能直接把首个 Kuikly 子视图当 contentView：其自身的 borderRadius / clipPath mask 会与这里的 mask 互相覆盖。
+    KRUIView *_kr_contentContainer;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         if (@available(macOS 26.0, *)) {
             self.style = NSGlassEffectViewStyleRegular;
+            _kr_contentContainer = [[KRUIView alloc] initWithFrame:self.bounds]; // isFlipped = YES，与 Kuikly 坐标系一致
+            _kr_contentContainer.wantsLayer = YES;
+            _kr_contentContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+            self.contentView = _kr_contentContainer;
         }
     }
     return self;
@@ -186,29 +193,67 @@
 }
 
 - (void)hrv_insertSubview:(NSView *)subView atIndex:(NSInteger)index {
-    // NSGlassEffectView uses contentView for embedding content
-    if (@available(macOS 26.0, *)) {
-        if (self.contentView) {
-            NSArray<NSView *> *subviews = self.contentView.subviews;
-            if (index >= (NSInteger)subviews.count) {
-                [self.contentView addSubview:subView];
-            } else {
-                [self.contentView addSubview:subView positioned:NSWindowBelow relativeTo:subviews[index]];
-            }
-        } else {
-            self.contentView = subView;
-        }
+    // 子视图统一插入自持的内容容器（与 iOS 插入 contentView 的语义一致）
+    NSView *container = _kr_contentContainer;
+    if (!container) {
+        return;
     }
+    NSArray<NSView *> *subviews = container.subviews;
+    if (index < 0 || index >= (NSInteger)subviews.count) {
+        [container addSubview:subView];
+    } else {
+        [container addSubview:subView positioned:NSWindowBelow relativeTo:subviews[index]];
+    }
+}
+
+- (void)layout {
+    [super layout];
+    if (!_kr_contentContainer) {
+        return;
+    }
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    if (!CGRectEqualToRect(_kr_contentContainer.frame, self.bounds)) {
+        _kr_contentContainer.frame = self.bounds;
+    }
+    CALayer *mask = _kr_contentContainer.layer.mask;
+    if (mask && !CGRectEqualToRect(mask.frame, _kr_contentContainer.bounds)) {
+        mask.frame = _kr_contentContainer.bounds; // CSSShapeLayer 在 setFrame 时按新尺寸重算圆角路径
+    }
+    [CATransaction commit];
 }
 
 #pragma mark - CSS properties
 
 /// 同 iOS 分支：mask 对玻璃无效。macOS 27+ 走 cornerConfiguration 支持四角独立半径；
 /// macOS 26 只有单一 cornerRadius，四角不一致时统一取左上角（AppKit 系统限制）。
+/// 子内容裁剪不依赖 NSGlassEffectView 的行为（无系统契约），而是按 css 圆角在内容容器上重建 mask。
 - (void)setCss_borderRadius:(NSString *)css_borderRadius {
     [super setCss_borderRadius:css_borderRadius];
-    self.layer.mask = nil;
+    [self kr_updateContentClipMask];
     KRGlassMacApplyCornerRadius(self, self.css_borderRadius);
+}
+
+/// 每次都按当前 css_borderRadius 的值重建，不根据「宿主层上是否有 mask」推断状态，
+/// 保证多次插入子视图、圆角清零、相同值重复下发等场景下结果确定。
+- (void)kr_updateContentClipMask {
+    if (!_kr_contentContainer || self.css_clipPath.length > 0) {
+        return; // 存在 clipPath 时由基类的 clipPath mask 负责，保持与 iOS 分支一致
+    }
+    self.layer.mask = nil; // 基类挂在玻璃宿主层上的圆角 mask 对玻璃无效
+    CSSBorderRadius *radius = self.css_borderRadius.length
+        ? [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.css_borderRadius] : nil;
+    if (!radius || ([radius isSameBorderCornerRaidus] && radius.topLeftCornerRadius < 0.0001)) {
+        _kr_contentContainer.layer.mask = nil;
+        return;
+    }
+    CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:radius];
+    mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    _kr_contentContainer.layer.mask = mask;
+    mask.frame = _kr_contentContainer.bounds;
+    [CATransaction commit];
 }
 
 - (void)setCss_glassEffectTintColor:(NSNumber *)color {
@@ -221,8 +266,15 @@
 }
 
 - (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
-    // macOS NSGlassEffectView does not have interactive property
-    // This is iOS-specific for UIGlassEffect
+    // NSGlassEffectView 的交互态从 macOS 27 才提供，macOS 26 无对应 API
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (@available(macOS 27.0, *)) {
+        BOOL isInteractive = interactive.boolValue;
+        if (self.effectIsInteractive != isInteractive) {
+            self.effectIsInteractive = isInteractive;
+        }
+    }
+#endif
 }
 
 - (void)setCss_glassEffectStyle:(NSString *)style {

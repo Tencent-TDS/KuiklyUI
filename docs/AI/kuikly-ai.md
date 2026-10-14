@@ -54,9 +54,9 @@ your-project/
         └── kuiklyDSL.mdc
 ```
 
-#### 3. Claude Code / Windsurf / 其他工具
+#### 3. Claude Code / Codex / 其他工具
 * **Claude Code**：将规则内容拼接到项目根目录的 `CLAUDE.md` 中，或在对话中使用 `@rules/kuiklyDSL.mdc` 引用。
-* **Windsurf / 通用助手**：将规则主体作为 System Prompt 或 Custom Instructions 导入即可。
+* **Codex / 通用助手**：将规则主体作为 System Prompt 或 Custom Instructions 导入即可。
 
 > **进阶提示**：团队可在官方规则后追加团队内部约定（如专用 Bridge 命名、内部 UI 基础库导入规范、网络公共代理拦截等），使 AI 更加深度地契合团队工程标准。
 

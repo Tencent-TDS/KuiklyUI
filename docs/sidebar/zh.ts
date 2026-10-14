@@ -294,8 +294,7 @@ export const zhSidebar = sidebar({
         },
         {
             text: "公众号文章",
-            collapsible: true,
-            expanded: true,
+            collapsible: false,
             children: [
                 "长小牛 × 腾讯Kuikly：金融类AI APP三端跨平台架构落地实践.md",
                 "Kotlin 15 周年 × Kuikly 生态日｜一场关于跨端与 AI 的技术盛宴.md",

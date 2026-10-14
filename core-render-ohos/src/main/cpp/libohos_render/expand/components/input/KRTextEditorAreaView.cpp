@@ -39,37 +39,34 @@ constexpr char kColor[] = "color";
 constexpr char kLineHeight[] = "lineHeight";
 constexpr char kTextAlign[] = "textAlign";
 
-KRAnyValue GetSpanValue(const KRRenderValue::Map &span_map, const char *key) {
-    auto it = span_map.find(key);
-    if (it != span_map.end()) {
-        return it->second;
-    }
-    return KRRenderValue::Make(nullptr);
+KRAnyValue GetSpanValue(const KRRenderValue &span, const char *key) {
+    auto v = span.opt(key);
+    return v ? v : KRRenderValue::Make(nullptr);
 }
 
-bool HasSpanValue(const KRRenderValue::Map &span_map, const char *key) {
-    return !GetSpanValue(span_map, key)->isNull();
+bool HasSpanValue(const KRRenderValue &span, const char *key) {
+    return !GetSpanValue(span, key)->isNull();
 }
 
-std::string GetSpanText(const KRRenderValue::Map &span_map) {
-    auto text = GetSpanValue(span_map, kValue)->toString();
+std::string GetSpanText(const KRRenderValue &span) {
+    auto text = GetSpanValue(span, kValue)->toString();
     if (text.empty()) {
-        text = GetSpanValue(span_map, kText)->toString();
+        text = GetSpanValue(span, kText)->toString();
     }
     return text;
 }
 
-ArkUI_FontWeight ResolveSpanFontWeight(const KRRenderValue::Map &span_map, ArkUI_FontWeight fallback,
+ArkUI_FontWeight ResolveSpanFontWeight(const KRRenderValue &span, ArkUI_FontWeight fallback,
                                        float font_weight_scale) {
-    auto value = GetSpanValue(span_map, kFontWeight);
+    auto value = GetSpanValue(span, kFontWeight);
     if (value->isNull()) {
         return fallback;
     }
     return kuikly::util::ConvertArkUIFontWeight(value->toInt(), font_weight_scale);
 }
 
-ArkUI_TextAlignment ResolveSpanTextAlign(const KRRenderValue::Map &span_map, ArkUI_TextAlignment fallback) {
-    auto value = GetSpanValue(span_map, kTextAlign);
+ArkUI_TextAlignment ResolveSpanTextAlign(const KRRenderValue &span, ArkUI_TextAlignment fallback) {
+    auto value = GetSpanValue(span, kTextAlign);
     if (value->isNull()) {
         return fallback;
     }
@@ -425,8 +422,8 @@ bool KRTextEditorAreaView::ApplyValues(const KRAnyValue &prop_value) {
         return true;
     }
 
-    auto spans = prop_value->toArray();
-    if (spans.empty()) {
+    const auto spans = prop_value.Parsed();
+    if (spans.size() == 0) {
         has_values_content_ = false;
         values_span_styles_.clear();
         values_rewrite_next_did_change_ = false;
@@ -454,25 +451,26 @@ bool KRTextEditorAreaView::ApplyValues(const KRAnyValue &prop_value) {
         font_weight_scale = root->GetContext()->Config()->GetFontWeightScale();
     }
 
+    const size_t span_count = spans.size();
     std::string plain_text;
     int32_t utf16_cursor = 0;
-    for (const auto &span_value : spans) {
-        auto span_map = span_value->toMap();
-        auto span_text = GetSpanText(span_map);
+    for (size_t i = 0; i < span_count; ++i) {
+        auto span_value = spans.at(i).Parsed();
+        auto span_text = GetSpanText(span_value);
         auto span_utf16_len = static_cast<int32_t>(kuikly::text_editor::GetUTF16Length(span_text));
         plain_text.append(span_text);
 
         auto span_state = state_;
-        if (HasSpanValue(span_map, kFontSize)) {
-            span_state.font_size_ = GetSpanValue(span_map, kFontSize)->toFloat();
+        if (HasSpanValue(span_value, kFontSize)) {
+            span_state.font_size_ = GetSpanValue(span_value, kFontSize)->toFloat();
         }
-        if (HasSpanValue(span_map, kColor)) {
-            span_state.font_color_ = kuikly::util::ConvertToHexColor(GetSpanValue(span_map, kColor)->toString());
+        if (HasSpanValue(span_value, kColor)) {
+            span_state.font_color_ = kuikly::util::ConvertToHexColor(GetSpanValue(span_value, kColor)->toString());
         }
-        span_state.font_weight_ = ResolveSpanFontWeight(span_map, state_.font_weight_, font_weight_scale);
-        span_state.text_align_ = ResolveSpanTextAlign(span_map, state_.text_align_);
-        if (HasSpanValue(span_map, kLineHeight)) {
-            float line_height = GetSpanValue(span_map, kLineHeight)->toFloat();
+        span_state.font_weight_ = ResolveSpanFontWeight(span_value, state_.font_weight_, font_weight_scale);
+        span_state.text_align_ = ResolveSpanTextAlign(span_value, state_.text_align_);
+        if (HasSpanValue(span_value, kLineHeight)) {
+            float line_height = GetSpanValue(span_value, kLineHeight)->toFloat();
             span_state.line_height_ = line_height;
             span_state.line_height_set_ = line_height > 0;
         }

@@ -116,16 +116,16 @@ void KRCanvasView::CallMethod(const std::string &method, const KRAnyValue &param
 }
 
 void KRCanvasView::BatchDraw(const KRAnyValue &params) {
-    auto arr = params->toArray();
-    for (auto &item : arr) {
-        auto m = item->toMap();
-        auto methodIt = m.find("m");
-        if (methodIt == m.end()) {
+    const auto ops = params.Parsed();
+    const size_t count = ops.size();
+    for (size_t i = 0; i < count; ++i) {
+        auto item = ops.at(i).Parsed();
+        auto methodValue = item.opt(u"m");
+        if (!methodValue) {
             continue;
         }
-        std::string method = methodIt->second->toString();
-        auto paramsIt = m.find("p");
-        std::string p = (paramsIt != m.end()) ? paramsIt->second->toString() : "";
+        std::string method = methodValue.toString();
+        std::string p = item.opt(u"p").toString();
         if (ShouldCacheOp(method)) {
             ops_.push_back(std::pair{method, p});
         }

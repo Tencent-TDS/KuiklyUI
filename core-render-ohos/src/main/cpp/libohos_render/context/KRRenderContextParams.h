@@ -27,13 +27,18 @@
  */
 class KRRenderContextParams {
  public:
-    KRRenderContextParams(const std::string &page_name, const std::shared_ptr<KRRenderValue> &page_data,
-                          const std::string &instance_id, const std::string &configJsonStr,
+    KRRenderContextParams(const KRRenderValue &page_name, const KRRenderValue &page_data,
+                          const KRRenderValue &instance_id, const KRRenderValue &configJson,
                           const std::string &context_code, int execute_mode) {
-        this->page_name_ = page_name;
-        this->instance_id_ = instance_id;
+        // Keep the NAPI UTF-16 boxes for CallKotlin. std::string copies are
+        // only for C++ lookup / logs / paths — do not Make() them back to Kotlin.
+        this->page_name_value_ = page_name;
+        this->instance_id_value_ = instance_id;
+        this->page_name_ = page_name.toString();
+        this->instance_id_ = instance_id.toAsciiString();
         this->page_data_ = page_data;
-        this->config_ = std::make_shared<KRConfig>(configJsonStr);
+        this->parsed_page_data_ = this->page_data_.Parsed();
+        this->config_ = std::make_shared<KRConfig>(configJson);
         this->context_code_ = context_code;
         this->execute_mode_ = kuikly::ExecuteModeFactory::Create(execute_mode);
     }
@@ -49,11 +54,26 @@ class KRRenderContextParams {
     const std::string &InstanceId() const {
         return instance_id_;
     }
-    const std::shared_ptr<KRRenderValue> &PageData() const {
+    const KRRenderValue &PageNameValue() const {
+        return page_name_value_;
+    }
+    const KRRenderValue &InstanceIdValue() const {
+        return instance_id_value_;
+    }
+    /** 取出原始 pageData（多为 JSON 字符串），成员被置空。 */
+    KRRenderValue RemovePageData() {
+        return std::move(page_data_);
+    }
+    /** 取出解析后的 JSON object，成员被置空。 */
+    KRRenderValue RemoveParsedPageData() {
+        return std::move(parsed_page_data_);
+    }
+    /** 只读 peek：不消费，供 DidInit 之前需要读取 pageData 的逻辑使用。 */
+    const KRRenderValue &PageData() const {
         return page_data_;
     }
-    const std::shared_ptr<KRRenderValue> PageParam() const {
-        return page_data_->toMap().find("param")->second;
+    const KRRenderValue &ParsedPageData() const {
+        return parsed_page_data_;
     }
     const std::shared_ptr<KRConfig> &Config() const {
         return config_;
@@ -70,14 +90,19 @@ class KRRenderContextParams {
     std::string page_name_;
     /** 唯一页面实例ID，用于与context产物交互时指定所在页面实例(对标kotlin侧pagerId) */
     std::string instance_id_;
+    /** ArkTS 入口留下的 UTF-16 盒，CallKotlin 用这两份，不用上面的 UTF-8 拷贝。 */
+    KRRenderValue page_name_value_;
+    KRRenderValue instance_id_value_;
     /** 页面执行模式*/
     std::shared_ptr<KRRenderExecuteMode> execute_mode_;
     /**
      * 执行上下文code，驱动渲染对应的代码。KRRenderExecuteMode.Native模式时: 传递 ""
      */
     std::string context_code_;
-    /** 页面携带透传的数据，对标kotlin侧的pagerData.params */
-    std::shared_ptr<KRRenderValue> page_data_;
+    /** 页面携带透传的数据，对标kotlin侧的pagerData.params；动态化仍可能是 JSON 文本 */
+    KRRenderValue page_data_;
+    /** `page_data_.Parsed()` 的缓存：object 原样，string 则 parse 一次 */
+    KRRenderValue parsed_page_data_;
     /** 配置数据 */
     std::shared_ptr<KRConfig> config_;
 };

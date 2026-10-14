@@ -280,5 +280,43 @@ export const zhSidebar = sidebar({
     ],
     "/QA": [
         "kuikly-qa.md", "kuikly-example.md"
+    ],
+    "/ChangeLog": [
+        {
+            text: "",
+            prefix: "/ChangeLog",
+            collapsible: false,
+            children: [
+                "README.md",
+                { text: "2.28.0", link: "/ChangeLog/2.28.0/changelog.md" },
+                { text: "2.27.0", link: "/ChangeLog/2.27.0/changelog.md" },
+                { text: "2.26.0", link: "/ChangeLog/2.26.0/changelog.md" },
+                { text: "2.25.0", link: "/ChangeLog/2.25.0/changelog.md" },
+                { text: "2.24.0", link: "/ChangeLog/2.24.0/changelog.md" },
+                { text: "2.23.3", link: "/ChangeLog/2.23.3/changelog.md" },
+                { text: "2.23.2", link: "/ChangeLog/2.23.2/changelog.md" },
+                { text: "2.23.1", link: "/ChangeLog/2.23.1/changelog.md" },
+                { text: "2.23.0", link: "/ChangeLog/2.23.0/changelog.md" },
+                { text: "2.22.0", link: "/ChangeLog/2.22.0/changelog.md" },
+                { text: "2.21.0", link: "/ChangeLog/2.21.0/changelog.md" },
+                { text: "2.20.1", link: "/ChangeLog/2.20.1/changelog.md" },
+                { text: "2.20.0", link: "/ChangeLog/2.20.0/changelog.md" },
+                { text: "2.19.1", link: "/ChangeLog/2.19.1/changelog.md" },
+                { text: "2.19.0", link: "/ChangeLog/2.19.0/changelog.md" },
+                { text: "2.18.0", link: "/ChangeLog/2.18.0/changelog.md" },
+                { text: "2.17.0", link: "/ChangeLog/2.17.0/changelog.md" },
+                { text: "2.16.0", link: "/ChangeLog/2.16.0/changelog.md" },
+                { text: "2.15.3", link: "/ChangeLog/2.15.3/changelog.md" },
+                { text: "2.15.2", link: "/ChangeLog/2.15.2/changelog.md" },
+                { text: "2.15.1", link: "/ChangeLog/2.15.1/changelog.md" },
+                { text: "2.15.0", link: "/ChangeLog/2.15.0/changelog.md" },
+                { text: "2.14.0", link: "/ChangeLog/2.14.0/changelog.md" },
+                { text: "2.13.0", link: "/ChangeLog/2.13.0/changelog.md" },
+                { text: "2.12.1", link: "/ChangeLog/2.12.1/changelog.md" },
+                { text: "2.12.0", link: "/ChangeLog/2.12.0/changelog.md" },
+                { text: "2.11.0", link: "/ChangeLog/2.11.0/changelog.md" },
+                { text: "2.10.0", link: "/ChangeLog/2.10.0/changelog.md" },
+            ],
+        },
     ]
 });

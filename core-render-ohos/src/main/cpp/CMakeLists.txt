@@ -1,5 +1,5 @@
 # the minimum version of CMake.
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.14)
 project(myNpmLib)
 
 set(NATIVERENDER_ROOT_PATH .)
@@ -93,6 +93,13 @@ set(SOURCE_SET
         libohos_render/utils/KRURIHelper.cpp
         libohos_render/utils/KRBase64Util.cpp
         libohos_render/utils/KRJSONObject.cpp
+        libohos_render/utils/json/Allocator.cpp
+        libohos_render/utils/json/Box.cpp
+        libohos_render/utils/json/Reader.cpp
+        libohos_render/utils/json/DomBuilder.cpp
+        libohos_render/api/src/KRJSON.cpp
+        libohos_render/foundation/type/KRRenderValue.cpp
+        libohos_render/foundation/type/KRRenderValueNapi.cpp
         libohos_render/utils/KRStringUtil.cpp
         libohos_render/utils/KRViewUtil.cpp
         libohos_render/utils/KRThreadChecker.cpp
@@ -155,6 +162,22 @@ target_include_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/include)
 target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64-linux-ohos)
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}
                     ${NATIVERENDER_ROOT_PATH}/include)
+
+# RapidJSON (header-only) — SAX JSON parser
+include(FetchContent)
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_THIRDPARTY_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+        rapidjson
+        GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+        GIT_TAG 24b5e7a8b27f42fa16b96fc70aade9106cf7102f
+)
+FetchContent_MakeAvailable(rapidjson)
+# RapidJSON's CMake may reset CMAKE_CXX_STANDARD; keep kuikly on C++17.
+set(CMAKE_CXX_STANDARD 17)
+target_include_directories(kuikly PRIVATE ${rapidjson_SOURCE_DIR}/include)
 target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libability_runtime.so
                                     libace_napi.z.so

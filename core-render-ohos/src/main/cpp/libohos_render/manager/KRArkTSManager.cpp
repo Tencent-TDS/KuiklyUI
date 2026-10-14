@@ -17,18 +17,20 @@
 
 #include "libohos_render/foundation/ark_ts.h"
 #include "libohos_render/foundation/KRCallbackData.h"
+#include "libohos_render/foundation/type/KRRenderValueNapi.h"
+
+using kuikly::util::NapiValue;
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/view/KRRenderView.h"
 
-
 napi_value CToNApiValue(napi_env env, const KRAnyValue &value) {
     napi_value arg0Value;
     napi_status status;
     if (value != nullptr) {
-        value->ToNapiValue(env, &arg0Value, status);
+        arg0Value = NapiValue::FromRenderValue(env, value, &status).value;
     } else {
         napi_get_null(env, &arg0Value);
     }
@@ -46,7 +48,7 @@ KRArkTSManager::KRArkTSManager() {}
  * 处理来自ArkTS对Native侧的统一调用
  */
 void KRArkTSManager::HandleArkTSCallNative(napi_env env, napi_value *args, size_t arg_size) {
-    auto methodId = KRRenderValue::Make(env, args[1])->toInt();
+    auto methodId = NapiValue(env, args[1]).ToRenderValue()->toInt();
     if (methodId == static_cast<int>(KRArkTSCallNativeMethod::Register)) {  // 注册ArkTS互通信
         RegisterArkTSCallback(env, args, arg_size);
     } else if (methodId == static_cast<int>(KRArkTSCallNativeMethod::FireCallback)) {  // callback参数回调
@@ -81,7 +83,7 @@ void KRArkTSManager::RegisterArkTSCallback(napi_env env, napi_value *args, size_
  * 调用ArkTS方法
  * 注：不允许在子线程调用，若要在子线程调用，请用KRContextScheduler::ScheduleTaskOnMainThread
  */
-KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNativeCallArkTSMethod methodId,
+KRAnyValue KRArkTSManager::CallArkTSMethod(const KRAnyValue &instanceId, KRNativeCallArkTSMethod methodId,
                                            const KRAnyValue &arg0, const KRAnyValue &arg1, const KRAnyValue &arg2,
                                            const KRAnyValue &arg3, const KRAnyValue &arg4,
                                            const KRRenderCallback &callback, bool callback_keep_alive,
@@ -94,10 +96,8 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
     napi_value callbackFun;
     napi_get_reference_value(env, arkTSCallbackData_->callbackRef, &callbackFun);
     napi_value callbackArgs[8] = {nullptr};
-    napi_value instanceIdValue;
     napi_status status;
-    KRRenderValue::Make(instanceId)->ToNapiValue(env, &instanceIdValue, status);
-    callbackArgs[0] = instanceIdValue;
+    callbackArgs[0] = CToNApiValue(env, instanceId);
     napi_value methodIdValue;
     napi_create_int32(env, (int32_t)methodId, &methodIdValue);
     callbackArgs[1] = methodIdValue;
@@ -107,12 +107,12 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
     callbackArgs[5] = CToNApiValue(env, arg3);
     callbackArgs[6] = CToNApiValue(env, arg4);
     if (callback != nullptr) {
-        auto pager_id = instanceId;
+        auto pager_id = instanceId.toString();
         auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
         if (renderView != nullptr) {
             auto callback_id =
                 renderView->GenerateArgCallbackId(callback, callback_keep_alive, arg_prefers_raw_napi_value);
-            callbackArgs[7] = CToNApiValue(env, NewKRRenderValue(callback_id));
+            callbackArgs[7] = CToNApiValue(env, KRRenderValue::Make(callback_id));
         }
     } else {
         napi_value nullValue;
@@ -142,16 +142,16 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
         
         return KRRenderValue::Make(nullptr);
     }
-    return KRRenderValue::Make(env, result);
+    return NapiValue(env, result).ToRenderValue();
 }
 
 /**
  * 键盘高度变化回调
  */
 void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t arg_size) {
-    auto height = KRRenderValue::Make(env, args[2])->toFloat();
-    auto duration_ms = KRRenderValue::Make(env, args[3])->toInt();
-    auto window_id = KRRenderValue::Make(env, args[4])->toString();
+    auto height = NapiValue(env, args[2]).ToRenderValue()->toFloat();
+    auto duration_ms = NapiValue(env, args[3]).ToRenderValue()->toInt();
+    auto window_id = NapiValue(env, args[4]).ToRenderValue()->toString();
     KRKeyboardManager::GetInstance().NotifyKeyboardHeightChanged(height, duration_ms, window_id);
 }
 
@@ -159,18 +159,18 @@ void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t
  * ArkTS侧调用Native Callback
  */
 void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_t arg_size) {
-    auto pager_id = KRRenderValue::Make(env, args[0])->toString();
-    auto callback_id = KRRenderValue::Make(env, args[2])->toString();
+    auto pager_id = NapiValue(env, args[0]).ToRenderValue()->toString();
+    auto callback_id = NapiValue(env, args[2]).ToRenderValue()->toU16String();
     auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
     if (renderView != nullptr) {
         bool arg_prefer_raw_napi_value = false;
         auto callback = renderView->GetArgCallback(callback_id, arg_prefer_raw_napi_value);
         if (callback != nullptr) {
-            std::shared_ptr<KRRenderValue> data;
+            KRAnyValue data;
             if (arg_prefer_raw_napi_value) {
-                data = KRRenderValue::Make(NapiValue(env, args[3]));
+                data = NapiValue(env, args[3]).ToOpaqueRenderValue();
             } else {
-                data = KRRenderValue::Make(env, args[3]);
+                data = NapiValue(env, args[3]).ToRenderValue();
             }
             callback(data);
         }
@@ -181,14 +181,14 @@ void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_
  * ArkTS侧响应ViewEvent事件
  */
 void KRArkTSManager::FireViewEventFromArkTS(napi_env env, napi_value *args, size_t arg_size) {
-    auto pager_id = KRRenderValue::Make(env, args[0])->toString();
-    auto tag = KRRenderValue::Make(env, args[2])->toInt();
-    auto eventKey = KRRenderValue::Make(env, args[3])->toString();
+    auto pager_id = NapiValue(env, args[0]).ToRenderValue()->toString();
+    auto tag = NapiValue(env, args[2]).ToRenderValue()->toInt();
+    auto eventKey = NapiValue(env, args[3]).ToRenderValue()->toString();
     auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
     if (renderView != nullptr) {
         auto view = renderView->GetView(tag);
         if (view != nullptr) {
-            auto data = KRRenderValue::Make(env, args[4]);
+            auto data = NapiValue(env, args[4]).ToRenderValue();
             view->FireViewEventFromArkTS(eventKey, data);
         }
     }

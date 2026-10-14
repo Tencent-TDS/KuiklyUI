@@ -26,14 +26,13 @@ Workshop Agent 是基于 Kuikly 的从 0 到 1 创意生成工具，面向产品
 
 创作在 Web 或 Mac 上完成。体验和交付是 iOS、Android 原生 App。
 
+<img src="./img/workshop-create-2.png" alt="对话生成、在线预览与扫码预览" width="720" />
+
 ## 从一句话到可体验的 App
 
 1. **需求规划**：在工作台输入想法，描述要做什么、给谁用、核心页面有哪些，然后发送。
 2. **代码生成**：按 Kuikly / Compose DSL 生成页面和交互，在后台沙盒里编译。对话区会给出修改说明和编译结果。
 3. **多端预览**：右侧是 smartrun 云真机，可以直接看页面。也可以点在线预览，或用 Workshop App 扫码，在真机上体验，不必先发布。
-
-<img src="./img/workshop-create-2.png" alt="对话生成、在线预览与扫码预览" width="720" />
-
 4. **在线 Inspector 调试**：在线查看页面组件树和属性，定位布局与样式问题，并结合预览效果持续调整。
 5. **一键验证**：效果满意后发布到应用社区。其他人用 Workshop App 扫码即可体验和反馈。
 

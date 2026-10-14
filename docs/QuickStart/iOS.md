@@ -815,3 +815,7 @@ class TestPage : Pager(){
 1. `fontFamily` 若为别名，实现方法一返回真实名称；无别名需求可不实现，框架按原字符串继续解析。
 2. 若字体文件需要运行时动态下发/加载，实现方法二，用（已映射的）真实名称完成注册。
 3. 两个方法均可返回 `nil`/`NO`，此时按框架默认优先级继续解析，最终回落到系统字体并保留 `fontWeight`/`fontStyle`。
+
+::: tip generic family 说明
+Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：`serif` 映射为系统衬线字体（New York）、`monospace` 映射为系统等宽字体（SF Mono）（二者需 iOS 13+）；`sans-serif`、`cursive` 回落系统无衬线字体。所有类别名均保留 `fontWeight`/`fontStyle`。注意两端字体产品不同（如 Android 用 Noto Serif、iOS 用 New York），字形无法完全一致。
+:::

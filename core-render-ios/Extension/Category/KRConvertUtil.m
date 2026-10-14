@@ -56,7 +56,27 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         };
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
-    
+
+    // 情形 0: generic family（Compose FontFamily 定义的类别名，非具体字体名），
+    // 直接映射为系统对应风格字体并保留 weight/style，避免按字体名查找与业务动态注册的无效调用
+    if (fontFamily.length) {
+        NSString *lowercaseFamily = fontFamily.lowercaseString;
+        if ([lowercaseFamily isEqualToString:@"serif"] || [lowercaseFamily isEqualToString:@"monospace"]) {
+            UIFont *genericFont = [self p_systemDesignFontWithGenericFamily:lowercaseFamily
+                                                                   fontSize:fontSize
+                                                                 fontWeight:fontWeight
+                                                                     italic:[@"italic" isEqual:json[@"fontStyle"]]];
+            if (genericFont) {
+                return genericFont;
+            }
+            fontFamily = nil; // iOS 13 以下无对应 Design，回落系统字体
+        } else if ([lowercaseFamily isEqualToString:@"sans-serif"] ||
+                   [lowercaseFamily isEqualToString:@"cursive"] ||
+                   [lowercaseFamily isEqualToString:@"system-ui"]) {
+            fontFamily = nil; // 无独立字形对应，回落系统字体
+        }
+    }
+
     if (fontFamily.length) {
         // 情形 1: 字体已静态注册（info.plist）
         UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
@@ -94,12 +114,37 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
     }
     
-    // 情形 5: fontFamily 为空或以上全部失败，走系统字体并保留 weight/style
+    // 情形 5: fontFamily 为空（generic family 已置空）或以上全部失败，走系统字体并保留 weight/style
     if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
-    
+
     return [UIFont systemFontOfSize:fontSize weight:fontWeight];
+}
+
+/// serif / monospace 映射为 iOS 13+ 系统 Design 字体（New York / SF Mono）；
+/// 其余 generic family 或低版本系统返回 nil，由调用方回落到系统字体
++ (nullable UIFont *)p_systemDesignFontWithGenericFamily:(NSString *)genericFamily
+                                               fontSize:(CGFloat)fontSize
+                                             fontWeight:(UIFontWeight)fontWeight
+                                                 italic:(BOOL)italic {
+    if (@available(iOS 13.0, *)) {
+        UIFontDescriptorSystemDesign design = nil;
+        if ([genericFamily isEqualToString:@"serif"]) {
+            design = UIFontDescriptorSystemDesignSerif;
+        } else if ([genericFamily isEqualToString:@"monospace"]) {
+            design = UIFontDescriptorSystemDesignMonospaced;
+        }
+        if (!design) {
+            return nil;
+        }
+        UIFontDescriptor *descriptor = [[UIFont systemFontOfSize:fontSize weight:fontWeight].fontDescriptor fontDescriptorWithDesign:design];
+        if (descriptor && italic) {
+            descriptor = [descriptor fontDescriptorWithSymbolicTraits:descriptor.symbolicTraits | UIFontDescriptorTraitItalic] ?: descriptor;
+        }
+        return descriptor ? [UIFont fontWithDescriptor:descriptor size:fontSize] : nil;
+    }
+    return nil;
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize

@@ -66,9 +66,9 @@ private fun fontCases(): List<FontCase> = listOf(
     FontCase("SansSerif · Bold", "与 Default·Bold 一致", TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)),
     FontCase("SansSerif · Medium", "Medium", TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium)),
     FontCase("SansSerif · Bold Italic", "Bold 斜体", TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)),
-    FontCase("Serif · Bold", "iOS: 系统字体，字重 Bold", TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)),
-    FontCase("Monospace · Bold", "iOS: 系统字体，字重 Bold", TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)),
-    FontCase("Cursive · Bold", "iOS: 系统字体，字重 Bold", TextStyle(fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)),
+    FontCase("Serif · Bold", "iOS: New York Bold", TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)),
+    FontCase("Monospace · Bold", "iOS: SF Mono Bold", TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)),
+    FontCase("Cursive · Bold", "iOS: 系统字体 Bold", TextStyle(fontFamily = FontFamily.Cursive, fontWeight = FontWeight.Bold)),
     FontCase(
         "不存在的自定义字体 · Bold Italic",
         "回落系统字体并保留 Bold 斜体",

@@ -1,12 +1,10 @@
----
-title: "适配鸿蒙操作系统！！腾讯游戏直播SDK基于Kuikly三端一码开发实践"
-author: "Kuikly"
-date: 2025-07-28
-source: "https://mp.weixin.qq.com/s/joIAZr8_28UnR7XhPGZ62Q"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4deiaBClV6LNZdO1SY5CkhRO59ZVWKohMibKdOHhR8Av5l0Mk1oiaehGwQM7sjydbLpmeBMreNDkz4Fgw/0?wx_fmt=jpeg"
----
-
 # 适配鸿蒙操作系统！！腾讯游戏直播SDK基于Kuikly三端一码开发实践
+
+作者：Kuikly
+
+发布时间：2025-07-28
+
+原文链接：https://mp.weixin.qq.com/s/joIAZr8_28UnR7XhPGZ62Q
 
 随着鸿蒙Next的发布，越来越多的APP开始推进鸿蒙化适配，产品与技术团队也启动了游戏电竞直播SDK的鸿蒙适配规划。投入足够资源通常能达成适配目标，但仅实现技术目标的意义相对单薄 —— 如何进一步升华价值、让鸿蒙适配效益最大化？本文将介绍基于Kuikly框架的鸿蒙跨端适配方案，实现SDK业务代码100%跨三端跨多游戏App复用，相比各端独立开发，可节省 50% 以上人力，显著提升开发效率。
 

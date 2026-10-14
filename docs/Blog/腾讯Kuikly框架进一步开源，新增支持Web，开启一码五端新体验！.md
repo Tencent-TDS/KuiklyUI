@@ -1,12 +1,10 @@
----
-title: "腾讯Kuikly框架进一步开源，新增支持Web，开启一码五端新体验！"
-author: "腾讯程序员"
-date: 2025-08-20
-source: "https://mp.weixin.qq.com/s/Ylo97APs2LhorlB7hTNwUw"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4ddQjFApmV3g76BEQaIAAIhcQ9SXtbfDWnZMjicdDMxQ9y1z2JTjdcVMvczjOHllqShZqQtichcEPxicA/0?wx_fmt=jpeg"
----
-
 # 腾讯Kuikly框架进一步开源，新增支持Web，开启一码五端新体验！
+
+作者：腾讯程序员
+
+发布时间：2025-08-20
+
+原文链接：https://mp.weixin.qq.com/s/Ylo97APs2LhorlB7hTNwUw
 
 ![](https://mmbiz.qpic.cn/sz_mmbiz_gif/j3gficicyOvasVeMDmWoZ2zyN8iaSc6XWYj79H3xfgvsqK9TDxOBlcUa6W0EE5KBdxacd2Ql6QBmuhBJKIUS4PSZQ/640?wx_fmt=gif&from=appmsg)
 

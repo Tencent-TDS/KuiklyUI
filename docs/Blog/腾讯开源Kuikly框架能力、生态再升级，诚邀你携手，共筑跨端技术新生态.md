@@ -1,12 +1,10 @@
----
-title: "腾讯开源Kuikly框架能力、生态再升级，诚邀你携手，共筑跨端技术新生态"
-author: "Kuikly"
-date: 2025-12-30
-source: "https://mp.weixin.qq.com/s/Q5BPwyRAveMzMQOVbD2e7w"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4dcXiaGkhSMsibiausEjtqSL6WwjZliaHqdQ631zcsdOIQXmtYEhpa0kyabRicapFEx8jntDtE2lHmibVasQ/0?wx_fmt=jpeg"
----
-
 # 腾讯开源Kuikly框架能力、生态再升级，诚邀你携手，共筑跨端技术新生态
+
+作者：Kuikly
+
+发布时间：2025-12-30
+
+原文链接：https://mp.weixin.qq.com/s/Q5BPwyRAveMzMQOVbD2e7w
 
 ### 前言
 

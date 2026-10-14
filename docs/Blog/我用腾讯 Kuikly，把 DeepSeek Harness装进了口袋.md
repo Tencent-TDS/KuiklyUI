@@ -1,12 +1,10 @@
----
-title: "我用腾讯 Kuikly，把 DeepSeek Harness装进了口袋"
-author: "Kuikly"
-date: 2026-09-08
-source: "https://mp.weixin.qq.com/s/LGcffD40iCo-LFf7lqeK6Q"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUAtuvXZ6OpLfhBmOzNRWhbJsicePXnOA4WyterWve67LB7CdDMtEfX7V4r4icX8NTcrKKloZgaB894J2icyrTBVefRnFTrJiawc1CE/0?wx_fmt=jpeg"
----
-
 # 我用腾讯 Kuikly，把 DeepSeek Harness装进了口袋
+
+作者：Kuikly
+
+发布时间：2026-09-08
+
+原文链接：https://mp.weixin.qq.com/s/LGcffD40iCo-LFf7lqeK6Q
 
 关注**Kuikly**，持续分享更多AI、跨端、客户端相关的内容
 

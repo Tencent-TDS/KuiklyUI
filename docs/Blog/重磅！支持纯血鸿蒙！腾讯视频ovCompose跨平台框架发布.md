@@ -1,12 +1,10 @@
----
-title: "重磅！支持纯血鸿蒙！腾讯视频ovCompose跨平台框架发布"
-author: "Kuikly"
-date: 2025-06-09
-source: "https://mp.weixin.qq.com/s/omZK9dI-Gem1b07sM-cl2w"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4dfXgwiaJrPH3RHziaXiawrniaoEhenvvVJgIMAJLGkic4pffAFClibgLicaTLyyGz6fMTcyyh0TvhpKZRqUg/0?wx_fmt=jpeg"
----
-
 # 重磅！支持纯血鸿蒙！腾讯视频ovCompose跨平台框架发布
+
+作者：Kuikly
+
+发布时间：2025-06-09
+
+原文链接：https://mp.weixin.qq.com/s/omZK9dI-Gem1b07sM-cl2w
 
 ovCompose（online-video-compose）是腾讯大前端领域Oteam中，腾讯视频团队基于 Compose Multiplatform 生态推出的跨平台开发框架，旨在弥补Jetbrains Compose Multiplatform不支持鸿蒙平台的遗憾与解决iOS平台原生 UI 混排受限的问题，便于业务构建全跨端App。
 

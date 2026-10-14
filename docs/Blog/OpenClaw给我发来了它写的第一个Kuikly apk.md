@@ -1,12 +1,10 @@
----
-title: "OpenClaw给我发来了它写的第一个Kuikly apk"
-author: "Kuikly"
-date: 2026-04-13
-source: "https://mp.weixin.qq.com/s/ntyst7R7wxn4aPT4hD376g"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUBxhsicicEspphF8ArPMq6acrmBYTvwJVUAyEN4cTMckhUNvdtJnSOe0uYO8DLRG4nS7kwPkq7QOFT91DEcPhoW2WKSTgicc2Uzd8/0?wx_fmt=jpeg"
----
-
 # OpenClaw给我发来了它写的第一个Kuikly apk
+
+作者：Kuikly
+
+发布时间：2026-04-13
+
+原文链接：https://mp.weixin.qq.com/s/ntyst7R7wxn4aPT4hD376g
 
 导语：给龙虾热再添一把火，是时候尝试让小龙虾自主开发App了
 

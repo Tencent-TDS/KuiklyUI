@@ -1,12 +1,10 @@
----
-title: "一套代码搞定多端！HelloTalk使用Kuikly的历程和心得"
-author: "Kuikly"
-date: 2025-10-31
-source: "https://mp.weixin.qq.com/s/TIpqVoa0ILH4a_V7ir384A"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4dftfNDpz8XR3OlLqDsvXZFaVIcRgQ4KCpMcrkcqjx9DTvbyT6uC4EMtVd3CSy147fic7fUQNHYdPTA/0?wx_fmt=jpeg"
----
-
 # 一套代码搞定多端！HelloTalk使用Kuikly的历程和心得
+
+作者：Kuikly
+
+发布时间：2025-10-31
+
+原文链接：https://mp.weixin.qq.com/s/TIpqVoa0ILH4a_V7ir384A
 
 本文原作者：Wind
 

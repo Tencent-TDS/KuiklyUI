@@ -1,12 +1,10 @@
----
-title: "Kotlin 15 周年 × Kuikly 生态日｜一场关于跨端与 AI 的技术盛宴"
-author: "Kuikly"
-date: 2026-10-09
-source: "https://mp.weixin.qq.com/s/Drp1S__M33nUuwbmEZ7nYw"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUCj4ibNYibX67HDbEA9oHexQ0hwOZvtR7XicicXBtibvjlP7fsZCmtOUSwHbJQE3wLXtlqvSq90THtpaZfhjxZjCMkfSH2pKsIichqkc/0?wx_fmt=jpeg"
----
-
 # Kotlin 15 周年 × Kuikly 生态日｜一场关于跨端与 AI 的技术盛宴
+
+作者：Kuikly
+
+发布时间：2026-10-09
+
+原文链接：https://mp.weixin.qq.com/s/Drp1S__M33nUuwbmEZ7nYw
 
 9 月 16 日，「腾讯 Kuikly 生态日 × Kotlin 15 周年」在腾讯总部园区圆满举办。活动聚焦跨平台开发与 AI 融合这一时代命题，多位来自腾讯多业务团队及Kotlin生态的专家轮番登场，围绕 7 大硬核主题，带来了近 4 小时的深度分享。
 

@@ -1,12 +1,10 @@
----
-title: "长小牛 × 腾讯Kuikly：金融类AI APP三端跨平台架构落地实践"
-author: "Kuikly"
-date: 2026-10-13
-source: "https://mp.weixin.qq.com/s/5_SptmZS6NDcksvIO4neRA"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUCBTGDvgmmJv9kHRiaoCXCeGl1H913z8hz3a2uibIWHpNEPjcyicZJMXOwejSB6rmmjVaqzjw01MgictGD9B4yaJ7VibdyicBLXiaTBDM/0?wx_fmt=jpeg"
----
-
 # 长小牛 × 腾讯Kuikly：金融类AI APP三端跨平台架构落地实践
+
+作者：Kuikly
+
+发布时间：2026-10-13
+
+原文链接：https://mp.weixin.qq.com/s/5_SptmZS6NDcksvIO4neRA
 
 当证券业务从单一页面扩展到行情、交易、资讯与 AI 服务，跨端建设要解决的早已不只是“一套代码跑三端”。面对传统H5的体验瓶颈与三端开发成本，**基于KMP的腾讯开源跨端框架Kuikly，凭借原生级的渲染性能、跨端一致性体验和KuiklyAI带来的开发效率提升**，成为破局的关键。长江证券以AI热点复盘为首个试点，在Android、iOS与HarmonyOS三端逐步搭建了覆盖直接调试、宿主验收、独立交付和公共能力复用的Kuikly多业务工程。本文将从技术选型、业务落地、四层架构、统一Bridge、打包交付、AI工程化与真机性能验证等方面，复盘这套体系如何从真实问题中逐步**演进**，并为金融App的跨端建设提供参考。
 

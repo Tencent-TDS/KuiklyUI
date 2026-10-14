@@ -1,12 +1,10 @@
----
-title: "跨端页面秒开，腾讯开源框架Kuikly是怎么做到的？"
-author: "Kuikly"
-date: 2026-06-10
-source: "https://mp.weixin.qq.com/s/E4u8s6GahwttAYAFRde0Lw"
-cover: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/2YTOibpx9RUB2K3ibvOxRW6ibBQ16LVUzf64OoxH4hz7n8382ribM6Er8fiaHpCVkkHZjZ3RdlFHcrkx4odTCP8MC5oVGVrbZZSzwKLaG96YHiacw/0?wx_fmt=jpeg"
----
-
 # 跨端页面秒开，腾讯开源框架Kuikly是怎么做到的？
+
+作者：Kuikly
+
+发布时间：2026-06-10
+
+原文链接：https://mp.weixin.qq.com/s/E4u8s6GahwttAYAFRde0Lw
 
 Kuikly 是腾讯基于 Kotlin Multiplatform (KMP) 技术构建的全平台高性能开发框架，具有一码多端、极致易用、动态灵活特点，覆盖 Android、iOS、HarmonyOS、H5、微信小程序、Mac 六大平台。
 

@@ -1,12 +1,10 @@
----
-title: "腾讯开源框架 Kuikly 再升级！率先适配 “液态玻璃”，原生体验更极致"
-author: "腾讯程序员ray"
-date: 2025-09-16
-source: "https://mp.weixin.qq.com/s/g_S9QDyyUDBXH3mhVDGJqQ"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4ddM8dMIf64PfnianOhBn5v7CDjystyvCbiaiciaAfzXHdF2oBQicyze58nTpkUEVRocicxod3sYTlkwb0VA/0?wx_fmt=jpeg"
----
-
 # 腾讯开源框架 Kuikly 再升级！率先适配 “液态玻璃”，原生体验更极致
+
+作者：腾讯程序员ray
+
+发布时间：2025-09-16
+
+原文链接：https://mp.weixin.qq.com/s/g_S9QDyyUDBXH3mhVDGJqQ
 
 Kuikly是腾讯广泛应用的跨端开发框架，基于Kotlin Multiplatform技术构建，为开发者提供了技术栈更统一的跨端开发体验，由腾讯大前端领域 Oteam（公司级）推出。目前已有20+业务深度使用，服务业务的总页面数1000+、日活用户超5亿，满足了这些业务在众多场景下的各类复杂需求（[应用场景案例](https://kuikly.tds.qq.com/Introduction/application_cases.html?utm_source=artical5)）。Kuikly 作为腾讯端服务联盟(tds.qq.com)的重要成员，将持续推动跨端开发的技术创新和生态建设。
 

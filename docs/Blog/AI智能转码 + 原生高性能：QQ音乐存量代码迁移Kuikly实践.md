@@ -1,12 +1,10 @@
----
-title: "AI智能转码 + 原生高性能：QQ音乐存量代码迁移Kuikly实践"
-author: "Kuikly"
-date: 2026-05-13
-source: "https://mp.weixin.qq.com/s/WDTBnrc-ge19Sa_e7LPojQ"
-cover: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/2YTOibpx9RUBkFwNJ2zsZyiaOdibibRmZcicgOGEuT5hGq00blb1JbZ2glvZKnlibUJK7NGzfwBpY6jDwS8RXA9hiayGy9IicJfeZZ1tzQvAje0gOsk/0?wx_fmt=jpeg"
----
-
 # AI智能转码 + 原生高性能：QQ音乐存量代码迁移Kuikly实践
+
+作者：Kuikly
+
+发布时间：2026-05-13
+
+原文链接：https://mp.weixin.qq.com/s/WDTBnrc-ge19Sa_e7LPojQ
 
 导语 Kuikly 是腾讯开源的高性能跨端开发框架，支持基于 Kotlin 原生开发语言构建 Android、iOS、鸿蒙、Web、小程序及 Mac 多端应用。作为较早接入Kuikly的业务，QQ音乐一直深度使用Kuikly，已累计开发200+页面，并持续迁移存量页面至Kuikly。在AI背景下，我们进一步探索 React 转 Kuikly 智能转码方案，大幅提升跨端页面迁移效率和业务性能表现。
 

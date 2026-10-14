@@ -1,12 +1,10 @@
----
-title: "腾讯Kuikly框架鸿蒙版正式开源 —— 揭秘卓越性能适配之旅"
-author: "TDF端框架助手"
-date: 2025-06-03
-source: "https://mp.weixin.qq.com/s/KsEqVO_Zh73xSlUWOrvZrQ"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4dctUsNNlP9pYWQcuIO2xLvPbtFbf6ItSqOFYyMFJTtiaOxD7wwe0pd0KSIeI76DGtAoBJGxG1s8BRg/0?wx_fmt=jpeg"
----
-
 # 腾讯Kuikly框架鸿蒙版正式开源 —— 揭秘卓越性能适配之旅
+
+作者：TDF端框架助手
+
+发布时间：2025-06-03
+
+原文链接：https://mp.weixin.qq.com/s/KsEqVO_Zh73xSlUWOrvZrQ
 
 ## 一 背景
 

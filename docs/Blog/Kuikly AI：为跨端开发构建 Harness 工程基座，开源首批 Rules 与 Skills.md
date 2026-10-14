@@ -1,12 +1,10 @@
----
-title: "Kuikly AI：为跨端开发构建 Harness 工程基座，开源首批 Rules 与 Skills"
-author: "Kuikly"
-date: 2026-04-22
-source: "https://mp.weixin.qq.com/s/7pqy1Mruko4qyJAzbyCchw"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUC22w59WdqL3h0ickODiau8E1vClxA3NNKdejw8TxEXo1djUJVR6s2WCA4dyorQ1GhGFGUmOLC7DlgpLiaZ69ZOx4nT4icpxUWt6lA/0?wx_fmt=jpeg"
----
-
 # Kuikly AI：为跨端开发构建 Harness 工程基座，开源首批 Rules 与 Skills
+
+作者：Kuikly
+
+发布时间：2026-04-22
+
+原文链接：https://mp.weixin.qq.com/s/7pqy1Mruko4qyJAzbyCchw
 
 AI 驱动开发是 Kuikly 2026 年的核心方向——我们希望将 AI 能力深度融入研发全链路。围绕这一方向，我们沿着客户端开发的各个环节逐一推进，实践了 Harness 开发并沉淀了工具，相关能力已在司内多条业务线落地，并显著提升了研发效率。现在，我们正式开源首批 AI 能力：Rules 与 Skills，诚邀各位开发者体验与协作，项目地址：[KuiklyUI-AI GitHub 仓库](https://github.com/Tencent-TDS/KuiklyUI-AI)
 

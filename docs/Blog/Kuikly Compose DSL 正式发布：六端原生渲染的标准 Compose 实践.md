@@ -1,12 +1,10 @@
----
-title: "Kuikly Compose DSL 正式发布：六端原生渲染的标准 Compose 实践"
-author: "Kuikly"
-date: 2026-06-03
-source: "https://mp.weixin.qq.com/s/i5y6Mc2t9NyNhUQpB6TvNA"
-cover: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/2YTOibpx9RUC7odf6gQ0tTzYSk5TnC8TMYm46DXvxlRpNGhkibgoQ7plRzOKWXjhLdI0T3ZaBuwfSXLo78ia1vgWXia9Kjhsibd09zHKIKwOSk9c/0?wx_fmt=jpeg"
----
-
 # Kuikly Compose DSL 正式发布：六端原生渲染的标准 Compose 实践
+
+作者：Kuikly
+
+发布时间：2026-06-03
+
+原文链接：https://mp.weixin.qq.com/s/i5y6Mc2t9NyNhUQpB6TvNA
 
 | 导语 Kuikly Compose DSL在 Kuikly 跨端框架的原生渲染引擎之上，实现了对标准 Jetpack Compose API 的支持，覆盖 Android、iOS、HarmonyOS、H5、微信小程序、Mac 六大平台。本文从背景与动机、架构设计、核心对接问题与实现、业务实践、未来方向与快速上手五个部分，介绍 Kuikly Compose DSL的设计思路、关键实现、落地情况与后续规划，并重点展开节点树、布局坐标系、手势与滑动等方向的对接工作。
 

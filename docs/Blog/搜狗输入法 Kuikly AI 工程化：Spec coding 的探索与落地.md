@@ -1,12 +1,10 @@
----
-title: "搜狗输入法 Kuikly AI 工程化：Spec coding 的探索与落地"
-author: "Kuikly"
-date: 2026-03-27
-source: "https://mp.weixin.qq.com/s/eAHKIh77Vz5OV4bJ3rYmiQ"
-cover: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/2YTOibpx9RUB6pIXhO6oPf3j0jtp7iaianbCFkEhvfoIqUgVUMRZ7WIcP88hRJYE4tQMuJ9QmVickmK2wXQFswUWeGQ2FKTkSSXl0cX8tCtdmu8/0?wx_fmt=jpeg"
----
-
 # 搜狗输入法 Kuikly AI 工程化：Spec coding 的探索与落地
+
+作者：Kuikly
+
+发布时间：2026-03-27
+
+原文链接：https://mp.weixin.qq.com/s/eAHKIh77Vz5OV4bJ3rYmiQ
 
 作者：搜狗输入法hesleyliang
 

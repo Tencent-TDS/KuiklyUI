@@ -1,12 +1,10 @@
----
-title: "腾讯开源跨平台开发框架 Kuikly，能显著提升多端开发效率"
-author: "TDF端框架助手"
-date: 2025-04-29
-source: "https://mp.weixin.qq.com/s/56vXqvTuigT4H3OB1eD96g"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/tnZGrhTk4derVvpwZSiaqKjoTJXYH8nA7UPWlOmAiaxL21vDiaK5vco4E0jc0pJPhkhc4NM6UwJwop2n1mrOT2Yiaw/0?wx_fmt=jpeg"
----
-
 # 腾讯开源跨平台开发框架 Kuikly，能显著提升多端开发效率
+
+作者：TDF端框架助手
+
+发布时间：2025-04-29
+
+原文链接：https://mp.weixin.qq.com/s/56vXqvTuigT4H3OB1eD96g
 
 Kuikly 是腾讯广泛使用的跨端开发框架，基于 Kotlin Multiplatform 技术构建，为开发者了提供技术栈更统一的跨端开发体验。已在 QQ、腾讯新闻、QQ 音乐、搜狗输入法、QQ 浏览器等业务中广泛使用，显著提升了多端开发效率。近期 Kuikly 已在 [GitHub 开源](https://github.com/Tencent-TDS/KuiklyUI)。那么，Kuikly 相对其他框架优势是什么？它的核心设计理念和技术原理是什么？现在，让我们一起探索 Kuikly 的奥秘。
 

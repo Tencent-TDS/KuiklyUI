@@ -1,12 +1,10 @@
----
-title: "Kuikly Roadmap（2026）"
-author: "Kuikly"
-date: 2026-04-24
-source: "https://mp.weixin.qq.com/s/OVlhcGi4ooAsFQyv0PuL5g"
-cover: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/2YTOibpx9RUATAp6KgjjNtqtmKiamzhR3Uksm97pM2EqyWlrgAibT8xGDUhRbxO4tMWOdiaOMcyDCnpRzLO1YQaJz9n9aNuN3kJqv02uicxFfor4/0?wx_fmt=jpeg"
----
-
 # Kuikly Roadmap（2026）
+
+作者：Kuikly
+
+发布时间：2026-04-24
+
+原文链接：https://mp.weixin.qq.com/s/OVlhcGi4ooAsFQyv0PuL5g
 
 Kuikly 是腾讯内外广泛使用的跨端框架，基于 Kotlin Multiplatform 技术，为开发者带来技术栈更一致的全新跨端开发体验。2025 年我们完成了鸿蒙、H5、小程序平台的开源，发布了 Compose DSL Beta 版本，并在社区建设上迈出了重要一步。
 

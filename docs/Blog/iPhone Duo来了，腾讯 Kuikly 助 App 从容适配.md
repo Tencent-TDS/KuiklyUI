@@ -1,12 +1,10 @@
----
-title: "iPhone Duo来了，腾讯 Kuikly 助 App 从容适配"
-author: "Kuikly"
-date: 2026-09-10
-source: "https://mp.weixin.qq.com/s/fHdB9pdqGm68NTaRZTx-Ug"
-cover: "https://mmecoa.qpic.cn/mmecoa_jpg/2YTOibpx9RUD3iaEL16fzicCSE8YRDjqYrLDbz9uGGL5icxfoklkARfaLwruVKiazdeQ96kh5pRgA6BTKFZw3QRSNjRibDdeXzmRwBT00qCwjyxOA/0?wx_fmt=jpeg"
----
-
 # iPhone Duo来了，腾讯 Kuikly 助 App 从容适配
+
+作者：Kuikly
+
+发布时间：2026-09-10
+
+原文链接：https://mp.weixin.qq.com/s/fHdB9pdqGm68NTaRZTx-Ug
 
 关注**Kuikly**，持续分享更多AI、跨端、客户端相关的内容
 

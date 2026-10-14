@@ -1,5 +1,5 @@
 ---
-title: Kuikly AI 介绍与工程基座
+title: Kuikly AI 基础工具
 category: AI编程
 tag:
   - Rules
@@ -7,7 +7,7 @@ tag:
   - Harness
 ---
 
-# Kuikly AI 介绍与工程基座
+# Kuikly AI 基础工具
 
 > **开源仓库地址**：[https://github.com/Tencent-TDS/KuiklyUI-AI](https://github.com/Tencent-TDS/KuiklyUI-AI)
 

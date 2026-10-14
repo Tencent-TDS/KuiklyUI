@@ -1,16 +1,16 @@
 ---
-title: KuiklyUI-A2UI
+title: Kuikly A2UI
 category: AI编程
 tag:
   - A2UI
   - Agent
 ---
 
-# KuiklyUI-A2UI
+# Kuikly A2UI
 
 Kuikly 对 [A2UI 协议](https://a2ui.org/) 的实现，支持 Android、iOS、HarmonyOS 原生渲染。
 
-仓库：[KuiklyUI-A2UI](https://github.com/Tencent-TDS/KuiklyUI-A2UI) · [English README](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/README.md) · [官网](https://framework.tds.qq.com/)
+仓库：[Kuikly A2UI](https://github.com/Tencent-TDS/KuiklyUI-A2UI) · [English README](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/README.md) · [官网](https://framework.tds.qq.com/)
 
 ## 项目介绍
 
@@ -26,13 +26,13 @@ Kuikly A2UI 核心 SDK 内部直接对接 Kuikly DSL 组件树，将服务端下
   <img src="./img/a2ui_and_llm.png" alt="Kuikly A2UI Architecture" width="800">
 </div>
 
-**KuiklyUI-A2UI** 是 Kuikly A2UI 核心 SDK 的实现工程，旨在提供一套跨端、易用、灵活的面向用户和 AI 智能体交互的 UI 开发框架。目前已支持平台：
+**Kuikly A2UI** 是 Kuikly A2UI 核心 SDK 的实现工程，旨在提供一套跨端、易用、灵活的面向用户和 AI 智能体交互的 UI 开发框架。目前已支持平台：
 
 - [X] Android
 - [X] iOS
 - [X] HarmonyOS
 
-> **名词约定**：本文中“**A2UI**”一律指 Google 开源的 [A2UI 协议](https://a2ui.org/)；“**KuiklyUI-A2UI**”或“本工程”指当前仓库（即对 A2UI 协议的 Kuikly 实现）。
+> **名词约定**：本文中“**A2UI**”一律指 Google 开源的 [A2UI 协议](https://a2ui.org/)；“**Kuikly A2UI**”或“本工程”指当前仓库（即对 A2UI 协议的 Kuikly 实现）。
 
 ### 核心特性
 
@@ -148,7 +148,7 @@ Kuikly A2UI 的协议 catalog 位于 [`catalogs/kuikly_a2ui_catalog.json`](https
 ## 目录结构
 
 ```
-KuiklyUI-A2UI/                             # 工程根目录（本仓库）
+Kuikly A2UI/                             # 工程根目录（本仓库）
 ├── a2ui/                                  # 核心跨平台模块 (Kotlin Multiplatform)
 │   └── src/commonMain/kotlin/com/tencent/kuikly/a2ui/
 │       ├── adapter/                       # 协议适配器
@@ -375,7 +375,7 @@ Android / iOS / HarmonyOS 三端 Demo 已内置：
 
 仓库中提供了 3 × 4 = 12 个示例工程，覆盖 3 端（Android / iOS / HarmonyOS）× 4 种（Native 页接入 / Kuikly 页接入 / 两种同时接入 / 协议测试）。
 
-**先决条件**：本工程依赖外部 KuiklyUI Core 仓库，默认配置位置为 `../KuiklyUI`，所以最简单的源码依赖方式是：直接 clone [KuiklyUI](https://github.com/Tencent-TDS/KuiklyUI) main 分支代码到和 KuiklyUI-A2UI 并列的目录。详细配置依赖可阅读 [`SETUP-zh_CN.md`](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/SETUP-zh_CN.md)，按需修改 `gradle.properties` 中的 `kuikly.projectDir`（或在 `local.properties` 里覆盖）。
+**先决条件**：本工程依赖外部 KuiklyUI Core 仓库，默认配置位置为 `../KuiklyUI`，所以最简单的源码依赖方式是：直接 clone [KuiklyUI](https://github.com/Tencent-TDS/KuiklyUI) main 分支代码到和 Kuikly A2UI 并列的目录。详细配置依赖可阅读 [`SETUP-zh_CN.md`](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/SETUP-zh_CN.md)，按需修改 `gradle.properties` 中的 `kuikly.projectDir`（或在 `local.properties` 里覆盖）。
 
 然后按平台运行任意 demo：
 
@@ -486,6 +486,6 @@ Kotlin Common 层的统一入口，管理所有 A2UI 实例的生命周期：
 
 ## License
 
-KuiklyUI-A2UI License. See [LICENSE](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/LICENSE) for details.
+Kuikly A2UI License. See [LICENSE](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/LICENSE) for details.
 
 本工程 demo 中的部分示例 JSON 资源派生自 Google LLC 的 A2UI 项目（Apache License 2.0），相关归属与文件清单见 [THIRD_PARTY_LICENSES](https://github.com/Tencent-TDS/KuiklyUI-A2UI/blob/main/THIRD_PARTY_LICENSES)。

@@ -1,5 +1,5 @@
 ---
-title: 其他框架转码 Kuikly 工具
+title: 其他框架转码 Kuikly
 category: AI编程
 tag:
   - 转码
@@ -8,7 +8,7 @@ tag:
   - 迁移
 ---
 
-# 其他框架转码 Kuikly 工具
+# 其他框架转码 Kuikly
 
 > **开源项目**：
 > * **React2Kuikly**：[https://github.com/Tencent-TDS/React2Kuikly](https://github.com/Tencent-TDS/React2Kuikly)

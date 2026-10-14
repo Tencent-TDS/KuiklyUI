@@ -1,12 +1,14 @@
 ---
-title: Kuikly AI
+title: Kuikly AI 整体介绍
 category: AI编程
 tag:
   - AI
   - 概览
 ---
 
-# Kuikly AI
+# Kuikly AI 整体介绍
+
+<img src="./img/kuikly-ai-pipeline.png" alt="Kuikly AI 自动化生产线：需求规划、代码生成、多端预览、一键验证" width="720" />
 
 AI 驱动 Kuikly 开发全链路，让跨端开发更智能、更高效。
 
@@ -25,7 +27,7 @@ MCP 实时检索     →     视觉稿转码 Deco     →     UI Inspector      
 生产线之外，还可以按场景使用：
 
 - **转码 Agent**：存量页面迁移
-- **Workshop Agent**：面向产品、设计师和其他非客户端开发角色，从一句话生成可在真机运行的原型和轻量 App
+- **原型生成 Agent**：面向产品、设计师和其他非客户端开发角色，从一句话生成可在真机运行的原型和轻量 App
 - **AI Chat 组件与 A2UI**：在业务 App 里接入对话界面，并渲染 Agent 下发的可交互界面
 
 下面按能力逐项介绍。知识库、Kuikly Rules、Kuikly Skills、转码 Agent、AI Chat 组件已发布，其余能力随 Kuikly AI 逐步开放。
@@ -62,7 +64,7 @@ Kuikly 有两套 DSL，缺规则时都容易写错：
 
 规则以 `.mdc`（Markdown + YAML front-matter）编写。CodeBuddy 会把它当作项目上下文自动加载；Cursor 放在 `.cursor/rules/` 即可。也可以按团队目录结构、命名和架构约定自行扩展，让模型同时遵守框架规范和工程规范。
 
-仓库与安装方式见 [Kuikly AI 介绍](./kuikly-ai.md)，地址：[KuiklyUI-AI](https://github.com/Tencent-TDS/KuiklyUI-AI)。
+仓库与安装方式见 [Kuikly AI 基础工具](./kuikly-ai.md)，地址：[KuiklyUI-AI](https://github.com/Tencent-TDS/KuiklyUI-AI)。
 
 ---
 
@@ -76,7 +78,7 @@ Kuikly 有两套 DSL，缺规则时都容易写错：
 - **按对话自动启用**：根据当前任务识别并加载对应技能，不用手动切换。
 - **可以组合**：复杂需求可以同时用到多个技能，例如先按组件规范搭页面，再按扩展规范补一个原生 Module。
 
-安装与技能列表见 [Kuikly AI 介绍](./kuikly-ai.md)。
+安装与技能列表见 [Kuikly AI 基础工具](./kuikly-ai.md)。
 
 ---
 
@@ -98,10 +100,6 @@ Figma 转码 · 高还原度 · 资源同步
 - **按设计稿还原**：保留布局、样式和视觉层级，减少设计和开发之间的返工。
 - **资源一并处理**：提取图片资源并同步，支持 Android Studio 插件和 CLI，不用逐张导出再改引用。
 - **转码前后一起做**：转码前做设计稿检查，团队内共享组件和规范；设计改稿后增量更新；交付前做设计走查。
-
-原理、组件复用和接入方式见 [D2C 设计稿转代码](./d2c.md)。体验与接入请联系 **Kuikly 小助手** 微信。
-
-<img src="./img/kuikly-assistant-qrcode.png" alt="Kuikly 小助手微信" width="180" />
 
 ---
 
@@ -149,7 +147,7 @@ Figma 转码 · 高还原度 · 资源同步
 - **跨端一致**：同一套组件跑在 Android、iOS、鸿蒙上。
 - **样式可配**：气泡、字体、输入框可以按业务品牌调整。
 
-会话组件、Markdown 渲染，以及 DeepSeek Harness 移动端示例见 [AI 交互组件与端侧实战](./chat-markdown.md)。
+会话组件、Markdown 渲染，以及 DeepSeek Harness 移动端示例见 [Kuikly AIChat 套件](./chat-markdown.md)。
 
 ### A2UI
 
@@ -157,7 +155,7 @@ Figma 转码 · 高还原度 · 资源同步
 
 Kuikly A2UI 用 Kuikly 的渲染能力，在 Android、iOS、HarmonyOS 上原生渲染这套协议，并扩展了样式和自定义组件。SDK 把 JSON 流渲染成卡片，用户操作卡片后通过 Action 回调给业务：可以本地处理，也可以交回服务端智能体，再生成新的 JSON 流。内部路径是：协议 → 内部消息 → DSL 操作 → 原生视图。
 
-完整介绍、接入方式和 Demo 见 [KuiklyUI-A2UI](./a2ui.md)。
+完整介绍、接入方式和 Demo 见 [Kuikly A2UI](./a2ui.md)。
 
 ---
 
@@ -174,4 +172,8 @@ Kuikly A2UI 用 Kuikly 的渲染能力，在 Android、iOS、HarmonyOS 上原生
 3. **多端预览**：生成后在 Android、iOS、鸿蒙上查看运行效果，并用 Inspector 检查组件。
 4. **一键验证**：做编译检查、代码审查和白盒测试，确认交付物可以接着开发，而不是停在一份还编不过的草稿。
 
-产品、设计师和其他非客户端开发角色如果要从一句话做出可运行原型，走 [Workshop Agent](./workshop-agent.md)。开发侧的重复工程步骤留在这条流程里，业务规则和交互取舍仍由人决定。
+产品、设计师和其他非客户端开发角色如果要从一句话做出可运行原型，走 [原型生成 Agent](./workshop-agent.md)。开发侧的重复工程步骤留在这条流程里，业务规则和交互取舍仍由人决定。
+
+原理、组件复用和接入方式见 [D2C 设计稿转代码](./d2c.md)。体验与接入请联系 **Kuikly 小助手** 微信。
+
+<img src="./img/kuikly-assistant-qrcode.png" alt="Kuikly 小助手微信" width="180" />

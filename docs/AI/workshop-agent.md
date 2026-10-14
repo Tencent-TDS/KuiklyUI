@@ -1,5 +1,5 @@
 ---
-title: Workshop Agent
+title: 原型生成 Agent
 category: AI编程
 tag:
   - Workshop
@@ -7,9 +7,9 @@ tag:
   - Agent
 ---
 
-# Workshop Agent
+# 原型生成 Agent
 
-Workshop Agent 是基于 Kuikly 的从 0 到 1 创意生成工具，面向产品、设计师和其他非客户端开发角色。用自然语言描述想法，就能得到一个可以在真机上运行的 App，覆盖 iOS 和 Android。
+原型生成 Agent 是基于 Kuikly 的从 0 到 1 创意生成工具，面向产品、设计师和其他非客户端开发角色。用自然语言描述想法，就能得到一个可以在真机上运行的 App，覆盖 iOS 和 Android。
 
 它复用 Kuikly 的开发生产线：需求规划、代码生成、多端预览、在线 Inspector 调试、一键验证。业务侧拿到的是原型创建和轻量页面生成，不必先组一支客户端团队。
 

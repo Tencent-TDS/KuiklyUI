@@ -1,5 +1,5 @@
 ---
-title: AI 交互组件与端侧实战
+title: Kuikly AIChat 套件
 category: AI编程
 tag:
   - ChatUI
@@ -7,7 +7,7 @@ tag:
   - DeepSeek Harness
 ---
 
-# AI 交互组件与端侧实战
+# Kuikly AIChat 套件
 
 在移动 App 中集成 AI 对话体验时，团队常需耗费数周时间自行开发气泡列表、流式渲染状态机、Markdown 解析器及 Agent 交互卡片。
 

@@ -266,7 +266,22 @@ export const zhSidebar = sidebar({
             ]
         },
     ],
-    "/AI/": false,
+    "/AI": [
+        {
+            text: "AI 编程",
+            prefix: "/AI",
+            collapsible: false,
+            children: [
+                "index.md",
+                "kuikly-ai.md",
+                "a2ui.md",
+                "chat-markdown.md",
+                "transcode.md",
+                "d2c.md",
+                "workshop-agent.md",
+            ],
+        },
+    ],
     "/Blog": [
         {
             text: "公众号文章",

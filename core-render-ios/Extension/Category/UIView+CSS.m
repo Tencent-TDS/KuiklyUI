@@ -143,6 +143,14 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         return YES;
     }
+#if DEBUG
+    // glassEffect* 只在 KRView（View 及其子类容器）上实现，Scroller / List 等组件上属性会被丢弃，
+    // 这里给出告警便于业务定位；需要列表区玻璃时应把玻璃加在外层 View 上。
+    // 包装层（kr_commonWrapperView）先收到属性、不认时会回落给宿主视图，不应在包装层上告警
+    if ([key hasPrefix:@"glassEffect"] && ![self isKindOfClass:[KRBoxShadowView class]]) {
+        NSLog(@"[Kuikly] %@ is not supported on %@, dropped.", key, NSStringFromClass([self class]));
+    }
+#endif
     return NO;
 }
 
@@ -388,7 +396,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         //    - clipPath 清空时需要恢复 borderRadius 的 mask
         if (self.css_clipPath.length > 0) {
             // clipPath 优先，刷新 border 即可
-            [self.css_borderLayer setNeedsLayout];
+            [self.css_borderLayer setNeedsRedraw];
             return;
         }
         
@@ -415,6 +423,8 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
                 [self.layer.mask setFrame:self.bounds];
             }
         }
+        // 圆角变化但尺寸不变时，border 会命中尺寸缓存而跳过重绘，需强制重绘
+        [self.css_borderLayer setNeedsRedraw];
     }
     
     // 10. 刷新 border（不管 borderRadius 值是否变化都要刷新）
@@ -1561,7 +1571,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 // 标记路径内容变更（如 clipPath 变化），强制下次 layoutSublayers 重绘边框（不依赖尺寸变化）
 - (void)setNeedsRedraw {
-    // 仅由 setCss_clipPath: 调用，确保 clipPath 变化时边框路径同步更新
+    // 由 setCss_clipPath: / setCss_borderRadius: 调用，确保路径变化时边框同步更新
     _needsRedraw = YES;
     [self setNeedsLayout];
 }
@@ -1603,7 +1613,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
     
     // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
-    // 仅在 clipPath 变化时为 YES）
+    // 在 clipPath / borderRadius 变化时为 YES）
     if (CGSizeEqualToSize(self.bounds.size, _lastSize) && !_needsRedraw) {
         [CATransaction commit];
         return ;

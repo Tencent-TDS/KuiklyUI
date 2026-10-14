@@ -755,3 +755,83 @@ class TestPage : Pager(){
 - 框架引入有libpag库，业务可直接继承libpag的PAGview，获取处理PAG的相关能力
 - PAG适配器的定义与实现可参考类似的`KRVideoViewHandler`与`KRAPNGViewHandler`的实现
 :::
+### 实现自定义字体适配器 FontModule
+
+::: warning 平台支持
+`KuiklyFontProtocol` 字体适配器当前**仅 iOS 支持**。Android 与 HarmonyOS 请使用各自的自定义字体适配器（[Android](./android.md#自定义字体适配器) / [HarmonyOS](./harmony.md#自定义字体适配器示例)），两者已原生支持字体别名。
+:::
+
+业务实现 `KuiklyFontProtocol` 并通过 `registerFontHandler:` 注册后，可以扩展 iOS 端的自定义字体加载能力：
+
+```objc
+// 注册（一般放在 Handler 的 +load 中）
++ (void)load {
+    [KuiklyRenderBridge registerFontHandler:[[KRFontHandler alloc] init]];
+}
+```
+
+#### 动态注册字体文件
+
+```objc
+/// 业务根据 fontFamily 与 contextParam 提供的资源路径，把字体文件动态注册到系统
+/// 返回 YES 表示注册成功（之后框架会按 fontFamily 再查找一次）
+- (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
+```
+
+#### 按别名返回字体（推荐）
+
+字体文件内嵌的真实名称（PostScript Name）通常与业务使用的 `fontFamily` 别名不一致（如别名 `BrandFont` 对应真实名 `BrandFont-Regular`），此时动态注册后按别名仍查不到字体。可实现以下适配器方法，直接返回构建好的 `UIFont`：
+
+```objc
+/// @return 返回业务构建的 UIFont；返回 nil 则继续走框架的默认加载逻辑
+- (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                                  fontSize:(CGFloat)fontSize
+                                fontWeight:(UIFontWeight)fontWeight
+                             contextParams:(nullable KuiklyContextParam *)contextParam;
+```
+
+实现示例（取真实 PostScript Name 创建字体，已注册过则不重复注册）：
+
+```objc
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                    contextParams:(KuiklyContextParam *)contextParam {
+    NSURL *fontPathURL = [self p_localFontURLWithFontFamily:fontFamily contextParams:contextParam];
+    NSString *postScriptName = fontPathURL ? [self registerFontAtLocalURL:fontPathURL] : nil;
+    return postScriptName.length ? [UIFont fontWithName:postScriptName size:fontSize] : nil;
+}
+
+- (nullable NSString *)registerFontAtLocalURL:(NSURL *)fontURL {
+    CGDataProviderRef provider = CGDataProviderCreateWithURL((__bridge CFURLRef)fontURL);
+    if (!provider) { return nil; }
+    CGFontRef font = CGFontCreateWithDataProvider(provider);
+    CGDataProviderRelease(provider);
+    if (!font) { return nil; }
+    NSString *postScriptName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(font);
+    CGFontRelease(font);
+    if (!postScriptName.length) { return nil; }
+    if ([UIFont fontWithName:postScriptName size:12]) {
+        return postScriptName; // 已注册过，不重复注册
+    }
+    CFErrorRef error = NULL;
+    BOOL success = CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL, kCTFontManagerScopeProcess, &error);
+    if (!success) {
+        if (error) { CFRelease(error); }
+        return nil;
+    }
+    return postScriptName;
+}
+```
+
+:::: tip 字体解析优先级
+Kotlin 侧设置的 `fontFamily` 在 iOS 端按以下顺序解析，任一步命中即返回：
+
+1. 静态注册字体（info.plist 的 `UIAppFonts`）按名称查找
+2. 字体适配器 `hr_fontWithFontFamily:fontSize:fontWeight:contextParams:` 直接返回的 UIFont
+3. `hr_loadCustomFont:contextParams:` 动态注册后再按名称查找
+4. `componentExpandHandler` 旧字体扩展接口（兼容历史接入）
+5. 系统字体兜底（保留 `fontWeight` 与 `fontStyle`）
+
+以上路径全部失败时，最终回落到带字重/斜体的系统字体，不会再丢失字重。
+::::

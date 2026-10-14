@@ -404,7 +404,7 @@ LocalizedStringModule是Kuikly侧的Module，负责将多语言请求桥接到�
 
 在BasePager中，我们会自动注册LocalizedStringModule，这样所有继承自BasePager的页面都可以直接使用多语言功能：
 
-| Kotlin // base/src/commonMain/kotlin/com/hellotalk/kuikly/base/pager/api/BasePager.kt override fun createExternalModules(): Map ? { val externalModules = hashMapOf () // ... 其他模块 externalModules[LocalizedStringModule.MODULE_NAME] = LocalizedStringModule() // ... return externalModules } |
+| Kotlin // base/src/commonMain/kotlin/com/hellotalk/kuikly/base/pager/api/BasePager.kt override fun createExternalModules(): Map ? \{ val externalModules = hashMapOf () // ... 其他模块 externalModules[LocalizedStringModule.MODULE_NAME] = LocalizedStringModule() // ... return externalModules \} |
 | --- |
 
 通过这套基于Module桥接的方案，我们成功地让Kuikly页面复用了宿主App的多语言资源。

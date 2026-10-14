@@ -266,11 +266,36 @@ export const zhSidebar = sidebar({
             ]
         },
     ],
-    "/AI/": false,
+    "/AI": [
+        {
+            text: "AI 编程",
+            prefix: "/AI",
+            collapsible: false,
+            children: [
+                "index.md",
+                "kuikly-ai.md",
+                "a2ui.md",
+                "chat-markdown.md",
+                "transcode.md",
+                "d2c.md",
+                "workshop-agent.md",
+            ],
+        },
+    ],
     "/Blog": [
+        "roadmap2026.md",
+        "roadmap2025.md",
+        {
+            text: "架构原理",
+            prefix: "/Blog/architecture",
+            children: [
+                "kuikly-rendering.md", "architecture_and_advantages.md"
+                ]
+        },
         {
             text: "公众号文章",
             collapsible: true,
+            expanded: true,
             children: [
                 "长小牛 × 腾讯Kuikly：金融类AI APP三端跨平台架构落地实践.md",
                 "Kotlin 15 周年 × Kuikly 生态日｜一场关于跨端与 AI 的技术盛宴.md",
@@ -295,15 +320,6 @@ export const zhSidebar = sidebar({
                 "腾讯开源跨平台开发框架 Kuikly，能显著提升多端开发效率.md",
             ]
         },
-        "roadmap2026.md",
-        "roadmap2025.md",
-        {
-            text: "架构原理",
-            prefix: "/Blog/architecture",
-            children: [
-                "kuikly-rendering.md", "architecture_and_advantages.md"
-                ]
-        }
     ],
     "/QA": [
         "kuikly-qa.md", "kuikly-example.md"

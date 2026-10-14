@@ -755,11 +755,8 @@ class TestPage : Pager(){
 - 框架引入有libpag库，业务可直接继承libpag的PAGview，获取处理PAG的相关能力
 - PAG适配器的定义与实现可参考类似的`KRVideoViewHandler`与`KRAPNGViewHandler`的实现
 :::
-### 实现自定义字体适配器 FontModule
 
-::: warning 平台支持
-`KuiklyFontProtocol` 字体适配器当前**仅 iOS 支持**。Android 与 HarmonyOS 请使用各自的自定义字体适配器（[Android](./android.md#自定义字体适配器) / [HarmonyOS](./harmony.md#自定义字体适配器示例)），两者已原生支持字体别名。
-:::
+### 实现自定义字体适配器 FontModule
 
 业务实现 `KuiklyFontProtocol` 并通过 `registerFontHandler:` 注册后，可以扩展 iOS 端的自定义字体加载能力：
 
@@ -770,126 +767,51 @@ class TestPage : Pager(){
 }
 ```
 
-协议提供两个可选方法，可单独或组合实现。
+协议提供两个可选方法，按需实现。
 
-#### 方法一：动态注册字体文件
+#### 方法一：别名映射
+
+当 Kotlin 侧设置的 `fontFamily` 是业务自定义的别名（与字体文件内嵌的真实名称不一致）时实现：
+
+```objc
+- (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight;
+```
+
+| 参数 | 说明 |
+|:----|:----|
+| fontFamily | Kotlin 侧设置的原始 `fontFamily`（别名） |
+| fontWeight | 目标字重；多字重字体族据此返回对应字重的真实名称，如 `CustomSans-Bold` |
+
+返回字体的真实名称（需与对应字体文件保持一致，供后续注册/查找使用）；返回 `nil` 表示该 `fontFamily` 不做映射。
+
+```objc
+- (NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                  fontWeight:(UIFontWeight)fontWeight {
+    if ([fontFamily isEqualToString:@"BrandFont"]) {
+        return fontWeight >= UIFontWeightBold ? @"BrandFont-Bold" : @"BrandFont-Regular";
+    }
+    return nil;
+}
+```
+
+#### 方法二：动态注册字体文件
 
 ```objc
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 ```
 
-| 参数 | 说明 |
-|:----|:----|
-| fontFamily | Kotlin 侧设置的 `fontFamily` 原始字符串。注意：它可能是业务别名，未必等于字体文件内嵌的真实名称 |
-| contextParam | 页面资源上下文，其中的 `resourceFolderUrl` 用于定位动态下发/内置的字体资源路径 |
-
-返回 `YES` 表示注册成功，**框架随后会按同一个 `fontFamily` 字符串再查找一次字体**。因此该方式要求注册后的字体能按 `fontFamily` 查到；若业务使用的是别名（别名与字体真实 PostScript Name 不一致，如 `BrandFont` 对应 `BrandFont-Regular`），注册成功也查不到，请改用方法二。
-
-#### 方法二：按别名直接返回字体（推荐）
-
-```objc
-- (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
-                                  fontSize:(CGFloat)fontSize
-                                fontWeight:(UIFontWeight)fontWeight
-                             contextParams:(nullable KuiklyContextParam *)contextParam;
-```
+区别 info.plist 静态注册，用于在运行时获取 ContextParams 内的字体文件并完成注册。
 
 | 参数 | 说明 |
 |:----|:----|
-| fontFamily | Kotlin 侧设置的 `fontFamily` 原始字符串，**可以是业务别名**，无需与字体文件的 PostScript Name 一致。业务自行维护“别名 → 字体文件”的映射 |
-| fontSize | 目标字号（逻辑单位），创建 `UIFont` 时传入 |
-| fontWeight | 目标字重（`UIFontWeight`，由 Kotlin 侧 `fontWeight` 属性换算而来，`Regular=0.0`、`Bold=0.4` 等）。**iOS 的字重固化在字体对象上，框架无法事后修饰**，因此业务需要按它选择对应字重的字体文件（如 `CustomSans-Light/Regular/Medium/Bold`）；不区分字重的字体族可忽略该参数 |
-| contextParam | 页面资源上下文，可为空。需要定位字体文件时使用其 `resourceFolderUrl` 拼接路径 |
+| fontFamily | 字体的真实名称（已经过方法一映射，与字体文件内嵌名称一致） |
+| contextParam | 页面资源上下文，可用其 `resourceFolderUrl` 定位字体资源路径 |
 
-返回 `UIFont` 表示解析完成；返回 `nil` 则继续走框架的默认解析链。
+返回 `YES` 表示注册成功，**框架随后会按同一个 `fontFamily` 字符串再查找一次字体**，因此业务必须提供正确的字体真实名称，否则注册成功后仍会查找失败。
 
-#### 字体解析优先级
+#### 使用步骤
 
-Kotlin 侧设置的 `fontFamily` 在 iOS 端按以下顺序解析，任一步命中即返回：
-
-1. 静态注册字体（info.plist 的 `UIAppFonts`）按名称查找
-2. 字体适配器 `hr_fontWithFontFamily:fontSize:fontWeight:contextParams:` 直接返回的 UIFont
-3. `hr_loadCustomFont:contextParams:` 动态注册后再按名称查找
-4. `componentExpandHandler` 旧字体扩展接口（兼容历史接入）
-5. 系统字体兜底（保留 `fontWeight` 与 `fontStyle`）
-
-以上路径全部失败时，最终回落到带字重/斜体的系统字体，不会再丢失字重。
-
-#### 完整示例
-
-以下示例演示：按字重映射字体文件 → 注册 → 取真实 PostScript Name 创建 `UIFont`。`p_localFontURLWithFontFamily:` 为业务侧辅助方法，示例中给出一种基于 `resourceFolderUrl` 的实现，业务可按自己的资源布局调整：
-
-```objc
-@implementation KRFontHandler
-
-+ (void)load {
-    [KuiklyRenderBridge registerFontHandler:[[KRFontHandler alloc] init]];
-}
-
-- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
-                         fontSize:(CGFloat)fontSize
-                       fontWeight:(UIFontWeight)fontWeight
-                    contextParams:(KuiklyContextParam *)contextParam {
-    // 1. 按字重选择对应字重的字体文件（多字重字体族；单字重族可跳过此步）
-    NSString *suffix = @"Regular";
-    if (fontWeight >= UIFontWeightBold) {
-        suffix = @"Bold";
-    } else if (fontWeight <= UIFontWeightLight) {
-        suffix = @"Light";
-    }
-    NSString *fileName = [NSString stringWithFormat:@"%@-%@", fontFamily, suffix];
-
-    // 2. 定位字体文件（别名或带字重的文件名均可，业务自行维护映射）
-    NSURL *fontPathURL = [self p_localFontURLWithFontFamily:fileName contextParams:contextParam];
-
-    // 3. 注册并取字体文件内真实的 PostScript Name，用它创建 UIFont
-    NSString *postScriptName = fontPathURL ? [self registerFontAtLocalURL:fontPathURL] : nil;
-    return postScriptName.length ? [UIFont fontWithName:postScriptName size:fontSize] : nil;
-}
-
-#pragma mark - Private
-
-/// 业务辅助方法：根据 fontFamily 与资源上下文定位本地字体文件
-- (nullable NSURL *)p_localFontURLWithFontFamily:(NSString *)fontFamily
-                                   contextParams:(KuiklyContextParam *)contextParam {
-    NSURL *baseURL = contextParam.resourceFolderUrl;
-    if (baseURL == nil) {
-        return nil;
-    }
-    NSURL *fontPathURL = [baseURL URLByAppendingPathComponent:fontFamily];
-    // 字体资源需在本地；若为网络 URL，需业务自行处理异步加载与主线程返回 UIFont 的配合
-    if ([fontPathURL.scheme hasPrefix:@"http"]) {
-        return nil;
-    }
-    return fontPathURL;
-}
-
-/// 注册本地字体文件，返回字体文件内嵌的真实 PostScript Name；失败返回 nil
-- (nullable NSString *)registerFontAtLocalURL:(NSURL *)fontURL {
-    CGDataProviderRef provider = CGDataProviderCreateWithURL((__bridge CFURLRef)fontURL);
-    if (!provider) { return nil; }
-    CGFontRef font = CGFontCreateWithDataProvider(provider);
-    CGDataProviderRelease(provider);
-    if (!font) { return nil; }
-    NSString *postScriptName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(font);
-    CGFontRelease(font);
-    if (!postScriptName.length) { return nil; }
-    if ([UIFont fontWithName:postScriptName size:12]) {
-        return postScriptName; // 已注册过，不重复注册
-    }
-    CFErrorRef error = NULL;
-    BOOL success = CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL, kCTFontManagerScopeProcess, &error);
-    if (!success) {
-        if (error) { CFRelease(error); }
-        return nil;
-    }
-    return postScriptName;
-}
-
-@end
-```
-
-:::: tip 注意
-- Kotlin 侧的 `fontWeight` 会换算为 `UIFontWeight` 传入（`400 → UIFontWeightRegular`、`500 → UIFontWeightMedium`、`700 → UIFontWeightBold` 等）
-- 已注册过的字体请勿重复调用 `CTFontManagerRegisterFontsForURL`，可按上方示例先检查 `UIFont fontWithName:` 是否已能取到
-::::
+1. `fontFamily` 若为别名，实现方法一返回真实名称；无别名需求可不实现，框架按原字符串继续解析。
+2. 若字体文件需要运行时动态下发/加载，实现方法二，用（已映射的）真实名称完成注册。
+3. 两个方法均可返回 `nil`/`NO`，此时按框架默认优先级继续解析，最终回落到系统字体并保留 `fontWeight`/`fontStyle`。

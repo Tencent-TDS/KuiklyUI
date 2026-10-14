@@ -63,11 +63,15 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         if (font) {
             return font;
         }
-        
-        // 情形 2: 字体适配器直接返回 UIFont（对齐 Android/鸿蒙，支持 fontFamily 为别名）
-        font = [KRFontModule hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight contextParams:contextParam];
-        if (font) {
-            return font;
+
+        // 情形 2: 别名映射，业务将 fontFamily 映射为真实字体名，后续流程均使用映射结果
+        NSString *mappedName = [KRFontModule hr_mappedFontNameForFontFamily:fontFamily fontWeight:fontWeight];
+        if (mappedName.length) {
+            fontFamily = mappedName;
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
         }
         
         // 情形 3: 业务方通过 hr_loadCustomFont 动态注册字体后再按 fontFamily 获取

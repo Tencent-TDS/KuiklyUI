@@ -48,15 +48,10 @@ static id<KuiklyFontProtocol> gFontHandler;
     return NO;
 }
 
-+ (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
-                         fontSize:(CGFloat)fontSize
-                       fontWeight:(UIFontWeight)fontWeight
-                    contextParams:(KuiklyContextParam *)contextParam {
-    if (gFontHandler && [gFontHandler respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:contextParams:)]) {
-        return [gFontHandler hr_fontWithFontFamily:fontFamily
-                                          fontSize:fontSize
-                                        fontWeight:fontWeight
-                                     contextParams:contextParam];
++ (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight {
+    if (gFontHandler && [gFontHandler respondsToSelector:@selector(hr_mappedFontNameForFontFamily:fontWeight:)]) {
+        return [gFontHandler hr_mappedFontNameForFontFamily:fontFamily fontWeight:fontWeight];
     }
     return nil;
 }

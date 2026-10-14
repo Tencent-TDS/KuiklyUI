@@ -39,7 +39,7 @@ import com.tencent.kuikly.core.annotations.Page
 
 /**
  * iOS 字体解析验证页：字体加载失败时回落系统字体并保留字重与斜体、
- * 字体别名适配器（SatisfyAlias，见 iosApp KRFontHanlder）
+ * 字体别名映射（SatisfyAlias，见 iosApp KRFontHanlder）
  */
 @Page("BugReproIosGenericFontWeightPage")
 internal class BugReproIosGenericFontWeightPage : ComposeContainer() {
@@ -79,7 +79,7 @@ private fun fontCases(): List<FontCase> = listOf(
         ),
     ),
     FontCase(
-        "别名字体 SatisfyAlias（字体适配器）",
+        "别名字体 SatisfyAlias（别名映射）",
         "iOS: Satisfy 手写体",
         TextStyle(fontFamily = FontFamily(KuiklyFont("SatisfyAlias", FontWeight.Normal, FontStyle.Normal))),
     ),

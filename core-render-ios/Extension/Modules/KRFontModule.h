@@ -33,13 +33,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
 /**
- * 字体适配器：业务方根据 fontFamily 直接返回 UIFont（fontFamily 可为业务别名，无需与字体 PostScript Name 一致）
- * 返回 nil 则继续走框架默认加载逻辑
+ * 字体别名映射：业务将 fontFamily（可为业务别名）映射为字体真实名称（PostScript Name），
+ * 框架将使用映射结果完成后续的字体查找与动态注册；多字重字体族可结合 fontWeight 返回对应字重的真实名称
+ * 返回 nil 表示业务不处理该 fontFamily，继续走框架默认加载逻辑
  */
-- (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
-                                  fontSize:(CGFloat)fontSize
-                                fontWeight:(UIFontWeight)fontWeight
-                             contextParams:(nullable KuiklyContextParam *)contextParam;
+- (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight;
 
 @end
 
@@ -59,12 +58,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
 /**
- * 通过字体适配器获取 UIFont
+ * 字体别名映射
  */
-+ (nullable UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
-                                  fontSize:(CGFloat)fontSize
-                                fontWeight:(UIFontWeight)fontWeight
-                             contextParams:(nullable KuiklyContextParam *)contextParam;
++ (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight;
 
 @end
 

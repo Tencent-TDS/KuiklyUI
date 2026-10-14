@@ -70,8 +70,16 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                 return genericFont;
             }
             fontFamily = nil; // iOS 13 以下无对应 Design，回落系统字体
+        } else if ([lowercaseFamily isEqualToString:@"cursive"]) {
+            // iOS 无手写 Design；映射系统内置手写字体（Android 端 cursive 同样解析为系统手写体）
+            // 手写体本身倾斜，不再叠加 fontStyle；无汉字字形，中文由系统逐字回落，与 Android 行为一致
+            NSString *scriptName = fontWeight >= UIFontWeightBold ? @"SnellRoundhand-Bold" : @"SnellRoundhand";
+            UIFont *scriptFont = [UIFont fontWithName:scriptName size:fontSize];
+            if (scriptFont) {
+                return scriptFont;
+            }
+            fontFamily = nil; // 未找到时回落系统字体
         } else if ([lowercaseFamily isEqualToString:@"sans-serif"] ||
-                   [lowercaseFamily isEqualToString:@"cursive"] ||
                    [lowercaseFamily isEqualToString:@"system-ui"]) {
             fontFamily = nil; // 无独立字形对应，回落系统字体
         }

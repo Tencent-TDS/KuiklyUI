@@ -17,7 +17,6 @@
 #import "KRFontModule.h"
 #import "KuiklyContextParam.h"
 #import <CoreText/CoreText.h>
-#import "KuiklyContextMode.h"
 
 
 @implementation KRFontHanlder
@@ -56,19 +55,15 @@
 
 #pragma mark - Private
 
-/// 构建动态化模式下三方字体资源的本地路径
+/// 构建三方字体资源的本地路径
 - (nullable NSURL *)p_localFontURLWithFontFamily:(NSString *)fontFamily
                                    contextParams:(KuiklyContextParam *)contextParam {
     NSURL *baseURL = contextParam.resourceFolderUrl;
-    if ([contextParam.contextMode isKindOfClass:[KuiklyContextModeJS class]]) {
-        KuiklyContextModeJS *jsMode = (KuiklyContextModeJS *)contextParam.contextMode;
-        baseURL = jsMode.assetsPathUrl;
-    }
     if (baseURL == nil) {
         return nil;
     }
     NSURL *fontPathURL = [baseURL URLByAppendingPathComponent:fontFamily];
-    // HotReload 动态化模式下字体资源已在本地；网络 URL 需业务方自行处理异步加载与主线程返回 UIFont 的配合
+    // 字体资源已在本地；若为网络 URL，需业务方自行处理异步加载与主线程返回 UIFont 的配合
     if ([fontPathURL.scheme hasPrefix:@"http"]) {
         return nil;
     }

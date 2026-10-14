@@ -26,7 +26,7 @@ enum class MonitorType { kLaunch = 0, KFrame = 1, KMemory = 2 };
 
 class KRPerformanceManager {
  public:
-    KRPerformanceManager(int performance_monitor_types_mask, std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode);
+    KRPerformanceManager(int performance_monitor_types_mask, std::string page_name, const KRRenderValue &instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode);
     ~KRPerformanceManager();
     void OnKRRenderViewInit();
     void OnInitCoreStart();
@@ -44,7 +44,7 @@ class KRPerformanceManager {
     std::string GetLaunchData();
     std::string GetFrameData();
     std::string GetMemoryData();
-    std::string GetPerformanceData();
+    std::u16string GetPerformanceData();
     std::shared_ptr<KRMonitor> GetMonitor(std::string monitor_name);
     void SetArkLaunchTime(int64_t launch_time);
 
@@ -58,12 +58,14 @@ class KRPerformanceManager {
     void OnResult();
 
 private:
-    void CallArkTsPerformanceModule(const char* module_name, std::string &data);
+    void CallArkTsPerformanceModule(const char16_t *method_name, std::string &data);
+    void CallArkTsPerformanceModule(const char16_t *method_name, const std::u16string &data);
     
  private:
     int performance_monitor_types_mask_ = 0;
     std::string page_name_ = "";
     std::string instance_id_ = "";
+    KRRenderValue instance_id_value_;
     std::shared_ptr<KRRenderExecuteMode> mode_;
     int64_t init_time_stamps_ = 0;
     bool is_cold_launch = false;       //  是否是冷启动

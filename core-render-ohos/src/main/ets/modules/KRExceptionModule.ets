@@ -14,6 +14,7 @@
  */
 
 import { KRAny, KRRecord, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRJSON } from '../utils/KRJSON';
 import { KRRenderLog } from '../adapter/KRRenderLog';
 import { KRNativeManager } from '../manager/KRNativeManager';
 import { KuiklyRenderBaseModule } from './base/KRBaseModule';
@@ -41,7 +42,7 @@ export class KRExceptionModule extends KuiklyRenderBaseModule {
 
   private fireExceptionCallback(params: KRAny) {
     try {
-      const paramsJSON = JSON.parse(params as string) as KRRecord;
+      const paramsJSON = KRJSON.asRecord(params);
       const stack = paramsJSON['stack'] as string;
       KRNativeManager.getInstance().getNativeInstance(this.instanceId)?.fireExceptionCallback(stack);
     } catch (e) {

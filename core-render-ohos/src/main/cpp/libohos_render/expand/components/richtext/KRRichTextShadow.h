@@ -39,7 +39,7 @@ namespace richtext {
 // 内置 props key：双下划线前后缀避免与业务字段冲突。仅由 KRRichTextShadow 内部
 // PostProcessor 拆段路径写入与读取，业务零感知。如需在其它 shadow / view 引用，
 // 请统一使用此常量。
-inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
+inline constexpr const char16_t *kInternalImageSrcKey = u"__kr_image_src__";
 }  // namespace richtext
 }  // namespace kuikly
 
@@ -182,7 +182,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_text_align_ = TEXT_ALIGN_LEFT;
     }
 
-    std::string GetTextContent() const {
+    const std::u16string &GetTextContent() const {
         return text_content_;
     }
     KRSize MainMeasureSize() {
@@ -271,7 +271,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     // 通知 view markDirty。shadow 销毁时 weak_from_this 自动断链。
     void TriggerImagePrefetchIfNeed();
  private:
-    std::string text_content_;
+    std::u16string text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
@@ -325,8 +325,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRAnyValue SpanRect(int spanIndex);
 
     int SpanIndexAt(float x, float y);
-    int ResolveLongPressSpanIndex(const KRRenderValueMap &params);
-    bool IsLongPressTerminalState(const KRRenderValueMap &params) const;
+    int ResolveLongPressSpanIndex(const KRRenderValue &params);
+    bool IsLongPressTerminalState(const KRRenderValue &params) const;
     int active_long_press_span_index_ = -1;
 
     friend class KRRichTextView;

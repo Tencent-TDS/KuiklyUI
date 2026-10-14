@@ -23,21 +23,21 @@
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
-#include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/view/KRRenderView.h"
 #include "libohos_render/manager/KRRenderManager.h"
 
 EXTERN_C_START
-void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
-        const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
-        const KRRenderCValue *arg5, KRRenderCValue *result) {
+KRRenderCValue com_tencent_kuikly_CallNative(
+        int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2,
+        KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5) {
     // napi C ABI 边界：不再套 C++ catch，让异常原样冒到 K/N runtime。
     // 曾经在此处 catch → log → rethrow，虽然保留了 std::current_exception()，
     // 但 K/N 会因为观察到 "C++ 已 catch 过" 而不再触发 unhandled-exception hook，
     // 从而丢失 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈。
     // 现在完全放弃 C++ 侧的诊断日志（tag/type/what），换取 K/N hook 的正常触发。
-    *result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0->value.stringValue), methodId,
-            *arg0, *arg1, *arg2, *arg3, *arg4, *arg5);
+    return IKRRenderNativeContextHandler::DispatchCallNative(KRRenderValue::MakeBorrowed(arg0)->toAsciiString(), methodId,
+            arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
 CallKotlin callKotlin_;
@@ -103,18 +103,24 @@ void KRRenderCore::DidInit() {
     // createInstance to kotlin
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
     KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
-        auto page_name = KRRenderValue::Make(strongSelf->context_->PageName());
-        auto page_data = kuikly::features::PreparePageDataForKotlin(strongSelf->context_->PageData(),
-                                                                   strongSelf->renderLayerHandler_);
+        auto page_name = strongSelf->context_->PageNameValue();
+        // arg2 keeps the original pageData; arg3 carries the parsed object.
+        auto page_data = strongSelf->context_->RemovePageData();
+        auto parsed_page_data = strongSelf->context_->RemoveParsedPageData();
+        auto prepared_page_data =
+            kuikly::features::PreparePageDataForKotlin(parsed_page_data, strongSelf->renderLayerHandler_);
+        if (prepared_page_data.jsonValue() != parsed_page_data.jsonValue()) {
+            // A feature rewrote pageData; arg2 must carry the same content as arg3.
+            page_data = prepared_page_data;
+            parsed_page_data = std::move(prepared_page_data);
+        }
         auto null_arg = strongSelf->defaultNullValue_;
         strongSelf->notifyInitState(KRInitState::kStateInitContextStart);
         strongSelf->contextHandler_->InitContext();
         strongSelf->notifyInitState(KRInitState::kStateInitContextFinish);
         strongSelf->notifyInitState(KRInitState::kStateCreateInstanceStart);
         strongSelf->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodCreateInstance, page_name, page_data,
-                                     null_arg, null_arg, null_arg);
-        // 获取操作完成后的时间点
-        auto end = std::chrono::steady_clock::now();
+                                     parsed_page_data, null_arg, null_arg);
         strongSelf->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(sync);
         strongSelf->notifyInitState(KRInitState::kStateCreateInstanceFinish);
     });
@@ -127,16 +133,43 @@ void KRRenderCore::SendEvent(std::string event_name, const std::string &json_dat
     if (auto rv = renderView_.lock()) {
         needSync = rv->syncSendEvent(event_name);
     }
-    SendEvent(event_name, json_data, needSync);
+    SendEvent(std::move(event_name), json_data, needSync);
 }
 
 void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data, bool need_sync) {
-    auto task = [self = shared_from_this(), need_sync, event_name, json_data] {
-        auto event = KRRenderValue::Make(event_name);
-        auto data = KRRenderValue::Make(json_data);
+    // 历史字符串接口保持字符串下发：这里若解析成 Map 再建 KRJSON，key 顺序会变成
+    // unordered_map 的顺序，Kotlin 侧拿到的 JSONObject 顺序与原始文本不再一致。
+    // Kotlin 的 PagerManager 同时接受 JSON 字符串与结构化 JSONObject。
+    SendEvent(std::move(event_name), KRRenderValue::Make(kuikly::util::UTF8ToUTF16(json_data)), need_sync);
+}
+
+void KRRenderCore::SendEvent(std::string event_name, const KRAnyValue &data) {
+    bool needSync = false;
+    if (auto rv = renderView_.lock()) {
+        needSync = rv->syncSendEvent(event_name);
+    }
+    SendEvent(std::move(event_name), data, needSync);
+}
+
+void KRRenderCore::SendEvent(std::string event_name, const KRAnyValue &data, bool need_sync) {
+    SendEvent(KRRenderValue::Make(kuikly::util::AsciiToUTF16(event_name)), data, need_sync);
+}
+
+void KRRenderCore::SendEvent(const KRAnyValue &event, const KRAnyValue &data) {
+    bool needSync = false;
+    if (auto rv = renderView_.lock()) {
+        needSync = rv->syncSendEvent(event ? event->toString() : std::string());
+    }
+    SendEvent(event, data, needSync);
+}
+
+void KRRenderCore::SendEvent(const KRAnyValue &event, const KRAnyValue &data, bool need_sync) {
+    auto task = [self = shared_from_this(), need_sync, event, data] {
+        // Map / Array 与字符串都直接复用各自的 KRJSON tagged word
+        auto payload = data ? data : KRRenderValue::Make(KRRenderValue::Map{});
         auto nullValue = self->defaultNullValue_;
-        self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
-                               nullValue, nullValue);
+        self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, payload,
+                               nullValue, nullValue, nullValue);
         if (need_sync) {
             self->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
         }
@@ -206,11 +239,8 @@ bool KRRenderCore::IsPerformMainTasking() {
     return uiScheduler_->IsPerformMainTasking();
 }
 
-std::shared_ptr<KRRenderValue>
-KRRenderCore::OnCallNative(const KuiklyRenderNativeMethod &method, std::shared_ptr<KRRenderValue> &arg0,
-                           std::shared_ptr<KRRenderValue> &arg1, std::shared_ptr<KRRenderValue> &arg2,
-                           std::shared_ptr<KRRenderValue> &arg3, std::shared_ptr<KRRenderValue> &arg4,
-                           std::shared_ptr<KRRenderValue> &arg5) {
+KRAnyValue KRRenderCore::OnCallNative(const KuiklyRenderNativeMethod &method, KRAnyValue &arg0, KRAnyValue &arg1,
+                                      KRAnyValue &arg2, KRAnyValue &arg3, KRAnyValue &arg4, KRAnyValue &arg5) {
     if (ShouldSyncCallMethod(method, arg5)) {  // 是否同步调用Native方法，如Module syncCall方法
         return PerformNativeCallback(method, arg1, arg2, arg3, arg4, arg5, true);
     } else {
@@ -228,7 +258,7 @@ KRRenderCore::OnCallNative(const KuiklyRenderNativeMethod &method, std::shared_p
 }
 
 // 判断事件是否需要同步调用
-bool KRRenderCore::ShouldSyncCallMethod(const KuiklyRenderNativeMethod &method, std::shared_ptr<KRRenderValue> &arg5) {
+bool KRRenderCore::ShouldSyncCallMethod(const KuiklyRenderNativeMethod &method, KRAnyValue &arg5) {
     if (method == KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallModuleMethod) {
         return IsSyncCallback(arg5);
     }
@@ -248,7 +278,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
                                                const KRAnyValue &arg5, bool sync) {
     switch (method) {
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCreateRenderView: {
-        renderLayerHandler_->CreateRenderView(arg1->toInt(), arg2->toString());
+        renderLayerHandler_->CreateRenderView(arg1->toInt(), arg2->toAsciiString());
         break;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodRemoveRenderView: {
@@ -281,9 +311,9 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
                     }
                 }
             };
-            renderLayerHandler_->SetEvent(arg1->toInt(), arg2->toString(), callback);
+            renderLayerHandler_->SetEvent(arg1->toInt(), arg2->toAsciiString(), callback);
         } else {
-            renderLayerHandler_->SetProp(arg1->toInt(), arg2->toString(), arg3);
+            renderLayerHandler_->SetProp(arg1->toInt(), arg2->toAsciiString(), arg3);
         }
         break;
     }
@@ -315,7 +345,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         return KRRenderValue::Make(sizeStr);
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallViewMethod: {
-        auto callbackId = arg4->toString();
+        auto callbackId = arg4->toAsciiString();
         KRRenderCallback callback = nullptr;
         if (!callbackId.empty()) {
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
@@ -331,7 +361,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
                 }
             };
         }
-        renderLayerHandler_->CallViewMethod(arg1->toInt(), arg2->toString(), arg3, callback);
+        renderLayerHandler_->CallViewMethod(arg1->toInt(), arg2->toAsciiString(), arg3, callback);
         break;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallModuleMethod: {
@@ -339,7 +369,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         auto callback_keep_alive = false;
         // 优化：先检查 arg4 是否为 null，避免不必要的 toString() 字符串拷贝
         if (!arg4->isNull()) {
-            auto callbackId = arg4->toString();
+            auto callbackId = arg4->toAsciiString();
             if (!callbackId.empty()) {
                 callback_keep_alive = IsCallbackKeepAlive(arg5);
                 std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
@@ -356,12 +386,12 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
                 };
             }
         }
-        return renderLayerHandler_->CallModuleMethod(sync, arg1->toString(), arg2->toString(), arg3, callback,
+        return renderLayerHandler_->CallModuleMethod(sync, arg1->toAsciiString(), arg2->toAsciiString(), arg3, callback,
                                                      callback_keep_alive);
     }
 
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCreateShadow: {
-        renderLayerHandler_->CreateShadow(arg1->toInt(), arg2->toString());
+        renderLayerHandler_->CreateShadow(arg1->toInt(), arg2->toAsciiString());
         return defaultNullValue_;
     }
 
@@ -370,7 +400,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         return defaultNullValue_;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetShadowProp: {
-        renderLayerHandler_->SetShadowProp(arg1->toInt(), arg2->toString(), arg3);
+        renderLayerHandler_->SetShadowProp(arg1->toInt(), arg2->toAsciiString(), arg3);
         return defaultNullValue_;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetShadowForView: {
@@ -405,11 +435,11 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
 
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallShadowMethod: {
         std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
-        return renderLayerHandler_->CallShadowMethod(arg1->toInt(), arg2->toString(), arg3->toString());
+        return renderLayerHandler_->CallShadowMethod(arg1->toInt(), arg2->toAsciiString(), arg3->toAsciiString());
     }
 
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodFireFatalException: {
-        KRRenderAdapterManager::GetInstance().OnFatalException(context_->InstanceId(), arg1->toString());
+        KRRenderAdapterManager::GetInstance().OnFatalException(context_->InstanceIdValue(), arg1->toString());
         break;
     }
 
@@ -435,7 +465,7 @@ void KRRenderCore::WillPerformUITasksWithScheduler() {  // 运行在 context 线
 
 void KRRenderCore::CallKotlinMethod(const KuiklyRenderContextMethod &method, const KRAnyValue &arg1, const KRAnyValue &arg2,
                                     const KRAnyValue &arg3, const KRAnyValue &arg4, const KRAnyValue &arg5) {
-    auto arg0 = KRRenderValue::Make(context_->InstanceId());
+    auto arg0 = context_->InstanceIdValue();
     contextHandler_->Call(method, arg0, arg1, arg2, arg3, arg4, arg5);
 }
 

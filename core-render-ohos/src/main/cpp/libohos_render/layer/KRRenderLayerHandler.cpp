@@ -153,13 +153,13 @@ void KRRenderLayerHandler::SetShadow(int tag, const std::shared_ptr<IKRRenderSha
  * @param constraintHeight 测量高度宽度
  * @return 计算得到的尺寸，"${width}|${height}" 格式封装返回
  */
-std::string KRRenderLayerHandler::CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) {
+std::u16string KRRenderLayerHandler::CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) {
     auto &shadow = shadow_registry_[tag];
     if (shadow != nullptr) {
         auto size = shadow->CalculateRenderViewSize(constraint_width, constraint_height);
         return kuikly::util::ConvertSizeToString(size);
     }
-    return "0|0";
+    return u"0|0";
 }
 
 /**

@@ -110,6 +110,8 @@ class ArkTS {
 
     std::string GetString(napi_value value);
 
+    std::u16string GetStringUTF16(napi_value value);
+
     bool GetArrayBufferInfo(napi_value value, void **data, size_t *byte_length);
 
     bool IsArrayBuffer(napi_value value);

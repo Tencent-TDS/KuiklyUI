@@ -30,6 +30,7 @@
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -449,6 +450,15 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     void SetRootView(std::weak_ptr<IKRRenderView> root_view, std::string instance_id) {
         root_view_ = root_view;
         instance_id_ = instance_id;
+        instance_id_value_ = KRRenderValue();
+        if (auto root = root_view_.lock()) {
+            if (auto ctx = root->GetContext()) {
+                instance_id_value_ = ctx->InstanceIdValue();
+            }
+        }
+        if (!instance_id_value_) {
+            instance_id_value_ = KRRenderValue::Make(kuikly::util::AsciiToUTF16(instance_id_));
+        }
     }
 
     const std::weak_ptr<IKRRenderView> GetRootView() {
@@ -465,6 +475,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
 
     std::string GetInstanceId() {
         return instance_id_;
+    }
+
+    // Cached at SetRootView: delayed destroy paths run after the root view is gone.
+    KRAnyValue GetInstanceIdValue() {
+        return instance_id_value_;
     }
 
     void SetViewTag(int view_tag) {
@@ -592,6 +607,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
  private:
     std::weak_ptr<IKRRenderView> root_view_;
     std::string instance_id_;
+    KRAnyValue instance_id_value_;
     std::shared_ptr<KRBaseEventHandler> base_event_handler_;
     std::string view_name_;
     int view_tag_ = 0;

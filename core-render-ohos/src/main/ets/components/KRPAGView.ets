@@ -18,6 +18,7 @@ import { ComponentContent } from '@kit.ArkUI';
 import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
 import { KuiklyRenderAdapterManager } from '../adapter/KRAdapterManager';
 import { IKRPAGViewController, IKRPAGViewListener } from '../adapter/IKRPAGViewAdapter';
+import { KRJSON } from '../utils/KRJSON';
 
 @Builder
 function createEmptyView(view: KuiklyRenderBaseView) {
@@ -129,12 +130,9 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
         this.controller?.stop();
       }
     } else if (method == KRPAGView.PROP_METHOD_SET_PROGRESS) {
-      if (typeof params === 'string') {
-        const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
-        const value = json['value'] as number;
-        if (value !== undefined) {
-          this.controller?.setProgress(value);
-        }
+      const value = KRJSON.get(params, 'value') as number | undefined;
+      if (value !== undefined) {
+        this.controller?.setProgress(value);
       }
     } else {
       // 将未处理的 method（如 accessibilityAnnounce / accessibilityFocus）交给基类默认实现。

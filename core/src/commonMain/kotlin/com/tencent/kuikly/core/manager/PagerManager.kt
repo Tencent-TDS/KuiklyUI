@@ -21,6 +21,7 @@ import com.tencent.kuikly.core.exception.ReactiveObserverNotFoundException
 import com.tencent.kuikly.core.global.GlobalFunctionRef
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.nvi.serialization.json.asBridgeJSONObject
 import com.tencent.kuikly.core.pager.IPager
 import com.tencent.kuikly.core.pager.PageCreateTrace
 import com.tencent.kuikly.core.pager.PageEventTrace
@@ -59,10 +60,14 @@ object PagerManager {
         return reactiveObserverMap[BridgeManager.currentPageId] ?: throw ReactiveObserverNotFoundException("ReactiveObserver not found: ${BridgeManager.currentPageId}")
     }
 
+    /**
+     * [pagerData] 可以是 JSON 字符串，也可以是平台侧结构化数据已包好的 [JSONObject]
+     * （OHOS KRJSON、iOS `NSDictionary`，都在各平台 callKotlin 入口完成转换）。
+     */
     fun createPager(
         pagerId: String,
         url: String,
-        pagerData: String
+        pagerData: Any?
     ) {
         val pageTrace = PageCreateTrace()
         val pagerName = pageNameFromUrl(url)
@@ -75,18 +80,20 @@ object PagerManager {
         pageTrace.onNewPageEnd()
 
         if (pager != null) {
+            val bridgePageData = asBridgeJSONObject(pagerData) ?: JSONObject()
             pagerMap[pagerId] = pager
             pager.pageName = pagerName
             pager.setPageTrace(pageTrace)
-            pager.onCreatePager(pagerId, JSONObject(pagerData))
+            pager.onCreatePager(pagerId, bridgePageData)
         } else {
             reactiveObserverMap.remove(pagerId)
             throw PagerNotFoundException("[createPager]: pager 未注册. pagerName: $pagerName")
         }
     }
 
-    fun firePagerEvent(pagerId: String, event: String, data: String) {
-        pagerMap[pagerId]?.onReceivePagerEvent(event, JSONObject(data))
+    /** [data] 同 [createPager] 的 pagerData：JSON 字符串或已包好的 [JSONObject]。 */
+    fun firePagerEvent(pagerId: String, event: String, data: Any?) {
+        pagerMap[pagerId]?.onReceivePagerEvent(event, asBridgeJSONObject(data) ?: JSONObject())
     }
 
     fun destroyPager(pagerId: String) {
@@ -96,15 +103,14 @@ object PagerManager {
         reactiveObserverMap.remove(pagerId)
     }
 
-    fun fireViewEvent(pagerId: String, viewRef: Int, event: String, data: String?) {
-        var dataObject: JSONObject? = null
-        data?.also {
-            dataObject = JSONObject(it)
-        }
-        pagerMap[pagerId]?.onViewEvent(viewRef, event, dataObject)
+    /** [data] 同 [createPager] 的 pagerData：JSON 字符串或已包好的 [JSONObject]。 */
+    fun fireViewEvent(pagerId: String, viewRef: Int, event: String, data: Any?) {
+        pagerMap[pagerId]?.onViewEvent(viewRef, event, asBridgeJSONObject(data))
     }
 
     fun fireCallBack(pagerId: String, functionRef: GlobalFunctionRef, data: Any? = null) {
+        // 结构化数据（惰性 JSONObject / JSONArray）与历史 JSON 字符串都原样交给回调，
+        // 由 Module.toNative / toKotlinObject 决定如何解读（二进制在此保持 ByteArray）。
         GlobalFunctions.invokeFunction(pagerId, functionRef, data)
     }
 

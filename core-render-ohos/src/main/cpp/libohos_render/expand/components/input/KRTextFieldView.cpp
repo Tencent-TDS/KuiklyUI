@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
 
 #include "libohos_render/manager/KRKeyboardManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include <algorithm>
 #include <arkui/drag_and_drop.h>
 #include <cstddef>
@@ -67,12 +68,12 @@ constexpr char kEventTextInputStateChange[] = "textInputStateChange"; // 与 Kot
 constexpr char kEventSelectionChange[] = "selectionChange"; // 与 Kotlin InputView.kt:426 / TextAreaView.kt:685 一致
 
 // textInputState JSON 协议字段名，跨端一致（参考 core/views/TextInputState.kt）
-constexpr char kKeyText[] = "text";
-constexpr char kKeySelectionStart[] = "selectionStart";
-constexpr char kKeySelectionEnd[] = "selectionEnd";
-constexpr char kKeyCompositionStart[] = "compositionStart";
-constexpr char kKeyCompositionEnd[] = "compositionEnd";
-constexpr char kKeyLength[] = "length";
+constexpr char16_t kKeyText[] = u"text";
+constexpr char16_t kKeySelectionStart[] = u"selectionStart";
+constexpr char16_t kKeySelectionEnd[] = u"selectionEnd";
+constexpr char16_t kKeyCompositionStart[] = u"compositionStart";
+constexpr char16_t kKeyCompositionEnd[] = u"compositionEnd";
+constexpr char16_t kKeyLength[] = u"length";
 constexpr int kNoComposition = -1;
 
 ArkUI_NodeHandle KRTextFieldView::CreateNode() {
@@ -306,8 +307,8 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
             auto window_id = root->GetContext()->WindowId();
             KRKeyboardManager::GetInstance().AddKeyboardTask(window_id, key, [event_call_back](float height, int duration_ms) {
                 KRRenderValueMap map;
-                map["height"] = NewKRRenderValue(height);
-                map["duration"] = NewKRRenderValue(duration_ms / 1000.0);
+                map[u"height"] = NewKRRenderValue(height);
+                map[u"duration"] = NewKRRenderValue(duration_ms / 1000.0);
                 event_call_back(NewKRRenderValue(map));
             });
         }
@@ -397,7 +398,7 @@ void KRTextFieldView::GetCursorIndex(const KRRenderCallback &callback) {
     int32_t selectionLeft = GetInputNodeSelectionStartPosition();
     if (callback) {
         KRRenderValueMap map;
-        map["cursorIndex"] = NewKRRenderValue(selectionLeft);
+        map[u"cursorIndex"] = NewKRRenderValue(selectionLeft);
         callback(NewKRRenderValue(map));
     }
 }
@@ -428,25 +429,18 @@ std::pair<uint32_t, uint32_t> KRTextFieldView::GetInputNodeTextSelectionRange() 
  * （TextInput / TextArea 均支持），不再回退为折叠光标。
  */
 void KRTextFieldView::SetTextInputStateInternal(const std::string &json) {
-    // KRRenderValue::toMap 内部调 cJSON_Parse 解析 JSON 字符串到 Map；解析失败回空 Map。
-    KRRenderValue::Map parsed = NewKRRenderValue(json)->toMap();
+    auto parsed = KRRenderValue::Parse(json);
 
-    auto get_string = [&](const char *key) -> std::string {
-        auto it = parsed.find(key);
-        if (it == parsed.end() || it->second == nullptr) {
-            return "";
-        }
-        return it->second->toString();
+    auto get_string = [&](const char16_t *key) -> std::string {
+        auto v = parsed.opt(key);
+        return v ? v.toString() : "";
     };
-    auto get_int = [&](const char *key, int default_value) -> int {
-        auto it = parsed.find(key);
-        if (it == parsed.end() || it->second == nullptr) {
-            return default_value;
-        }
-        return it->second->toInt();
+    auto get_int = [&](const char16_t *key, int default_value) -> int {
+        auto v = parsed.opt(key);
+        return v ? v.toInt() : default_value;
     };
 
-    std::string text = get_string(kKeyText);
+    std::string text = get_string(u"text");
     if (ShouldRejectProgrammaticShortcodeInput(text)) {
         NotifyTextLengthBeyondLimit();
         NotifyTextInputStateChange();
@@ -455,9 +449,9 @@ void KRTextFieldView::SetTextInputStateInternal(const std::string &json) {
 
     // selection 用 UTF-16 长度做 clamp，与 Android 行为一致。
     int u16_len = GetUTF16Length(text);
-    int selection_start = get_int(kKeySelectionStart, u16_len);
+    int selection_start = get_int(u"selectionStart", u16_len);
     selection_start = std::max(0, std::min(selection_start, u16_len));
-    int selection_end = get_int(kKeySelectionEnd, selection_start);
+    int selection_end = get_int(u"selectionEnd", selection_start);
     selection_end = std::max(selection_start, std::min(selection_end, u16_len));
 
     is_setting_text_input_state_ = true;
@@ -500,7 +494,7 @@ KRRenderValueMap KRTextFieldView::CreateTextInputStateMap() {
     selection_end = std::max(selection_start, selection_end);
 
     KRRenderValueMap map;
-    map[kKeyText] = NewKRRenderValue(text);
+    map[kKeyText] = KRRenderValue::MakeUTF16(text);
     map[kKeySelectionStart] = NewKRRenderValue(selection_start);
     map[kKeySelectionEnd] = NewKRRenderValue(selection_end);
     map[kKeyCompositionStart] = NewKRRenderValue(kNoComposition);
@@ -595,10 +589,10 @@ void KRTextFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
     if (text_did_change_callback_) {
         auto text = GetContentText();
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(text);
+        map[u"text"] = KRRenderValue::MakeUTF16(text);
         if (length_limit_type_ != -1) {
             int length = CalculateTextLength(text);
-            map["length"] = NewKRRenderValue(length);
+            map[u"length"] = NewKRRenderValue(length);
             // KR_LOG_DEBUG << "OnTextDidChanged: text=" << text << ", length=" << length;
         }
         text_did_change_callback_(NewKRRenderValue(map));
@@ -614,7 +608,7 @@ void KRTextFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
 void KRTextFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
     if (input_focus_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        map[u"text"] = KRRenderValue::MakeUTF16(GetContentText());
         input_focus_callback_(NewKRRenderValue(map));
     }
 }
@@ -624,7 +618,7 @@ void KRTextFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
 void KRTextFieldView::OnInputBlur(ArkUI_NodeEvent *event) {
     if (input_blur_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        map[u"text"] = KRRenderValue::MakeUTF16(GetContentText());
         input_blur_callback_(NewKRRenderValue(map));
     }
 }
@@ -634,9 +628,9 @@ void KRTextFieldView::OnInputBlur(ArkUI_NodeEvent *event) {
 void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
     if (input_return_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        map[u"text"] = KRRenderValue::MakeUTF16(GetContentText());
         auto returnKeyType = GetInputNodeEnterKeyType();
-        map["ime_action"] = NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
+        map[u"ime_action"] = KRRenderValue::Make(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
         input_return_callback_(NewKRRenderValue(map));
         
         // 强制关闭软键盘

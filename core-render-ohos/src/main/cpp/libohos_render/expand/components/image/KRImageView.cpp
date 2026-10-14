@@ -25,6 +25,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRURIHelper.h"
 #include "libohos_render/utils/KRStringUtil.h"
@@ -67,9 +68,9 @@ constexpr float DEFAULT_CAPINST_IMAGE_SCALE = 1.0f;
 constexpr char kEventNameLoadSuccess[] = "loadSuccess";
 constexpr char kEventNameLoadResolution[] = "loadResolution";
 constexpr char kEventNameLoadFailure[] = "loadFailure";
-constexpr char kEventNameLoadErrorCode[] = "errorCode";
-constexpr char kParamKeyImageWidth[] = "imageWidth";
-constexpr char kParamKeyImageHeight[] = "imageHeight";
+constexpr char16_t kEventNameLoadErrorCode[] = u"errorCode";
+constexpr char16_t kParamKeyImageWidth[] = u"imageWidth";
+constexpr char16_t kParamKeyImageHeight[] = u"imageHeight";
 constexpr char kPropNameMaskLinearGradient[] = "maskLinearGradient";
 
 bool isBase64(const std::string &src) {
@@ -164,6 +165,7 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     auto didHanded = false;
     if (kuikly::util::isEqual(prop_key, kPropNameSrc)) {
         image_src_ = "";
+        image_src_value_ = KRRenderValue::Make(u"");
         has_loaded_image_ = false;
         loaded_image_size_ = {};
         // src 复位：清空原图尺寸缓存与 source size 幂等门闸，让下一次 src
@@ -257,13 +259,14 @@ void KRImageView::AdapterSetImageCallback(const void* context,
 }
 
 bool KRImageView::SetImageSrc(const KRAnyValue &value) {
-    auto src = value->toString();
-    if (image_src_ == src) {
+    if (image_src_value_ && image_src_value_.stringEquals(value)) {
         return true;
     }
+    auto src = value->toAsciiString();
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
+    image_src_value_ = value;
     has_loaded_image_ = false;
     loaded_image_size_ = {};
     // src 换了：原图快照失效，source size 幂等门闸放开，让新 src 加载完成
@@ -325,18 +328,18 @@ bool KRImageView::SetImageParams(const KRAnyValue &value) {
         image_params_ = nullptr;
         return true;
     }
-    auto map = value->toMap();
-    if (map.empty()) {
+    auto params = value.Parsed();
+    if (!params->isMap() || params->size() == 0) {
         image_params_ = nullptr;
     } else {
-        image_params_ = NewKRRenderValue(map);
+        image_params_ = params;
     }
     return true;
 }
 
 bool KRImageView::SetResizeMode(const KRAnyValue &value) {
     auto resize = ARKUI_OBJECT_FIT_COVER;
-    auto resize_mode = value->toString();
+    auto resize_mode = value->toAsciiString();
     if (kuikly::util::isEqual(resize_mode, kResizeModeCover)) {
         resize = ARKUI_OBJECT_FIT_COVER;
     } else if (kuikly::util::isEqual(resize_mode, kResizeModeContain)) {
@@ -361,7 +364,7 @@ bool KRImageView::SetBlurRadius(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetTintColor(const KRAnyValue &value) {
-    auto valueStr = value->toString();
+    auto valueStr = value->toAsciiString();
     if (valueStr.empty()) {
         kuikly::util::ResetArkUIImageTintColor(GetNode());
     } else {
@@ -372,7 +375,7 @@ bool KRImageView::SetTintColor(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetColorFilter(const KRAnyValue &value) {
-    std::string matrix_str = value->toString();
+    std::string matrix_str = value->toAsciiString();
     if (matrix_str.empty()) {
         kuikly::util::ResetArkUIImageColorFilter(GetNode());
         return true;
@@ -423,7 +426,7 @@ void KRImageView::ResetMaskLinearGradientNode() {
 }
 
 bool KRImageView::SetMaskLinearGradient(const KRAnyValue &value) {
-    auto valueStr = value->toString();
+    auto valueStr = value->toAsciiString();
     if (valueStr.empty()) {
         return true;
     }
@@ -441,7 +444,7 @@ bool KRImageView::SetMaskLinearGradient(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetCapInsets(const KRAnyValue &value) {
-    auto valueStr = value->toString();
+    auto valueStr = value->toAsciiString();
     if (valueStr.empty()) {
         has_cap_insets_ = false;
         cap_insets_top_ = 0.f;
@@ -597,7 +600,7 @@ bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_call
     EnsureLoadCompleteEventRegistered();
     if (load_success_callback_ && has_loaded_image_) {
         KRRenderValueMap map;
-        map[kPropNameSrc] = NewKRRenderValue(image_src_);
+        map[u"src"] = image_src_value_ ? image_src_value_ : KRRenderValue::Make(kuikly::util::UTF8ToUTF16(image_src_));
         load_success_callback_(NewKRRenderValue(map));
     }
     return true;
@@ -628,7 +631,7 @@ void KRImageView::FireOnImageErrorEvent(ArkUI_NodeEvent *event) {
     if (load_failure_callback_) {
         int32_t code = kuikly::util::GetImageLoadSuccessStatusCode(event);
         KRRenderValueMap map;
-        map[kPropNameSrc] = NewKRRenderValue(image_src_);
+        map[u"src"] = image_src_value_ ? image_src_value_ : KRRenderValue::Make(kuikly::util::UTF8ToUTF16(image_src_));
         map[kEventNameLoadErrorCode] = NewKRRenderValue(code);
         load_failure_callback_(NewKRRenderValue(map));
     }
@@ -672,7 +675,7 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
 
     if (load_success_callback_) {
         KRRenderValueMap map;
-        map[kPropNameSrc] = NewKRRenderValue(image_src_);
+        map[u"src"] = image_src_value_ ? image_src_value_ : KRRenderValue::Make(kuikly::util::UTF8ToUTF16(image_src_));
         load_success_callback_(NewKRRenderValue(map));
     }
 
@@ -711,6 +714,11 @@ std::shared_ptr<KRImageLoadOption> KRImageView::ToImageLoadOption(const std::str
 void KRImageView::LoadFromSrc(const std::string image_src) {
     image_option_ = ToImageLoadOption(image_src);
     image_src_ = image_option_->src_;
+    // Keep the Kotlin U16 box when adapter did not rewrite src. Rebuild only if
+    // the final UTF-8 src no longer matches that box (adapter rewrite / new_src).
+    if (!image_src_value_ || image_src_value_.toAsciiString() != image_src_) {
+        image_src_value_ = KRRenderValue::Make(kuikly::util::UTF8ToUTF16(image_src_));
+    }
 
     if (image_option_->src_type_ == KRImageSrcType::kImageSrcTypeBase64) {
         LoadFromBase64(image_option_);

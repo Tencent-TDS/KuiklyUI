@@ -15,10 +15,28 @@
 
 import window from '@ohos.window'
 
-export type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | object
+/**
+ * Opaque N-API wrapper around a ref-counted C++ KRJSON.
+ *
+ * It is intended for cross-runtime transport and explicit JSON access. It is
+ * deliberately distinct from KRRecord, whose dynamic-property semantics are
+ * required by legacy router adapters.
+ */
+export interface KRJsonValue {
+  readonly type: number;
+  readonly size: number;
+
+  has(key: string): boolean;
+  get(key: string): KRValue | KRJsonValue | undefined;
+  at(index: number): KRValue | KRJsonValue | undefined;
+  toJSONString(): string;
+}
+
+export type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | object | KRJsonValue
 export type KRArray = Array<KRValue | Record<string, KRValue>>
 export type KRRecord = Record<string, KRValue | KRArray | Record<string, KRValue | KRArray | Record<string, KRValue>>>
 export type KRAny = KRValue | KRArray | KRRecord | null
+export type KRPageData = KRRecord | KRJsonValue
 export type KuiklyRenderCallback = (result: KRAny) => void;
 export interface Insets {
   left: number,

@@ -54,7 +54,7 @@ void KRRenderManager::CreateRenderViewIfNeeded(napi_env env, napi_callback_info 
     ArkUI_NodeContentHandle contentHandle;
     OH_ArkUI_GetNodeContentFromNapiValue(env, args[0], &contentHandle);
 
-    auto id = kuikly::util::getNApiArgsStdString(env, args[1]);
+    auto id = kuikly::util::getNApiArgsAsciiStdString(env, args[1]);
     if (id.empty() || contentHandle == nullptr) {
         return;
     }

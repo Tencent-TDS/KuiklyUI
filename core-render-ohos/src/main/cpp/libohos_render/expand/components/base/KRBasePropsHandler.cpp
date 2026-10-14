@@ -45,9 +45,9 @@ const char *kAnimationCompletion = "animationCompletion";
 const char *kClipPath = "clipPath";
 
 // 动画完成回调事件参数
-constexpr char kParamKeyFinish[] = "finish";
-constexpr char kParamKeyAnimationKey[] = "animationKey";
-constexpr char kParamKeyAttr[] = "attr";
+constexpr char16_t kParamKeyFinish[] = u"finish";
+constexpr char16_t kParamKeyAnimationKey[] = u"animationKey";
+constexpr char16_t kParamKeyAttr[] = u"attr";
 
 // kuikly::util::UpdateNodeBorder
 void KRBasePropsHandler::OnDestroy() {
@@ -72,18 +72,18 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     }
     initialized_animation_properties_.insert(prop_key);
     if (strcmp(prop_key.c_str(), kBackgroundColor) == 0) {  // 背景色
-        kuikly::util::UpdateNodeBackgroundColor(node_, kuikly::util::ConvertToHexColor(prop_value->toString()));
+        kuikly::util::UpdateNodeBackgroundColor(node_, kuikly::util::ConvertToHexColor(prop_value->toAsciiString()));
         return true;
     }
     if (strcmp(prop_key.c_str(), kBorderRadius) == 0) {  // 圆角
-        auto borderRadiuses = kuikly::util::ConverToBorderRadiuses(prop_value->toString());
+        auto borderRadiuses = kuikly::util::ConverToBorderRadiuses(prop_value->toAsciiString());
         kuikly::util::UpdateNodeBorderRadius(node_, borderRadiuses);
         force_overflow_ = !borderRadiuses.isAllZero(); // 圆角不为0，需要强制clip 子孩子，避免超出自身边界
         ApplyContentClip();
         return true;
     }
     if (strcmp(prop_key.c_str(), kBorder) == 0) {  // 边框样式
-        kuikly::util::UpdateNodeBorder(node_, prop_value->toString());
+        kuikly::util::UpdateNodeBorder(node_, prop_value->toAsciiString());
         return true;
     }
     if (strcmp(prop_key.c_str(), kFrame) == 0) {
@@ -101,11 +101,11 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
         }
     }
     if (strcmp(prop_key.c_str(), kBackgroundImage) == 0) {  // 背景渐变
-        kuikly::util::UpdateNodeBackgroundImage(node_, prop_value->toString());
+        kuikly::util::UpdateNodeBackgroundImage(node_, prop_value->toAsciiString());
         return true;
     }
     if (strcmp(prop_key.c_str(), kTransform) == 0) {  // transform(旋转，位移，缩放，倾斜) （+anchor）
-        css_transform_ = prop_value->toString();
+        css_transform_ = prop_value->toAsciiString();
         UpdateTransform(css_transform_);
         return true;
     }
@@ -137,12 +137,12 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     }
 
     if (strcmp(prop_key.c_str(), kAccessibility) == 0) {  // 无障碍化
-        kuikly::util::UpdateNodeAccessibility(node_, prop_value->toString());
+        kuikly::util::UpdateNodeAccessibility(node_, prop_value->toAsciiString());
         return true;
     }
 
     if (strcmp(prop_key.c_str(), kAccessibilityRole) == 0) {  // 无障碍角色
-        kuikly::util::UpdateNodeAccessibilityRole(node_, prop_value->toString());
+        kuikly::util::UpdateNodeAccessibilityRole(node_, prop_value->toAsciiString());
         return true;
     }
 
@@ -153,17 +153,17 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
                 res_mgr = root->GetNativeResourceManager();
             }
         }
-        kuikly::util::UpdateNodeAccessibilityActions(node_, prop_value->toString(), res_mgr);
+        kuikly::util::UpdateNodeAccessibilityActions(node_, prop_value->toAsciiString(), res_mgr);
         return true;
     }
 
     if (strcmp(prop_key.c_str(), kBoxShadow) == 0) {  // 阴影
-        kuikly::util::UpdateNodeBoxShadow(node_, prop_value->toString());
+        kuikly::util::UpdateNodeBoxShadow(node_, prop_value->toAsciiString());
         return true;
     }
 
     if (strcmp(prop_key.c_str(), KAnimation) == 0) {
-        auto animationStr = prop_value->toString();
+        auto animationStr = prop_value->toAsciiString();
         kuikly::util::SetNodeAnimation(weakView_, &animationStr);
         return true;
     }
@@ -174,7 +174,7 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     }
     
     if (strcmp(prop_key.c_str(), kClipPath) == 0) {
-        auto pathCommand = kuikly::util::ConvertToPathCommand(prop_value->toString());
+        auto pathCommand = kuikly::util::ConvertToPathCommand(prop_value->toAsciiString());
         has_clip_path_ = !pathCommand.empty();
         kuikly::util::UpdateNodeClipPath(node_, frame_.width, frame_.height, pathCommand);
         if (!has_clip_path_) {
@@ -414,8 +414,8 @@ void KRBasePropsHandler::OnAnimationCompletion(std::shared_ptr<IKRNodeAnimation>
     if (finished) {
         params[kParamKeyFinish] = NewKRRenderValue(1);
     }
-    params[kParamKeyAttr] = NewKRRenderValue(propKey);
-    params[kParamKeyAnimationKey] = NewKRRenderValue(animationKey);
+    params[kParamKeyAttr] = KRRenderValue::Make(kuikly::util::AsciiToUTF16(propKey));
+    params[kParamKeyAnimationKey] = KRRenderValue::Make(kuikly::util::AsciiToUTF16(animationKey));
     animation_completion_callback_(NewKRRenderValue(params));
 }
 

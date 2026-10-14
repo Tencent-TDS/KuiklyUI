@@ -64,25 +64,14 @@ class ICallNativeCallback {
      * 处理来自 Kotlin 侧的 Native 方法调用。
      *
      * 契约说明：
-     * - arg0 为 **保留位（reserved slot）**，实现方不得依赖其内容。
-     *   历史上该参数曾用于携带 instanceId，但当前调度层
-     *   (KRRenderNativeContextHandlerManager::DispatchCallNative)
-     *   出于性能考量固定传入 KRRenderValue::MakeNull() 单例，
-     *   以避免每次调用都构造一个 std::string 并分配 shared_ptr。
-     *   如实现方需要 instanceId，请通过 handler 自身持有的
-     *   `IKRRenderNativeContextHandler::instance_id_` 获取。
+     * - arg0 为 Kotlin 传入的 instanceId（字符串）。
+     *   实现方也可通过 handler 自身持有的
+     *   `IKRRenderNativeContextHandler::instance_id_` 获取同一值。
      * - arg1..arg5 的语义由 KuiklyRenderNativeMethod 各枚举值决定，
      *   具体参见 KRRenderCore::PerformNativeCallback 的分派实现。
-     *
-     * 如未来需要恢复通过 arg0 传递 instanceId，请同步修改
-     * KRRenderNativeContextHandlerManager::DispatchCallNative 的构造逻辑，
-     * 否则会形成静默的 null-deref / 逻辑偏差。
      */
-    virtual std::shared_ptr<KRRenderValue>
-    OnCallNative(const KuiklyRenderNativeMethod &method, std::shared_ptr<KRRenderValue> &arg0,
-                 std::shared_ptr<KRRenderValue> &arg1, std::shared_ptr<KRRenderValue> &arg2,
-                 std::shared_ptr<KRRenderValue> &arg3, std::shared_ptr<KRRenderValue> &arg4,
-                 std::shared_ptr<KRRenderValue> &arg5) = 0;
+    virtual KRAnyValue OnCallNative(const KuiklyRenderNativeMethod &method, KRAnyValue &arg0, KRAnyValue &arg1,
+                                    KRAnyValue &arg2, KRAnyValue &arg3, KRAnyValue &arg4, KRAnyValue &arg5) = 0;
 };
 
 class IKRRenderNativeContextHandler : public std::enable_shared_from_this<IKRRenderNativeContextHandler> {
@@ -99,29 +88,20 @@ class IKRRenderNativeContextHandler : public std::enable_shared_from_this<IKRRen
 
     void RegisterCallNative(ICallNativeCallback *callback);
 
-    // arg0 为保留位，语义参见 ICallNativeCallback::OnCallNative 契约说明；
-    // 本函数仅做原样透传，不对 arg0 做任何解释。
-    std::shared_ptr<KRRenderValue>
-    OnCallNative(const KuiklyRenderNativeMethod &method, std::shared_ptr<KRRenderValue> &arg0,
-                 std::shared_ptr<KRRenderValue> &arg1, std::shared_ptr<KRRenderValue> &arg2,
-                 std::shared_ptr<KRRenderValue> &arg3, std::shared_ptr<KRRenderValue> &arg4,
-                 std::shared_ptr<KRRenderValue> &arg5);
+    // arg0 为 instanceId，语义参见 ICallNativeCallback::OnCallNative；原样透传。
+    KRAnyValue OnCallNative(const KuiklyRenderNativeMethod &method, KRAnyValue &arg0, KRAnyValue &arg1,
+                            KRAnyValue &arg2, KRAnyValue &arg3, KRAnyValue &arg4, KRAnyValue &arg5);
 
     void Init(const std::shared_ptr<KRRenderContextParams> context_params);
 
     virtual void InitContext();  //  初始化通信上下文
 
-    void Call(const KuiklyRenderContextMethod &method, const std::shared_ptr<KRRenderValue> &arg0,
-              const std::shared_ptr<KRRenderValue> &arg1, const std::shared_ptr<KRRenderValue> &arg2,
-              const std::shared_ptr<KRRenderValue> &arg3, const std::shared_ptr<KRRenderValue> &arg4,
-              const std::shared_ptr<KRRenderValue> &arg5);
+    void Call(const KuiklyRenderContextMethod &method, const KRAnyValue &arg0, const KRAnyValue &arg1,
+              const KRAnyValue &arg2, const KRAnyValue &arg3, const KRAnyValue &arg4, const KRAnyValue &arg5);
 
-    virtual void CallKotlinMethod(const KuiklyRenderContextMethod &method, const std::shared_ptr<KRRenderValue> &arg0,
-                                  const std::shared_ptr<KRRenderValue> &arg1,
-                                  const std::shared_ptr<KRRenderValue> &arg2,
-                                  const std::shared_ptr<KRRenderValue> &arg3,
-                                  const std::shared_ptr<KRRenderValue> &arg4,
-                                  const std::shared_ptr<KRRenderValue> &arg5) = 0;
+    virtual void CallKotlinMethod(const KuiklyRenderContextMethod &method, const KRAnyValue &arg0,
+                                  const KRAnyValue &arg1, const KRAnyValue &arg2, const KRAnyValue &arg3,
+                                  const KRAnyValue &arg4, const KRAnyValue &arg5) = 0;
 
     virtual ~IKRRenderNativeContextHandler() = default;
 

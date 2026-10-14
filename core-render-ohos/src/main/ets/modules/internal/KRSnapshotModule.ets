@@ -19,6 +19,7 @@ import { fileUri } from '@kit.CoreFileKit';
 import { image } from '@kit.ImageKit';
 import { KRRenderLog } from '../../adapter/KRRenderLog';
 import { KRAny, KuiklyRenderCallback } from '../../utils/KRDataTypes';
+import { KRJSON } from '../../utils/KRJSON';
 import { KRPixelMapUtil } from '../../utils/KRPixelMapUtil';
 import { KuiklyRenderBaseModule } from '../export';
 
@@ -39,7 +40,7 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     if (method == 'toImage') {
-      const json: Record<string, string> = JSON.parse(params as string);
+      const json = KRJSON.asRecord(params) as Record<string, string>;
       const id: string = json['node_id'];
       const internalParams = json['params'];
       const internalParamsJson: Record<string, Object> = JSON.parse(internalParams as string);

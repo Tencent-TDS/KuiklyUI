@@ -61,15 +61,15 @@ constexpr char kEventNameDragBegin[] = "dragBegin";
 constexpr char kEventNameWillDragEnd[] = "willDragEnd";
 constexpr char kEventNameDragEnd[] = "dragEnd";
 constexpr char kEventNameScrollEnd[] = "scrollEnd";
-constexpr char kEventKeyOffsetX[] = "offsetX";
-constexpr char kEventKeyOffsetY[] = "offsetY";
-constexpr char kEventKeyContentWidth[] = "contentWidth";
-constexpr char kEventKeyContentHeight[] = "contentHeight";
-constexpr char kEventKeyViewWidth[] = "viewWidth";
-constexpr char kEventKeyViewHeight[] = "viewHeight";
-constexpr char kEventKeyIsDragging[] = "isDragging";
-constexpr char kEventKeyVelocityX[] = "velocityX";
-constexpr char kEventKeyVelocityY[] = "velocityY";
+constexpr char16_t kEventKeyOffsetX[] = u"offsetX";
+constexpr char16_t kEventKeyOffsetY[] = u"offsetY";
+constexpr char16_t kEventKeyContentWidth[] = u"contentWidth";
+constexpr char16_t kEventKeyContentHeight[] = u"contentHeight";
+constexpr char16_t kEventKeyViewWidth[] = u"viewWidth";
+constexpr char16_t kEventKeyViewHeight[] = u"viewHeight";
+constexpr char16_t kEventKeyIsDragging[] = u"isDragging";
+constexpr char16_t kEventKeyVelocityX[] = u"velocityX";
+constexpr char16_t kEventKeyVelocityY[] = u"velocityY";
 
 constexpr char kMethodNameContentOffset[] = "contentOffset";
 constexpr char kMethodNameContentInset[] = "contentInset";
@@ -651,7 +651,7 @@ bool KRScrollerView::IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_sta
            new_scroll_state == ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
 }
 
-std::shared_ptr<KRRenderValue> KRScrollerView::GetCommonScrollParams() {
+KRAnyValue KRScrollerView::GetCommonScrollParams() {
     KRRenderValueMap map;
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
     map[kEventKeyOffsetX] = NewKRRenderValue(point.x);

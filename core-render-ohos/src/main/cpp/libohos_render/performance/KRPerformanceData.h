@@ -25,7 +25,7 @@ class KRPerformanceData {
  public:
     KRPerformanceData(std::string page_name, int excute_mode, int spent_time, bool is_cold_launch,
                       bool is_page_cold_launch, std::string launch_data, std::string frame_data, std::string memory_data);
-    std::string ToJsonString();
+    std::u16string ToJsonString();
 
  private:
     std::string page_name_;

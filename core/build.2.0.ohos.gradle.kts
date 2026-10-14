@@ -56,7 +56,7 @@ kotlin {
             includeDirs(file("../core-render-ohos/src/main/cpp/libohos_render"))
 
             // Add HarmonyOS SDK include paths (Windows only)
-            if (System.getProperty("os.name").lowercase().contains("windows")) {
+            if (System.getProperty("os.name")?.contains("windows", ignoreCase = true) == true) {
                 val ohosSdkHome = System.getenv("OHOS_SDK_HOME")
                 if (!ohosSdkHome.isNullOrEmpty()) {
                     includeDirs(

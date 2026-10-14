@@ -35,7 +35,14 @@ char *getNApiArgsString(napi_env env, napi_value value);
 
 std::string getNApiArgsStdString(napi_env env, napi_value value);
 
+// ASCII instance_id / map key: read UTF-16 then narrow. Avoids napi_get_value_string_utf8.
+std::string getNApiArgsAsciiStdString(napi_env env, napi_value value);
+
 void GetNApiArgsStdString(const napi_env &env, const napi_value &value, std::string &result);
+
+std::u16string getNApiArgsStdU16String(napi_env env, napi_value value);
+
+void GetNApiArgsStdU16String(const napi_env &env, const napi_value &value, std::u16string &result);
 
 }  // namespace util
 }  // namespace kuikly

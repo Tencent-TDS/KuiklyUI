@@ -15,6 +15,7 @@
 
 import emitter from '@ohos.events.emitter';
 import { KRAny, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRJSON } from '../utils/KRJSON';
 import { KuiklyRenderBaseModule } from './export';
 
 class KRNotifyCallbackWrapper {
@@ -57,15 +58,18 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     switch (method) {
       case KRNotifyModule.METHOD_ADD_NOTIFY: {
-        this.addNotify(params as string, callback);
+        const data = KRJSON.asRecord(params);
+        this.addNotify(data['id'] as string, data['eventName'] as string, callback);
         break;
       }
       case KRNotifyModule.METHOD_REMOVE_NOTIFY: {
-        this.removeNotify(params as string);
+        const data = KRJSON.asRecord(params);
+        this.removeNotify(data['id'] as string, data['eventName'] as string);
         break;
       }
       case KRNotifyModule.METHOD_POST_NOTIFY: {
-        this.postNotify(params as string);
+        const data = KRJSON.asRecord(params);
+        this.postNotify(data['eventName'] as string, data['data'] as Object);
         break;
       }
     }
@@ -81,23 +85,21 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
     this.globalCallback = null;
   }
 
-  addNotify(params: string | null, callback: KuiklyRenderCallback | null) {
-    if (params == null || callback == null) {
+  addNotify(id: string, eventName: string, callback: KuiklyRenderCallback | null) {
+    if (callback == null) {
       return;
     }
 
-    let paramsObj: KRAddNotifyParams = JSON.parse(params);
-
-    const callbackWrappers = this.subscribersMap[paramsObj.eventName];
+    const callbackWrappers = this.subscribersMap[eventName];
     if (callbackWrappers) {
       // if subscribed before, simple add it the list
       console.info(`NotifyModule: already subscribe, appending to the list, old count:${callbackWrappers.length}`);
-      callbackWrappers.push(new KRNotifyCallbackWrapper(callback, paramsObj.id));
+      callbackWrappers.push(new KRNotifyCallbackWrapper(callback, id));
       console.info(`NotifyModule: already subscribe, appended to the list, new count:${callbackWrappers.length}`);
       return;
     }
 
-    this.subscribersMap[paramsObj.eventName] = [new KRNotifyCallbackWrapper(callback, paramsObj.id)];
+    this.subscribersMap[eventName] = [new KRNotifyCallbackWrapper(callback, id)];
     if (this.globalCallback === null) {
       this.globalCallback = (event: emitter.EventData) => {
         const data = event.data as Record<string, string>;
@@ -111,41 +113,31 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
         });
       };
     }
-    emitter.on(paramsObj.eventName, this.globalCallback);
+    emitter.on(eventName, this.globalCallback);
     return;
   }
 
-  removeNotify(params: string | null) {
-    if (params == null) {
-      return;
-    }
-    let paramsObj: KRRemoveNotifyParams = JSON.parse(params);
-    let callbackWrappers = this.subscribersMap[paramsObj.eventName];
+  removeNotify(id: string, eventName: string) {
+    let callbackWrappers = this.subscribersMap[eventName];
     if (callbackWrappers) {
       const index = callbackWrappers.findIndex((value) => {
-        return value.callbackId == paramsObj.id;
+        return value.callbackId == id;
       });
       if (index > -1) {
         callbackWrappers.splice(index, 1);
         if (callbackWrappers.length === 0) {
-          emitter.off(paramsObj.eventName, this.globalCallback!);
-          this.subscribersMap[paramsObj.eventName] = null;
+          emitter.off(eventName, this.globalCallback!);
+          this.subscribersMap[eventName] = null;
         }
       }
     }
   }
 
-  postNotify(params: string | null) {
-    if (params == null) {
-      return;
-    }
-
-    let paramsObj: KRPostNotifyParams = JSON.parse(params);
-
-    emitter.emit(paramsObj.eventName, {
+  postNotify(eventName: string, data: Object) {
+    emitter.emit(eventName, {
       data: {
-        'eventName': paramsObj.eventName,
-        'stringify': paramsObj.data ? JSON.stringify(paramsObj.data) : null
+        'eventName': eventName,
+        'stringify': data ? JSON.stringify(data) : null
       }
     });
   }

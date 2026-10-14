@@ -28,15 +28,15 @@ constexpr char kPanEventName[] = "pan";
 constexpr char kPinchEventName[] = "pinch";
 constexpr char kCaptureAttrName[] = "capture";
 
-constexpr char kParamKeyX[] = "x";
-constexpr char kParamKeyY[] = "y";
-constexpr char kParamKeyPageX[] = "pageX";
-constexpr char kParamKeyPageY[] = "pageY";
-constexpr char kParamKeyState[] = "state";
+constexpr char16_t kParamKeyX[] = u"x";
+constexpr char16_t kParamKeyY[] = u"y";
+constexpr char16_t kParamKeyPageX[] = u"pageX";
+constexpr char16_t kParamKeyPageY[] = u"pageY";
+constexpr char16_t kParamKeyState[] = u"state";
 constexpr char kStartState[] = "start";
 constexpr char kEndState[] = "end";
-constexpr char kParamKeyScale[] = "scale";
-constexpr char kParamKeyIsCancel[] = "isCancel";
+constexpr char16_t kParamKeyScale[] = u"scale";
+constexpr char16_t kParamKeyIsCancel[] = u"isCancel";
 
 KRBaseEventHandler::KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config) : kr_config_(kr_config) {}
 

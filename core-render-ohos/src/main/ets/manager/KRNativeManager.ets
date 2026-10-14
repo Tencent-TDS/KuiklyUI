@@ -150,7 +150,7 @@ export class KRNativeManager {
     ViewsRegisterEntry.registerExternalViewCallback();
     let defaultId = '0';
     this.arkTSCallNative(defaultId, KRCallNativeMethod.Register.valueOf(), null, null, null, null, null,
-      (instanceId, methodId, arg0, arg1, arg2, arg3, arg4, callbackId) => {
+      (instanceId: string, methodId: number, arg0: KRAny, arg1: KRAny, arg2: KRAny, arg3: KRAny, arg4: KRAny, callbackId: string | null) => {
         const nativeInstance: KRNativeInstance | null = this.getNativeInstance(instanceId);
         if (!nativeInstance) {
           return null;

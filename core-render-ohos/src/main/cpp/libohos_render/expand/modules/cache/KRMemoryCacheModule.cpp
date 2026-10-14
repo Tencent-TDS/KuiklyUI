@@ -17,6 +17,7 @@
 #include "libohos_render/expand/components/image/KRImageView.h"
 #include "libohos_render/expand/modules/codec/KRCodec.h"
 #include "libohos_render/expand/modules/network/KRNetworkModule.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRURIHelper.h"
 #include <cstdint>
 #include <multimedia/image_framework/image/image_source_native.h>
@@ -34,16 +35,16 @@ extern Image_ErrorCode OH_PixelmapNative_Destroy(OH_PixelmapNative **pixelmap) _
 
 constexpr char kMethodNameSetObject[] = "setObject";
 constexpr char kMethodNameCacheImage[] = "cacheImage";
-constexpr char kParamNameKey[] = "key";
-constexpr char kParamNameValue[] = "value";
-constexpr char kParamNameSrc[] = "src";
+constexpr char16_t kParamNameKey[] = u"key";
+constexpr char16_t kParamNameValue[] = u"value";
+constexpr char16_t kParamNameSrc[] = u"src";
 constexpr char kParamNameSync[] = "sync";
-constexpr char kStatusKeyErrorCode[] = "errorCode";
-constexpr char kStatusKeyErrorMsg[] = "errorMsg";
-constexpr char kStatusKeyState[] = "state";
-constexpr char kStatusKeyCacheKey[] = "cacheKey";
-constexpr char kStatusKeyWidth[] = "width";
-constexpr char kStatusKeyHeight[] = "height";
+constexpr char16_t kStatusKeyErrorCode[] = u"errorCode";
+constexpr char16_t kStatusKeyErrorMsg[] = u"errorMsg";
+constexpr char16_t kStatusKeyState[] = u"state";
+constexpr char16_t kStatusKeyCacheKey[] = u"cacheKey";
+constexpr char16_t kStatusKeyWidth[] = u"width";
+constexpr char16_t kStatusKeyHeight[] = u"height";
 constexpr char kCacheStateComplete[] = "Complete";
 constexpr char kCacheStateInProgress[] = "InProgress";
 constexpr char kCacheKeyPrefix[] = "data:image_Md5_";
@@ -89,9 +90,9 @@ KRAnyValue KRMemoryCacheModule::CallMethod(bool sync, const std::string &method,
 }
 
 KRAnyValue KRMemoryCacheModule::SetObject(const KRAnyValue &params) {
-    auto map = params->toMap();
-    auto key = map[kParamNameKey]->toString();
-    auto value = map[kParamNameValue];
+    const auto object = params.Parsed();
+    auto key = object.opt(kParamNameKey).toString();
+    auto value = object.opt(kParamNameValue);
     cache_map_[key] = value;
 
     bool found = false;
@@ -139,8 +140,8 @@ OH_PixelmapNative *KRMemoryCacheModule::LoadPixelmapFromLocal(std::string &src) 
 }
 
 KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRenderCallback &callback) {
-    auto map = params->toMap();
-    auto src = map[kParamNameSrc]->toString();
+    auto src16 = params.Parsed().opt(kParamNameSrc).toU16String();
+    auto src = kuikly::util::UTF16ToUTF8(src16);
     auto cache_key = GenerateCacheKey(src);
 
     OH_PixelmapNative *pixelmap = GetImage(cache_key);
@@ -173,7 +174,7 @@ KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRen
             }
             return NewKRRenderValue(std::move(result));
         } else {
-            KRRenderValueMap result = GenerateError(-1, "failed to load image from local: invalid src");
+            KRRenderValueMap result = GenerateError(-1, u"failed to load image from local: invalid src");
             if (callback) {
                 callback(NewKRRenderValue(result));
             }
@@ -188,7 +189,7 @@ KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRen
         auto network_module = std::dynamic_pointer_cast<KRNetworkModule>(rootView->GetModuleOrCreate(kNetworkModuleName));
         if (network_module) {
             std::weak_ptr<IKRRenderModuleExport> weak_self = shared_from_this();
-            network_module->FetchFileByDownloadOrCache(src, [weak_self, cache_key, callback](KRAnyValue res) {
+            network_module->FetchFileByDownloadOrCache(src16, [weak_self, cache_key, callback](KRAnyValue res) {
                 KRMemoryCacheModule *module_self;
                 if (auto self = weak_self.lock()) {
                     module_self = reinterpret_cast<KRMemoryCacheModule *>(self.get());
@@ -207,7 +208,7 @@ KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRen
                     module_self->SetImage(cache_key, pixelmap);
                     result = module_self->GenerateResult(cache_key, pixelmap);
                 } else {
-                    result = module_self->GenerateError(-1, "fetch failed");
+                    result = module_self->GenerateError(-1, u"fetch failed");
                 }
                 if (callback) {
                     callback(NewKRRenderValue(result));
@@ -216,11 +217,11 @@ KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRen
             KRRenderValueMap result;
             result[kStatusKeyState] = NewKRRenderValue(kCacheStateInProgress);
             result[kStatusKeyErrorCode] = NewKRRenderValue(0);
-            result[kStatusKeyErrorMsg] = NewKRRenderValue("loading async");
+            result[kStatusKeyErrorMsg] = KRRenderValue::Make(u"loading async");
             return NewKRRenderValue(result);
         }
     }
-    KRRenderValueMap result = GenerateError(-1, "network module required");
+    KRRenderValueMap result = GenerateError(-1, u"network module required");
     if (callback) {
         callback(NewKRRenderValue(result));
     }
@@ -257,7 +258,7 @@ KRRenderValueMap KRMemoryCacheModule::GenerateResult(const std::string &cache_ke
     KRRenderValueMap result;
     result[kStatusKeyState] = NewKRRenderValue(kCacheStateComplete);
     result[kStatusKeyErrorCode] = NewKRRenderValue(0);
-    result[kStatusKeyCacheKey] = NewKRRenderValue(cache_key);
+    result[kStatusKeyCacheKey] = KRRenderValue::Make(kuikly::util::AsciiToUTF16(cache_key));
     uint32_t width = 0;
     uint32_t height = 0;
     OH_Pixelmap_ImageInfo *info;
@@ -273,11 +274,11 @@ KRRenderValueMap KRMemoryCacheModule::GenerateResult(const std::string &cache_ke
     return std::move(result);
 }
 
-KRRenderValueMap KRMemoryCacheModule::GenerateError(int32_t code, const std::string &message) {
+KRRenderValueMap KRMemoryCacheModule::GenerateError(int32_t code, const char16_t *message) {
     KRRenderValueMap result;
     result[kStatusKeyState] = NewKRRenderValue(kCacheStateComplete);
     result[kStatusKeyErrorCode] = NewKRRenderValue(code);
-    result[kStatusKeyErrorMsg] = NewKRRenderValue(message);
+    result[kStatusKeyErrorMsg] = KRRenderValue::Make(message == nullptr ? u"" : message);
     return std::move(result);
 }
 

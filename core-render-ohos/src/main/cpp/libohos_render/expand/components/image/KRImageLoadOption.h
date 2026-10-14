@@ -21,8 +21,7 @@
 #include <resourcemanager/ohresmgr.h>
 #include <string>
 
-class KRRenderValue;
-using KRAnyValue = std::shared_ptr<KRRenderValue>;
+#include "libohos_render/foundation/KRCommon.h"
 
 enum class KRImageSrcType {
     kImageSrcTypeUnknown = 0,

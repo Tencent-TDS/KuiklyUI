@@ -17,13 +17,20 @@ package com.tencent.kuikly.core.nvi.serialization.json
 
 actual object JSONEngine {
 
+    /** 文本解析走 [JSONTokener]：严格对象优先 KRJSON 惰性树，其余回退宽松扫描。 */
     actual fun parse(jsonStr: String): Any? {
         return JSONTokener(jsonStr).nextValue()
     }
 
-    actual fun stringify(jsonObject: JSONObject) = commonStringify(jsonObject)
+    actual fun stringify(jsonObject: JSONObject): String {
+        (jsonObject.nameValuePairs as? LazyJsonMap)?.nativePrintCompactOrNull()?.let { return it }
+        return commonStringify(jsonObject)
+    }
 
-    actual fun stringify(jsonArray: JSONArray) = commonStringify(jsonArray)
+    actual fun stringify(jsonArray: JSONArray): String {
+        (jsonArray.values as? LazyJsonList)?.nativePrintCompactOrNull()?.let { return it }
+        return commonStringify(jsonArray)
+    }
 
     internal actual fun <K, V> getMutableMap(): MutableMap<K, V> = mutableMapOf()
 

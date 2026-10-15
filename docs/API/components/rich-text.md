@@ -116,6 +116,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+**ImageSpan 对齐偏移**
+
+`ImageSpan` 还提供 `horizontalAlignOffset(offset: Float)` 与 `verticalAlignOffset(offset: Float)`，用于在图片默认（居中对齐）位置的基础上调整水平、垂直偏移。
+
 ### PlaceholderSpan方法
 
 ``PlaceholderSpan``方法用于往富文本组件中添加一个空白占位区域, 该方法接收一个``PlaceholderSpan``的初始化闭包，你可以在这个初始化闭包中使用`placeholderSize`属性设置空白占位区域的大小，并通过`spanFrameDidChanged`事件监听SpanFrame变化来配合在空白占位区域叠加其他任意View。使用方法参考示例：
@@ -191,6 +195,18 @@ internal class TestPage : BasePager() {
 
 :::
 
+## 方法
+
+### getSpans
+
+获取当前 RichText 中已添加的全部 Span。该方法定义在 `RichTextAttr` 上，需在 `attr {}` 内或通过 `getViewAttr()` 调用。
+
+**返回值**
+
+| 类型 | 描述 |
+| -- | -- |
+| Array&lt;ISpan&gt; | Span 数组 |
+
 ## 事件
 
 支持[Text组件的所有事件](text.md#事件)
@@ -202,11 +218,7 @@ internal class TestPage : BasePager() {
 `click` 回调参数为 `ClickParams`，字段说明可参考[通用事件文档](basic-attr-event.md)。
 
 
-### Span longPress事件
-
-:::tip 版本说明
-`Span.longPress` 从 **2.23.0** 开始支持。
-:::
+### Span longPress事件 <Badge text="2.23.0 及以上支持" type="warn"/>
 
 `RichText` 中的 `Span` / `ImageSpan` 支持单独注册 `longPress` 事件。命中可长按的 span 时，会优先回调该 span 的 `longPress`；如果当前触点未命中任何注册了 `longPress` 的 span，则会回退到 `RichText.longPress`。
 

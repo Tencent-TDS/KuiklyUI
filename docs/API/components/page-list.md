@@ -5,6 +5,12 @@
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/PageListExamplePage.kt)
 
+:::: warning 使用注意
+- `scrollToPageIndex(index, animated)` <Badge text="自 2.12.0 起废弃" type="danger"/> 请改用带 `springAnimation` 参数的 `scrollToPageIndex(index, animated, springAnimation)`。
+- `offscreenPageLimit` 需同时设置对应方向的 `pageItemWidth`（横向）/ `pageItemHeight`（纵向）才生效，最小取 1；未设置时使用 List 默认的预加载距离。
+- 不设置 `pageItemWidth` / `pageItemHeight` 时，横向按 pageItem 自身宽度左对齐吸附，纵向按自身高度顶部对齐吸附。
+::::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
@@ -142,7 +148,7 @@ PageList {
 
 ## 方法
 
-### scrollToPageIndex
+### scrollToPageIndex <Badge text="2.12.0 及以上支持" type="warn"/>
 
 设置`PageList`滚动到某一个pageIndex。
 

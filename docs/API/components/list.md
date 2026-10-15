@@ -86,7 +86,7 @@
 | --------------------- |--| ------------- |
 | distance         | 列表视图预加载距离 | Float |
 
-### initContentOffset <Badge text="2.26.0" type="warn"/>
+### initContentOffset <Badge text="2.26.0 及以上支持" type="warn"/>
 
 设置列表视图的初始内容偏移量。用于在列表首次加载时定位到指定的滚动位置，无需等待列表内容渲染后再调用 `setContentOffset`。
 

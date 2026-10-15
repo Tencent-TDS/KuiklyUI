@@ -11,6 +11,11 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/ScrollPickerExamplePage.kt)
 
+::::warning 使用注意
+- `itemWidth`、`itemHeight`、`countPerScreen` 默认值均为 0，需业务显式设置。
+- `dragEndEvent` <Badge text="自 2.8.0 起废弃" type="danger"/> 拖拽结束与滚动结束统一使用 `scrollEndEvent`。
+::::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：
@@ -48,7 +53,25 @@
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
 
-### dragEndEvent
+### scrollEndEvent
+
+滚动停下后选中 item 时的回调，参数为中间 item 的值与下标。推荐用它替代已废弃的 `dragEndEvent`。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| centerValue | 中间item的值 | String |
+| centerItemIndex | 中间item在选择器中的index | Int |
+
+### scrollEvent
+
+滚动过程中的回调，可用于实时获取当前中间项，参数与 `scrollEndEvent` 一致。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| centerValue | 中间item的值 | String |
+| centerItemIndex | 中间item在选择器中的index | Int |
+
+### dragEndEvent <Badge text="自 2.8.0 起废弃" type="danger"/>
 
 停止滚动后选中item时的回调，回调会传入中间item的value和index
 

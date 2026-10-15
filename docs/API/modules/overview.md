@@ -12,3 +12,24 @@
 * [SnapshotModule](snapshot.md)
 * [CodecModule](codec.md)
 * [CalendarModule](calendar.md)
+* [PerformanceModule](performance.md)
+* [TurboDisplayModule](turbo-display.md) <Badge text="仅 iOS" type="warn"/>
+* [VsyncModule](vsync.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+* [BackPressModule](back-press.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/> <Badge text="鸿蒙" type="warn"/>
+* [FontModule](font.md) <Badge text="Android" type="warn"/> <Badge text="iOS" type="warn"/>
+* [FileModule](file.md)
+* [LogModule](log.md)
+
+## Module 基类能力
+
+自定义 Module 继承 `Module` 后，可复用基类提供的通信能力：
+
+| 方法 | 说明 |
+| -- | -- |
+| `syncToNativeMethod(methodName, data: JSONObject?, callbackFn: CallbackFn?)` / `syncToNativeMethod(methodName, args: Array<Any>, callbackFn: AnyCallbackFn?)` | 同步调用端侧方法（JSON 参数版 / 原子参数版） |
+| `asyncToNativeMethod(methodName, data: JSONObject?, callbackFn: CallbackFn?)` / `asyncToNativeMethod(methodName, args: Array<Any>, callbackFn: AnyCallbackFn?)` | 异步调用端侧方法（JSON 参数版 / 原子参数版） |
+| `toNative(keepCallbackAlive, methodName, param, callback, syncCall)` | 通用端侧调用通道，回参自动转 JSONObject |
+| `toTDFNative(keepCallbackAlive, methodName, params, successCallback, errorCallback, syncCall)` | TDF 双回调通道，自动解包 `result` 字段 |
+| `removeCallback(callbackRef)` | 销毁全局回调引用 |
+
+模块名需通过 `moduleName()` 返回，自定义 Module 在 `Pager.createExternalModules()` 中注册，详见[扩展原生 API](../../DevGuide/expand-native-api.md)。

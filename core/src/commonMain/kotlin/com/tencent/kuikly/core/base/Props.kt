@@ -20,7 +20,9 @@ import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.reactive.ReactiveObserver
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.utils.checkThread
+import com.tencent.kuikly.core.views.LiquidGlassView
 
 internal typealias FrameTask = (frame: Frame) -> Unit
 
@@ -74,6 +76,9 @@ abstract class Props : BaseObject(), IPagerId {
             return
         }
         propsMap[propKey] = propValue
+        if (propKey == Attr.StyleConst.BOX_SHADOW && isBoxShadowSuppressedByGlass()) {
+            return // 值已缓存，玻璃关闭时再下发
+        }
         val targetView = view()
         if (this is Attr && stageNativeAnimationPropertyIfNeeded(
                 targetView,
@@ -85,6 +90,29 @@ abstract class Props : BaseObject(), IPagerId {
             return
         }
         targetView?.didSetProp(propKey, propValue)
+        if (propKey == Attr.StyleConst.GLASS_EFFECT_ENABLE) {
+            syncBoxShadowAfterGlassChanged(targetView)
+        }
+    }
+
+    /**
+     * 液态玻璃与 boxShadow 互斥：系统玻璃自带阴影，且两者在 iOS 上争用同一包装层槽位。
+     * 仅在玻璃真正生效时（iOS/macOS 26+，且 glassEffectIOS(enable = true) 或 LiquidGlass 控件）屏蔽 boxShadow；
+     * 其余平台 / 低版本系统上玻璃不生效，boxShadow 照常下发，避免阴影丢失。
+     */
+    private fun isBoxShadowSuppressedByGlass(): Boolean {
+        if (pagerId.isEmpty()) {
+            return false // 尚未挂到页面，setPropsToRenderView 时会再判断
+        }
+        val glassOn = propsMap[Attr.StyleConst.GLASS_EFFECT_ENABLE] == true || view() is LiquidGlassView
+        return glassOn && PlatformUtils.isLiquidGlassSupported(pagerData)
+    }
+
+    /** 玻璃开关变化后同步 boxShadow：开启时清除已下发的阴影，关闭时恢复缓存的阴影 */
+    private fun syncBoxShadowAfterGlassChanged(targetView: AbstractBaseView<*, *>?) {
+        val boxShadow = propsMap[Attr.StyleConst.BOX_SHADOW] ?: return
+        val value = if (isBoxShadowSuppressedByGlass()) GLASS_CLEARED_BOX_SHADOW else boxShadow
+        targetView?.didSetProp(Attr.StyleConst.BOX_SHADOW, value)
     }
 
     fun updatePropCache(propKey: String, propValue: Any) {
@@ -103,13 +131,18 @@ abstract class Props : BaseObject(), IPagerId {
         view()?.also {
             // 当有圆角和阴影同时存在时 或 有clipPath和阴影同时存在时 或 有背景渐变的叶子节点时，需要wrapperBoxShadowView兼容对齐安卓表现
             // iOS 上 layer.mask 会裁剪 layer.shadow，所以需要 wrapper view 来分离阴影和裁剪
+            // 玻璃生效时 boxShadow 被屏蔽（见 isBoxShadowSuppressedByGlass），也不再创建阴影包装
+            val boxShadowSuppressed = isBoxShadowSuppressedByGlass()
             if ((getPager().pageData.isIOS || getPager().pageData.isMacOS)
-                && ((propsMap.containsKey(Attr.StyleConst.BOX_SHADOW)
+                && ((propsMap.containsKey(Attr.StyleConst.BOX_SHADOW) && !boxShadowSuppressed
                 && (propsMap.containsKey(Attr.StyleConst.BORDER_RADIUS) || propsMap.containsKey(Attr.StyleConst.CLIP_PATH)))
                 || (propsMap.containsKey(Attr.StyleConst.BACKGROUND_IMAGE) && (it !is ViewContainer<*, *>)))) {
                 it.syncProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
             }
             propsMap.keys.forEach { propKey ->
+                if (boxShadowSuppressed && propKey == Attr.StyleConst.BOX_SHADOW) {
+                    return@forEach
+                }
                 propsMap[propKey]?.also { propValue ->
                     it.syncProp(propKey, propValue)
                 }
@@ -130,5 +163,10 @@ abstract class Props : BaseObject(), IPagerId {
             return getPager().getViewWithNativeRef(nativeRef)
         }
         return null
+    }
+
+    private companion object {
+        /** 玻璃开启时用于清除已下发阴影的透明阴影值 */
+        val GLASS_CLEARED_BOX_SHADOW = BoxShadow(0f, 0f, 0f, Color.TRANSPARENT).toString()
     }
 }

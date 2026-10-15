@@ -90,12 +90,20 @@ object PlatformUtils {
      * 目前只有iOS 26.0+和macOS 26.0+支持
      */
     fun isLiquidGlassSupported(): Boolean {
-        if (!isIOSOrMacOS()) {
+        val pageData = getCurrentPageData() ?: return false
+        return isLiquidGlassSupported(pageData)
+    }
+
+    /**
+     * 判断指定页面所在平台是否支持LiquidGlass功能（iOS 26.0+ / macOS 26.0+）
+     */
+    fun isLiquidGlassSupported(pageData: PageData): Boolean {
+        if (!pageData.isIOS && !pageData.isMacOS) {
             return false
         }
         
         return try {
-            var osVersion = getOSVersion()
+            var osVersion = pageData.osVersion
             if (osVersion.isEmpty()) {
                 return false
             }

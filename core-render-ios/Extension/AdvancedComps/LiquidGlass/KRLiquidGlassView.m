@@ -220,7 +220,41 @@
     if (mask && !CGRectEqualToRect(mask.frame, _kr_contentContainer.bounds)) {
         mask.frame = _kr_contentContainer.bounds; // CSSShapeLayer 在 setFrame 时按新尺寸重算圆角路径
     }
+    [self kr_syncBorderLayerMask];
     [CATransaction commit];
+}
+
+- (void)setFrameSize:(NSSize)newSize {
+    [super setFrameSize:newSize];
+    self.needsLayout = YES; // 圆角 mask 需按新尺寸重算
+}
+
+/// 与 iOS 分支一致：玻璃宿主层撤掉 mask 后，描边（lineWidth = 2 × borderWidth，描在边界线上、一半在外）
+/// 只被描边层自身的矩形 bounds 裁剪，圆角处外侧那一半会露出来，看起来描边变粗、探出玻璃轮廓。
+/// 这里给描边层挂与内容裁剪同形状的 mask，视觉与普通 View 的描边保持一致。
+- (void)kr_syncBorderLayerMask {
+    static Class borderLayerClass;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        borderLayerClass = NSClassFromString(@"CSSBorderLayer");
+    });
+    CALayer *contentMask = _kr_contentContainer.layer.mask;
+    for (CALayer *sublayer in self.layer.sublayers) {
+        if (![sublayer isKindOfClass:borderLayerClass]) {
+            continue;
+        }
+        // 无圆角，或存在 clipPath（宿主层 mask 仍由基类负责）时，描边不需要额外 mask
+        if (![contentMask isKindOfClass:[CAShapeLayer class]] || self.css_clipPath.length > 0) {
+            sublayer.mask = nil;
+            continue;
+        }
+        CAShapeLayer *borderMask = [sublayer.mask isKindOfClass:[CAShapeLayer class]]
+            ? (CAShapeLayer *)sublayer.mask : [CAShapeLayer layer];
+        // 描边层 frame 由其 layoutSublayers 同步为宿主 bounds，此刻可能尚未同步，直接用宿主 bounds
+        borderMask.frame = self.bounds;
+        borderMask.path = ((CAShapeLayer *)contentMask).path;
+        sublayer.mask = borderMask;
+    }
 }
 
 #pragma mark - CSS properties
@@ -232,6 +266,17 @@
     [super setCss_borderRadius:css_borderRadius];
     [self kr_updateContentClipMask];
     KRGlassMacApplyCornerRadius(self, self.css_borderRadius);
+    self.needsLayout = YES; // 描边层 mask 需跟随新圆角
+}
+
+- (void)setCss_border:(NSString *)css_border {
+    [super setCss_border:css_border];
+    self.needsLayout = YES; // 描边层可能被重建，需重新挂圆角 mask
+}
+
+- (void)setCss_clipPath:(NSString *)css_clipPath {
+    [super setCss_clipPath:css_clipPath];
+    self.needsLayout = YES; // clipPath 增删会改变描边层是否需要圆角 mask
 }
 
 /// 每次都按当前 css_borderRadius 的值重建，不根据「宿主层上是否有 mask」推断状态，

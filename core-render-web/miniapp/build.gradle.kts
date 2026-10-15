@@ -36,11 +36,13 @@ publishing {
 
 kotlin {
     js(IR) {
-        moduleName = "KuiklyCore-render-web-miniapp"
+        // Kotlin 2.3 起 moduleName: String 已移除，改用 outputModuleName(Provider API)
+        outputModuleName.set("KuiklyCore-render-web-miniapp")
         // Output build products that support browser execution
         browser {
             webpackTask {
-                outputFileName = "${moduleName}.js" // Final output name
+                // Kotlin 2.3 起 outputFileName 更名为 mainOutputFileName
+                mainOutputFileName.set("KuiklyCore-render-web-miniapp.js") // Final output name
                 // 禁用 webpack 的代码压缩和混淆
                 mode = org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode.DEVELOPMENT
             }
@@ -55,9 +57,10 @@ kotlin {
         binaries.executable()
         
         // 添加编译选项：禁用成员名称混淆
+        // Kotlin 2.3 起 kotlinOptions / freeCompilerArgs(List) 已移除，改用 compilerOptions DSL
         compilations.all {
-            kotlinOptions {
-                freeCompilerArgs += listOf(
+            compilerOptions.configure {
+                freeCompilerArgs.addAll(
                     "-Xir-minimized-member-names=false",  // 禁用成员名称混淆
                     "-Xir-property-lazy-initialization=false"  // 禁用惰性属性初始化优化
                 )

@@ -20,12 +20,14 @@ import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.ClipOp
+import com.tencent.kuikly.compose.ui.graphics.DashPathEffect
 import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
 import com.tencent.kuikly.compose.ui.graphics.LinearGradient
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Paint
 import com.tencent.kuikly.compose.ui.graphics.PaintingStyle
 import com.tencent.kuikly.compose.ui.graphics.Path
+import com.tencent.kuikly.compose.ui.graphics.PathEffect
 import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
@@ -59,16 +61,32 @@ internal class KuiklyCanvas : Canvas {
                 strokeStyle(paint.toKuiklyColor())
             }
             lineWidth(paint.strokeWidth / densityValue)
-            if (strokeCap != paint.strokeCap) {
-                strokeCap = paint.strokeCap
-                when (paint.strokeCap) {
-                    StrokeCap.Butt -> lineCapButt()
-                    StrokeCap.Round -> lineCapRound()
-                    StrokeCap.Square -> lineCapSquare()
-                }
-            }
+            applyStrokeCap(paint.strokeCap)
+            applyPathEffect(paint.pathEffect)
             stroke()
         }
+    }
+
+    private fun CanvasContext.applyStrokeCap(cap: StrokeCap) {
+        if (strokeCap == cap) return
+        strokeCap = cap
+        when (cap) {
+            StrokeCap.Butt -> lineCapButt()
+            StrokeCap.Round -> lineCapRound()
+            StrokeCap.Square -> lineCapSquare()
+        }
+    }
+
+    /**
+     * Lowers [PathEffect] to the renderer's `lineDash` state. Only the lowered intervals are
+     * compared, so effects that differ in an ignored field (such as the phase) do not resend
+     * an identical command.
+     */
+    private fun CanvasContext.applyPathEffect(effect: PathEffect?) {
+        val intervals = (effect as? DashPathEffect)?.intervals?.map { it / densityValue } ?: emptyList()
+        if (lineDash == intervals) return
+        lineDash = intervals
+        setLineDash(intervals)
     }
 
     override var view: DeclarativeBaseView<*, *>? = null
@@ -78,6 +96,7 @@ internal class KuiklyCanvas : Canvas {
                 densityValue = value.getPager().pagerDensity()
                 value.renderView?.callMethod("reset", "")
                 strokeCap = StrokeCap.Butt
+                lineDash = emptyList()
             } else {
                 context = null
             }
@@ -86,7 +105,14 @@ internal class KuiklyCanvas : Canvas {
 
     private var context: CanvasContext? = null
     private var densityValue: Float = 1f
-    private var strokeCap = StrokeCap.Butt
+    /*
+     * Last line cap and dash pattern sent to the renderer, so unchanged state is not resent.
+     * `reset` on bind puts the renderer back to butt caps and no dash. Null means unknown:
+     * renderers disagree on whether `restore` rolls these back (the iOS, OHOS and web
+     * canvases do, Android keeps them), so after a restore the next stroke always resends.
+     */
+    private var strokeCap: StrokeCap? = StrokeCap.Butt
+    private var lineDash: List<Float>? = emptyList()
 
     override fun save() {
         context?.save()
@@ -94,6 +120,8 @@ internal class KuiklyCanvas : Canvas {
 
     override fun restore() {
         context?.restore()
+        strokeCap = null
+        lineDash = null
     }
 
     override fun saveLayer(bounds: Rect, paint: Paint) {
@@ -159,8 +187,12 @@ internal class KuiklyCanvas : Canvas {
             beginPath()
             moveTo(p1.x / densityValue, p1.y / densityValue)
             lineTo(p2.x / densityValue, p2.y / densityValue)
+            // A line is always stroked, whatever the paint style says; honor the cap and
+            // dash pattern carried by the paint like fillOrStroke does.
             strokeStyle(paint.toKuiklyColor())
             lineWidth(paint.strokeWidth / densityValue)
+            applyStrokeCap(paint.strokeCap)
+            applyPathEffect(paint.pathEffect)
             stroke()
         }
     }

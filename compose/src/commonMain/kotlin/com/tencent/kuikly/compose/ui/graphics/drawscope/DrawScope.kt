@@ -35,7 +35,7 @@ import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
 import com.tencent.kuikly.compose.ui.graphics.degrees
-//import com.tencent.kuikly.compose.ui.graphics.PathEffect
+import com.tencent.kuikly.compose.ui.graphics.PathEffect
 //import com.tencent.kuikly.compose.ui.graphics.PointMode
 //import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 //import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
@@ -379,7 +379,7 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -406,7 +406,7 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -849,7 +849,7 @@ interface DrawScope : Density {
         color: Color,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -877,7 +877,7 @@ interface DrawScope : Density {
         brush: Brush,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -936,7 +936,7 @@ class Stroke(
     val miter: Float = DefaultMiter,
     val cap: StrokeCap = DefaultCap,
     val join: StrokeJoin = DefaultJoin,
-//    val pathEffect: PathEffect? = null
+    val pathEffect: PathEffect? = null
 ) : DrawStyle() {
     companion object {
 
@@ -969,7 +969,7 @@ class Stroke(
         if (miter != other.miter) return false
         if (cap != other.cap) return false
         if (join != other.join) return false
-//        if (pathEffect != other.pathEffect) return false
+        if (pathEffect != other.pathEffect) return false
 
         return true
     }
@@ -979,12 +979,11 @@ class Stroke(
         result = 31 * result + miter.hashCode()
         result = 31 * result + cap.hashCode()
         result = 31 * result + join.hashCode()
-//        result = 31 * result + (pathEffect?.hashCode() ?: 0)
+        result = 31 * result + (pathEffect?.hashCode() ?: 0)
         return result
     }
 
     override fun toString(): String {
-        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join)"
-//        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join, pathEffect=$pathEffect)"
+        return "Stroke(width=$width, miter=$miter, cap=$cap, join=$join, pathEffect=$pathEffect)"
     }
 }

@@ -24,6 +24,7 @@
 #include "libohos_render//foundation/KRCommon.h"
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
 
@@ -156,11 +157,6 @@ static KRAnyValue GetKTValue(const char16_t *key, const KRRenderValue &span, con
     return KRRenderValue::Make(nullptr);
 }
 
-template <class Facet> struct deletable_facet : Facet {
-    template <class... Args> deletable_facet(Args &&...args) : Facet(std::forward<Args>(args)...) {}
-    ~deletable_facet() {}
-};
-
 KRParagraph::KRParagraph(KRRenderValue::Array spans, KRRenderValue::Map props, float font_size_scale,
                          float font_weight_scale, float density, NativeResourceManager *resource_manager,
                          std::shared_ptr<kuikly::util::KRLinearGradientParser> gradient)
@@ -274,9 +270,11 @@ OH_Drawing_TypographyStyle *KRParagraph::CreateTypographyStyle() {
 void KRParagraph::AddSpanToStyledString(const KRRenderValue &span, ArkUI_StyledString *styled_string) {
     double dpi = KRConfig::GetDpi();
     auto fontSize = (GetKTValue(u"fontSize", span, props_)->toFloat() ?: 15.0) * dpi * font_size_scale_;
-    auto text = GetKTValue(u"value", span)->toString();
+    auto textValue = GetKTValue(u"value", span);
+    auto text = textValue->toString();
     if (text.length() == 0) {
-        text = GetKTValue(u"text", span)->toString();
+        textValue = GetKTValue(u"text", span);
+        text = textValue->toString();
     }
     auto fontWeight = kuikly::util::ConvertFontWeight(GetKTValue(u"fontWeight", span, props_)->toInt(), font_weight_scale_);
     auto colorStr = GetKTValue(u"color", span, props_)->toString();
@@ -375,9 +373,9 @@ void KRParagraph::AddSpanToStyledString(const KRRenderValue &span, ArkUI_StyledS
         OH_ArkUI_StyledString_AddText(styled_string, text.c_str());
         // OH_Drawing_TypographyHandlerAddText(handler, text.c_str());  // 添加文本
 
-        std::wstring_convert<deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>>, char16_t> conv16;
-        std::u16string str16 = conv16.from_bytes(text);
-        int codePointCount = str16.size();
+        const auto utf16 = textValue->utf16View();
+        const int codePointCount = static_cast<int>(
+            utf16.first != nullptr ? utf16.second : kuikly::util::utf::UTF16Length(text));
         span_offsets_.emplace_back(std::tuple(spanIndex, charOffset, charOffset + codePointCount));
         charOffset += codePointCount;
     }

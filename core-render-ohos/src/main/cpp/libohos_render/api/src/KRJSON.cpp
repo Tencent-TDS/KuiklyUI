@@ -25,6 +25,7 @@
 
 #include "libohos_render/utils/json/Reader.h"
 #include "libohos_render/utils/json/Box.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 
 namespace kjson = kuikly::util::json;
 
@@ -44,6 +45,11 @@ static void SetParseError(char **err, const std::string &message) {
 }
 
 extern "C" {
+
+size_t KRDecodeUTF8Into(const uint8_t *src, size_t bytes, uint16_t *dst, size_t capacity,
+                        bool strict) {
+    return kuikly::util::utf::DecodeInto(src, bytes, dst, capacity, strict);
+}
 
 KRJSON KRJSONRetain(KRJSON value) {
     return kjson::Retain(value);

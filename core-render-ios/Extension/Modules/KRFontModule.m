@@ -48,6 +48,12 @@ static id<KuiklyFontProtocol> gFontHandler;
     return NO;
 }
 
-
++ (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight {
+    if (gFontHandler && [gFontHandler respondsToSelector:@selector(hr_mappedFontNameForFontFamily:fontWeight:)]) {
+        return [gFontHandler hr_mappedFontNameForFontFamily:fontFamily fontWeight:fontWeight];
+    }
+    return nil;
+}
 
 @end

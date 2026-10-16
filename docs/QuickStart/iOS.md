@@ -755,3 +755,67 @@ class TestPage : Pager(){
 - 框架引入有libpag库，业务可直接继承libpag的PAGview，获取处理PAG的相关能力
 - PAG适配器的定义与实现可参考类似的`KRVideoViewHandler`与`KRAPNGViewHandler`的实现
 :::
+
+### 实现自定义字体适配器 FontModule
+
+业务实现 `KuiklyFontProtocol` 并通过 `registerFontHandler:` 注册后，可以扩展 iOS 端的自定义字体加载能力：
+
+```objc
+// 注册（一般放在 Handler 的 +load 中）
++ (void)load {
+    [KuiklyRenderBridge registerFontHandler:[[KRFontHandler alloc] init]];
+}
+```
+
+协议提供两个可选方法，按需实现。
+
+#### 方法一：别名映射
+
+当 Kotlin 侧设置的 `fontFamily` 是业务自定义的别名（与字体文件内嵌的真实名称不一致）时实现：
+
+```objc
+- (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                           fontWeight:(UIFontWeight)fontWeight;
+```
+
+| 参数 | 说明 |
+|:----|:----|
+| fontFamily | Kotlin 侧设置的原始 `fontFamily`（别名） |
+| fontWeight | 目标字重；多字重字体族据此返回对应字重的真实名称，如 `CustomSans-Bold` |
+
+返回字体的真实名称（需与对应字体文件保持一致，供后续注册/查找使用）；返回 `nil` 表示该 `fontFamily` 不做映射。
+
+```objc
+- (NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
+                                  fontWeight:(UIFontWeight)fontWeight {
+    if ([fontFamily isEqualToString:@"BrandFont"]) {
+        return fontWeight >= UIFontWeightBold ? @"BrandFont-Bold" : @"BrandFont-Regular";
+    }
+    return nil;
+}
+```
+
+#### 方法二：动态注册字体文件
+
+```objc
+- (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
+```
+
+区别 info.plist 静态注册，用于在运行时获取 ContextParams 内的字体文件并完成注册。
+
+| 参数 | 说明 |
+|:----|:----|
+| fontFamily | 字体的真实名称（已经过方法一映射，与字体文件内嵌名称一致） |
+| contextParam | 页面资源上下文，可用其 `resourceFolderUrl` 定位字体资源路径 |
+
+返回 `YES` 表示注册成功，**框架随后会按同一个 `fontFamily` 字符串再查找一次字体**，因此业务必须提供正确的字体真实名称，否则注册成功后仍会查找失败。
+
+#### 使用步骤
+
+1. `fontFamily` 若为别名，实现方法一返回真实名称；无别名需求可不实现，框架按原字符串继续解析。
+2. 若字体文件需要运行时动态下发/加载，实现方法二，用（已映射的）真实名称完成注册。
+3. 两个方法均可返回 `nil`/`NO`，此时按框架默认优先级继续解析，最终回落到系统字体并保留 `fontWeight`/`fontStyle`。
+
+::: tip generic family 说明
+Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：`serif` 映射为系统衬线字体（New York）、`monospace` 映射为系统等宽字体（SF Mono）（二者需 iOS 13+）；`cursive` 映射为系统内置手写字体（Snell Roundhand，加粗用 SnellRoundhand-Bold，中文逐字回落系统字体）；`sans-serif` 回落系统无衬线字体。所有类别名均保留 `fontWeight`/`fontStyle`。注意两端字体产品不同（如 Android 用 Noto Serif、iOS 用 New York），字形无法完全一致。
+:::

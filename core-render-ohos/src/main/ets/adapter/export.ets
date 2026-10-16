@@ -20,3 +20,5 @@ export * from './IKRLogAdapter';
 export * from './IKRRouterAdapter';
 
 export * from './IKRVideoViewAdapter'
+
+export * from './IKRAudioViewAdapter'

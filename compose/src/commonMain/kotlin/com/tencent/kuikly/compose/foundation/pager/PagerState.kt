@@ -1633,9 +1633,12 @@ abstract class PagerState internal constructor(
                 "\nNew maxScrollOffset=$maxScrollOffset"
         }
 
-        updateAlignmentLayoutGeneration(result.orientation, layoutSize)
-
-        scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+        // Runs inside measure: reading pagerLayoutInfoState (neverEqualPolicy) right after writing
+        // it would subscribe this measure to its own output and remeasure every frame.
+        Snapshot.withoutReadObservation {
+            updateAlignmentLayoutGeneration(result.orientation, layoutSize)
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+        }
     }
 
     private fun updateAlignmentLayoutGeneration(orientation: Orientation, layoutSize: Int) {

@@ -138,6 +138,14 @@ class KRScrollerView : public IKRRenderViewExport {
     bool SetFlingEnable(bool enable);
     bool SetFlingSpeedLimit(const KRAnyValue &value);
     KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    bool StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
+                                    float velocity_y);
+    void CancelSpringScrollAnimation();
+    void DisposeSpringScrollAnimator();
+
+ public:
+    void OnSpringScrollAnimationFrame(uint32_t generation);
+    void OnSpringScrollAnimationEnd(uint32_t generation);
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -176,6 +184,22 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
     bool direction_row_ = false;
+
+    // setContentOffset spring animation driven frame by frame (aligned with iOS UIView spring animation)
+    ArkUI_AnimatorHandle spring_animator_ = nullptr;
+    ArkUI_AnimatorOption *spring_animator_option_ = nullptr;
+    void *spring_animator_user_data_ = nullptr;
+    bool spring_anim_running_ = false;
+    uint32_t spring_anim_generation_ = 0;
+    int64_t spring_anim_start_us_ = 0;
+    int spring_anim_duration_ms_ = 0;
+    float spring_anim_omega_ = 0;
+    float spring_anim_start_x_ = 0;
+    float spring_anim_start_y_ = 0;
+    float spring_anim_target_x_ = 0;
+    float spring_anim_target_y_ = 0;
+    float spring_anim_velocity_x_ = 0;
+    float spring_anim_velocity_y_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

@@ -17,7 +17,9 @@
 
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
+#include <algorithm>
 #include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <deviceinfo.h>
 #include "libohos_render/expand/components/view/KRView.h"
@@ -284,6 +286,7 @@ void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
 }
 
 void KRScrollerView::FireBeginDragEvent(ArkUI_NodeEvent *event) {
+    CancelSpringScrollAnimation();
     if (!on_drag_begin_callback_) {
         return;
     }
@@ -322,6 +325,7 @@ void KRScrollerView::DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewE
 }
 
 void KRScrollerView::OnDestroy() {
+    DisposeSpringScrollAnimator();
     if (!content_view_) {
         return;
     }
@@ -434,8 +438,9 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     auto animate = content_offset_splits[2]->toBool();
     auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
     auto damping = content_offset_splits.size() > 4 ? content_offset_splits[4]->toFloat() : 0;
+    auto velocity = content_offset_splits.size() > 5 ? content_offset_splits[5]->toFloat() : 0;
     auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
-
+    CancelSpringScrollAnimation();
     if (!is_set_frame_) {
         first_offset_x_ = offset_x;
         first_offset_y_ = offset_y;
@@ -446,7 +451,157 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
         is_need_set_content_offset_ = true;
         return;
     }
+    if (animate && duration > 0 && damping >= 1.0f && curve == 0) {
+        float velocity_x = direction_row_ ? velocity : 0;
+        float velocity_y = direction_row_ ? 0 : velocity;
+        if (StartSpringScrollAnimation(offset_x, offset_y, duration, velocity_x, velocity_y)) {
+            return;
+        }
+    }
     kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve, damping);
+}
+
+namespace {
+struct SpringScrollAnimatorUserData {
+    std::weak_ptr<KRScrollerView> weak_view;
+    uint32_t generation = 0;
+};
+
+// Critically damped spring settles to ~0.1% of the initial distance at t = duration.
+constexpr float kSpringSettleFactor = 9.5f;
+
+int64_t SpringNowUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// x(t) = target + (x0 + (v0 + w * x0) * t) * e^(-w * t), x0 = start - target
+float CriticallyDampedSpringPosition(float start, float target, float velocity, float omega, float t_sec) {
+    float x0 = start - target;
+    return target + (x0 + (velocity + omega * x0) * t_sec) * expf(-omega * t_sec);
+}
+
+// Moving towards the target faster than w * |x0| overshoots; moving away bounces past the start.
+float ClampSpringVelocity(float start, float target, float velocity, float omega) {
+    float x0 = start - target;
+    if (x0 == 0 || velocity * x0 >= 0) {
+        return 0;
+    }
+    float max_speed = omega * fabsf(x0);
+    return fabsf(velocity) > max_speed ? -omega * x0 : velocity;
+}
+}  // namespace
+
+bool KRScrollerView::StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
+                                                float velocity_y) {
+    auto root_view = GetRootView().lock();
+    auto animate_api = GetAnimateApi();
+    if (!root_view || !animate_api || !animate_api->createAnimator) {
+        return false;
+    }
+    DisposeSpringScrollAnimator();
+
+    auto start = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    float omega = kSpringSettleFactor * 1000.0f / duration_ms;
+    spring_anim_omega_ = omega;
+    spring_anim_duration_ms_ = duration_ms;
+    spring_anim_start_x_ = start.x;
+    spring_anim_start_y_ = start.y;
+    spring_anim_target_x_ = target_x;
+    spring_anim_target_y_ = target_y;
+    spring_anim_velocity_x_ = ClampSpringVelocity(start.x, target_x, velocity_x, omega);
+    spring_anim_velocity_y_ = ClampSpringVelocity(start.y, target_y, velocity_y, omega);
+    spring_anim_generation_++;
+
+    auto user_data = new SpringScrollAnimatorUserData();
+    user_data->weak_view = std::dynamic_pointer_cast<KRScrollerView>(shared_from_this());
+    user_data->generation = spring_anim_generation_;
+    spring_animator_user_data_ = user_data;
+
+    auto option = OH_ArkUI_AnimatorOption_Create(0);
+    OH_ArkUI_AnimatorOption_SetDuration(option, duration_ms);
+    OH_ArkUI_AnimatorOption_SetIterations(option, 1);
+    OH_ArkUI_AnimatorOption_SetBegin(option, 0);
+    OH_ArkUI_AnimatorOption_SetEnd(option, 1);
+    OH_ArkUI_AnimatorOption_RegisterOnFrameCallback(option, user_data, [](ArkUI_AnimatorOnFrameEvent *event) {
+        auto data = static_cast<SpringScrollAnimatorUserData *>(OH_ArkUI_AnimatorOnFrameEvent_GetUserData(event));
+        if (auto view = data ? data->weak_view.lock() : nullptr) {
+            view->OnSpringScrollAnimationFrame(data->generation);
+        }
+    });
+    OH_ArkUI_AnimatorOption_RegisterOnFinishCallback(option, user_data, [](ArkUI_AnimatorEvent *event) {
+        auto data = static_cast<SpringScrollAnimatorUserData *>(OH_ArkUI_AnimatorEvent_GetUserData(event));
+        if (auto view = data ? data->weak_view.lock() : nullptr) {
+            view->OnSpringScrollAnimationEnd(data->generation);
+        }
+    });
+    spring_animator_option_ = option;
+    spring_animator_ = animate_api->createAnimator(root_view->GetUIContextHandle(), option);
+    if (!spring_animator_) {
+        DisposeSpringScrollAnimator();
+        return false;
+    }
+    spring_anim_running_ = true;
+    spring_anim_start_us_ = SpringNowUs();
+    OH_ArkUI_Animator_Play(spring_animator_);
+    return true;
+}
+
+void KRScrollerView::OnSpringScrollAnimationFrame(uint32_t generation) {
+    if (!spring_anim_running_ || generation != spring_anim_generation_) {
+        return;
+    }
+    auto now_us = SpringNowUs();
+    float t_sec = std::min<int64_t>(now_us - spring_anim_start_us_, spring_anim_duration_ms_ * 1000) / 1e6f;
+    float x = CriticallyDampedSpringPosition(spring_anim_start_x_, spring_anim_target_x_, spring_anim_velocity_x_,
+                                             spring_anim_omega_, t_sec);
+    float y = CriticallyDampedSpringPosition(spring_anim_start_y_, spring_anim_target_y_, spring_anim_velocity_y_,
+                                             spring_anim_omega_, t_sec);
+    kuikly::util::SetArkUIContentOffset(GetNode(), x, y, false, 0, 0, 0);
+}
+
+void KRScrollerView::OnSpringScrollAnimationEnd(uint32_t generation) {
+    if (!spring_anim_running_ || generation != spring_anim_generation_) {
+        return;
+    }
+    spring_anim_running_ = false;
+    kuikly::util::SetArkUIContentOffset(GetNode(), spring_anim_target_x_, spring_anim_target_y_, false, 0, 0, 0);
+    current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
+    FireEndScrollEvent(nullptr);
+    if (auto handler = weak_super_touch_handler_.lock()) {
+        handler->ClearNativeTouchConsumer(shared_from_this());
+    }
+}
+
+void KRScrollerView::CancelSpringScrollAnimation() {
+    if (!spring_anim_running_) {
+        return;
+    }
+    spring_anim_running_ = false;
+    spring_anim_generation_++;
+    if (spring_animator_) {
+        OH_ArkUI_Animator_Cancel(spring_animator_);
+    }
+}
+
+void KRScrollerView::DisposeSpringScrollAnimator() {
+    spring_anim_running_ = false;
+    spring_anim_generation_++;
+    if (spring_animator_) {
+        OH_ArkUI_Animator_Cancel(spring_animator_);
+        if (auto animate_api = GetAnimateApi()) {
+            animate_api->disposeAnimator(spring_animator_);
+        }
+        spring_animator_ = nullptr;
+    }
+    if (spring_animator_option_) {
+        OH_ArkUI_AnimatorOption_Dispose(spring_animator_option_);
+        spring_animator_option_ = nullptr;
+    }
+    if (spring_animator_user_data_) {
+        delete static_cast<SpringScrollAnimatorUserData *>(spring_animator_user_data_);
+        spring_animator_user_data_ = nullptr;
+    }
 }
 
 void KRScrollerView::SetContentInset(const KRAnyValue &value) {
@@ -579,6 +734,10 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
 }
 
 void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
+    if (spring_anim_running_) {
+        // each frame of the spring animation is a non-animated scrollTo, which may report a stop
+        return;
+    }
     current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
     if (is_dragging_) {
         OnWillDragEnd(event);
@@ -595,6 +754,13 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
     auto new_scroll_state = kuikly::util::GetArkUIScrollerState(event, 2);
     if (new_scroll_state == current_scroll_state_) {
         return;
+    }
+    if (spring_anim_running_) {
+        constexpr int32_t kScrollSourceDrag = 0;
+        auto source = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event)->data[3].i32;
+        if (source != kScrollSourceDrag) {
+            return;
+        }
     }
     if (IsIdeaStateToDraggingState(new_scroll_state) || IsFlingStateToDraggingState(new_scroll_state)) {
         is_dragging_ = true;
@@ -821,6 +987,7 @@ void KRScrollerView::PrepareForComposeReuse() {
 }
 
 void KRScrollerView::AbortContentOffsetAnimate() {
+    CancelSpringScrollAnimation();
     // 停止 ContentInset 动画（释放动画对象）
     if (content_inset_animate_) {
         content_inset_animate_ = nullptr;

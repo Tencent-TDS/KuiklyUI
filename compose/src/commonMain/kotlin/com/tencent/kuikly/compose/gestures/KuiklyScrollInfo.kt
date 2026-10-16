@@ -184,7 +184,12 @@ class KuiklyScrollInfo {
      */
     fun updateContentSizeToRender() {
         val frame = createContentFrame()
-        scrollView?.contentView?.setFrameToRenderView(frame)
+        val contentView = scrollView?.contentView
+        // called on every native scroll event; skip the bridge call when the native frame is unchanged
+        if (contentView?.renderView?.currentFrame == frame) {
+            return
+        }
+        contentView?.setFrameToRenderView(frame)
     }
 
     /**

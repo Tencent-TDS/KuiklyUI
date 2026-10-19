@@ -455,7 +455,7 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
      * was lifted to SUB_TREE by its ancestor cannot be accidentally downgraded
      * by a later direct write.
      *
-     * Prefer the DSL helpers [forceRenderView] / [forceRenderViewSubtree] over
+     * Prefer the DSL helpers [forceRenderViewSelf] / [forceRenderViewSubtree] over
      * writing this field directly.
      */
     var forceRenderView: ForceRenderViewMode = ForceRenderViewMode.NONE
@@ -471,7 +471,7 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
      * If the container is already in [ForceRenderViewMode.SUB_TREE] mode, this
      * call is a no-op (SUB_TREE already implies SELF).
      */
-    fun forceRenderView(): ContainerAttr {
+    fun forceRenderViewSelf(): ContainerAttr {
         if (forceRenderView != ForceRenderViewMode.SUB_TREE) {
             forceRenderView = ForceRenderViewMode.SELF
         }

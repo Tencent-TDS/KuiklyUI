@@ -42,6 +42,7 @@ class KRAudioView(context: Context) : KRView(context), IKRAudioViewListener {
 
     private var stateChangeCallback: KuiklyRenderCallback? = null
     private var playTimeChangeCallback: KuiklyRenderCallback? = null
+    private var customEventCallback: KuiklyRenderCallback? = null
 
     override val reusable: Boolean
         get() = false
@@ -72,6 +73,10 @@ class KRAudioView(context: Context) : KRView(context), IKRAudioViewListener {
                 }
                 PROP_PLAY_TIME_CHANGE_CALLBACK -> {
                     playTimeChangeCallback = propValue as KuiklyRenderCallback
+                    true
+                }
+                PROP_CUSTOM_EVENT_CALLBACK -> {
+                    customEventCallback = propValue as KuiklyRenderCallback
                     true
                 }
                 else -> audioView?.setProp(propKey, propValue) ?: false
@@ -109,6 +114,10 @@ class KRAudioView(context: Context) : KRView(context), IKRAudioViewListener {
             "currentTime" to currentTime,
             "totalTime" to totalTime
         ))
+    }
+
+    override fun customEventWithInfo(eventInfo: Map<String, String>) {
+        customEventCallback?.invoke(eventInfo)
     }
 
     override fun onDestroy() {
@@ -168,6 +177,7 @@ class KRAudioView(context: Context) : KRView(context), IKRAudioViewListener {
         private const val PROP_PLAY_CONTROL = "playControl"
         private const val PROP_STATE_CHANGE_CALLBACK = "stateChange"
         private const val PROP_PLAY_TIME_CHANGE_CALLBACK = "playTimeChange"
+        private const val PROP_CUSTOM_EVENT_CALLBACK = "customEvent"
     }
 }
 

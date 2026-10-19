@@ -88,4 +88,14 @@ interface IKRAudioViewListener {
      * @param totalTime 音频总时长，单位毫秒
      */
     fun playTimeDidChangedWithCurrentTime(currentTime: Long, totalTime: Long)
+
+    /**
+     * 业务自定义扩展事件通用通道。
+     *
+     * 对齐 [IKRVideoViewListener.customEventWithInfo] 以及 OHOS 侧的
+     * `IKRAudioViewListener.onCustomEventWithInfo`，使 Kotlin DSL 中
+     * `AudioEvent.customEvent` 在三端均走专有事件通道而非 setProp 透传。
+     * @param eventInfo 自定义事件携带的键值对
+     */
+    fun customEventWithInfo(eventInfo: Map<String, String>)
 }

@@ -103,6 +103,13 @@ typedef NS_ENUM(NSInteger, KRAudioPlayState) {
  * @param totalTime 音频总时长，单位毫秒
  */
 - (void)playTimeDidChangedWithCurrentTime:(NSUInteger)currentTime totalTime:(NSUInteger)totalTime;
+/*
+ * @brief 业务自定义扩展事件通用通道。
+ * 对齐 KRVideoViewDelegate 的 customEventWithInfo:，使 Kotlin DSL 中
+ * AudioEvent.customEvent 在三端均走专有事件通道而非 setProp 透传。
+ * @param eventInfo 自定义事件携带的键值对
+ */
+- (void)customEventWithInfo:(NSDictionary<NSString *, NSString *> *)eventInfo;
 
 @end
 

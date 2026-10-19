@@ -42,6 +42,8 @@ static AudioViewCreator gAudioViewCreator;
 @property (nonatomic, strong) KuiklyRenderCallback css_stateChange;
 /// 播放时间变化事件
 @property (nonatomic, strong) KuiklyRenderCallback css_playTimeChange;
+/// 通用扩展事件
+@property (nonatomic, strong) KuiklyRenderCallback css_customEvent;
 
 @end
 
@@ -129,6 +131,12 @@ static AudioViewCreator gAudioViewCreator;
 - (void)playTimeDidChangedWithCurrentTime:(NSUInteger)currentTime totalTime:(NSUInteger)totalTime {
     if (_css_playTimeChange) {
         _css_playTimeChange(@{@"currentTime" : @(currentTime), @"totalTime": @(totalTime)});
+    }
+}
+
+- (void)customEventWithInfo:(NSDictionary<NSString *,NSString *> *)eventInfo {
+    if (_css_customEvent) {
+        _css_customEvent(eventInfo);
     }
 }
 

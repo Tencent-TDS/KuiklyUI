@@ -21,6 +21,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
 import com.tencent.kuikly.compose.ui.util.floatFromBits
+import com.tencent.kuikly.compose.ui.util.highIntOf
 import com.tencent.kuikly.compose.ui.util.lerp
 
 /**
@@ -35,10 +36,17 @@ import com.tencent.kuikly.compose.ui.util.lerp
  *                          UUUUUUUU                                : Unit Information
  *  XXXXXXXXXXXXXXXXXXXXXXXX                                        : Unused bits
  */
-private const val UNIT_MASK = 0xFFL shl 32 // 0xFF_0000_0000
-private const val UNIT_TYPE_UNSPECIFIED = 0x00L shl 32 // 0x00_0000_0000
-private const val UNIT_TYPE_SP = 0x01L shl 32 // 0x01_0000_0000
-private const val UNIT_TYPE_EM = 0x02L shl 32 // 0x2_0000_0000
+// Not `const`: Kotlin/JS would materialize a new Long at every use site.
+private val UNIT_MASK = 0xFFL shl 32 // 0xFF_0000_0000
+private val UNIT_TYPE_UNSPECIFIED = 0x00L shl 32 // 0x00_0000_0000
+private val UNIT_TYPE_SP = 0x01L shl 32 // 0x01_0000_0000
+private val UNIT_TYPE_EM = 0x02L shl 32 // 0x2_0000_0000
+private val FLOAT_BITS_MASK = 0xFFFF_FFFFL
+
+// The unit bits of UNIT_TYPE_*, compared as Int so that reads don't allocate Longs on Kotlin/JS.
+private const val UNIT_BITS_UNSPECIFIED = 0x00
+private const val UNIT_BITS_SP = 0x01
+private const val UNIT_BITS_EM = 0x02
 
 /**
  * An enum class defining for type of [TextUnit].
@@ -219,20 +227,22 @@ value class TextUnit internal constructor(internal val packedValue: Long) {
     @PublishedApi
     internal val rawType: Long get() = packedValue and UNIT_MASK
 
+    internal val unitBits: Int get() = highIntOf(packedValue) and 0xFF
+
     /**
      * A type information of this TextUnit.
      */
-    val type: TextUnitType get() = TextUnitTypes[(rawType ushr 32).toInt()]
+    val type: TextUnitType get() = TextUnitTypes[unitBits]
 
     /**
      * True if this is a SP unit type.
      */
-    val isSp get() = rawType == UNIT_TYPE_SP
+    val isSp get() = unitBits == UNIT_BITS_SP
 
     /**
      * True if this is a EM unit type.
      */
-    val isEm get() = rawType == UNIT_TYPE_EM
+    val isEm get() = unitBits == UNIT_BITS_EM
 
     /**
      * Returns the value of this [TextUnit].
@@ -240,7 +250,7 @@ value class TextUnit internal constructor(internal val packedValue: Long) {
      * For example, the value of 3.sp equals to 3, and value of 5.em equals to 5. The value of
      * [TextUnit]s whose [TextUnitType] is [TextUnitType.Unspecified] is undefined.
      */
-    val value get() = floatFromBits((packedValue and 0xFFFF_FFFFL).toInt())
+    val value get() = floatFromBits(packedValue.toInt())
 }
 
 /**
@@ -255,7 +265,7 @@ inline val TextUnit.isSpecified: Boolean
  */
 @Stable
 val TextUnit.isUnspecified: Boolean
-    get() = rawType == UNIT_TYPE_UNSPECIFIED
+    get() = unitBits == UNIT_BITS_UNSPECIFIED
 
 /**
  * If this [TextUnit] [isSpecified] then this is returned, otherwise [block] is executed
@@ -338,7 +348,7 @@ inline operator fun Int.times(other: TextUnit): TextUnit {
 
 @PublishedApi
 internal fun pack(unitType: Long, v: Float): TextUnit =
-    TextUnit(unitType or (v.toBits().toLong() and 0xFFFF_FFFFL))
+    TextUnit(unitType or (v.toBits().toLong() and FLOAT_BITS_MASK))
 
 @PublishedApi
 internal fun checkArithmetic(a: TextUnit) {

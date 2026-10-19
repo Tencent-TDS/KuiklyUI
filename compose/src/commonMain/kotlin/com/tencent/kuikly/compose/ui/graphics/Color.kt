@@ -27,6 +27,7 @@ import com.tencent.kuikly.compose.ui.graphics.colorspace.ColorSpace
 import com.tencent.kuikly.compose.ui.graphics.colorspace.ColorSpaces
 import com.tencent.kuikly.compose.ui.graphics.colorspace.Rgb
 import com.tencent.kuikly.compose.ui.graphics.colorspace.connect
+import com.tencent.kuikly.compose.ui.util.highIntOf
 import com.tencent.kuikly.compose.ui.util.lerp
 import kotlin.math.max
 import kotlin.math.min
@@ -117,6 +118,14 @@ import kotlin.math.min
 @Immutable
 @kotlin.jvm.JvmInline
 value class Color(val value: ULong) {
+    // Component getters read the packed value through these Ints: every ULong operation
+    // allocates a Long object on Kotlin/JS.
+    private val highBits: Int
+        get() = highIntOf(value.toLong())
+
+    private val lowBits: Int
+        get() = value.toInt()
+
     /**
      * Returns this color's color space.
      *
@@ -124,7 +133,7 @@ value class Color(val value: ULong) {
      */
     @Stable
     val colorSpace: ColorSpace
-        get() = ColorSpaces.getColorSpace((value and 0x3fUL).toInt())
+        get() = ColorSpaces.getColorSpace(lowBits and 0x3f)
 
     /**
      * Converts this color from its color space to the specified color space.
@@ -159,10 +168,11 @@ value class Color(val value: ULong) {
     @Stable
     val red: Float
         get() {
-            return if ((value and 0x3fUL) == 0UL) {
-                ((value shr 48) and 0xffUL).toFloat() / 255.0f
+            val high = highBits
+            return if ((lowBits and 0x3f) == 0) {
+                ((high ushr 16) and 0xff).toFloat() / 255.0f
             } else {
-                Float16(((value shr 48) and 0xffffUL).toShort())
+                Float16(((high ushr 16) and 0xffff).toShort())
                     .toFloat()
             }
         }
@@ -182,10 +192,11 @@ value class Color(val value: ULong) {
     @Stable
     val green: Float
         get() {
-            return if ((value and 0x3fUL) == 0UL) {
-                ((value shr 40) and 0xffUL).toFloat() / 255.0f
+            val high = highBits
+            return if ((lowBits and 0x3f) == 0) {
+                ((high ushr 8) and 0xff).toFloat() / 255.0f
             } else {
-                Float16(((value shr 32) and 0xffffUL).toShort())
+                Float16((high and 0xffff).toShort())
                     .toFloat()
             }
         }
@@ -205,10 +216,11 @@ value class Color(val value: ULong) {
     @Stable
     val blue: Float
         get() {
-            return if ((value and 0x3fUL) == 0UL) {
-                ((value shr 32) and 0xffUL).toFloat() / 255.0f
+            val low = lowBits
+            return if ((low and 0x3f) == 0) {
+                (highBits and 0xff).toFloat() / 255.0f
             } else {
-                Float16(((value shr 16) and 0xffffUL).toShort())
+                Float16(((low ushr 16) and 0xffff).toShort())
                     .toFloat()
             }
         }
@@ -223,10 +235,11 @@ value class Color(val value: ULong) {
     @Stable
     val alpha: Float
         get() {
-            return if ((value and 0x3fUL) == 0UL) {
-                ((value shr 56) and 0xffUL).toFloat() / 255.0f
+            val low = lowBits
+            return if ((low and 0x3f) == 0) {
+                ((highBits ushr 24) and 0xff).toFloat() / 255.0f
             } else {
-                ((value shr 6) and 0x3ffUL).toFloat() / 1023.0f
+                ((low ushr 6) and 0x3ff).toFloat() / 1023.0f
             }
         }
 
@@ -393,9 +406,15 @@ value class Color(val value: ULong) {
     }
     
     fun toKuiklyColor(): com.tencent.kuikly.core.base.Color {
-        return com.tencent.kuikly.core.base.Color(toArgb().toLong() and 0xFFFFFFFFL)
+        return com.tencent.kuikly.core.base.Color(toArgb())
     }
 }
+
+/**
+ * Pack a 32-bit sRGB ARGB int into a [Color] long: those bits sit in the high half
+ * and the low half is zero.
+ */
+internal expect fun packSrgbColor(argb: Int): ULong
 
 /**
  * Create a [Color] by passing individual [red], [green], [blue], [alpha], and [colorSpace]
@@ -427,7 +446,7 @@ fun Color(
                 ((green * 255.0f + 0.5f).toInt() shl 8) or
                 (blue * 255.0f + 0.5f).toInt()
             )
-        return Color(value = (argb.toULong() and 0xffffffffUL) shl 32)
+        return Color(value = packSrgbColor(argb))
     }
 
     require(colorSpace.componentCount == 3) {
@@ -471,7 +490,7 @@ fun Color(
  */
 @Stable
 fun Color(@ColorInt color: Int): Color {
-    return Color(value = color.toULong() shl 32)
+    return Color(value = packSrgbColor(color))
 }
 
 /**
@@ -488,7 +507,7 @@ fun Color(@ColorInt color: Int): Color {
  */
 @Stable
 fun Color(color: Long): Color {
-    return Color(value = (color.toULong() and 0xffffffffUL) shl 32)
+    return Color(value = packSrgbColor(color.toInt()))
 }
 
 /**

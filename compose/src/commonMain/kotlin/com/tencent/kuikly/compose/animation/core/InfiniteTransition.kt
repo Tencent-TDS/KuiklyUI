@@ -18,18 +18,22 @@ package com.tencent.kuikly.compose.animation.core
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collection.mutableVectorOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.unit.Dp
-import kotlinx.coroutines.flow.first
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Creates a [InfiniteTransition] that runs infinite child animations. Child animations can be
@@ -101,7 +105,7 @@ class InfiniteTransition internal constructor(val label: String) {
 
         // When the animation changes, it needs to start from playtime 0 again, offsetting from
         // parent's playtime to achieve that.
-        private var playTimeNanosOffset = 0L
+        private var playTimeNanosOffset = 0.0
 
         // This gets called when the initial/target value changes, which should be a rare case.
         internal fun updateValues(
@@ -126,15 +130,15 @@ class InfiniteTransition internal constructor(val label: String) {
         }
 
         /** Set play time for the [animation]. */
-        internal fun onPlayTimeChanged(playTimeNanos: Long) {
+        internal fun onPlayTimeChanged(playTimeNanos: Double) {
             refreshChildNeeded = false
             if (startOnTheNextFrame) {
                 startOnTheNextFrame = false
                 playTimeNanosOffset = playTimeNanos
             }
             val playTime = playTimeNanos - playTimeNanosOffset
-            value = animation.getValueFromNanos(playTime)
-            isFinished = animation.isFinishedFromNanos(playTime)
+            value = animation.getValueFromPlayNanos(playTime)
+            isFinished = !animation.isInfinite && animation.isFinishedFromNanos(playTime.toLong())
         }
 
         internal fun skipToEnd() {
@@ -149,7 +153,10 @@ class InfiniteTransition internal constructor(val label: String) {
 
     private val _animations = mutableVectorOf<TransitionAnimationState<*, *>>()
     private var refreshChildNeeded by mutableStateOf(false)
-    private var startTimeNanos = AnimationConstants.UnspecifiedTime
+    private var hasStartTime = false
+    private var startTimeNanos = 0.0
+    private var appliedDurationScale = Float.NaN
+    private var toolingOverride: State<Long>? = null
     private var isRunning by mutableStateOf(true)
 
     /**
@@ -170,48 +177,34 @@ class InfiniteTransition internal constructor(val label: String) {
     @Suppress("ComposableNaming")
     @Composable
     internal fun run() {
-        val toolingOverride = remember {
-            mutableStateOf<State<Long>?>(null)
-        }
+        val override = remember { mutableStateOf<State<Long>?>(null) }
+        toolingOverride = override.value
         if (isRunning || refreshChildNeeded) {
-            LaunchedEffect(this) {
-                var durationScale = 1f
-                // Restart every time duration scale changes
-                while (true) {
-                    withInfiniteAnimationFrameNanos {
-                        val currentTimeNanos = toolingOverride.value?.value ?: it
-                        if (startTimeNanos == AnimationConstants.UnspecifiedTime ||
-                            durationScale != coroutineContext.durationScale
-                        ) {
-                            startTimeNanos = it
-                            _animations.forEach {
-                                it.reset()
-                            }
-                            durationScale = coroutineContext.durationScale
-                        }
-                        if (durationScale == 0f) {
-                            // Finish right away
-                            _animations.forEach {
-                                it.skipToEnd()
-                            }
-                        } else {
-                            val playTimeNanos = ((currentTimeNanos - startTimeNanos) /
-                                durationScale).toLong()
-                            onFrame(playTimeNanos)
-                        }
-                    }
-                    // Suspend until duration scale is non-zero
-                    if (durationScale == 0f) {
-                        snapshotFlow { coroutineContext.durationScale }.first {
-                            it > 0f
-                        }
-                    }
-                }
+            val context = rememberCoroutineScope().coroutineContext
+            DisposableEffect(this) {
+                InfiniteTransitionClock.register(this@InfiniteTransition, context)
+                onDispose { InfiniteTransitionClock.unregister(this@InfiniteTransition) }
             }
         }
     }
 
-    private fun onFrame(playTimeNanos: Long) {
+    internal fun onSharedFrame(frameTimeNanos: Double, durationScale: Float) {
+        if (!isRunning && !refreshChildNeeded) return
+        val currentTimeNanos = toolingOverride?.value?.toDouble() ?: frameTimeNanos
+        if (!hasStartTime || appliedDurationScale != durationScale) {
+            startTimeNanos = currentTimeNanos
+            hasStartTime = true
+            _animations.forEach { it.reset() }
+            appliedDurationScale = durationScale
+        }
+        if (durationScale == 0f) {
+            _animations.forEach { it.skipToEnd() }
+        } else {
+            onFrame((currentTimeNanos - startTimeNanos) / durationScale.toDouble())
+        }
+    }
+
+    private fun onFrame(playTimeNanos: Double) {
         var allFinished = true
         // Pulse new playtime
         _animations.forEach {
@@ -224,6 +217,59 @@ class InfiniteTransition internal constructor(val label: String) {
             }
         }
         isRunning = !allFinished
+    }
+}
+
+/**
+ * One frame await for every running [InfiniteTransition]. Each transition used to suspend in its
+ * own [withInfiniteAnimationFrameNanos], which allocated a continuation per badge per frame.
+ */
+private object InfiniteTransitionClock {
+    private val transitions = mutableVectorOf<InfiniteTransition>()
+    private var job: Job? = null
+
+    fun register(transition: InfiniteTransition, context: CoroutineContext) {
+        if (transitions.indexOf(transition) < 0) {
+            transitions.add(transition)
+        }
+        if (job?.isActive == true) return
+        val scope = CoroutineScope(context.minusKey(Job) + SupervisorJob())
+        val launched = scope.launch {
+            try {
+                drive()
+            } finally {
+                if (job === coroutineContext[Job]) {
+                    job = null
+                }
+            }
+        }
+        job = launched
+    }
+
+    fun unregister(transition: InfiniteTransition) {
+        transitions.remove(transition)
+        if (transitions.size == 0) {
+            val running = job
+            job = null
+            running?.cancel()
+        }
+    }
+
+    private suspend fun drive() {
+        var durationScale = 1f
+        while (transitions.size > 0) {
+            val frameTime = withInfiniteAnimationFrameNanos { it.toDouble() }
+            durationScale = coroutineContext.durationScale
+            val count = transitions.size
+            for (i in 0 until count) {
+                if (i >= transitions.size) break
+                transitions[i].onSharedFrame(frameTime, durationScale)
+            }
+            while (durationScale == 0f && transitions.size > 0) {
+                withInfiniteAnimationFrameNanos { }
+                durationScale = coroutineContext.durationScale
+            }
+        }
     }
 }
 

@@ -84,6 +84,9 @@ interface Animation<T, V : AnimationVector> {
      * @param playTimeNanos the play time used to determine whether the animation is finished.
      */
     fun isFinishedFromNanos(playTimeNanos: Long): Boolean {
+        // Infinite specs report Long.MAX_VALUE as duration. Comparing that with a Long allocates
+        // on Kotlin/JS and is never true for a real frame time.
+        if (isInfinite) return false
         return playTimeNanos >= durationNanos
     }
 }
@@ -269,22 +272,59 @@ class TargetBasedAnimation<T, V : AnimationVector> internal constructor(
     override val isInfinite: Boolean get() = animationSpec.isInfinite
     override fun getValueFromNanos(playTimeNanos: Long): T {
         return if (!isFinishedFromNanos(playTimeNanos)) {
-            animationSpec.getValueFromNanos(
-                playTimeNanos, initialValueVector,
-                targetValueVector, initialVelocityVector
-            ).let {
-                // TODO: Remove after b/232030217
-                for (i in 0 until it.size) {
-                    checkPrecondition(!it.get(i).isNaN()) {
-                        "AnimationVector cannot contain a NaN. $it. Animation: $this," +
-                            " playTimeNanos: $playTimeNanos"
-                    }
-                }
-                typeConverter.convertFromVector(it)
-            }
+            vectorValueAt(playTimeNanos, playTimeNanos)
         } else {
             targetValue
         }
+    }
+
+    /**
+     * Same as [getValueFromNanos] for play times that fit in an exact Double integer.
+     * [VectorizedInfiniteRepeatableSpec] evaluates the iteration in Double so the per-frame
+     * path does not allocate a [Long].
+     */
+    internal fun getValueFromPlayNanos(playTimeNanos: Double): T {
+        if (!isInfinite && playTimeNanos >= durationNanos.toDouble()) {
+            return targetValue
+        }
+        val spec = animationSpec as? VectorizedInfiniteRepeatableSpec<V>
+        val vector = if (spec != null) {
+            spec.getValueFromPlayNanos(
+                playTimeNanos,
+                initialValueVector,
+                targetValueVector,
+                initialVelocityVector
+            )
+        } else {
+            animationSpec.getValueFromNanos(
+                playTimeNanos.toLong(),
+                initialValueVector,
+                targetValueVector,
+                initialVelocityVector
+            )
+        }
+        return decodeVector(vector, playTimeNanos)
+    }
+
+    private fun vectorValueAt(playTimeNanos: Long, playTimeForMessage: Any): T {
+        return decodeVector(
+            animationSpec.getValueFromNanos(
+                playTimeNanos, initialValueVector,
+                targetValueVector, initialVelocityVector
+            ),
+            playTimeForMessage
+        )
+    }
+
+    private fun decodeVector(vector: V, playTimeForMessage: Any): T {
+        // TODO: Remove after b/232030217
+        for (i in 0 until vector.size) {
+            checkPrecondition(!vector.get(i).isNaN()) {
+                "AnimationVector cannot contain a NaN. $vector. Animation: $this," +
+                    " playTimeNanos: $playTimeForMessage"
+            }
+        }
+        return typeConverter.convertFromVector(vector)
     }
 
     private var _durationNanos: Long = -1L

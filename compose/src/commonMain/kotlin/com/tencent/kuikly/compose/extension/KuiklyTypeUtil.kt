@@ -41,10 +41,14 @@ internal inline fun Float.approximatelyEqual(other: Float): Boolean {
  * @return Boolean
  */
 internal fun Frame.approximatelyEqual(other: Frame): Boolean {
-    return x.approximatelyEqual(other.x) &&
-        y.approximatelyEqual(other.y) &&
-        width.approximatelyEqual(other.width) &&
-        height.approximatelyEqual(other.height)
+    return approximatelyEqual(other.x, other.y, other.width, other.height)
+}
+
+internal fun Frame.approximatelyEqual(x: Float, y: Float, width: Float, height: Float): Boolean {
+    return this.x.approximatelyEqual(x) &&
+        this.y.approximatelyEqual(y) &&
+        this.width.approximatelyEqual(width) &&
+        this.height.approximatelyEqual(height)
 }
 
 /**

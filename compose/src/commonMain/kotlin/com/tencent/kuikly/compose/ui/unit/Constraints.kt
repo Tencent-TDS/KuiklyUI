@@ -20,6 +20,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.unit.Constraints.Companion.Infinity
+import com.tencent.kuikly.compose.ui.util.highIntOf
 import kotlin.jvm.JvmInline
 import kotlin.math.min
 
@@ -66,7 +67,24 @@ value class Constraints(
      * - MaxFocusHeight
      */
     private inline val focusIndex
-        get() = (value and FocusMask).toInt()
+        get() = lowBits and FocusMask
+
+    // Fields are decoded from these two Ints because every Long operation allocates on
+    // Kotlin/JS. Min width lives in [lowBits], max width and max height in [highBits], and
+    // min height always ends at bit 32, straddling both.
+    private inline val lowBits: Int
+        get() = value.toInt()
+
+    private inline val highBits: Int
+        get() = highIntOf(value)
+
+    private fun minHeightBits(bitOffset: Int, mask: Int): Int {
+        val offset = minHeightOffsets(bitOffset)
+        return ((lowBits ushr offset) or (highBits shl (32 - offset))) and mask
+    }
+
+    private fun maxHeightBits(bitOffset: Int, mask: Int): Int =
+        (highBits ushr (minHeightOffsets(bitOffset) - 1)) and mask
 
     /**
      * The minimum width that the measurement can take, in pixels.
@@ -74,7 +92,7 @@ value class Constraints(
     val minWidth: Int
         get() {
             val mask = widthMask(indexToBitOffset(focusIndex))
-            return ((value shr 2).toInt() and mask)
+            return (lowBits ushr 2) and mask
         }
 
     /**
@@ -84,7 +102,7 @@ value class Constraints(
     val maxWidth: Int
         get() {
             val mask = widthMask(indexToBitOffset(focusIndex))
-            val width = ((value shr 33).toInt() and mask)
+            val width = (highBits ushr 1) and mask
             return if (width == 0) Infinity else width - 1
         }
 
@@ -94,9 +112,7 @@ value class Constraints(
     val minHeight: Int
         get() {
             val bitOffset = indexToBitOffset(focusIndex)
-            val mask = heightMask(bitOffset)
-            val offset = minHeightOffsets(bitOffset)
-            return (value shr offset).toInt() and mask
+            return minHeightBits(bitOffset, heightMask(bitOffset))
         }
 
     /**
@@ -106,9 +122,7 @@ value class Constraints(
     val maxHeight: Int
         get() {
             val bitOffset = indexToBitOffset(focusIndex)
-            val mask = heightMask(bitOffset)
-            val offset = minHeightOffsets(bitOffset) + 31
-            val height = (value shr offset).toInt() and mask
+            val height = maxHeightBits(bitOffset, heightMask(bitOffset))
             return if (height == 0) Infinity else height - 1
         }
 
@@ -119,7 +133,7 @@ value class Constraints(
     val hasBoundedWidth: Boolean
         get() {
             val mask = widthMask(indexToBitOffset(focusIndex))
-            return ((value shr 33).toInt() and mask) != 0
+            return ((highBits ushr 1) and mask) != 0
         }
 
     /**
@@ -129,9 +143,7 @@ value class Constraints(
     val hasBoundedHeight: Boolean
         get() {
             val bitOffset = indexToBitOffset(focusIndex)
-            val mask = heightMask(bitOffset)
-            val offset = minHeightOffsets(bitOffset) + 31
-            return ((value shr offset).toInt() and mask) != 0
+            return maxHeightBits(bitOffset, heightMask(bitOffset)) != 0
         }
 
     /**
@@ -140,8 +152,8 @@ value class Constraints(
     @Stable
     val hasFixedWidth: Boolean get() {
         val mask = widthMask(indexToBitOffset(focusIndex))
-        val minWidth = ((value shr 2).toInt() and mask)
-        val maxWidth = ((value shr 33).toInt() and mask).let {
+        val minWidth = (lowBits ushr 2) and mask
+        val maxWidth = ((highBits ushr 1) and mask).let {
             if (it == 0) Infinity else it - 1
         }
         return minWidth == maxWidth
@@ -154,9 +166,8 @@ value class Constraints(
     val hasFixedHeight: Boolean get() {
         val bitOffset = indexToBitOffset(focusIndex)
         val mask = heightMask(bitOffset)
-        val offset = minHeightOffsets(bitOffset)
-        val minHeight = (value shr offset).toInt() and mask
-        val maxHeight = ((value shr (offset + 31)).toInt() and mask).let {
+        val minHeight = minHeightBits(bitOffset, mask)
+        val maxHeight = maxHeightBits(bitOffset, mask).let {
             if (it == 0) Infinity else it - 1
         }
         return minHeight == maxHeight
@@ -172,12 +183,11 @@ value class Constraints(
 
         // No need to special case width == 0 -> Infinity, instead we let it go to -1
         // and fail the test that follows
-        val maxWidth = ((value shr 33).toInt() and widthMask(bitOffset)) - 1
+        val maxWidth = ((highBits ushr 1) and widthMask(bitOffset)) - 1
         if (maxWidth == 0) return true
 
         // Same here
-        val offset = minHeightOffsets(bitOffset) + 31
-        val maxHeight = ((value shr offset).toInt() and heightMask(bitOffset)) - 1
+        val maxHeight = maxHeightBits(bitOffset, heightMask(bitOffset)) - 1
         return maxHeight == 0
     }
 
@@ -408,7 +418,7 @@ private const val MaxFocusHeight = 0x00
  * The mask to retrieve the focus ([MinFocusWidth], [MaxFocusWidth],
  * [MinFocusHeight], [MaxFocusHeight]).
  */
-private const val FocusMask = 0x03L
+private const val FocusMask = 0x03
 
 /**
  * The number of bits used for the focused dimension when there is minimal focus.
@@ -504,13 +514,19 @@ internal fun createConstraints(
     }
 
     val minHeightOffset = minHeightOffsets(indexToBitOffset(focus))
-    val maxHeightOffset = minHeightOffset + 31
 
-    val value = focus.toLong() or
-        (minWidth.toLong() shl 2) or
-        (maxWidthValue.toLong() shl 33) or
-        (minHeight.toLong() shl minHeightOffset) or
-        (maxHeightValue.toLong() shl maxHeightOffset)
+    // Assemble both 32-bit halves as Ints so only the final merge touches Long, which
+    // allocates on Kotlin/JS. Min height straddles bit 32 (see Constraints.minHeightBits).
+    val low = focus or
+        (minWidth shl 2) or
+        (minHeight shl minHeightOffset)
+    val high = (minHeight ushr (32 - minHeightOffset)) or
+        (maxWidthValue shl 1) or
+        (maxHeightValue shl (minHeightOffset - 1))
+    // Same as (high shl 32) or (low and 0xFFFFFFFF) without the mask: when low is negative its
+    // sign extension subtracts 1 from the upper half, so that half is pre-incremented.
+    val upper = if (low < 0) high + 1 else high
+    val value = (upper.toLong() shl 32) + low.toLong()
     return Constraints(value)
 }
 

@@ -17,8 +17,6 @@
 package com.tencent.kuikly.compose.ui.node
 
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackInt2
 import kotlin.math.sign
 
 /**
@@ -33,9 +31,14 @@ import kotlin.math.sign
  */
 internal class HitTestResult : List<Modifier.Node> {
     private var values = arrayOfNulls<Any>(16)
-    // contains DistanceAndInLayer
-    private var distanceFromEdgeAndInLayer = LongArray(16)
+    // Kept as two arrays rather than a packed Long, which allocates on every access on Kotlin/JS.
+    private var distanceFromEdges = FloatArray(16)
+    private var inLayers = BooleanArray(16)
     private var hitDepth = -1
+
+    // Output of findBestHitDistance.
+    private var bestDistance = Float.POSITIVE_INFINITY
+    private var bestIsInLayer = false
 
     override var size: Int = 0
         private set
@@ -47,8 +50,8 @@ internal class HitTestResult : List<Modifier.Node> {
      * `false` otherwise.
      */
     fun hasHit(): Boolean {
-        val distance = findBestHitDistance()
-        return distance.distance < 0f && distance.isInLayer
+        findBestHitDistance()
+        return bestDistance < 0f && bestIsInLayer
     }
 
     /**
@@ -74,21 +77,31 @@ internal class HitTestResult : List<Modifier.Node> {
         if (hitDepth == lastIndex) {
             return true
         }
-        val distanceAndInLayer = DistanceAndInLayer(distanceFromEdge, isInLayer)
-        val bestDistance = findBestHitDistance()
-        return bestDistance > distanceAndInLayer
+        findBestHitDistance()
+        return compareDistance(bestDistance, bestIsInLayer, distanceFromEdge, isInLayer) > 0
     }
 
-    private fun findBestHitDistance(): DistanceAndInLayer {
-        var bestDistance = DistanceAndInLayer(Float.POSITIVE_INFINITY, false)
+    private fun findBestHitDistance() {
+        var distance = Float.POSITIVE_INFINITY
+        var isInLayer = false
         for (i in hitDepth + 1..lastIndex) {
-            val distance = DistanceAndInLayer(distanceFromEdgeAndInLayer[i])
-            bestDistance = if (distance < bestDistance) distance else bestDistance
-            if (bestDistance.distance < 0f && bestDistance.isInLayer) {
-                return bestDistance
+            val candidateDistance = distanceFromEdges[i]
+            val candidateIsInLayer = inLayers[i]
+            if (compareDistance(candidateDistance, candidateIsInLayer, distance, isInLayer) < 0) {
+                distance = candidateDistance
+                isInLayer = candidateIsInLayer
+            }
+            if (distance < 0f && isInLayer) {
+                break
             }
         }
-        return bestDistance
+        bestDistance = distance
+        bestIsInLayer = isInLayer
+    }
+
+    private fun hasBetterHitThan(distance: Float, isInLayer: Boolean): Boolean {
+        findBestHitDistance()
+        return compareDistance(distance, isInLayer, bestDistance, bestIsInLayer) > 0
     }
 
     /**
@@ -116,8 +129,8 @@ internal class HitTestResult : List<Modifier.Node> {
         hitDepth++
         ensureContainerSize()
         values[hitDepth] = node
-        distanceFromEdgeAndInLayer[hitDepth] =
-            DistanceAndInLayer(distanceFromEdge, isInLayer).packedValue
+        distanceFromEdges[hitDepth] = distanceFromEdge
+        inLayers[hitDepth] = isInLayer
         resizeToHitDepth()
         childHitTest()
         hitDepth = startDepth
@@ -146,12 +159,14 @@ internal class HitTestResult : List<Modifier.Node> {
         }
 
         // We have to tack the speculation to the end of the array
-        val previousDistance = findBestHitDistance()
+        findBestHitDistance()
+        val previousDistance = bestDistance
+        val previousIsInLayer = bestIsInLayer
         val previousHitDepth = hitDepth
         hitDepth = lastIndex
 
         hitInMinimumTouchTarget(node, distanceFromEdge, isInLayer, childHitTest)
-        if (hitDepth + 1 < lastIndex && previousDistance > findBestHitDistance()) {
+        if (hitDepth + 1 < lastIndex && hasBetterHitThan(previousDistance, previousIsInLayer)) {
             // This was a successful hit, so we should move this to the previous hit depth
             val fromIndex = hitDepth + 1
             val toIndex = previousHitDepth + 1
@@ -161,8 +176,14 @@ internal class HitTestResult : List<Modifier.Node> {
                 startIndex = fromIndex,
                 endIndex = size
             )
-            distanceFromEdgeAndInLayer.copyInto(
-                destination = distanceFromEdgeAndInLayer,
+            distanceFromEdges.copyInto(
+                destination = distanceFromEdges,
+                destinationOffset = toIndex,
+                startIndex = fromIndex,
+                endIndex = size
+            )
+            inLayers.copyInto(
+                destination = inLayers,
                 destinationOffset = toIndex,
                 startIndex = fromIndex,
                 endIndex = size
@@ -190,7 +211,8 @@ internal class HitTestResult : List<Modifier.Node> {
         if (hitDepth >= values.size) {
             val newSize = values.size + 16
             values = values.copyOf(newSize)
-            distanceFromEdgeAndInLayer = distanceFromEdgeAndInLayer.copyOf(newSize)
+            distanceFromEdges = distanceFromEdges.copyOf(newSize)
+            inLayers = inLayers.copyOf(newSize)
         }
     }
 
@@ -320,27 +342,17 @@ internal class HitTestResult : List<Modifier.Node> {
     }
 }
 
-@kotlin.jvm.JvmInline
-private value class DistanceAndInLayer(val packedValue: Long) {
-    val distance: Float
-        get() = unpackFloat1(packedValue)
-
-    val isInLayer: Boolean
-        get() = unpackInt2(packedValue) != 0
-
-    operator fun compareTo(other: DistanceAndInLayer): Int {
-        val thisIsInLayer = isInLayer
-        val otherIsInLayer = other.isInLayer
-        if (thisIsInLayer != otherIsInLayer) {
-            return if (thisIsInLayer) -1 else 1
-        }
-        val distanceDiff = this.distance - other.distance
-        return sign(distanceDiff).toInt()
+/**
+ * Orders hits: in-layer hits first, then by distance from the edge.
+ */
+private fun compareDistance(
+    distance: Float,
+    isInLayer: Boolean,
+    otherDistance: Float,
+    otherIsInLayer: Boolean
+): Int {
+    if (isInLayer != otherIsInLayer) {
+        return if (isInLayer) -1 else 1
     }
-}
-
-private fun DistanceAndInLayer(distance: Float, isInLayer: Boolean): DistanceAndInLayer {
-    val v1 = distance.toBits().toLong()
-    val v2 = if (isInLayer) 1L else 0L
-    return DistanceAndInLayer(v1.shl(32) or (v2 and 0xFFFFFFFF))
+    return sign(distance - otherDistance).toInt()
 }

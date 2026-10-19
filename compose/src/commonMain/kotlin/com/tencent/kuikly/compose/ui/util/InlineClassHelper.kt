@@ -70,6 +70,15 @@ inline fun unpackInt2(value: Long): Int {
     return value.and(0xFFFFFFFF).toInt()
 }
 
+/**
+ * The upper 32 bits of [value], same as `(value ushr 32).toInt()`.
+ *
+ * [Long.hashCode] is defined as `low xor high` on every platform, and both it and
+ * [Long.toInt] read the existing bits. A shift would allocate another [Long].
+ */
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun highIntOf(value: Long): Int = value.hashCode() xor value.toInt()
+
 // =============================================================================
 // Platform-abstract packed helpers.
 //

@@ -22,7 +22,6 @@ import androidx.collection.MutableIntList
 import androidx.collection.MutableIntObjectMap
 import androidx.collection.emptyIntObjectMap
 import androidx.collection.intListOf
-import androidx.collection.mutableIntObjectMapOf
 import com.tencent.kuikly.compose.animation.core.AnimationConstants.DefaultDurationMillis
 import com.tencent.kuikly.compose.animation.core.ArcMode.Companion.ArcBelow
 import com.tencent.kuikly.compose.animation.core.ArcMode.Companion.ArcLinear
@@ -489,7 +488,7 @@ sealed class KeyframesSpecBaseConfig<T, E : KeyframeBaseEntity<T>> {
     @setparam:IntRange(from = 0L)
     var delayMillis: Int = 0
 
-    internal val keyframes = mutableIntObjectMapOf<E>()
+    internal val keyframes = KeyframeEntries<E>()
 
     /**
      * Method used to delegate instantiation of [E] to implementing classes.
@@ -538,6 +537,37 @@ sealed class KeyframesSpecBaseConfig<T, E : KeyframeBaseEntity<T>> {
     infix fun E.using(easing: Easing): E {
         this.easing = easing
         return this
+    }
+}
+
+/**
+ * Timestamp-sorted keyframe storage. Keyframe DSL blocks typically run on every recomposition, and
+ * a hash map keyed by Int goes through Long-based group probing that is expensive on Kotlin/JS.
+ */
+internal class KeyframeEntries<E> {
+    internal val keys = MutableIntList()
+    internal val values = ArrayList<E>()
+
+    val size: Int
+        get() = keys.size
+
+    operator fun set(key: Int, value: E) {
+        val index = keys.binarySearch(key)
+        if (index >= 0) {
+            values[index] = value
+        } else {
+            val insertAt = -(index + 1)
+            keys.add(insertAt, key)
+            values.add(insertAt, value)
+        }
+    }
+
+    operator fun contains(key: Int): Boolean = keys.binarySearch(key) >= 0
+
+    inline fun forEach(block: (key: Int, value: E) -> Unit) {
+        for (i in 0 until keys.size) {
+            block(keys[i], values[i])
+        }
     }
 }
 

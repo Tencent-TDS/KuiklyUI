@@ -18,3 +18,5 @@ export { IKuiklyRenderViewExport, KuiklyRenderBaseView, KRRenderViewExportCreato
 export { KRPAGView } from './KRPAGView';
 
 export { KRVideoPlayState, KRVideoViewContentMode, KRVideoView } from './KRVideoView'
+
+export { KRAudioPlayState, KRAudioView } from './KRAudioView'

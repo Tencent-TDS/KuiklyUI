@@ -18,7 +18,7 @@ import { IKRRouterAdapter } from './IKRRouterAdapter';
 import { IKRColorParserAdapter } from './IKRColorParserAdapter';
 import { IKRPAGViewAdapter } from './IKRPAGViewAdapter';
 import { IKRVideoViewAdapter } from './IKRVideoViewAdapter';
-
+import { IKRAudioViewAdapter } from './IKRAudioViewAdapter';
 
 export class KuiklyRenderAdapterManager {
   /**
@@ -37,6 +37,10 @@ export class KuiklyRenderAdapterManager {
    * 视频控件适配器
    */
   static krVideoViewAdapter: IKRVideoViewAdapter | null = null;
+  /**
+   * 音频控件适配器
+   */
+  static krAudioViewAdapter: IKRAudioViewAdapter | null = null;
   /**
    * Pag适配器
    */

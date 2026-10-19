@@ -91,9 +91,9 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     protected var layoutFrame = Frame.zero
     override val frame: Frame
         get() = flexNode.layoutFrame
-    protected val attr: A by lazy(LazyThreadSafetyMode.NONE) {
-        internalCreateAttr()
-    }
+    private var _attr: A? = null
+    protected val attr: A
+        get() = _attr ?: internalCreateAttr().also { _attr = it }
     protected val event: E by lazy(LazyThreadSafetyMode.NONE) {
         internalCreateEvent()
     }
@@ -106,6 +106,16 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     override fun getViewAttr(): A {
         return attr
     }
+
+    /**
+     * Returns the backing attr instance if it has already been created, or
+     * `null` otherwise. Unlike [getViewAttr], this does **not** trigger lazy
+     * instantiation — intended for hot paths that only need to peek at the
+     * attr (e.g. propagation checks during child insertion) and must avoid
+     * eagerly allocating attr objects for containers that never configure
+     * any styling.
+     */
+    internal fun attrOrNull(): A? = _attr
 
     override fun getViewEvent(): E {
         return event

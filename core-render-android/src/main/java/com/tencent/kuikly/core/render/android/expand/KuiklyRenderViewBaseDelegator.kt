@@ -466,6 +466,9 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             renderViewExport(KRVideoView.VIEW_NAME, { context ->
                 KRVideoView(context)
             })
+            renderViewExport(KRAudioView.VIEW_NAME, { context ->
+                KRAudioView(context)
+            })
             renderViewExport(KRAPNGView.VIEW_NAME, { context ->
                 KRAPNGView(context)
             })

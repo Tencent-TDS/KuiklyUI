@@ -455,12 +455,54 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
             return YES;
         }
     } else if (self.outerScrollView.nestedGestureDelegate) {
-        return [self.outerScrollView.nestedGestureDelegate shouldRecognizeScrollGestureSimultaneouslyWithView:view];
+        BOOL result = [self.outerScrollView.nestedGestureDelegate
+                       shouldRecognizeScrollGestureSimultaneouslyWithView:view];
+        if (result && [[self class] multiLevelNestedScrollFixEnabled]) {
+            // Fix 3-layer penetration bug:
+            // Chain forwarding succeeded, meaning the innermost (e.g. BLUE) established
+            // a simultaneous gesture with the outermost (e.g. outerScroller), bypassing
+            // the middle layer (e.g. WaterfallList).
+            //
+            // When the middle layer's panGesture doesn't participate in dragging
+            // (offset=0 + bounces=NO + scrolling toward edge), its WillBeginDragging
+            // won't fire, so activeInnerScrollView on the outermost layer stays nil.
+            // This causes the "Not active inner return 2" early-return in scrollViewDidScroll,
+            // skipping all lock logic and letting the outer scroll freely.
+            //
+            // Fix: proactively establish middle-layer <-> outer-layer relationship here,
+            // so cascadeLock can propagate correctly even when the middle layer is inactive.
+            UIScrollView<NestedScrollProtocol> *middleLayer = self.outerScrollView;
+            if ([view conformsToProtocol:@protocol(NestedScrollProtocol)]) {
+                UIScrollView<NestedScrollProtocol> *outerLayer =
+                    (UIScrollView<NestedScrollProtocol> *)view;
+                // Only fill in if not already set, to avoid overwriting a valid relationship
+                // established by a normal WillBeginDragging flow.
+                if (!outerLayer.activeInnerScrollView) {
+                    outerLayer.activeInnerScrollView = middleLayer;
+                    NSLogTrace(@"chain forwarding: set outerLayer(%p).activeInner = middleLayer(%p)", outerLayer, middleLayer);
+                }
+                if (!middleLayer.activeOuterScrollView) {
+                    middleLayer.activeOuterScrollView = outerLayer;
+                    NSLogTrace(@"chain forwarding: set middleLayer(%p).activeOuter = outerLayer(%p)", middleLayer, outerLayer);
+                }
+            }
+        }
+        return result;
     }
     return NO;
 }
 
 #pragma mark - Utils
+
+static BOOL sMultiLevelNestedScrollFixEnabled = NO;
+
++ (void)enableMultiLevelNestedScrollFix {
+    sMultiLevelNestedScrollFixEnabled = YES;
+}
+
++ (BOOL)multiLevelNestedScrollFixEnabled {
+    return sMultiLevelNestedScrollFixEnabled;
+}
 
 + (id<ScrollableProtocol>)findNestedOuterScrollView:(UIScrollView *)innerScrollView {
     // Use superview.superview since scrollview is a subview of view.

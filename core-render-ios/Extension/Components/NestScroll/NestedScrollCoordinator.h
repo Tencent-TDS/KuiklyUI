@@ -41,6 +41,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Reset transient drag/lock state for Compose reuse.
 - (void)prepareForComposeReuse;
 
+/// Enable the multi-level (3+ layer) nested scroll penetration fix.
+/// Defaults to NO; call once during App startup before any Kuikly page is rendered.
+/// When disabled, nested scroll behaves exactly as before the fix.
++ (void)enableMultiLevelNestedScrollFix;
+
+/// Whether the multi-level nested scroll penetration fix is enabled.
++ (BOOL)multiLevelNestedScrollFixEnabled;
+
 @end
 
 NS_ASSUME_NONNULL_END

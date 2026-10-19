@@ -473,7 +473,7 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
      * Prefer the DSL helpers [forceRenderViewSelf] / [forceRenderViewSubtree] over
      * writing this field directly.
      */
-    var forceRenderView: ForceRenderViewMode = ForceRenderViewMode.NONE
+    internal var forceRenderView: ForceRenderViewMode = ForceRenderViewMode.NONE
         set(value) {
             // Monotonic: SUB_TREE is a strict superset of SELF, so once we
             // reach SUB_TREE, do not allow downgrades.
@@ -687,8 +687,12 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
  * Flat-layer opt-out mode for a [ContainerAttr].
  *
  * See [ContainerAttr.forceRenderView] for semantics and propagation rules.
+ *
+ * `internal` because this is an implementation detail of the flat-layer
+ * optimization. Business code interacts with it only via the DSL helpers
+ * [ContainerAttr.forceRenderViewSelf] / [ContainerAttr.forceRenderViewSubtree].
  */
-enum class ForceRenderViewMode {
+internal enum class ForceRenderViewMode {
     /** Default. Flat-layer optimization may elide this container. */
     NONE,
 

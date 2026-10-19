@@ -71,6 +71,42 @@ void KRModalView::DidMoveToParentView() {
             kuikly::util::GetDialogNodeApi()->setAutoCancel(dialogNode, false);
             kuikly::util::GetDialogNodeApi()->setContentAlignment(
                 dialogNode, strongSelf->align_center_ ? ARKUI_ALIGNMENT_CENTER : ARKUI_ALIGNMENT_TOP_START, 0, 0);
+            // 背板形状控制。必须在 show 之前调用。
+            // 自定义样式（customStyle=true）下背板透明、没有形状可言，这些设置不会显现，
+            // 但仍然下发，以免业务在两种模式下写法不一致。
+            {
+                auto dialogApi = kuikly::util::GetDialogNodeApi();
+                if (strongSelf->corner_radius_ > 0 && dialogApi->setCornerRadius != nullptr) {
+                    float r = strongSelf->corner_radius_;
+                    KR_LOG_INFO << "ImmLightTest: modal setCornerRadius=" << r << ", ret="
+                                << dialogApi->setCornerRadius(dialogNode, r, r, r, r);
+                }
+                if (strongSelf->has_backplane_bg_ && dialogApi->setBackgroundColor != nullptr) {
+                    dialogApi->setBackgroundColor(dialogNode, strongSelf->backplane_bg_color_);
+                }
+                if (strongSelf->grid_column_count_ > 0 && dialogApi->setGridColumnCount != nullptr) {
+                    KR_LOG_INFO << "ImmLightTest: modal setGridColumnCount=" << strongSelf->grid_column_count_
+                                << ", ret=" << dialogApi->setGridColumnCount(dialogNode, strongSelf->grid_column_count_);
+                }
+                if (strongSelf->modal_width_ > 0 || strongSelf->modal_height_ > 0) {
+                    // setWidth / setHeight 在 API_3，低版本系统取不到就跳过（内容尺寸仍会兜底）
+                    const ArkUI_NativeDialogAPI_3 *api3 = kuikly::util::GetDialogApi3OrNull();
+                    if (api3 != nullptr) {
+                        if (strongSelf->modal_width_ > 0 && api3->setWidth != nullptr) {
+                            KR_LOG_INFO << "ImmLightTest: modal setWidth=" << strongSelf->modal_width_ << ", ret="
+                                        << api3->setWidth(dialogNode, strongSelf->modal_width_,
+                                                          ARKUI_LENGTH_METRIC_UNIT_VP);
+                        }
+                        if (strongSelf->modal_height_ > 0 && api3->setHeight != nullptr) {
+                            KR_LOG_INFO << "ImmLightTest: modal setHeight=" << strongSelf->modal_height_ << ", ret="
+                                        << api3->setHeight(dialogNode, strongSelf->modal_height_,
+                                                           ARKUI_LENGTH_METRIC_UNIT_VP);
+                        }
+                    } else {
+                        KR_LOG_INFO << "ImmLightTest: modal explicit size skipped (API_3 unavailable)";
+                    }
+                }
+            }
             // 内容节点已被 ToRemoveFromSuperView 移出页面树，Kuikly 的 flex 引擎不再为它
             // 计算 frame，setContent 时拿到的是 0x0，dialog 会塌陷成一条、内容全被裁掉。
             // 这里用最后一次已知的 frame 显式补一次尺寸。
@@ -92,6 +128,9 @@ void KRModalView::DidMoveToParentView() {
             }
             // 弹窗类接口在官方白名单内、可全页面生效，走 CustomDialog 专用通道
             strongSelf->OnSystemMaterialChanged();
+            // 子类扩展的背板样式（如边框）必须在「材质之后」下发：
+            // SetSystemMaterial 会重设背板样式，先设的 borderWidth 会被冲掉。
+            strongSelf->ApplyExtraBackplaneStyle(dialogNode);
             if (kuikly::util::GetDialogNodeApi()->registerOnWillDismissWithUserData) {
                 kuikly::util::GetDialogNodeApi()->registerOnWillDismissWithUserData(
                     strongSelf->dialogNode_, dialogContext, [](ArkUI_DialogDismissEvent *event) {
@@ -112,6 +151,7 @@ void KRModalView::DidMoveToParentView() {
             KR_LOG_INFO << "ImmLightTest: dialog show ret=" << show_ret;
             // 部分实现会在 show 时重建背板，这里再应用一次以规避属性被重置
             strongSelf->OnSystemMaterialChanged();
+            strongSelf->ApplyExtraBackplaneStyle(dialogNode);
         },
         16);
 }

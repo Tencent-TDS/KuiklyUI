@@ -33,6 +33,8 @@
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
 #include "libohos_render/expand/components/mask/KRMaskView.h"
 #include "libohos_render/expand/components/modal/KRModalView.h"
+#include "libohos_render/expand/components/modal/KRImmersiveLightSenseDialogView.h"
+#include "libohos_render/expand/components/ohosnative/KROhosNativeControlViews.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 #include "libohos_render/expand/components/richtext/gradient_richtext/KRGradientRichTextShadow.h"
@@ -51,6 +53,15 @@ static void ComponentsRegisterEntry() {
     IKRRenderViewExport::RegisterForwardArkTSViewCreatorV2([] { return std::make_shared<KRForwardArkTSViewV2>(); });
 
     IKRRenderViewExport::RegisterViewCreator("KRView", [] { return std::make_shared<KRView>(); });
+    // 鸿蒙沉浸光感：弹窗（走原生 NativeDialog，白名单内可全页面生效）
+    IKRRenderViewExport::RegisterViewCreator("KRImmersiveLightSenseDialogView",
+                                             [] { return std::make_shared<KRImmersiveLightSenseDialogView>(); });
+    // 鸿蒙原生 Slider / Toggle：官方白名单控件，可全页面生效沉浸光感。
+    // 用 CAPI 直连而非 ArkTS 转发（转发层的尺寸与事件编码都不可靠）。
+    IKRRenderViewExport::RegisterViewCreator("KROhosSliderView",
+                                             [] { return std::make_shared<KROhosSliderView>(); });
+    IKRRenderViewExport::RegisterViewCreator("KROhosSwitchView",
+                                             [] { return std::make_shared<KROhosSwitchView>(); });
     IKRRenderViewExport::RegisterViewCreator("KRImageView", [] { return std::make_shared<KRImageView>(); });
 
     IKRRenderViewExport::RegisterViewCreator("KRWrapperImageView",

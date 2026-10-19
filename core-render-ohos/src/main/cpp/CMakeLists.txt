@@ -62,6 +62,8 @@ set(SOURCE_SET
         libohos_render/utils/KRLinearGradientParser.cpp
         libohos_render/expand/components/richtext/gradient_richtext/KRGradientRichTextShadow.cpp
         libohos_render/expand/components/richtext/gradient_richtext/KRGradientRichTextView.cpp
+        libohos_render/expand/components/modal/KRImmersiveLightSenseDialogView.cpp
+        libohos_render/expand/components/ohosnative/KROhosNativeControlViews.cpp
         libohos_render/utils/KRTransformParser.cpp
         libohos_render/expand/components/input/KRTextFieldView.cpp
         libohos_render/expand/components/input/KRTextAreaView.cpp

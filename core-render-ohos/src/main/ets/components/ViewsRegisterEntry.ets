@@ -19,6 +19,7 @@ import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
 import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
 import { KRImmersiveLightSenseView } from './KRImmersiveLightSenseView';
+import { KRImmersiveLightSenseTabBarView } from './KRImmersiveLightSenseTabBarView';
 import { KRBlurView } from './KRBlurView';
 
 /**
@@ -51,6 +52,13 @@ export class ViewsRegisterEntry {
     KRNativeManager.getInstance()
       .registerViewCreatorV2('KRImmersiveLightSenseView', (): KuiklyRenderBaseView => {
         return new KRImmersiveLightSenseView();
+      });
+
+    // 鸿蒙沉浸光感 TabBar 容器：走 V2 转发通道，子节点挂进 Tabs 页签栏的 ContentSlot，
+    // 从而落入系统规定的沉浸光感生效区域（Tabbar scope）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveLightSenseTabBarView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveLightSenseTabBarView();
       });
   }
 

@@ -30,7 +30,15 @@ class KRModalView : public KRView {
     void OnSystemMaterialChanged() override;
     void FireDismissEvent(int32_t reason);
 
- private:
+ protected:
+    /**
+     * 子类扩展背板样式的钩子，在 dialog show 之前调用。
+     * 用于把只在沉浸光感弹窗上生效的样式（如边框）映射到背板。
+     */
+    virtual void ApplyExtraBackplaneStyle(ArkUI_NativeDialogHandle dialog) {
+        (void)dialog;
+    }
+
     ArkUI_NativeDialogHandle dialogNode_ = nullptr;
     KRRenderCallback on_will_dismiss_callback_ = nullptr;
     // 弹窗沉浸光感：customStyle 开关 + 应用到 NativeDialog 的材质对象。
@@ -39,6 +47,13 @@ class KRModalView : public KRView {
     bool custom_style_ = true;  // 对应 enableCustomStyle，默认 true 保持历史行为
     bool align_center_ = false; // 是否将 dialog 内容相对屏幕居中（默认 TOP_START 保持历史行为）
     void *dialog_material_ = nullptr;
+    // 弹窗背板形状：由子类（沉浸光感弹窗）采集后在此统一下发给 NativeDialog
+    float modal_width_ = 0.0f;
+    float modal_height_ = 0.0f;
+    float corner_radius_ = 0.0f;
+    bool has_backplane_bg_ = false;
+    uint32_t backplane_bg_color_ = 0;
+    int32_t grid_column_count_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRMODALVIEW_H

@@ -360,6 +360,16 @@ const ArkUI_NativeDialogAPI_1 *GetDialogNodeApi() {
     return gDialogNodeApi;
 }
 
+const ArkUI_NativeDialogAPI_3 *GetDialogApi3OrNull() {
+    static ArkUI_NativeDialogAPI_3 *gDialogNodeApi3 = nullptr;
+    static bool inited = false;
+    if (!inited) {
+        inited = true;
+        OH_ArkUI_GetModuleInterface(ARKUI_NATIVE_DIALOG, ArkUI_NativeDialogAPI_3, gDialogNodeApi3);
+    }
+    return gDialogNodeApi3;
+}
+
 void UpdateNodeSize(ArkUI_NodeHandle node, float width, float height) {
     auto nodeAPI = GetNodeApi();
     ArkUI_NumberValue wValue[] = {width};

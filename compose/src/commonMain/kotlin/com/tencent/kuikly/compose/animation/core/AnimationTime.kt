@@ -19,27 +19,22 @@ package com.tencent.kuikly.compose.animation.core
 /**
  * Returns `(playTimeNanos / MillisToNanos - delayMillis).coerceIn(0, durationMillis)`.
  */
-internal fun clampedPlayTimeMillis(
+internal expect fun clampedPlayTimeMillis(
     playTimeNanos: Long,
     delayMillis: Int,
     durationMillis: Int
-): Int = clampedPlayTimeMillisLong(playTimeNanos, delayMillis, durationMillis)
+): Int
 
 /**
  * Returns the play time within the current iteration of a repeating animation whose single
  * iteration lasts [durationNanos].
  */
-internal fun repetitionPlayTimeNanos(
+internal expect fun repetitionPlayTimeNanos(
     playTimeNanos: Long,
     initialOffsetNanos: Long,
     durationNanos: Long,
     repeatMode: RepeatMode
-): Long = repetitionPlayTimeNanosLong(
-    playTimeNanos,
-    initialOffsetNanos,
-    durationNanos,
-    repeatMode
-)
+): Long
 
 internal fun clampedPlayTimeMillisLong(
     playTimeNanos: Long,

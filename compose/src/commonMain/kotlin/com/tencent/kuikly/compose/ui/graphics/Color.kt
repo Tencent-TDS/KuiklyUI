@@ -411,6 +411,12 @@ value class Color(val value: ULong) {
 }
 
 /**
+ * Pack a 32-bit sRGB ARGB int into a [Color] long: those bits sit in the high half
+ * and the low half is zero.
+ */
+internal expect fun packSrgbColor(argb: Int): ULong
+
+/**
  * Create a [Color] by passing individual [red], [green], [blue], [alpha], and [colorSpace]
  * components. The default [color space][ColorSpace] is [SRGB][ColorSpaces.Srgb] and
  * the default [alpha] is `1.0` (opaque). [colorSpace] must have a [ColorSpace.componentCount] of
@@ -440,7 +446,7 @@ fun Color(
                 ((green * 255.0f + 0.5f).toInt() shl 8) or
                 (blue * 255.0f + 0.5f).toInt()
             )
-        return Color(value = (argb.toULong() and 0xffffffffUL) shl 32)
+        return Color(value = packSrgbColor(argb))
     }
 
     require(colorSpace.componentCount == 3) {
@@ -484,7 +490,7 @@ fun Color(
  */
 @Stable
 fun Color(@ColorInt color: Int): Color {
-    return Color(value = color.toULong() shl 32)
+    return Color(value = packSrgbColor(color))
 }
 
 /**
@@ -501,7 +507,7 @@ fun Color(@ColorInt color: Int): Color {
  */
 @Stable
 fun Color(color: Long): Color {
-    return Color(value = (color.toULong() and 0xffffffffUL) shl 32)
+    return Color(value = packSrgbColor(color.toInt()))
 }
 
 /**

@@ -696,7 +696,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      * @param lightEffectColor 触点光效颜色，null 表示不设置；传 Color.TRANSPARENT 表示禁用
      * @param materialColor 材质层赋色，必须带透明度，不透明色会遮挡材质
      */
-    fun systemMaterialOhos(
+    fun immersiveMaterial(
         enable: Boolean = true,
         style: Int = 2,
         interactive: Boolean? = null,

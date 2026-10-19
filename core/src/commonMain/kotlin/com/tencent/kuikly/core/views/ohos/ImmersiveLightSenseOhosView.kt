@@ -33,7 +33,7 @@ import com.tencent.kuikly.core.views.internal.GroupView
  *
  * 使用约束：
  * 1. 只有放在本容器内的组件才能获得沉浸光感，容器外的页面组件不受影响；
- * 2. 材质要设在**子视图**上（见 [com.tencent.kuikly.core.base.Attr.systemMaterialOhos]）；
+ * 2. 材质要设在**子视图**上（见 [com.tencent.kuikly.core.base.Attr.immersiveMaterial]）；
  * 3. 子视图背景需保持透明，否则会遮挡材质层；
  * 4. 语义上它是页面的标题栏，与自绘标题栏二选一，不要同时存在；
  * 5. 官方建议控制材质面积，且不要嵌套材质容器。
@@ -79,9 +79,9 @@ class ImmersiveLightSenseOhosAttr : GroupAttr() {
      *
      * 注意落点：材质**不是**设在容器节点上（容器节点不在系统规定的生效区域内），
      * 而是设在标题栏内承载子视图的那一层上，因此表现为"整个标题栏区域有一层玻璃底"。
-     * 子视图可以再各自调用 [systemMaterialOhos] 覆盖，做玻璃底之上的玻璃元素。
+     * 子视图可以再各自调用 [immersiveMaterial] 覆盖，做玻璃底之上的玻璃元素。
      *
-     * 参数与 [systemMaterialOhos] 完全一致：
+     * 参数与 [immersiveMaterial] 完全一致：
      * @param style 材质厚薄：0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK
      * @param materialColor 材质层赋色，必须带透明度，不透明色会盖死材质
      * @param interactive 按压时材质产生弹性形变
@@ -93,7 +93,7 @@ class ImmersiveLightSenseOhosAttr : GroupAttr() {
         applyShadow: Boolean? = null,
         materialColor: Color? = null
     ) {
-        systemMaterialOhos(
+        immersiveMaterial(
             enable = true,
             style = style,
             interactive = interactive,

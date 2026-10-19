@@ -68,7 +68,7 @@ internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
                                 borderRadius(18f)
                                 allCenter()
                                 backgroundColor(Color.TRANSPARENT)
-                                systemMaterialOhos(style = ctx.attr.immersiveMaterialStyle, interactive = true)
+                                immersiveMaterial(style = ctx.attr.immersiveMaterialStyle, interactive = true)
                             }
                             Image {
                                 attr {

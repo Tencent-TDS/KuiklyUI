@@ -5,6 +5,7 @@ import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.utils.PlatformUtils
@@ -24,7 +25,7 @@ import com.tencent.kuikly.demo.pages.base.BasePager
  *
  * 页面同时给出对照：顶部容器内的圆形/胶囊按钮有材质填充，下方容器外的同款胶囊只有描边、无材质。
  */
-@Page("ImmersiveLightSenseOhosDemoPage")
+@Page("12013")
 internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
 
     /** 是否让顶部标题栏使用原生沉浸光感（关掉即演示降级路径） */
@@ -46,7 +47,9 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
             // 顶部：标题栏区域。
             // 容器本身不提供"要不要光感"的开关——这个选择由业务（或上层组件如 NavigationBar）决定：
             // 用 ImmersiveLightSenseOhos 就是沉浸光感版，用普通 View 就是自绘版，内容完全不用改。
-            if (ctx.useImmersive) {
+            // 注意：条件渲染必须用 vif 指令。普通 Kotlin if 只在首次构建时求值一次，
+            // observable 变化不会让它重新求值，表现为"开关拨了但界面不变"。
+            vif({ ctx.useImmersive }) {
                 ImmersiveLightSenseOhos {
                     attr {
                         height(statusBar + 56f)
@@ -60,7 +63,8 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                     }
                     ctx.titleBarContent()()
                 }
-            } else {
+            }
+            vif({ !ctx.useImmersive }) {
                 View {
                     attr {
                         height(statusBar + 56f)
@@ -225,7 +229,7 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                     backgroundColor(Color.TRANSPARENT)
                     if (ctx.useImmersive) {
                         // style: 0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK
-                        systemMaterialOhos(style = 2, interactive = true)
+                        immersiveMaterial(style = 2, interactive = true)
                     }
                 }
                 content.invoke(this)
@@ -255,7 +259,7 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                         )
                     )
                     // 与标题栏内的胶囊同档，保证对照组只差"是否在生效区域内"这一个变量
-                    systemMaterialOhos(style = 2, interactive = true)
+                    immersiveMaterial(style = 2, interactive = true)
                 }
                 Text {
                     attr {

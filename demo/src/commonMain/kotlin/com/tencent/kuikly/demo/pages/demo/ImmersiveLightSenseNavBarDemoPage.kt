@@ -16,7 +16,7 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
  * 标题栏的内容（返回箭头 + 居中标题）由 NavigationBar 自己搬进沉浸光感容器，
  * 业务不需要知道容器的存在、也不需要自己往容器里塞内容。
  */
-@Page("ImmersiveLightSenseNavBarDemoPage")
+@Page("12014")
 internal class ImmersiveLightSenseNavBarDemoPage : BasePager() {
 
     override fun body(): ViewBuilder {

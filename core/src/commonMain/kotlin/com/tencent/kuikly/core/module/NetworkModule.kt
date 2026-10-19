@@ -25,6 +25,21 @@ typealias NMAllResponse = (data: JSONObject, success : Boolean , errorMsg: Strin
 typealias NMDataResponse = (data: ByteArray, success: Boolean, errorMsg: String, response: NetworkResponse) -> Unit
 
 /**
+ * 流式 HTTP 文本请求的事件回调，见 [NetworkModule.httpStreamRequest]。
+ *
+ * 每个请求最多收到一次终态事件（complete 或 error），之后不再回调；主动调用
+ * [NetworkModule.StreamRequestHandle.close] 后不会再收到任何事件。
+ *
+ * @param event 事件类型："data" | "complete" | "error"
+ * @param data "data" 时为本次收到的 UTF-8 文本分片（边界由网络决定，不是完整的 SSE 事件或业务消息，
+ *             非法字节会被替换为 U+FFFD）；"complete" 时为空字符串；"error" 时为错误描述
+ * @param response 首次 "data" 事件携带响应头与状态码；HTTP 错误导致的 "error" 事件同样携带；
+ *                 其余事件为 null。鸿蒙平台在数据到达时无法取得状态码，首次 "data" 的
+ *                 statusCode 为 null，非 2xx 响应以 "error" 事件的 statusCode 为准
+ */
+typealias NMStreamEventCallback = (event: String, data: String, response: NetworkResponse?) -> Unit
+
+/**
  * 表示网络响应的数据类。
  *
  * @property headerFields 包含响应头字段的JSONObject。
@@ -216,10 +231,132 @@ class NetworkModule : Module() {
         )
     }
 
+    /**
+     * 流式 HTTP 文本请求：在响应体到达过程中按网络分片逐块回调 UTF-8 文本，无需等待完整响应。
+     *
+     * 本接口只负责传输文本，不解析上层协议。对接 SSE、NDJSON 等协议时，业务需将 "data" 分片
+     * 按顺序拼接后自行增量解析（SSE 可参考 Demo 中的 SSEEventParser）。目前仅支持 Android、iOS、鸿蒙。
+     *
+     * @param url 请求 URL
+     * @param isPost 是否为 POST 请求
+     * @param param 请求参数。GET 时拼接到 URL；POST 时作为 body：Content-Type 含 json 时序列化为 JSON，
+     *              否则按 UTF-8 application/x-www-form-urlencoded 编码（未指定 Content-Type 时自动补齐）
+     * @param headers 自定义请求头
+     * @param cookie Cookie 字符串
+     * @param timeout 连接超时与空闲超时（秒）：连续 timeout 秒没有收到数据即以 error 结束，收到数据会重新计时，
+     *                不限制持续推送的总时长；<= 0 时使用默认值 30 秒
+     * @param eventCallback 流式事件回调
+     * @return StreamRequestHandle 流式请求句柄
+     */
+    fun httpStreamRequest(
+        url: String,
+        isPost: Boolean,
+        param: JSONObject? = null,
+        headers: JSONObject? = null,
+        cookie: String? = null,
+        timeout: Int = 30,
+        eventCallback: NMStreamEventCallback
+    ): StreamRequestHandle {
+        val requestId = "stream_${streamRequestIdCounter++}"
+        val params = JSONObject().apply {
+            put("url", url)
+            put("method", if (isPost) "POST" else "GET")
+            param?.also {
+                put("param", it)
+            }
+            headers?.also {
+                put("headers", it)
+            }
+            cookie?.also {
+                put("cookie", it)
+            }
+            put("timeout", timeout)
+            put("requestId", requestId)
+        }
+        var callbackRef: CallbackRef? = null
+        var terminalEventBeforeRefAssigned = false
+        val returnValue = toNative(
+            true,
+            METHOD_HTTP_STREAM_REQUEST,
+            params.toString(),
+            callback = { res ->
+                res?.also {
+                    val event = it.optString("event", "")
+                    val data = it.optString("data", "")
+                    var networkResponse: NetworkResponse? = null
+                    if (it.has("headers") || it.has("statusCode")) {
+                        val respHeaders = it.optString("headers", "{}").toJSONObjectSafely()
+                        var statusCode: Int? = null
+                        if (it.has("statusCode")) {
+                            statusCode = it.optInt("statusCode")
+                        }
+                        networkResponse = NetworkResponse(respHeaders ?: JSONObject(), statusCode)
+                    }
+                    val isTerminalEvent = event == STREAM_EVENT_COMPLETE || event == STREAM_EVENT_ERROR
+                    try {
+                        eventCallback(event, data, networkResponse)
+                    } finally {
+                        if (isTerminalEvent) {
+                            val ref = callbackRef
+                            if (ref != null) {
+                                removeCallback(ref)
+                            } else {
+                                terminalEventBeforeRefAssigned = true
+                            }
+                        }
+                    }
+                }
+            },
+            syncCall = false
+        )
+        callbackRef = returnValue.callbackRef
+        if (terminalEventBeforeRefAssigned) {
+            callbackRef?.also { removeCallback(it) }
+        }
+        return StreamRequestHandle(this, callbackRef, requestId)
+    }
+
+    /**
+     * 流式请求句柄，用于主动关闭流式连接。
+     */
+    class StreamRequestHandle internal constructor(
+        private val module: NetworkModule,
+        private val callbackRef: CallbackRef?,
+        private val requestId: String
+    ) {
+        private var closed = false
+
+        /**
+         * 关闭流式连接并释放资源。可重复调用；关闭后不会再回调任何事件（包括 complete/error）。
+         */
+        fun close() {
+            if (closed) return
+            closed = true
+            val params = JSONObject().apply {
+                put("requestId", requestId)
+            }
+            module.toNative(
+                false,
+                METHOD_CLOSE_STREAM_REQUEST,
+                params.toString(),
+                null,
+                false
+            )
+            callbackRef?.also {
+                module.removeCallback(it)
+            }
+        }
+    }
+
     companion object {
         const val MODULE_NAME = ModuleConst.NETWORK
         private const val METHOD_HTTP_REQUEST = "httpRequest"
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_CLOSE_STREAM_REQUEST = "closeStreamRequest"
+        private const val STREAM_EVENT_COMPLETE = "complete"
+        private const val STREAM_EVENT_ERROR = "error"
+        private var streamRequestIdCounter = 0L
 
         private fun Any.toJSONObjectSafely(): JSONObject? {
             return when {

@@ -20,6 +20,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,7 +76,6 @@ extern int g_kuikly_disable_view_reuse;
 void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue &params,
                                      const KRRenderCallback &callback) {
     if (method == "toImage") {
-        std::string instance_id = GetInstanceId();
         std::string method_name = method;
         // set node id before taking a snapshot
         std::string nodeId = GetNodeId();
@@ -86,7 +86,7 @@ void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue
             std::dynamic_pointer_cast<IKRRenderViewExport>(shared_from_this());
         if (auto root = GetRootView().lock()) {
             auto manager = root->GetSnapshotManager();
-            manager->TakeSnapshot(instance_id, method_name, nodeId, params, callback, weak_view);
+            manager->TakeSnapshot(GetInstanceIdValue(), method_name, nodeId, params, callback, weak_view);
         }
         return;
     }
@@ -103,10 +103,10 @@ void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue
         // announce params 直接透传 kotlin 侧的 message；focus params 覆盖为 nodeId，
         // 让 ArkTS 侧在 view 未注册（CAPI 组件）时也能拿到 customId 走全局兜底。
         auto forwarded_params =
-            (method == "accessibilityFocus") ? KRRenderValue::Make(nodeId) : params;
+            (method == "accessibilityFocus") ? KRRenderValue::Make(kuikly::util::AsciiToUTF16(nodeId)) : params;
         KRArkTSManager::GetInstance().CallArkTSMethod(
-            GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
-            KRRenderValue::Make(GetViewTag()), KRRenderValue::Make(method),
+            GetInstanceIdValue(), KRNativeCallArkTSMethod::CallViewMethod,
+            KRRenderValue::Make(GetViewTag()), KRRenderValue::Make(kuikly::util::AsciiToUTF16(method)),
             forwarded_params, nullptr, nullptr, callback);
         return;
     }
@@ -393,8 +393,17 @@ IKRRenderViewExport::GetSelectedTextAndScrollViews() {
 void IKRRenderViewExport::GetSelectedTextAndScrollViews(
     std::vector<std::shared_ptr<IKRRenderViewExport>> &text_views,
     std::vector<std::shared_ptr<IKRRenderViewExport>> &scroll_views) {
-    auto cmp = [](std::shared_ptr<IKRRenderViewExport> a, std::shared_ptr<IKRRenderViewExport> b) {
-        return a->GetFrame().Origin() < b->GetFrame().Origin();
+    // 原点相同时按指针区分，避免 RichText 与叠放的 ImageSpan 在 set 里互相覆盖。
+    auto cmp = [](const std::shared_ptr<IKRRenderViewExport> &a, const std::shared_ptr<IKRRenderViewExport> &b) {
+        const KRPoint origin_a = a->GetFrame().Origin();
+        const KRPoint origin_b = b->GetFrame().Origin();
+        if (origin_a < origin_b) {
+            return true;
+        }
+        if (origin_b < origin_a) {
+            return false;
+        }
+        return a.get() < b.get();
     };
     std::set<std::shared_ptr<IKRRenderViewExport>, decltype(cmp)> sorted_sub_render_views(cmp);
     sorted_sub_render_views.insert(sub_render_views_.begin(), sub_render_views_.end());

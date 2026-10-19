@@ -31,6 +31,14 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
 
     val renderContextInitFinishTimestamp get() = getEventTimestamp(EVENT_ON_CONTEXT_INIT_FINISH)
 
+    val renderLayerInitReadCacheStartTimestamp get() = getEventTimestamp(EVENT_ON_INIT_LAYER_READ_CACHE_START)
+
+    val renderLayerInitReadCacheFinishTimestamp get() = getEventTimestamp(EVENT_ON_INIT_LAYER_READ_CACHE_FINISH)
+
+    val renderLayerInitRenderCacheStartTimestamp get() = getEventTimestamp(EVENT_ON_INIT_LAYER_RENDER_CACHE_START)
+
+    val renderLayerInitRenderCacheFinishTimestamp get() = getEventTimestamp(EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH)
+
     val createInstanceStartTimestamp get() = getEventTimestamp(EVENT_ON_CREATE_INSTANCE_START)
 
     val newPageStartTimestamp get() = getEventTimestamp(EVENT_ON_NEW_PAGE_START)
@@ -75,6 +83,22 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
                 return 0L
             }
             return eventTimestamps[EVENT_ON_INIT_CORE_FINISH] - eventTimestamps[EVENT_ON_INIT_CORE_START]
+        }
+
+    val initRenderLayerReadCacheCost: Long
+        get() {
+            if (eventTimestamps.size < EVENT_COUNT) {
+                return 0L
+            }
+            return eventTimestamps[EVENT_ON_INIT_LAYER_READ_CACHE_FINISH] - eventTimestamps[EVENT_ON_INIT_LAYER_READ_CACHE_START]
+        }
+
+    val initRenderLayerRenderCacheCost: Long
+        get() {
+            if (eventTimestamps.size < EVENT_COUNT) {
+                return 0L
+            }
+            return eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH] - eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_START]
         }
 
     val createInstanceCost: Long
@@ -130,7 +154,11 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
             if (eventTimestamps.size < EVENT_COUNT) {
                 return 0L
             }
-            return eventTimestamps[EVENT_ON_FIRST_FRAME_PAINT] - eventTimestamps[EVENT_ON_CREATE_PAGE_FINISH]
+            return if (eventTimestamps[EVENT_ON_FIRST_FRAME_PAINT] >= eventTimestamps[EVENT_ON_CREATE_PAGE_FINISH]) {
+                eventTimestamps[EVENT_ON_FIRST_FRAME_PAINT] - eventTimestamps[EVENT_ON_CREATE_PAGE_FINISH]
+            } else {
+                eventTimestamps[EVENT_ON_FIRST_FRAME_PAINT] - eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_START]
+            }
         }
 
     val firstFramePaintCost: Long
@@ -158,6 +186,8 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
         private const val KEY_FETCH_CONTEXT_CODE_COST = "fetchContextCodeCost"
         private const val KEY_INIT_RENDER_CONTEXT_COST = "initRenderContextCost"
         private const val KEY_INIT_RENDER_CORE_COST = "initRenderCoreCost"
+        private const val KEY_INIT_RENDER_LAYER_READ_CACHE_COST = "initRenderLayerReadCacheCost"
+        private const val KEY_INIT_RENDER_LAYER_RENDER_CACHE_COST = "initRenderLayerRenderCacheCost"
         private const val KEY_NEW_PAGE_COST = "newPageCost"
         private const val KEY_PAGE_BUILD_COST = "pageBuildCost"
         private const val KEY_PAGE_LAYOUT_COST = "pageLayoutCost"
@@ -172,7 +202,11 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
         const val EVENT_ON_INIT_CORE_FINISH = EVENT_ON_INIT_CORE_START + 1
         const val EVENT_ON_CONTEXT_INIT_START = EVENT_ON_INIT_CORE_FINISH + 1
         const val EVENT_ON_CONTEXT_INIT_FINISH = EVENT_ON_CONTEXT_INIT_START + 1
-        const val EVENT_ON_CREATE_INSTANCE_START = EVENT_ON_CONTEXT_INIT_FINISH + 1
+        const val EVENT_ON_INIT_LAYER_READ_CACHE_START = EVENT_ON_CONTEXT_INIT_FINISH + 1
+        const val EVENT_ON_INIT_LAYER_READ_CACHE_FINISH = EVENT_ON_INIT_LAYER_READ_CACHE_START + 1
+        const val EVENT_ON_INIT_LAYER_RENDER_CACHE_START = EVENT_ON_INIT_LAYER_READ_CACHE_FINISH + 1
+        const val EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH = EVENT_ON_INIT_LAYER_RENDER_CACHE_START + 1
+        const val EVENT_ON_CREATE_INSTANCE_START = EVENT_ON_INIT_LAYER_RENDER_CACHE_FINISH + 1
         const val EVENT_ON_NEW_PAGE_START = EVENT_ON_CREATE_INSTANCE_START + 1
         const val EVENT_ON_NEW_PAGE_FINISH = EVENT_ON_NEW_PAGE_START + 1
         const val EVENT_ON_CREATE_PAGE_START = EVENT_ON_NEW_PAGE_FINISH + 1
@@ -194,6 +228,8 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
             put(KEY_PRELOAD_CLASS_COST, preloadClassCost)
             put(KEY_FETCH_CONTEXT_CODE_COST, 0)
             put(KEY_INIT_RENDER_CONTEXT_COST, initRenderContextCost)
+            put(KEY_INIT_RENDER_LAYER_READ_CACHE_COST, initRenderLayerReadCacheCost)
+            put(KEY_INIT_RENDER_LAYER_RENDER_CACHE_COST, initRenderLayerRenderCacheCost)
             put(KEY_INIT_RENDER_CORE_COST, initRenderCoreCost)
             put(KEY_NEW_PAGE_COST, newPageCost)
             put(KEY_PAGE_BUILD_COST, pageBuildCost)
@@ -205,17 +241,32 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
         }
     }
 
-    override fun toString() = "[KRLaunchMeta] \n" +
-            "firstFramePaintCost: $firstFramePaintCost \n" +
-            "   -- initRenderViewCost: $initRenderViewCost \n" +
-            "       -- preloadClassCost: $preloadClassCost \n" +
-            "   -- initRenderCoreCost: $initRenderCoreCost \n" +
-            "   -- initRenderContextCost: $initRenderContextCost \n" +
-            "   -- createInstanceCost: $createInstanceCost \n" +
-            "       -- newPageCost: $newPageCost \n" +
-            "       -- onPageCreateCost: $pageCreateCost \n" +
-            "           -- pageBuildCost: $pageBuildCost \n" +
-            "           -- pageLayoutCost: $pageLayoutCost \n" +
-            "   -- renderCost: $renderCost \n"
+    override fun toString(): String {
+        if (eventTimestamps[EVENT_ON_INIT_LAYER_RENDER_CACHE_START] > 0L) {
+            return "[KRLaunchMeta] \n" +
+                    "firstFramePaintCost: $firstFramePaintCost \n" +
+                    "   -- initRenderViewCost: $initRenderViewCost \n" +
+                    "       -- preloadDexClassCost: $preloadClassCost \n" +
+                    "   -- initRenderCoreCost: $initRenderCoreCost \n" +
+                    "   -- initRenderContextCost: $initRenderContextCost \n" +
+                    "   -- initRenderLayerReadCacheCost: $initRenderLayerReadCacheCost \n" +
+                    "   -- renderCost: $renderCost \n"
+        } else {
+            return "[KRLaunchMeta] \n" +
+                    "firstFramePaintCost: $firstFramePaintCost \n" +
+                    "   -- initRenderViewCost: $initRenderViewCost \n" +
+                    "       -- preloadDexClassCost: $preloadClassCost \n" +
+                    "   -- initRenderCoreCost: $initRenderCoreCost \n" +
+                    "   -- initRenderContextCost: $initRenderContextCost \n" +
+                    "   -- initRenderLayerReadCacheCost: $initRenderLayerReadCacheCost \n" +
+                    "   -- initRenderLayerRenderCacheCost: $initRenderLayerRenderCacheCost \n" +
+                    "   -- createInstanceCost: $createInstanceCost \n" +
+                    "       -- newPageCost: $newPageCost \n" +
+                    "       -- onPageCreateCost: $pageCreateCost \n" +
+                    "           -- pageBuildCost: $pageBuildCost \n" +
+                    "           -- pageLayoutCost: $pageLayoutCost \n" +
+                    "   -- renderCost: $renderCost \n"
+        }
+    }
 
 }

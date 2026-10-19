@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
+import com.tencent.kuikly.compose.scroller.AndroidBackgroundAlignmentState
 import com.tencent.kuikly.compose.ui.node.StickyHeaderCacheManager
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.core.layout.Frame
@@ -82,6 +83,14 @@ class KuiklyScrollInfo {
      * Real contentSize after scrolling to the bottom
      */
     var realContentSize: Int? = null
+
+    /**
+     * Clear the pinned exact size so the next scroll can recompute it
+     * after a real layout change.
+     */
+    internal fun clearExactContentSize() {
+        realContentSize = null
+    }
 
     /**
      * Whether the offset has deviation
@@ -156,6 +165,8 @@ class KuiklyScrollInfo {
      */
     var skipExpandStartSize: Boolean = false
 
+    internal val androidBackgroundAlignmentState = AndroidBackgroundAlignmentState()
+
     /**
      * Sticky Header Position Cache Manager
      */
@@ -173,7 +184,12 @@ class KuiklyScrollInfo {
      */
     fun updateContentSizeToRender() {
         val frame = createContentFrame()
-        scrollView?.contentView?.setFrameToRenderView(frame)
+        val contentView = scrollView?.contentView
+        // called on every native scroll event; skip the bridge call when the native frame is unchanged
+        if (contentView?.renderView?.currentFrame == frame) {
+            return
+        }
+        contentView?.setFrameToRenderView(frame)
     }
 
     /**

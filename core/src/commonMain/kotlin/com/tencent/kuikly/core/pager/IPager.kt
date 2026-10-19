@@ -121,6 +121,10 @@ interface IPager {
         return null
     }
 
+    /** Stores page-local runtime state without mirroring it to the native memory-cache module. */
+    fun setValueForKey(key: String, value: Any?) {
+    }
+
     fun isWillDestroy(): Boolean {
         return false
     }

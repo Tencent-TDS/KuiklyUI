@@ -7,7 +7,6 @@ import com.tencent.kuikly.core.render.web.collection.array.remove
 import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.set
-import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.ktx.pxToFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
@@ -18,7 +17,6 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Transform
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.UpdatePayload
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.UpdateType
-import com.tencent.kuikly.core.render.web.runtime.miniapp.processor.RichTextProcessor
 import com.tencent.kuikly.core.render.web.utils.Log
 import kotlin.js.Json
 import kotlin.js.Promise
@@ -53,9 +51,6 @@ object MiniElementUtil {
 open class MiniElement(var nodeName: String, val nodeType: Int) {
     // User set id
     private var uid = ""
-
-    // Placeholder ImageView list
-    private var imageSpanViewList: JsArray<MiniElement> = JsArray()
 
     // border width ratio with width and height, too close means used as border
     private val borderWithSizeRatio = 5
@@ -347,9 +342,6 @@ open class MiniElement(var nodeName: String, val nodeType: Int) {
             }
         }
 
-        // Handle special case of rich text placeholder image insertion
-        handleRichTextImageSpanInsert(ele)
-
         return ele
     }
 
@@ -561,68 +553,6 @@ open class MiniElement(var nodeName: String, val nodeType: Int) {
                 )
             }
         }
-    }
-
-    /**
-     * Save placeholder image view
-     */
-    private fun saveImageSpanView(view: MiniElement) {
-        val hasElement = imageSpanViewList.indexOf(view)
-        if (hasElement == -1) {
-            // Element not inserted yet, insert it
-            imageSpanViewList.push(view)
-        }
-    }
-
-    /**
-     * Handle special case of rich text placeholder image insertion,
-     * need to insert placeholder image into placeholder span
-     */
-    private fun handleRichTextImageSpanInsert(view: MiniElement) {
-        // Placeholder image structure is special, only has one child image node with fixed image style
-        if (
-            view.childNodes.length == 1 &&
-            view.firstElementChild is MiniImageElement &&
-            view.firstElementChild?.style?.cssText == RICH_TEXT_PLACEHOLDER_IMAGE_STYLE
-        ) {
-            // Save placeholder image node
-            saveImageSpanView(view)
-            // Insert image placeholder, first get placeholder image index
-            val imageIndex = imageSpanViewList.indexOf(view)
-            // Calculated index
-            var usedIndex = 0
-            // Traverse child nodes, handle image placeholders
-            childNodes.forEach { item ->
-                if (item is MiniParagraphElement) {
-                    val krRichTextView = item.asDynamic().krRichTextView.unsafeCast<KRRichTextView?>()
-                    if (krRichTextView != null && krRichTextView.isRichText && krRichTextView.imageSpanCount > 0) {
-                        // Only process rich text nodes containing placeholder image nodes
-                        // Note each rich text contains
-                        for (index in 1 until krRichTextView.imageSpanCount + 1) {
-                            if (imageIndex < usedIndex + index) {
-                                // If placeholder image belongs to current rich text node, process it
-                                // Note the index passed here is the placeholder image index in rich text
-                                RichTextProcessor.insertPlaceHolderImageView(
-                                    krRichTextView,
-                                    view,
-                                    index - 1
-                                )
-                                // Processing complete, return
-                                return@forEach
-                            }
-                            // Processing complete, add processed index
-                            usedIndex += 1
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    companion object {
-        // Rich text placeholder image special style
-        private const val RICH_TEXT_PLACEHOLDER_IMAGE_STYLE =
-            "box-sizing: border-box; width: 100%; height: 100%; display: block;"
     }
 }
 

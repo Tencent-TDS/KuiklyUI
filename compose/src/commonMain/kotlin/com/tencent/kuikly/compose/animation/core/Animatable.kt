@@ -128,6 +128,7 @@ class Animatable<T, V : AnimationVector>(
         private set
 
     private val mutatorMutex = MutatorMutex()
+    private var nativeAnimationReplacementRequested = false
     internal val defaultSpringSpec: SpringSpec<T> =
         SpringSpec(visibilityThreshold = visibilityThreshold)
 
@@ -149,6 +150,7 @@ class Animatable<T, V : AnimationVector>(
 
     private var lowerBoundVector: V = negativeInfinityBounds
     private var upperBoundVector: V = positiveInfinityBounds
+    private var hasExplicitBounds = false
 
     /**
      * Updates either [lowerBound] or [upperBound], or both. This will update
@@ -188,6 +190,7 @@ class Animatable<T, V : AnimationVector>(
 
         this.upperBound = upperBound
         this.lowerBound = lowerBound
+        hasExplicitBounds = lowerBound != null || upperBound != null
         if (!isRunning) {
             val clampedValue = clampToBounds(value)
             if (clampedValue != value) {
@@ -235,6 +238,20 @@ class Animatable<T, V : AnimationVector>(
         initialVelocity: T = velocity,
         block: (Animatable<T, V>.() -> Unit)? = null
     ): AnimationResult<T, V> {
+        animationSpec.nativeAnimatableCandidateOrNull(
+            initialValue = value,
+            targetValue = targetValue,
+            initialVelocity = initialVelocity,
+            converter = typeConverter,
+            hasFrameBlock = block != null,
+            hasExplicitBounds = hasExplicitBounds
+        )?.let { candidate ->
+            runNativeAnimation(
+                targetValue,
+                candidate.animation,
+                candidate.coordinator
+            )?.let { return it }
+        }
         val anim = TargetBasedAnimation(
             animationSpec = animationSpec,
             initialValue = value,
@@ -243,6 +260,70 @@ class Animatable<T, V : AnimationVector>(
             initialVelocity = initialVelocity
         )
         return runAnimation(anim, initialVelocity, block)
+    }
+
+    private suspend fun runNativeAnimation(
+        nativeTargetValue: T,
+        nativeAnimation: com.tencent.kuikly.core.base.Animation,
+        coordinator: NativeAnimationCoordinator
+    ): AnimationResult<T, V>? {
+        val initialValue = value
+        NativeAnimationTrace.log {
+            "animatable run from=$initialValue to=$nativeTargetValue descriptor=$nativeAnimation"
+        }
+        return mutateWithNativeReplacement {
+            try {
+                targetValue = nativeTargetValue
+                isRunning = true
+                val committed = coordinator.animate(
+                    nativeAnimation,
+                    initialValue,
+                    nativeTargetValue,
+                    shouldPreservePresentationOnCancellation = {
+                        nativeAnimationReplacementRequested
+                    }
+                ) {
+                    // Native mode exposes the logical target immediately. The native presentation
+                    // value is intentionally not reflected back into this State.
+                    internalState.value = nativeTargetValue
+                }
+                if (!committed) {
+                    NativeAnimationTrace.log {
+                        "animatable fallback from=$initialValue to=$nativeTargetValue"
+                    }
+                    internalState.value = initialValue
+                    targetValue = initialValue
+                    endAnimation()
+                    return@mutateWithNativeReplacement null
+                }
+                val endState = internalState.copy()
+                NativeAnimationTrace.log {
+                    "animatable completed target=$nativeTargetValue"
+                }
+                endAnimation()
+                AnimationResult(endState, Finished)
+            } catch (e: CancellationException) {
+                NativeAnimationTrace.log {
+                    "animatable cancelled target=$nativeTargetValue"
+                }
+                // Keep the logical target on cancellation. Native Render owns the presentation
+                // continuation/cancellation and a replacement animation starts from that state.
+                endAnimation()
+                throw e
+            }
+        }
+    }
+
+    private suspend fun <R> mutateWithNativeReplacement(block: suspend () -> R): R {
+        nativeAnimationReplacementRequested = true
+        return try {
+            mutatorMutex.mutate {
+                nativeAnimationReplacementRequested = false
+                block()
+            }
+        } finally {
+            nativeAnimationReplacementRequested = false
+        }
     }
 
     /**

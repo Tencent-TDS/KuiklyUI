@@ -27,6 +27,7 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.base.toInt
+import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.FlexPositionType
@@ -117,9 +118,7 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         val cHeight = measureHeightToFloat(height)
         val cWidth = measureWidthToFloat(width)
         var size = shadow?.calculateRenderViewSize(cWidth, cHeight) ?: Size(0f, 0f)
-        if (flexNode.flex != 0f && flexNode.positionType == FlexPositionType.RELATIVE) {
-            size = flexLayoutSize(size ?: Size(0f, 0f), width, height)
-        }
+        size = flexNode.textStretchSize(size, width, height)
         if (!flexNode.styleWidth.isUndefined()) {
             size = Size(flexNode.styleWidth, size.height)
         }
@@ -207,27 +206,38 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         if (outputHeight < fitHeight) outputHeight = fitHeight
         return Size(measureOutputSize.width, outputHeight)
     }
+}
 
-    private fun flexLayoutSize(measureOutputSize: Size, fitWidth: Float, fitHeight: Float): Size {
-        val flexDirection = flexNode.parent?.flexDirection
-        if (flexDirection == FlexDirection.ROW || flexDirection == FlexDirection.ROW_REVERSE) {
-            if (fitWidth.isUndefined()) {
-                return measureOutputSize
-            }
-            var outWidth = measureOutputSize.width
-            if (outWidth < fitWidth) outWidth = fitWidth
-            return Size(outWidth, measureOutputSize.height)
-        } else {
-            if (fitHeight.isUndefined()) {
-                return measureOutputSize
-            }
-            var outHeight = measureOutputSize.height
-            if (outHeight < fitHeight) outHeight = fitHeight
-            return Size(measureOutputSize.width, outHeight)
-
-        }
+/**
+ * Text / RichText 的拉伸尺寸，只放大不压缩：
+ * - 主轴：flex 不为 0 时撑满
+ * - 交叉轴：仅自身显式 alignSelf(STRETCH) 时撑满，不跟随父容器 alignItems，以兼容存量页面
+ */
+internal fun FlexNode.textStretchSize(size: Size, width: Float, height: Float): Size {
+    if (positionType != FlexPositionType.RELATIVE) {
+        return size
     }
+    val isRowParent = parent?.flexDirection == FlexDirection.ROW ||
+        parent?.flexDirection == FlexDirection.ROW_REVERSE
+    val crossStretch = alignSelf == FlexAlign.STRETCH
+    val stretchWidth = if (isRowParent) {
+        flex != 0f
+    } else {
+        crossStretch && parent?.layoutWidth?.isUndefined() == false
+    }
+    val stretchHeight = if (isRowParent) {
+        crossStretch && parent?.layoutHeight?.isUndefined() == false
+    } else {
+        flex != 0f
+    }
+    return Size(
+        stretchTo(size.width, width, stretchWidth),
+        stretchTo(size.height, height, stretchHeight)
+    )
+}
 
+private fun stretchTo(measured: Float, available: Float, stretch: Boolean): Float {
+    return if (stretch && !available.isUndefined() && measured < available) available else measured
 }
 
 open class TextAttr : Attr() {
@@ -405,6 +415,14 @@ open class TextAttr : Attr() {
         return this
     }
 
+    /**
+     * 两端对齐。软换行且撑满容器的行拉伸至左右边缘；末行、硬换行行与短单行保持左对齐。
+     */
+    open fun textAlignJustify(): TextAttr {
+        TextConst.TEXT_ALIGN with TextAlign.JUSTIFY.value
+        return this
+    }
+
     open fun lineHeight(lineHeight: Float): TextAttr {
         TextConst.LINE_HEIGHT with lineHeight
         return this
@@ -564,7 +582,8 @@ object TextConst {
 enum class TextAlign(val value: String) {
     LEFT("left"),
     CENTER("center"),
-    RIGHT("right")
+    RIGHT("right"),
+    JUSTIFY("justify")
 }
 
 enum class FontStyle(val value: String) {

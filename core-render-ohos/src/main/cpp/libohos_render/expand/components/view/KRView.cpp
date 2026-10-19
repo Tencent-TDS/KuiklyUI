@@ -22,6 +22,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRJSONObject.h"
 #include "libohos_render/utils/KRViewUtil.h"
 #include "libohos_render/view/KRRenderView.h"
@@ -166,6 +167,15 @@ void KRView::CallMethod(const std::string &method, const KRAnyValue &params, con
 
 bool KRView::IsSelectable() {
     return selectable_option_ != DISABLE;
+}
+
+int32_t KRView::GetChildCount() {
+    // 选区手柄不是业务子节点。计入后，后续插入的子节点会排到手柄下面。
+    int32_t count = IKRRenderViewExport::GetChildCount();
+    if (selection_info_.handle_nodes[0].wrapper != nullptr) {
+        count -= static_cast<int32_t>(sizeof(selection_info_.handle_nodes) / sizeof(selection_info_.handle_nodes[0]));
+    }
+    return count < 0 ? 0 : count;
 }
 
 void KRView::HandleCreateSelection(const KRAnyValue &params) {
@@ -323,24 +333,24 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     bool postContentInserted = false;
 
     if (pre && !pre->GetTextContent().empty()) {
-        preContent.push_back(NewKRRenderValue(pre->GetTextContent()));
+        preContent.push_back(KRRenderValue::Make(pre->GetTextContent()));
     }
 
     if (post && !post->GetTextContent().empty()) {
-        postContent.push_back(NewKRRenderValue(post->GetTextContent()));
+        postContent.push_back(KRRenderValue::Make(post->GetTextContent()));
     }
     for (auto item : selected_text_views) {
-        std::string preText;
-        std::string postText;
-        content.push_back(NewKRRenderValue(item->GetSelectedContent(preText, postText)));
+        std::u16string preText;
+        std::u16string postText;
+        content.push_back(KRRenderValue::Make(item->GetSelectedContent(preText, postText)));
 
         if (!preContentInserted && !preText.empty()) {
-            preContent.push_back(NewKRRenderValue(preText));
+            preContent.push_back(KRRenderValue::Make(preText));
             preContentInserted = true;
         }
 
         if (!postContentInserted && !postText.empty()) {
-            postContent.insert(postContent.begin(), NewKRRenderValue(postText));
+            postContent.insert(postContent.begin(), KRRenderValue::Make(postText));
             postContentInserted = true;
         }
     }
@@ -351,9 +361,9 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     }
 
     KRRenderValueMap dict;
-    dict["preContent"] = NewKRRenderValue(preContent);
-    dict["content"] = NewKRRenderValue(content);
-    dict["postContent"] = NewKRRenderValue(postContent);
+    dict[u"preContent"] = NewKRRenderValue(preContent);
+    dict[u"content"] = NewKRRenderValue(content);
+    dict[u"postContent"] = NewKRRenderValue(postContent);
     cb(NewKRRenderValue(dict));
 }
 
@@ -596,6 +606,7 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     }
 
     KRRenderValueArray touches;
+    KRRenderValueMap first_touch;
     for (int i = 0; i < pointer_count; i++) {
         auto point = kuikly::util::GetArkUIInputEventPoint(input_event, i);
         auto window_point = kuikly::util::GetArkUIInputEventWindowPoint(input_event, i);
@@ -604,20 +615,22 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
         float container_relative_y = window_point.y - container_position.y;
 
         KRRenderValueMap touch_map;
-        touch_map["x"] = NewKRRenderValue(point.x);
-        touch_map["y"] = NewKRRenderValue(point.y);
-        touch_map["pageX"] = NewKRRenderValue(container_relative_x);
-        touch_map["pageY"] = NewKRRenderValue(container_relative_y);
-        touch_map["pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
-        touches.push_back(NewKRRenderValue(touch_map));
+        touch_map[u"x"] = NewKRRenderValue(point.x);
+        touch_map[u"y"] = NewKRRenderValue(point.y);
+        touch_map[u"pageX"] = NewKRRenderValue(container_relative_x);
+        touch_map[u"pageY"] = NewKRRenderValue(container_relative_y);
+        touch_map[u"pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
+        if (i == 0) {
+            first_touch = touch_map;
+        }
+        touches.push_back(NewKRRenderValue(std::move(touch_map)));
     }
-    auto first_touch = touches[0]->toMap();
-    first_touch["touches"] = NewKRRenderValue(touches);
-    first_touch["action"] = NewKRRenderValue(action);
+    first_touch[u"touches"] = NewKRRenderValue(touches);
+    first_touch[u"action"] = NewKRRenderValue(action);
     auto event_time_millis = kuikly::util::GetArkUIInputEventTime(input_event) / NS_PER_MS;
-    first_touch["timestamp"] = NewKRRenderValue(event_time_millis);
+    first_touch[u"timestamp"] = NewKRRenderValue(event_time_millis);
     if (super_touch_handler_) {
-        first_touch["consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
+        first_touch[u"consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
     }
     return NewKRRenderValue(first_touch);
 }
@@ -752,6 +765,12 @@ void KRView::CleanupHandleNodes() {
     selection_info_ = {};
 }
 
+static void ConfigureSelectionHandleNode(ArkUI_NodeHandle node) {
+    // 高于文本和 ImageSpan，避免手柄被盖住。
+    constexpr int kSelectionHandleZIndex = 100;
+    kuikly::util::UpdateNodeZIndex(node, kSelectionHandleZIndex);
+}
+
 void KRView::UpdateSelectionHandles() {
     constexpr int kSelectorWidth = 20;
     constexpr int kSelectorCapWidth = 12;
@@ -771,6 +790,7 @@ void KRView::UpdateSelectionHandles() {
                                                                   kSelectorWidth / 2, kSelectorWidth / 2));
             kuikly::util::UpdateNodeBackgroundColor(head, kSelectorColor);
             kuikly::util::UpdateNodeBackgroundColor(body, kSelectorColor);
+            ConfigureSelectionHandleNode(wrapper);
 
             kuikly::util::UpdateNodeVisibility(wrapper, 0);
             nodeApi->addChild(wrapper, head);
@@ -790,12 +810,23 @@ void KRView::UpdateSelectionHandles() {
         }
     }
 
+    KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
+                        selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
+                        selection_info_.start.height + kSelectorCapWidth);
+    KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
+                            selection_info_.end.height + kSelectorCapWidth);
+    if (auto props = GetBasePropsHandler()) {
+        // 关闭裁剪会让其他越界子节点一起露出，只在手柄伸出容器时关闭。clipPath 存在时不改 NODE_CLIP。
+        auto frame = GetFrame();
+        auto outside = [&frame](const KRRect &rect) {
+            return rect.x < 0 || rect.y < 0 || rect.x + rect.width > frame.width ||
+                   rect.y + rect.height > frame.height;
+        };
+        props->SetContentClipSuspended(selection_info_.visible &&
+                                       (outside(wrapper_rect) || outside(end_wrapper_rect)));
+    }
+
     if (selection_info_.visible) {
-        constexpr int kSelectorWidth = 20;
-        constexpr int kSelectorCapWidth = 12;
-        KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
-                            selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,
-                            selection_info_.start.height + kSelectorCapWidth);
         KRRect head_rect((kSelectorWidth - kSelectorCapWidth) / 2, 0, kSelectorCapWidth, kSelectorCapWidth);
         KRRect body_rect((kSelectorWidth - selection_info_.start.width) / 2, kSelectorCapWidth,
                          selection_info_.start.width, selection_info_.start.height);
@@ -804,8 +835,6 @@ void KRView::UpdateSelectionHandles() {
         kuikly::util::UpdateNodeFrame(selection_info_.handle_nodes[0].body, body_rect);
         kuikly::util::UpdateNodeVisibility(selection_info_.handle_nodes[0].wrapper, 1);
 
-        KRRect end_wrapper_rect(selection_info_.end.x - kSelectorWidth / 2, selection_info_.end.y, kSelectorWidth,
-                                selection_info_.end.height + kSelectorCapWidth);
         KRRect end_head_rect((kSelectorWidth - kSelectorCapWidth) / 2, selection_info_.end.height, kSelectorCapWidth,
                              kSelectorCapWidth);
         KRRect end_body_rect((kSelectorWidth - selection_info_.end.width) / 2, 0, selection_info_.end.width,
@@ -836,10 +865,10 @@ void KRView::FireSelectionEvent(SelectionEventKind kind) {
     KRRect rect = GetSelectionFrame();
 
     KRRenderValueMap dict;
-    dict["x"] = NewKRRenderValue(rect.x);
-    dict["y"] = NewKRRenderValue(rect.y);
-    dict["width"] = NewKRRenderValue(rect.width);
-    dict["height"] = NewKRRenderValue(rect.height);
+    dict[u"x"] = NewKRRenderValue(rect.x);
+    dict[u"y"] = NewKRRenderValue(rect.y);
+    dict[u"width"] = NewKRRenderValue(rect.width);
+    dict[u"height"] = NewKRRenderValue(rect.height);
     auto param = NewKRRenderValue(dict);
 
     switch (kind) {

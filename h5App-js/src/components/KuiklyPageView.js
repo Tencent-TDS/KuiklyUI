@@ -29,7 +29,7 @@ export class KuiklyPageView {
 
   /**
    * Set load success callback
-   * @param {Function} callback
+   * @param {*} callback - Callback object or function
    * @returns {boolean}
    */
   setLoadSuccessCallback(callback) {
@@ -39,7 +39,7 @@ export class KuiklyPageView {
 
   /**
    * Set load failure callback
-   * @param {Function} callback
+   * @param {*} callback - Callback object or function
    * @returns {boolean}
    */
   setLoadFailureCallback(callback) {
@@ -48,12 +48,68 @@ export class KuiklyPageView {
   }
 
   /**
+   * Get exported Kotlin callback invoke bridge function.
+   * @returns {Function|null}
+   * @private
+   */
+  _getInvokeKuiklyRenderCallbackBridge() {
+    const renderWebModule = window?.com?.tencent?.kuikly?.core?.render?.web;
+    if (!renderWebModule) {
+      return null;
+    }
+
+    if (typeof renderWebModule?.runtime?.web?.expand?.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback;
+    }
+
+    if (typeof renderWebModule?.runtime?.expand?.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.expand.invokeKuiklyRenderCallback;
+    }
+
+    return null;
+  }
+
+  /**
+   * Invoke callback through stable bridge.
+   * Fallback to direct function call for plain JS callbacks.
+   * @param {*} callback
+   * @param {*} result
+   * @returns {boolean}
+   * @private
+   */
+  _invokeCallback(callback, result) {
+    if (!callback) {
+      return false;
+    }
+
+    const invokeBridge = this._getInvokeKuiklyRenderCallbackBridge();
+    if (typeof invokeBridge === 'function') {
+      try {
+        return !!invokeBridge(callback, result);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (typeof callback === 'function') {
+      try {
+        callback(result);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Perform task when Kuikly view is loaded
-   * @param {Function} callback
+   * @param {*} callback - Callback object or function
    */
   performTaskWhenKuiklyViewDidLoad(callback) {
     if (this.kuiklyRenderView !== null) {
-      callback();
+      this._invokeCallback(callback, null);
     } else {
       this.lazyEvents.push(callback);
     }
@@ -91,7 +147,7 @@ export class KuiklyPageView {
    * Perform all lazy tasks
    */
   performAllLazyTasks() {
-    this.lazyEvents.forEach(task => task());
+    this.lazyEvents.forEach(task => this._invokeCallback(task, null));
     this.lazyEvents = [];
   }
 

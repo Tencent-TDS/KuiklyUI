@@ -12,6 +12,7 @@ import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.const.KRTagConst
 import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
+import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
@@ -20,6 +21,7 @@ import com.tencent.kuikly.core.render.web.utils.safeMatchMedia
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
+import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.Json
@@ -424,6 +426,18 @@ var Element.exportAnimationTimeoutId: Int
         this.asDynamic().exportAnimationTimeoutId = value
     }
 
+private fun richTextClickParams(ele: Element, event: Event, clickEvent: dynamic): Map<String, Any> {
+    val params = mutableMapOf<String, Any>(
+        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+    )
+    val rich = ele.asDynamic().krRichTextView.unsafeCast<KRRichTextView?>()
+    if (rich != null) {
+        params["index"] = rich.spanIndexFromEvent(event)
+    }
+    return params
+}
+
 /**
  * set common prop for element
  */
@@ -435,6 +449,39 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
         // animation operation attribute value has been set, no need
         // Set here, directly return
         return true
+    }
+    if (key == KRCssConst.FRAME) {
+        // FIX 1: If element has a pending kuikly-animation (executeAnimationId != 0) but
+        // no active hrAnimation on this call chain, it means a previous animation was just
+        // committed (via commitAnimation -> getAnimationJson -> setTimeout) and the actual
+        // style write is scheduled ~10ms later. In this window, if we let flex layout's
+        // auto-sync `setFrame` (which reaches here) directly write style.left/top/width/height,
+        // it will:
+        //   - overwrite the animation start state prematurely
+        //   - cause the pending executeAnimation's transition to become no-op (oldValue==newValue)
+        //   - trigger a residual browser transition to jump the element instantly
+        // Skip the direct write here; the pending executeAnimation will apply the correct
+        // target values 10ms later with proper transition.
+        val pendingAnimId: dynamic = dynamicElement.executeAnimationId
+        if (jsTypeOf(pendingAnimId) == "number" && pendingAnimId.unsafeCast<Int>() != 0) {
+            return true
+        }
+
+        // FIX 2: If there is no active animation (hrAnimation is null) but the element still has
+        // a residual `animation` attribute referencing an old kuikly-animation CSS rule,
+        // this old rule (which contains `!important`) will override the inline style we're
+        // about to set. This can happen when a previous transition's `transitionend` event
+        // was not fired (e.g. when the target value equals the current computed value, or
+        // when the animation was interrupted). Clear the residual attribute here to ensure
+        // the new inline frame takes effect immediately.
+        // Note: use dynamic + JS typeof check to avoid Kotlin's charSequenceLength on
+        // non-string values returned by getAttribute in mini-app environments.
+        if (ele.hrAnimation == null && jsTypeOf(dynamicElement.getAttribute) == KRJsTypeConst.FUNCTION) {
+            val animAttr: dynamic = ele.getAttribute(KRAttrConst.ANIMATION)
+            if (jsTypeOf(animAttr) == KRJsTypeConst.STRING && animAttr.length.unsafeCast<Int>() > 0) {
+                ele.setAttribute(KRAttrConst.ANIMATION, "")
+            }
+        }
     }
 
     // Otherwise use unified setting method
@@ -930,12 +977,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
             clickEvent.stopPropagation()
             // If no double click handler is registered, invoke the click callback
             if (!hasBindDoubleClick) {
-                value.unsafeCast<KuiklyRenderCallback>().invoke(
-                    mapOf(
-                        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
-                    )
-                )
+                value.unsafeCast<KuiklyRenderCallback>().invoke(richTextClickParams(ele, event, clickEvent))
             } else {
                 // If a double click handler is registered
                 // If the timer exists , clear it (reset the timing)
@@ -944,12 +986,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
                 // Start a new timer and save it
                 ele.asDynamic().clickTimer = kuiklyWindow.setTimeout({
                     // If the double click callback is not triggered within 200ms, invoke the click callback
-                    value.unsafeCast<KuiklyRenderCallback>().invoke(
-                        mapOf(
-                            "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                            "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
-                        )
-                    )
+                    value.unsafeCast<KuiklyRenderCallback>().invoke(richTextClickParams(ele, event, clickEvent))
                     // clear the timer
                     ele.asDynamic().clickTimer = null
                 }, AnimationTimingConst.DOUBLE_CLICK_TIMEOUT_MS)

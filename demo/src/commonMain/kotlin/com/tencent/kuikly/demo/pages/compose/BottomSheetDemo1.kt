@@ -100,18 +100,29 @@ class BottomSheetDemo1 : ComposeContainer() {
     @Composable
     fun ModalBottomSheetTest() {
         var showBottomSheet by remember { mutableStateOf(false) }
+        var useNativeAnimation by remember { mutableStateOf(false) }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier.align(Alignment.Center)
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("显示底部弹窗")
+                Text(if (useNativeAnimation) "当前：Native 动画" else "当前：Compose 动画")
+                Spacer(modifier = Modifier.height(12.dp))
+                AnimationModeButtons(
+                    useNativeAnimation = useNativeAnimation,
+                    onModeChanged = { useNativeAnimation = it }
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { showBottomSheet = true }) {
+                    Text("显示底部弹窗")
+                }
             }
 
             ModalBottomSheet(
                 dismissOnDrag = true,
                 visible = showBottomSheet,
+                preferNativeAnimation = useNativeAnimation,
                 modifier = Modifier
                     .padding(bottom = 24.dp)
                     .clip(RoundedCornerShape(20.dp, 20.dp)),
@@ -148,18 +159,29 @@ class BottomSheetDemo1 : ComposeContainer() {
     @Composable
     fun ModalBottomSheetWithCustomStyle() {
         var showBottomSheet by remember { mutableStateOf(false) }
+        var useNativeAnimation by remember { mutableStateOf(false) }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier.align(Alignment.Center)
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("显示自定义样式底部弹窗")
+                Text(if (useNativeAnimation) "当前：Native 动画" else "当前：Compose 动画")
+                Spacer(modifier = Modifier.height(12.dp))
+                AnimationModeButtons(
+                    useNativeAnimation = useNativeAnimation,
+                    onModeChanged = { useNativeAnimation = it }
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { showBottomSheet = true }) {
+                    Text("显示自定义样式底部弹窗")
+                }
             }
 
             ModalBottomSheet(
-                showBottomSheet,
+                visible = showBottomSheet,
                 onDismissRequest = { showBottomSheet = false },
+                preferNativeAnimation = useNativeAnimation,
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 tonalElevation = 8.dp,
@@ -206,18 +228,29 @@ class BottomSheetDemo1 : ComposeContainer() {
     @Composable
     fun ModalBottomSheetWithScrollableContent() {
         var showBottomSheet by remember { mutableStateOf(false) }
+        var useNativeAnimation by remember { mutableStateOf(false) }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier.align(Alignment.Center)
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("显示可滚动内容底部弹窗")
+                Text(if (useNativeAnimation) "当前：Native 动画" else "当前：Compose 动画")
+                Spacer(modifier = Modifier.height(12.dp))
+                AnimationModeButtons(
+                    useNativeAnimation = useNativeAnimation,
+                    onModeChanged = { useNativeAnimation = it }
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(onClick = { showBottomSheet = true }) {
+                    Text("显示可滚动内容底部弹窗")
+                }
             }
 
             ModalBottomSheet(
-                showBottomSheet,
-                onDismissRequest = { showBottomSheet = false }
+                visible = showBottomSheet,
+                onDismissRequest = { showBottomSheet = false },
+                preferNativeAnimation = useNativeAnimation
             ) {
                 LazyColumn(
                     modifier = Modifier
@@ -252,4 +285,25 @@ class BottomSheetDemo1 : ComposeContainer() {
             }
         }
     }
-} 
+
+    @Composable
+    private fun AnimationModeButtons(
+        useNativeAnimation: Boolean,
+        onModeChanged: (Boolean) -> Unit
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                onClick = { onModeChanged(false) },
+                enabled = useNativeAnimation
+            ) {
+                Text("Compose")
+            }
+            OutlinedButton(
+                onClick = { onModeChanged(true) },
+                enabled = !useNativeAnimation
+            ) {
+                Text("Native")
+            }
+        }
+    }
+}

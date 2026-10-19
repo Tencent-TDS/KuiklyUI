@@ -11,6 +11,7 @@ import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.getCSSBackgroundImage
 import com.tencent.kuikly.core.render.web.ktx.height
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.ktx.pxToFloat
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
@@ -22,6 +23,8 @@ import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLParagraphElement
 import org.w3c.dom.HTMLSpanElement
+import org.w3c.dom.Node
+import org.w3c.dom.events.Event
 import org.w3c.dom.get
 
 class KRTextProps {
@@ -115,6 +118,22 @@ data class RichTextSpan(
     val lineHeight: Float = 0f
 )
 
+/**
+ * One measured fragment used to hit-test a tap. Coordinates stay in the same
+ * space as [RichTextSpan.offsetLeft] after justify and the Android width scale.
+ * [text] is the fragment's text ("" for a placeholder).
+ */
+class SpanHitBox(
+    val index: Int,
+    val text: String,
+    var x: Float,
+    var y: Float,
+    var width: Float,
+    var height: Float,
+    val lineIndex: Int,
+    val placeholder: Boolean,
+)
+
 private const val DEFAULT_FONT_WEIGHT = 400
 
 /**
@@ -148,24 +167,24 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     // Rich text child node list, including node size information
     val richTextSpanList: JsArray<RichTextSpan> = JsArray()
 
+    // Fragments measured with the spans above. Miniapp tap hit-testing reads these
+    // so a click lands on the same box the image was drawn in.
+    val spanHitBoxes: JsArray<SpanHitBox> = JsArray()
+
     // Current full span list
     val childSpanList: JsArray<Any> = JsArray()
-
-    // Placeholder Span list
-    val imageSpanList: JsArray<Any> = JsArray()
-
-    // Number of placeholder images
-    var imageSpanCount = 0
 
     // HTML content of child spans for mini app
     var spanHtml = ""
 
-    // Pending tasks
-    var pendingJob = 0
-
     // Original HTML content of rich text for mini app
     val divHtml: String
-        get() = "<div>${spanHtml}</div>"
+        get() {
+            // WeChat rich-text only honors text-align on the inner nodes. Only
+            // justify is forwarded: placeholder and hit-box x assume a left start.
+            val style = if (ele.style.textAlign == "justify") " style=\"text-align:justify\"" else ""
+            return "<div$style>${spanHtml}</div>"
+        }
 
     // Default properties
     private var lineBreakMode = ""
@@ -185,6 +204,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var strokeColor = ""
     private var measureResult = SizeF(0f, 0f)
     private var hasAppendFloatSpans = false
+    private var currentShadow: IKuiklyRenderShadowExport? = null
+    private val placeholderRectCache = mutableMapOf<Int, String>()
+    private val placeholderRectRetryCount = mutableMapOf<Int, Int>()
+    private val pendingPlaceholderRectRetry = mutableSetOf<Int>()
 
     // Initialize p tag
     private val textEle = kuiklyDocument.createElement(ElementType.P).apply {
@@ -300,6 +323,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     }
 
     override fun setShadow(shadow: IKuiklyRenderShadowExport) {
+        currentShadow = shadow
         super.setShadow(shadow)
 
         if(!this.isRichTextValues()) {
@@ -415,10 +439,46 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     }
 
     /**
+     * Child span index for a click. A processor that hit-tests by point
+     * (mini-app) answers from the event's offsetX/offsetY; otherwise walk
+     * to the host's direct child, skipping the two float spacers used by
+     * line-break margin.
+     */
+    internal fun spanIndexFromEvent(event: Event): Int {
+        val x = event.asDynamic().offsetX
+        val y = event.asDynamic().offsetY
+        if (x != null && y != null) {
+            KuiklyProcessor.richTextProcessor.spanIndexAt(
+                this,
+                x.unsafeCast<Double>().toFloat(),
+                y.unsafeCast<Double>().toFloat()
+            )?.let { return it }
+        }
+        var node: Node? = event.target.unsafeCast<Node?>()
+        val host: Node = ele
+        while (node != null && node != host && node.parentNode != host) {
+            node = node.parentNode
+        }
+        if (node == null || node == host) {
+            return -1
+        }
+        val start = if (getHasAppendFloatSpans()) 2 else 0
+        val children = ele.childNodes
+        var index = 0
+        for (i in start until children.length) {
+            if (children[i] == node) {
+                return index
+            }
+            index++
+        }
+        return -1
+    }
+
+    /**
      * Set text wrapping mode
      */
     private fun setLineBreakMode(lineBreakMode: String) {
-        if (this.numberOfLines > 0) {
+        if (this.numberOfLines > 1) {
             return
         }
         when (lineBreakMode) {
@@ -446,41 +506,104 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
      * Get placeholder span size data
      */
     private fun getPlaceholderSpanRect(index: Int?): String {
-        var rectInfo = "0.0 0.0 0.0 0.0"
-        if (index == null) return rectInfo
+        val defaultRectInfo = "0.0 0.0 0.0 0.0"
+        if (index == null) return defaultRectInfo
 
         // Let the platform-specific processor handle it first (e.g. miniapp).
         // Returns "" when not supported, falling through to DOM-based logic below.
         val processorRect = KuiklyProcessor.richTextProcessor.getPlaceholderSpanRect(index, this)
         if (processorRect.isNotEmpty()) return processorRect
 
-        // Account for float spans prepended when lineBreakMargin is set
-        val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
-        val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
-
-        if (
-            placeholderSpan != null &&
-            placeholderSpan.style.width != "" &&
-            placeholderSpan.style.height != ""
-        ) {
-            // ele may be detached because insertSubRenderView is async;
-            // temporarily attach to body to force a synchronous reflow
-            val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
-            if (!isConnected) {
-                kuiklyDocument.body?.appendChild(ele)
-            }
-
-            // Determine that it is a placeholder span, get size information
-            with(placeholderSpan) {
-                rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
-            }
-
-            if (!isConnected) {
-                kuiklyDocument.body?.removeChild(ele)
+        val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
+        var appendedForMeasure = false
+        if (!isConnected) {
+            val body = kuiklyDocument.body
+            if (body != null) {
+                body.appendChild(ele)
+                appendedForMeasure = true
             }
         }
 
-        return rectInfo
+        try {
+            // Account for float spans prepended when lineBreakMargin is set
+            val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
+            val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
+
+            if (
+                placeholderSpan != null &&
+                placeholderSpan.style.width != "" &&
+                placeholderSpan.style.height != ""
+            ) {
+                val width = placeholderSpan.offsetWidth.toFloat()
+                val height = placeholderSpan.offsetHeight.toFloat()
+                // A zero box means layout has not happened yet. Caching it
+                // would hide the image and skip later measurements.
+                if (width <= 0f || height <= 0f) {
+                    schedulePlaceholderRectRetry(index)
+                    return placeholderRectCache[index] ?: defaultRectInfo
+                }
+                val (left, top) = offsetInText(placeholderSpan)
+                val rectInfo = "$left $top $width $height"
+
+                placeholderRectCache[index] = rectInfo
+                placeholderRectRetryCount.remove(index)
+                pendingPlaceholderRectRetry.remove(index)
+                return rectInfo
+            }
+
+            if (!isConnected) {
+                schedulePlaceholderRectRetry(index)
+            }
+            return placeholderRectCache[index] ?: defaultRectInfo
+        } finally {
+            if (appendedForMeasure) {
+                kuiklyDocument.body?.removeChild(ele)
+            }
+        }
+    }
+
+    /**
+     * Layout position of [span] inside the text element. Offsets ignore
+     * ancestor transforms. The offsetParent chain reaches [ele] when it is
+     * positioned; otherwise both chains end at a shared ancestor.
+     */
+    private fun offsetInText(span: HTMLElement): Pair<Float, Float> {
+        var x = 0.0
+        var y = 0.0
+        var cur: HTMLElement? = span
+        while (cur != null && cur != ele) {
+            x += cur.offsetLeft
+            y += cur.offsetTop
+            cur = cur.offsetParent.unsafeCast<HTMLElement?>()
+        }
+        if (cur == null) {
+            var host: HTMLElement? = ele
+            while (host != null) {
+                x -= host.offsetLeft
+                y -= host.offsetTop
+                host = host.offsetParent.unsafeCast<HTMLElement?>()
+            }
+        }
+        return x.toFloat() to y.toFloat()
+    }
+
+    private fun schedulePlaceholderRectRetry(index: Int) {
+        if (!pendingPlaceholderRectRetry.add(index)) {
+            return
+        }
+
+        kuiklyWindow.setTimeout({
+            pendingPlaceholderRectRetry.remove(index)
+            val retryCount = placeholderRectRetryCount[index] ?: 0
+            if (retryCount >= MAX_PLACEHOLDER_RECT_RETRY_COUNT) {
+                return@setTimeout
+            }
+            placeholderRectRetryCount[index] = retryCount + 1
+            // Trigger a fresh shadow set so core side can re-query spanRect when DOM is connected.
+            currentShadow?.also {
+                setShadow(it)
+            }
+        }, PLACEHOLDER_RECT_RETRY_DELAY)
     }
 
     /**
@@ -514,6 +637,14 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             val usedStrokeWidth = strokeWidth.toDouble() / STROKE_WIDTH_DIVISOR
             ele.style.asDynamic().webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        currentShadow = null
+        placeholderRectCache.clear()
+        placeholderRectRetryCount.clear()
+        pendingPlaceholderRectRetry.clear()
     }
 
     companion object {
@@ -555,5 +686,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         private const val DEFAULT_LINE_SPACING = 1f
         private const val DEFAULT_ELEMENT_FONT_SIZE = 13f
         private const val STROKE_WIDTH_DIVISOR = 4
+        private const val PLACEHOLDER_RECT_RETRY_DELAY = 16
+        private const val MAX_PLACEHOLDER_RECT_RETRY_COUNT = 6
     }
 }

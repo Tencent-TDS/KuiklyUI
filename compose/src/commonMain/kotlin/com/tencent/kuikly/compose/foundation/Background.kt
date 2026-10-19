@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.foundation
 
 import androidx.annotation.FloatRange
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.compose.animation.core.NativeAnimationCoordinator
 import com.tencent.kuikly.compose.ui.KuiklyPath
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
@@ -172,6 +173,7 @@ private class BackgroundNode(
 
     private var outline: Outline? = null
     private var roundRect: RoundRect? = null
+    private var lastDrawnColor: Color? = null
 
     override fun onReset() {
         super.onReset()
@@ -212,8 +214,17 @@ private class BackgroundNode(
         view?.getViewAttr()?.run {
             if (brush != null) {
                 brush!!.applyTo(view, alpha)
+                lastDrawnColor = null
             } else {
-                backgroundColor(color.modulate(alpha).toKuiklyColor())
+                val renderedColor = color.modulate(alpha)
+                NativeAnimationCoordinator.existingForView(view)
+                    ?.registerBackgroundColorTarget(
+                        view = view,
+                        previousColor = lastDrawnColor,
+                        targetColor = renderedColor
+                    )
+                backgroundColor(renderedColor.toKuiklyColor())
+                lastDrawnColor = renderedColor
             }
         }
         drawContent()

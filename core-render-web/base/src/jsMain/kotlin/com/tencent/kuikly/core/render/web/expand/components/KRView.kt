@@ -30,7 +30,9 @@ import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.json
+import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Convert Touch parameters to specified format
@@ -96,6 +98,13 @@ open class KRView : IKuiklyRenderViewExport {
     private var isBindTouchEvent = false
     // Whether mouse is currently pressed (for PC browser support)
     private var isMouseDown = false
+    // Pointer drag start position (relative to current element)
+    private var pointerDownX = 0f
+    private var pointerDownY = 0f
+    // Pointer currently tracked by this view
+    private var activePointerId: Int? = null
+    // Whether current pointer has been captured
+    private var isPointerCaptured = false
     // Current device type (detected once and cached)
     private val deviceType: DeviceType by lazy { DeviceUtils.detectDeviceType() }
     // Pan event callback
@@ -156,6 +165,10 @@ open class KRView : IKuiklyRenderViewExport {
                 toImage(params, callback)
                 null
             }
+            TO_IMAGE_SCALED -> {
+                toImageScaled(params, callback)
+                null
+            }
             else -> super.call(method, params, callback)
         }
     }
@@ -164,28 +177,75 @@ open class KRView : IKuiklyRenderViewExport {
         val json = JSONObject(params ?: "{}")
         val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
         val sampleSize = max(1, json.optInt(TO_IMAGE_PARAM_SAMPLE_SIZE, 1))
+        // Convert sampleSize (down-sample) into an equivalent scale factor and
+        // reuse the same rasterization pipeline as toImageScaled.
+        val scale = 1.0 / sampleSize.toDouble()
+        renderToImage(type, scale, callback)
+    }
 
+    /**
+     * H5-only entry that takes a caller-requested upscale factor instead of
+     * sampleSize. Larger scale => higher-resolution snapshot, bounded by
+     * [MAX_CANVAS_SIDE] internally.
+     */
+    private fun toImageScaled(params: String?, callback: KuiklyRenderCallback?) {
+        val json = JSONObject(params ?: "{}")
+        val type = json.optString(TO_IMAGE_PARAM_TYPE).ifEmpty { TO_IMAGE_TYPE_DATA_URI }
+        val scale = max(MIN_TO_IMAGE_SCALE, json.optDouble(TO_IMAGE_PARAM_SCALE, 1.0))
+        renderToImage(type, scale, callback)
+    }
+
+    /**
+     * Core rasterization used by both [toImage] and [toImageScaled].
+     *
+     * @param type   one of [TO_IMAGE_TYPE_CACHE_KEY] / [TO_IMAGE_TYPE_DATA_URI] / [TO_IMAGE_TYPE_FILE]
+     * @param scale  extra size factor applied on top of devicePixelRatio.
+     *               `1.0` = same visual density as the screen; `2.0` = 2x larger bitmap; etc.
+     *               For the sampleSize semantics used by [toImage], pass `1 / sampleSize`.
+     */
+    private fun renderToImage(type: String, scale: Double, callback: KuiklyRenderCallback?) {
         if (type == TO_IMAGE_TYPE_FILE) {
             callback?.invoke(toImageError("FILE is not supported on H5"))
             return
         }
 
-        // Use SVG foreignObject to rasterize current DOM subtree in browser.
-        // Note: cross-origin resources may taint canvas and fail toDataURL.
+        // Rasterize current DOM subtree via SVG foreignObject.
+        // Root cause fixes on top of the naive approach:
+        //   1) Inline computed styles into every cloned node so fonts / line-height /
+        //      white-space are consistent inside foreignObject (avoid last-char wrap).
+        //   2) Pre-fetch cross-origin <img> resources into dataURL so the SVG can render
+        //      them and canvas won't be tainted (avoid broken-image placeholders).
+        //   3) Keep sub-pixel size as float to avoid rounding-induced re-layout.
+        //   4) Snapshot each <canvas> backing store into an <img data:...> replacement
+        //      inside the clone, otherwise cloneNode(true) loses the pixel content.
+        //   5) Scale output bitmap by devicePixelRatio (multiplied by the caller-
+        //      requested scale factor) so the snapshot stays crisp on Retina/HiDPI
+        //      screens. Cap final canvas side to MAX_CANVAS_SIDE to avoid hitting
+        //      browser canvas size limits.
         val rect = ele.getBoundingClientRect()
-        val width = max(1, rect.width.toInt())
-        val height = max(1, rect.height.toInt())
-        val scale = max(1.0 / sampleSize.toDouble(), 0.01)
-        val outputWidth = max(1, (width * scale).toInt())
-        val outputHeight = max(1, (height * scale).toInt())
+        val widthF = if (rect.width > 0.0) rect.width else 1.0
+        val heightF = if (rect.height > 0.0) rect.height else 1.0
+        val dprRaw = kuiklyWindow.asDynamic().devicePixelRatio.unsafeCast<Double?>() ?: 1.0
+        val dpr = if (dprRaw > 0.0) dprRaw else 1.0
+        // Total zoom = DPR upscale x caller-requested scale.
+        val zoom = max(dpr * scale, MIN_TO_IMAGE_ZOOM)
+        val rawOutW = widthF * zoom
+        val rawOutH = heightF * zoom
+        val sideFit = min(1.0, min(MAX_CANVAS_SIDE / rawOutW, MAX_CANVAS_SIDE / rawOutH))
+        val outputWidth = max(1, ceil(rawOutW * sideFit).toInt())
+        val outputHeight = max(1, ceil(rawOutH * sideFit).toInt())
 
         val cloned = ele.cloneNode(true).unsafeCast<HTMLDivElement>()
-        // Ensure cloned root keeps explicit size and has transparent background by default.
-        // Also normalize position-related styles to avoid double-applying frame offsets
-        // inside SVG foreignObject (which would shift content right/down and clip edges).
+        // Inline every node's computed style into the clone.
+        inlineComputedStyleTree(ele, cloned)
+        // Capture each live <canvas> bitmap and replace the empty clone-canvas with
+        // an <img> holding the snapshot dataURL. Must run AFTER inlineComputedStyleTree
+        // so the replacement <img> can inherit the canvas's computed styles.
+        preloadCanvasesAsImage(ele, cloned)
+        // Normalize cloned root to remove outer margin / positioning offsets inside SVG.
         cloned.style.margin = "0"
-        cloned.style.width = "${width}px"
-        cloned.style.height = "${height}px"
+        cloned.style.width = "${widthF}px"
+        cloned.style.height = "${heightF}px"
         cloned.style.setProperty("overflow", "hidden")
         cloned.style.setProperty("position", "relative")
         cloned.style.setProperty("left", "0px")
@@ -195,47 +255,253 @@ open class KRView : IKuiklyRenderViewExport {
         cloned.style.setProperty("transform", "none")
         cloned.style.setProperty("transform-origin", "0 0")
 
-        val serializer: dynamic = js("new XMLSerializer()")
-        val xhtml = serializer.serializeToString(cloned)
-        val svg = """
-            <svg xmlns="http://www.w3.org/2000/svg" width="$width" height="$height">
-                <foreignObject width="100%" height="100%">$xhtml</foreignObject>
-            </svg>
-        """.trimIndent()
-        val encodedSvg = kuiklyWindow.asDynamic().encodeURIComponent(svg).unsafeCast<String>()
-        val svgDataUrl = "data:image/svg+xml;charset=utf-8,$encodedSvg"
-
-        val image = kuiklyDocument.createElement(ElementType.IMAGE).unsafeCast<HTMLImageElement>()
-        image.addEventListener("load", { _: Event ->
+        // Preload cross-origin images inside the clone into dataURL, then rasterize.
+        preloadImagesAsDataUrl(cloned) {
             try {
-                val canvas = kuiklyDocument.createElement(ElementType.CANVAS).unsafeCast<HTMLCanvasElement>()
-                canvas.width = outputWidth
-                canvas.height = outputHeight
-                val ctx = canvas.getContext("2d")
-                if (ctx == null) {
-                    callback?.invoke(toImageError("failed to get 2d context"))
+                val serializer: dynamic = js("new XMLSerializer()")
+                val xhtml = serializer.serializeToString(cloned)
+                val svg = """
+                    <svg xmlns="http://www.w3.org/2000/svg" width="$widthF" height="$heightF">
+                        <foreignObject width="100%" height="100%">$xhtml</foreignObject>
+                    </svg>
+                """.trimIndent()
+                val encodedSvg = kuiklyWindow.asDynamic().encodeURIComponent(svg).unsafeCast<String>()
+                val svgDataUrl = "data:image/svg+xml;charset=utf-8,$encodedSvg"
+
+                val image = kuiklyDocument.createElement(ElementType.IMAGE).unsafeCast<HTMLImageElement>()
+                image.addEventListener("load", { _: Event ->
+                    try {
+                        val canvas = kuiklyDocument.createElement(ElementType.CANVAS)
+                            .unsafeCast<HTMLCanvasElement>()
+                        canvas.width = outputWidth
+                        canvas.height = outputHeight
+                        val ctx = canvas.getContext("2d")
+                        if (ctx == null) {
+                            callback?.invoke(toImageError("failed to get 2d context"))
+                        } else {
+                            val ctx2d: dynamic = ctx
+                            // Use Double coords so browser can rasterize SVG straight
+                            // into the target (possibly upscaled) canvas resolution.
+                            ctx2d.drawImage(
+                                image,
+                                0.0,
+                                0.0,
+                                outputWidth.toDouble(),
+                                outputHeight.toDouble()
+                            )
+                            val dataUri = canvas.toDataURL("image/png")
+                            if (type == TO_IMAGE_TYPE_CACHE_KEY) {
+                                val cacheKey = buildImageCacheKey()
+                                kuiklyRenderContext
+                                    ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+                                    ?.set(cacheKey, dataUri)
+                                callback?.invoke(toImageSuccess(cacheKey))
+                            } else {
+                                callback?.invoke(toImageSuccess(dataUri))
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        callback?.invoke(toImageError(t.message ?: "toImage render failed"))
+                    }
+                })
+                image.addEventListener("error", { _: Event ->
+                    callback?.invoke(toImageError("toImage load svg failed"))
+                })
+                image.src = svgDataUrl
+            } catch (t: Throwable) {
+                callback?.invoke(toImageError(t.message ?: "toImage serialize failed"))
+            }
+        }
+    }
+
+    /**
+     * Walk the source subtree and copy each node's computed style onto the cloned
+     * counterpart via inline `style.cssText`. This is required because a cloned
+     * node inside SVG `<foreignObject>` loses access to outer document CSS, which
+     * would otherwise cause font/line-height differences and text wrapping drift.
+     */
+    private fun inlineComputedStyleTree(source: dynamic, clone: dynamic) {
+        if (source == null || clone == null) return
+        val srcNodeType = source.nodeType.unsafeCast<Int>()
+        if (srcNodeType != 1) return // ELEMENT_NODE only
+        val computed = kuiklyWindow.asDynamic().getComputedStyle(source)
+        if (computed != null) {
+            val cssText = computed.cssText.unsafeCast<String?>() ?: ""
+            if (cssText.isNotEmpty()) {
+                clone.style.cssText = cssText
+            } else {
+                // Some browsers return empty cssText; fall back to property iteration.
+                val len = computed.length.unsafeCast<Int>()
+                var i = 0
+                while (i < len) {
+                    val prop = computed.item(i).unsafeCast<String>()
+                    val value = computed.getPropertyValue(prop).unsafeCast<String>()
+                    clone.style.setProperty(prop, value)
+                    i++
+                }
+            }
+        }
+        val srcChildren = source.children
+        val cloneChildren = clone.children
+        if (srcChildren == null || cloneChildren == null) return
+        val count = srcChildren.length.unsafeCast<Int>()
+        var idx = 0
+        while (idx < count) {
+            inlineComputedStyleTree(srcChildren[idx], cloneChildren[idx])
+            idx++
+        }
+    }
+
+    /**
+     * For each live <canvas> under [srcRoot], snapshot its backing store to a PNG
+     * dataURL and replace the corresponding empty <canvas> under [cloneRoot] with
+     * an <img> node holding that dataURL. Traversal order matches because
+     * `cloneNode(true)` preserves child order 1:1 with the source subtree.
+     *
+     * If the source canvas is tainted by cross-origin content, `toDataURL(...)`
+     * throws SecurityError. We silently skip such canvases so other content still
+     * renders correctly (that canvas will appear blank in the snapshot).
+     *
+     * This step is synchronous — `toDataURL` on 2D / WebGL canvas returns
+     * immediately. For WebGL specifically the canvas must be created with
+     * `preserveDrawingBuffer: true` or drawn on the same frame, otherwise the
+     * dataURL may be blank; that's a caller-side concern this method cannot fix.
+     */
+    private fun preloadCanvasesAsImage(srcRoot: dynamic, cloneRoot: dynamic) {
+        val srcCanvases = srcRoot.querySelectorAll("canvas")
+        val cloneCanvases = cloneRoot.querySelectorAll("canvas")
+        val total = srcCanvases.length.unsafeCast<Int>()
+        val cloneTotal = cloneCanvases.length.unsafeCast<Int>()
+        if (total == 0 || cloneTotal == 0) return
+        val safeTotal = if (total < cloneTotal) total else cloneTotal
+        var i = 0
+        while (i < safeTotal) {
+            val srcCanvas = srcCanvases[i]
+            val cloneCanvas = cloneCanvases[i]
+            i++
+            if (srcCanvas == null || cloneCanvas == null) continue
+            val parent = cloneCanvas.parentNode
+            if (parent == null) continue
+            val dataUrl: String = try {
+                srcCanvas.toDataURL("image/png").unsafeCast<String>()
+            } catch (_: Throwable) {
+                // Tainted canvas or unsupported context — leave clone canvas as-is.
+                continue
+            }
+            if (dataUrl.isEmpty() || !dataUrl.startsWith("data:")) continue
+
+            // Build an <img> replacement carrying the same visual box as the canvas:
+            //   - Copy computed style (position/size/border/transform/etc.) so it sits
+            //     exactly where the original canvas sat inside foreignObject.
+            //   - Force display:inline-block and object-fit:fill so the bitmap fills
+            //     the box regardless of the canvas's original display mode.
+            val replacement: dynamic = kuiklyDocument.createElement(ElementType.IMAGE)
+            val srcComputed = kuiklyWindow.asDynamic().getComputedStyle(srcCanvas)
+            if (srcComputed != null) {
+                val cssText = srcComputed.cssText.unsafeCast<String?>() ?: ""
+                if (cssText.isNotEmpty()) {
+                    replacement.style.cssText = cssText
                 } else {
-                    val ctx2d: dynamic = ctx
-                    ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
-                    val dataUri = canvas.toDataURL("image/png")
-                    if (type == TO_IMAGE_TYPE_CACHE_KEY) {
-                        val cacheKey = buildImageCacheKey()
-                        kuiklyRenderContext
-                            ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
-                            ?.set(cacheKey, dataUri)
-                        callback?.invoke(toImageSuccess(cacheKey))
-                    } else {
-                        callback?.invoke(toImageSuccess(dataUri))
+                    val len = srcComputed.length.unsafeCast<Int>()
+                    var k = 0
+                    while (k < len) {
+                        val prop = srcComputed.item(k).unsafeCast<String>()
+                        val value = srcComputed.getPropertyValue(prop).unsafeCast<String>()
+                        replacement.style.setProperty(prop, value)
+                        k++
                     }
                 }
-            } catch (t: Throwable) {
-                callback?.invoke(toImageError(t.message ?: "toImage render failed"))
             }
-        })
-        image.addEventListener("error", { _: Event ->
-            callback?.invoke(toImageError("toImage load svg failed"))
-        })
-        image.src = svgDataUrl
+            // Prefer the actual on-screen size over the canvas backing-store size.
+            val srcRect = srcCanvas.getBoundingClientRect()
+            val boxW = srcRect.width.unsafeCast<Double>()
+            val boxH = srcRect.height.unsafeCast<Double>()
+            if (boxW > 0.0) replacement.style.width = "${boxW}px"
+            if (boxH > 0.0) replacement.style.height = "${boxH}px"
+            replacement.style.setProperty("display", "inline-block")
+            replacement.style.setProperty("object-fit", "fill")
+            replacement.setAttribute("src", dataUrl)
+
+            parent.replaceChild(replacement, cloneCanvas)
+        }
+    }
+
+    /**
+     * Find all <img> nodes inside [root] whose src is a remote URL and replace src
+     * with a dataURL fetched via CORS. Falls back to the original src if fetch fails
+     * (that image will still render as broken inside the snapshot, but other content
+     * and canvas security are preserved). Invokes [onDone] after all images settle.
+     */
+    private fun preloadImagesAsDataUrl(root: dynamic, onDone: () -> Unit) {
+        val imgs = root.querySelectorAll("img")
+        val total = imgs.length.unsafeCast<Int>()
+        if (total == 0) {
+            onDone()
+            return
+        }
+        var remaining = total
+        val markDone = {
+            remaining -= 1
+            if (remaining <= 0) onDone()
+        }
+        var i = 0
+        while (i < total) {
+            val img = imgs[i]
+            val src = img.getAttribute("src").unsafeCast<String?>() ?: ""
+            if (src.isEmpty() || src.startsWith("data:")) {
+                markDone()
+            } else {
+                fetchAsDataUrl(src, onSuccess = { dataUrl ->
+                    img.setAttribute("src", dataUrl)
+                    img.removeAttribute("crossorigin")
+                    markDone()
+                }, onError = { _ ->
+                    // Keep original src; snapshot may show a broken image for this node,
+                    // but canvas won't be tainted because SVG will just skip it.
+                    markDone()
+                })
+            }
+            i++
+        }
+    }
+
+    /**
+     * Fetch [url] as blob via CORS and convert to dataURL. All errors are routed to
+     * [onError] with a short reason string so callers can log and decide fallback.
+     */
+    private fun fetchAsDataUrl(
+        url: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        try {
+            val init: dynamic = js("({ mode: 'cors', credentials: 'omit', cache: 'force-cache' })")
+            val promise = kuiklyWindow.asDynamic().fetch(url, init)
+            promise.then({ resp: dynamic ->
+                if (resp == null) {
+                    onError("resp-null")
+                } else if (resp.ok != true) {
+                    val status = resp.status.unsafeCast<Int>()
+                    onError("http-$status")
+                } else {
+                    resp.blob().then({ blob: dynamic ->
+                        val reader: dynamic = js("new FileReader()")
+                        reader.onload = {
+                            val result = reader.result.unsafeCast<String?>()
+                            if (result.isNullOrEmpty()) onError("reader-empty") else onSuccess(result)
+                        }
+                        reader.onerror = { onError("reader-error") }
+                        reader.readAsDataURL(blob)
+                    }, { onError("blob-reject") })
+                }
+                null
+            }, { err: dynamic ->
+                val reason = try { err.message.unsafeCast<String>() } catch (_: Throwable) { "fetch-reject" }
+                onError(reason)
+            })
+        } catch (t: Throwable) {
+            onError(t.message ?: "fetch-throw")
+        }
     }
 
     private fun buildImageCacheKey(): String {
@@ -365,7 +631,10 @@ open class KRView : IKuiklyRenderViewExport {
     }
 
     /**
-     * Bind touch event and mouse event based on device type
+     * Bind touch event and mouse event based on device capability first,
+     * then fallback to device type. On modern browsers (including touch-screen
+     * Windows), PointerEvent is the unified channel for mouse / touch / pen,
+     * so prefer it whenever available.
      */
     private fun setTouchEvent() {
         if (isBindTouchEvent) {
@@ -373,11 +642,168 @@ open class KRView : IKuiklyRenderViewExport {
         }
         isBindTouchEvent = true
 
+        val hasPointerEvent = js(
+            "typeof window !== 'undefined' && typeof window.PointerEvent === 'function'"
+        ).unsafeCast<Boolean>()
+
+        if (hasPointerEvent && deviceType != DeviceType.MINIPROGRAM) {
+            bindPointerEvents()
+            return
+        }
+
         when (deviceType) {
             DeviceType.MOBILE -> bindTouchEvents()
             DeviceType.MINIPROGRAM -> bindTouchEvents()
             DeviceType.DESKTOP -> bindMouseEvents()
         }
+    }
+
+    /**
+     * Bind pointer events. Works for mouse, touch and pen on modern browsers,
+     * which is the only reliable channel on touch-screen Windows (Chrome / Edge
+     * may not dispatch synthetic touchstart there).
+     *
+     * PointerEvent inherits from MouseEvent, so we can safely reuse the
+     * existing MouseEvent.toPanEventParams() extension without introducing
+     * a new coordinate path.
+     */
+    private fun bindPointerEvents() {
+        // Pointer down
+        ele.addEventListener("pointerdown", { rawEvent ->
+            // Single-pointer mode: ignore any additional fingers/pointers while one is active.
+            if (isMouseDown) return@addEventListener
+
+            val mouseLike = rawEvent.unsafeCast<MouseEvent>()
+
+            isMouseDown = true
+            isPointerCaptured = false
+            activePointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+
+            val eventParams = mouseLike.toPanEventParams()
+            val position = ele.getBoundingClientRect()
+            eleX = position.left.toFloat()
+            eleY = position.top.toFloat()
+
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.START
+            )
+            // Record pointer down position and defer pointer capture until drag confirmed.
+            pointerDownX = x
+            pointerDownY = y
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_DOWN
+            )
+            panEventCallback?.invoke(params)
+            touchDownEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer move
+        ele.addEventListener("pointermove", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
+            val mouseLike = rawEvent.unsafeCast<MouseEvent>()
+            val eventParams = mouseLike.toPanEventParams()
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.MOVE
+            )
+
+            // Defer pointer capture until movement exceeds drag threshold.
+            if (!isPointerCaptured && pointerId != null) {
+                val dx = x - pointerDownX
+                val dy = y - pointerDownY
+                val thresholdSq = POINTER_CAPTURE_DRAG_THRESHOLD_PX * POINTER_CAPTURE_DRAG_THRESHOLD_PX
+                val distanceSq = dx * dx + dy * dy
+                if (distanceSq >= thresholdSq) {
+                    try {
+                        ele.asDynamic().setPointerCapture(pointerId)
+                        isPointerCaptured = true
+                    } catch (_: Throwable) {
+                        // Some environments may throw if pointerId is invalid; ignore.
+                    }
+                }
+            }
+
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_MOVE
+            )
+            panEventCallback?.invoke(params)
+            touchMoveEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer up
+        ele.addEventListener("pointerup", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
+            if (isPointerCaptured && pointerId != null) {
+                try {
+                    ele.asDynamic().releasePointerCapture(pointerId)
+                } catch (_: Throwable) {
+                    // Some environments may throw if pointerId is invalid; ignore.
+                }
+            }
+            isMouseDown = false
+            isPointerCaptured = false
+            activePointerId = null
+
+            var params = fastMutableMapOf<String, Any>().apply {
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.STATE, KRStateConst.END)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
+            }
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_UP
+            )
+            panEventCallback?.invoke(params)
+            touchUpEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
+
+        // Pointer cancel (system takes over the pointer, e.g. scroll / gesture)
+        ele.addEventListener("pointercancel", { rawEvent ->
+            if (!isMouseDown) return@addEventListener
+            val pointerId = rawEvent.asDynamic().pointerId.unsafeCast<Int?>()
+            if (pointerId != activePointerId) {
+                return@addEventListener
+            }
+
+            if (isPointerCaptured && pointerId != null) {
+                try {
+                    ele.asDynamic().releasePointerCapture(pointerId)
+                } catch (_: Throwable) {
+                    // Some environments may throw if pointerId is invalid; ignore.
+                }
+            }
+            isMouseDown = false
+            isPointerCaptured = false
+            activePointerId = null
+
+            var params = fastMutableMapOf<String, Any>().apply {
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
+                put(KRParamConst.STATE, KRStateConst.CANCEL)
+            }
+            params = setSuperTouchEventParams(
+                params, rawEvent.timeStamp.toLong(), KRActionConst.TOUCH_CANCEL
+            )
+            touchUpEventCallback?.invoke(params)
+            rawEvent.stopPropagation()
+        })
     }
 
     /**
@@ -654,9 +1080,22 @@ open class KRView : IKuiklyRenderViewExport {
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
         private const val BRING_TO_FRONT = "bringToFront"
         private const val TO_IMAGE = "toImage"
+        private const val TO_IMAGE_SCALED = "toImageScaled"
 
         private const val TO_IMAGE_PARAM_TYPE = "type"
         private const val TO_IMAGE_PARAM_SAMPLE_SIZE = "sampleSize"
+        private const val TO_IMAGE_PARAM_SCALE = "scale"
+
+        // Upper bound of a single side of the output canvas. Most browsers cap
+        // canvas dimensions around 8192~16384 px; 4096 is a safe cross-browser
+        // ceiling that also keeps memory usage reasonable for large scale values.
+        private const val MAX_CANVAS_SIDE = 4096.0
+        // Lower bound for the combined zoom factor to guarantee we never end up
+        // with a zero-sized canvas even for weird inputs (scale=0 / dpr=0).
+        private const val MIN_TO_IMAGE_ZOOM = 0.01
+        // Minimum allowed caller-supplied scale. 0 or negative would collapse the
+        // output to nothing; guard here so the caller doesn't have to.
+        private const val MIN_TO_IMAGE_SCALE = 0.01
 
         private const val TO_IMAGE_TYPE_CACHE_KEY = "cacheKey"
         private const val TO_IMAGE_TYPE_DATA_URI = "dataUri"
@@ -669,5 +1108,7 @@ open class KRView : IKuiklyRenderViewExport {
         private const val SCREEN_FRAME_REFRESH_TIME = 16
         // Border size ratio threshold
         private const val BORDER_SIZE_RATIO = 5
+        // Pointer movement threshold (px) before treating as drag and capturing pointer.
+        private const val POINTER_CAPTURE_DRAG_THRESHOLD_PX = 6f
     }
 }

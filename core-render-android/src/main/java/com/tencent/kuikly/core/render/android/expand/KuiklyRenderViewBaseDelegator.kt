@@ -155,6 +155,22 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             performanceManager?.onCreateInstanceFinish()
         }
 
+        override fun onInitLayerReadCacheStart() {
+            performanceManager?.onInitLayerReadCacheStart()
+        }
+
+        override fun onInitLayerReadCacheFinish() {
+            performanceManager?.onInitLayerReadCacheFinish()
+        }
+
+        override fun onInitLayerRenderCacheStart() {
+            performanceManager?.onInitLayerRenderCacheStart()
+        }
+
+        override fun onInitLayerRenderCacheFinish() {
+            performanceManager?.onInitLayerRenderCacheFinish()
+        }
+
         override fun onFirstFramePaint() {
             isLoadFinish = true
             delegate.onKuiklyRenderContentViewCreated()
@@ -359,6 +375,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
         containerView.addView(renderView)
         KuiklyRenderLog.d(TAG, "--initRenderView addView--")
         delegate.onKuiklyRenderViewCreated()
+        renderView?.didCreateRenderView()
         if (delegate.syncRenderingWhenPageAppear()) {
             renderView?.syncFlushAllRenderTasks()
         }

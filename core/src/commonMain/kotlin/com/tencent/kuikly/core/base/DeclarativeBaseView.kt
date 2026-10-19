@@ -239,6 +239,9 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
     open fun setFrameToRenderView(frame: Frame) {
         // 换算相对到真实父亲的坐标系
         renderView?.also {
+            if (stageNativeAnimationFrameIfNeeded()) {
+                return
+            }
             // 设置view的frame之前，传递动画对象
             val animation = getPager().animationManager?.currentLayoutAnimation(nativeRef)
             animation?.run {
@@ -302,6 +305,32 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
                 .put("sampleSize", max(1, sampleSize))
                 .toString()
             renderView?.callMethod("toImage", params, callback)
+        }
+    }
+
+    /**
+     * 获取View截图（带输出放大倍数）
+     * 注：目前仅 H5 平台实现。业务希望截图分辨率更大时可使用此方法。
+     *
+     * 与 [toImage] 的区别：
+     *  - 没有 `sampleSize` 参数（不做下采样）。
+     *  - 新增 `scale` 参数，表示在原始 CSS 尺寸基础上的放大倍数，值越大截图越大越清晰。
+     *  - 实际输出边长会被 H5 端的 Canvas 上限（4096px）兜底约束。
+     *
+     * @param type 截图类型
+     * @param scale 输出放大倍数，默认1.0，取值建议 (0, 3.0]
+     * @param callback 格式：{ code: Int, data: String?, message: String? }，
+     * code：0成功，非0失败；
+     * data：缓存key（可用于Image的src）或base64串或文件path，仅成功有该字段；
+     * message：错误信息，仅失败有该字段。
+     */
+    fun toImageScaled(type: ImageType, scale: Float = 1.0f, callback: CallbackFn) {
+        performTaskWhenRenderViewDidLoad {
+            val params = JSONObject()
+                .put("type", type.value)
+                .put("scale", max(0.01f, scale).toDouble())
+                .toString()
+            renderView?.callMethod("toImageScaled", params, callback)
         }
     }
 }

@@ -101,7 +101,7 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private fun setMultiLineStyle(lines: Int, ele: HTMLElement) {
         // If text is multi-line, need to set multi-line properties
-        if (lines > 0) {
+        if (lines > 1) {
             ele.style.display = "-webkit-box"
             ele.style.asDynamic().webkitLineClamp = lines.toString()
             ele.style.asDynamic().webkitBoxOrient = "vertical"
@@ -120,7 +120,7 @@ object RichTextProcessor : IRichTextProcessor {
             ele.style.asDynamic().webkitLineClamp = ""
             ele.style.asDynamic().webkitBoxOrient = ""
             ele.style.whiteSpace = "pre-wrap"
-            ele.style.overflowY = "auto"
+            ele.style.overflowY = "hidden"
         }
     }
 
@@ -170,6 +170,7 @@ object RichTextProcessor : IRichTextProcessor {
             )
             
             TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+                setMultiLineStyle(view.numberOfLines, ele)
                 Log.trace("Using cached size: ", cachedSize.width, cachedSize.height)
                 return cachedSize
             }
@@ -369,6 +370,7 @@ object RichTextProcessor : IRichTextProcessor {
         )
         
         TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+            setMultiLineStyle(view.numberOfLines, ele)
             Log.trace("Using cached canvas size: ", cachedSize.width, cachedSize.height)
             return cachedSize
         }
@@ -482,6 +484,9 @@ object RichTextProcessor : IRichTextProcessor {
     private fun createSpan(value: JSONObject, view: KRRichTextView): HTMLSpanElement {
         val span = kuiklyDocument.createElement(ElementType.SPAN).unsafeCast<HTMLSpanElement>()
         val text = view.getText(value) ?: return span
+        val placeHolderWidth = value.optDouble(PLACEHOLDER_WIDTH, 0.0)
+        val placeHolderHeight = value.optDouble(PLACEHOLDER_HEIGHT, 0.0)
+        val isPlaceholder = placeHolderWidth != 0.0 && placeHolderHeight != 0.0
         // span content using innerText set, prevent xss
         span.innerText = text
         val style = span.style
@@ -544,18 +549,19 @@ object RichTextProcessor : IRichTextProcessor {
         if (textIndent != 0.0) {
             style.textIndent = textIndent.toPxF()
         }
-        // Placeholder span width
-        val placeHolderWidth = value.optDouble(PLACEHOLDER_WIDTH, 0.0)
-        // Placeholder span height
-        val placeHolderHeight = value.optDouble(PLACEHOLDER_HEIGHT, 0.0)
-        // If placeholder span has width and height, set them
-        if (placeHolderWidth != 0.0 && placeHolderHeight != 0.0) {
+        if (isPlaceholder) {
             style.width = placeHolderWidth.toPxF()
             style.height = placeHolderHeight.toPxF()
             // This type of span is set to inline-block type
             style.display = "inline-block"
             // Vertical alignment center
             style.verticalAlign = "middle"
+            // Alternate text such as U+FFFD stays in the span, but must not paint.
+            style.color = "transparent"
+            style.textShadow = "none"
+            style.asDynamic().webkitTextStroke = "0"
+            style.overflowX = "hidden"
+            style.overflowY = "hidden"
         }
         return span
     }

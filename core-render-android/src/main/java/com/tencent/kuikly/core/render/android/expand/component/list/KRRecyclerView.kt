@@ -58,7 +58,7 @@ enum class KRNestedScrollMode(val value: String){
  * Kuikly List组件
  */
 class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChild2,
-    NestedScrollingParent2 {
+    NestedScrollingParent2, IKuiklyRenderStateRestorable {
 
     constructor(context: Context) : super(context)
 
@@ -1024,6 +1024,15 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         callback(paramsMap)
     }
 
+    override fun applyExtraCacheContent(extraCacheProps: Map<String, Any?>) {
+        val offsetX = (extraCacheProps[CONTENT_OFFSET_X] as? Number)?.toFloat()
+        val offsetY = (extraCacheProps[CONTENT_OFFSET_Y] as? Number)?.toFloat()
+        if (offsetX != null || offsetY != null) {
+            // 与 METHOD_CONTENT_OFFSET 参数格式一致："offsetX offsetY animate"，animate=0 表示无动画
+            setContentOffset("${offsetX ?: 0f} ${offsetY ?: 0f} 0")
+        }
+    }
+
     private fun setContentOffset(value: String?) {
         val rvLayoutManager = layoutManager
         if (rvLayoutManager == null || !isContentViewAttached) { // 还没设置contentView，所以layoutManager为null，等Layout完再apply
@@ -1468,6 +1477,9 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     companion object {
         const val VIEW_NAME = "KRListView"
         const val VIEW_NAME_SCROLL_VIEW = "KRScrollView"
+
+        private const val CONTENT_OFFSET_X = "contentOffsetX"
+        private const val CONTENT_OFFSET_Y = "contentOffsetY"
 
         private const val DRAG_BEGIN = "dragBegin"
         private const val DRAG_END = "dragEnd"

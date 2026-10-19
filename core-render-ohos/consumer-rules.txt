@@ -8,3 +8,14 @@ updateConfig
 createNativeRoot
 OnLaunchStart
 isBackPressConsumed
+isKRJSON
+parseKRJson
+takeKRJsonRoutePayload
+krJsonWithEntry
+has
+get
+at
+toJSONString
+toJSON
+type
+size

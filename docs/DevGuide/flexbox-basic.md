@@ -246,6 +246,10 @@ alignSelf 与 alignItems 差不多，具体的对齐方向与 flexDirection 的�
 
 ![](./img/flex_align_self_column.png)
 
+::: warning Text / RichText 例外
+为向前兼容，`Text` / `RichText` 默认包裹文字内容，不响应父容器的 `alignItemsStretch()`。需要在交叉轴上铺满时，在组件自身显式设置 `alignSelfStretch()`，详见 [Text](../API/components/text.md)。
+:::
+
 #### flex
 
 Flex Item 在**主轴**上，占据 Flex 容器的**剩余可用空间**的比例。

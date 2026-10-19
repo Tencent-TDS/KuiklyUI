@@ -18,4 +18,14 @@
 
 关闭当前``Kuikly``页面
 
+## backHandle方法
+
+同步通知宿主是否消费本次返回键事件。
+
+<br/>
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| isConsumed <Badge text="必需" type="warn"/> | 是否消费返回键事件，true 为已消费  | Boolean |
+
 <br/>

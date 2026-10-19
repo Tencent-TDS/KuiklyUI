@@ -49,9 +49,13 @@
 | --------------------- |--| ------------- |
 | pagingEnable         | 是否开启分页 | Boolean |
 
-### flingEnable
+### flingEnable <Badge text="iOS 2.16.0 及以上支持" type="warn"/>
 
 是否允许惯性滚动（fling）。设置为 `false` 时，用户松手后列表立即停止滚动，不会有惯性滑动效果。
+
+::::tip 版本说明
+Android 支持；鸿蒙自 2.6.0 起支持；iOS 自 2.16.0 起支持；Web 不支持。
+::::
 
 | 参数                | 描述                                                         | 类型          |
 | --------------------- | ------------------------------------------------------------ | ------------- |
@@ -102,6 +106,22 @@
 :::
 
 [visibleAreaIgnoreMargin 使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/VisibleAreaIgnoreMarginExamplePage.kt)
+
+### syncScroll
+
+设置是否同步滚动：开启后滚动时 Kotlin 线程的 UI 操作与 UI 线程同步更新。也可通过 `event { scroll(sync = true) { } }` 开启。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| syncEnable | 是否开启同步滚动 | Boolean |
+
+### scrollWithParent <Badge text="仅 Android" type="warn"/>
+
+设置是否与父组件滑动联动：自身滑动到目标方向的边缘时，继续触发父组件滑动，默认 true。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否允许父组件滑动联动 | Boolean |
 
 ## 事件
 
@@ -171,13 +191,22 @@
 | viewHeight | 列表View高度 | Float   |
 | isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
 
-### scrollToTop
+### scrollToTop <Badge text="iOS 2.8.0 及以上支持" type="warn"/> <Badge text="Android 2.15.3 及以上支持" type="warn"/>
 
 监听系统触发的"回到顶部"事件。iOS和Android部分厂商，点击状态栏时会触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
 
 | 参数 | 描述 | 类型 |
 |----|----|----|
 | _无_ | 回调无参数 | - |
+
+### willDragEndBySync
+
+拖拽即将结束（手指松开、惯性滚动开始前）时回调，常用于在回调中调用 `setContentOffset` 指定自定义吸附位置。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| handler | 回调参数为 `WillEndDragParams` | (WillEndDragParams) -> Unit |
+| isSync | 是否在平台主线程同步回调；仅传 `handler` 的单参重载默认为 true | Boolean |
 
 ### contentSizeChanged
 
@@ -190,9 +219,35 @@
 
 ## 方法
 
+### setHasPullToRefresh
+
+设置当前滚动容器是否挂载了下拉刷新。目前仅 Web 渲染层使用；`Refresh` 组件挂载/移除时会自动调用，业务通常无需手动调用。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enabled | 是否存在下拉刷新 | Boolean |
+
+### addScrollerViewEventObserver / removeScrollerViewEventObserver
+
+添加 / 移除滚动容器的滚动事件观察者，用于在不侵入业务事件注册的前提下监听滚动。
+
+| 方法 | 说明 |
+| -- | -- |
+| `addScrollerViewEventObserver(observer: IScrollerViewEventObserver)` | 添加观察者 |
+| `removeScrollerViewEventObserver(observer: IScrollerViewEventObserver)` | 移除观察者 |
+
+### setExternalScrollEventHandler / getExternalScrollEventHandler
+
+设置 / 获取额外的滚动事件处理器：组件在完成自身的滚动事件处理后再回调该处理器，不会覆盖组件内部的事件监听。仅对 `scroll`、`dragBegin`、`dragEnd`、`scrollEnd` 四个事件名生效，`handler` 传 `null` 表示移除。
+
+| 方法 | 说明 |
+| -- | -- |
+| `setExternalScrollEventHandler(eventName: String, handler: ((ScrollParams) -> Unit)?)` | 设置指定事件名的外部处理器 |
+| `getExternalScrollEventHandler(eventName: String): ((ScrollParams) -> Unit)?` | 获取指定事件名的外部处理器 |
+
 ### setContentOffset
 
-### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="2.14.0" type="warn"/>
+### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="Android 2.14.0 及以上支持" type="warn"/> <Badge text="鸿蒙 2.14.0 及以上支持" type="warn"/> <Badge text="iOS 2.14.0 及以上支持" type="warn"/>
 
 设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置，本方法支持线性动画曲线。
 

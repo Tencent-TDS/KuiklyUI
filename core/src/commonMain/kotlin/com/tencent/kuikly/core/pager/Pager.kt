@@ -25,6 +25,8 @@ import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.pager.HingeStatus
+import com.tencent.kuikly.core.pager.ReservedRegion
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.manager.Task
@@ -39,6 +41,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     open var ignoreLayout: Boolean = false
     private var fontWeightScale = -1.0
     private var fontSizeScale = -1.0
+    private var fontId = ""
 
     private val modulesMap = fastHashMapOf<String, Module>()
     private val moduleCreatorMap = fastHashMapOf<String, IModuleCreator>()
@@ -296,6 +299,14 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         return keyValueMap[key]
     }
 
+    override fun setValueForKey(key: String, value: Any?) {
+        if (value == null) {
+            keyValueMap.remove(key)
+        } else {
+            keyValueMap[key] = value
+        }
+    }
+
     private fun initModule() {
         initCoreModules()
         initExternalModules()
@@ -536,6 +547,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         val platform = config.optString("platform")
         val fontWeightScale = config.optDouble("fontWeightScale", -1.0)
         val fontSizeScale = config.optDouble("fontSizeScale", -1.0)
+        val fontId = config.optString("fontId")
 
         var shouldMarkTextDirty = false
         if(fontWeightScale > 0 && fontWeightScale != this.fontWeightScale){
@@ -546,6 +558,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         if(fontSizeScale > 0 && fontSizeScale != this.fontSizeScale){
             // fontSizeScale changed
             this.fontSizeScale = fontSizeScale
+            shouldMarkTextDirty = true
+        }
+        if (fontId.isNotEmpty() && fontId != this.fontId) {
+            // fontId changed
+            this.fontId = fontId
             shouldMarkTextDirty = true
         }
         if(shouldMarkTextDirty){
@@ -561,6 +578,20 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             pageData.safeAreaInsets = EdgeInsets.decodeWithString(safeAreaInsetsString)
         }
         pageData.updateRootViewSize(data, width, height)
+        // 铰链状态与避让区域随 rootViewSizeDidChanged 快照携带；
+        // 铰链独立变化时由 iOS 侧触发本事件推送。
+        if (data.has(HINGE_STATUS)) {
+            val hinge = HingeStatus.fromRaw(data.optInt(HINGE_STATUS, 0))
+            if (hinge != pageData.hingeStatus) {
+                pageData.hingeStatus = hinge
+            }
+        }
+        if (data.has(RESERVED_REGIONS)) {
+            val regions = ReservedRegion.decodeReservedRegions(data.optString(RESERVED_REGIONS, ""))
+            if (regions != pageData.reservedRegions) {
+                pageData.reservedRegions = regions
+            }
+        }
         setupRootViewSizeStyle()
         if(densityInfo.isNotEmpty()) {
             val info = JSONObject(densityInfo)
@@ -585,6 +616,19 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_THEME_DID_CHANGED = "themeDidChanged"
         const val PAGER_EVENT_WILL_DESTROY = "pageWillDestroy"
         const val PAGER_EVENT_SET_NEED_LAYOUT = "setNeedLayout"
+        /** TB缓存读取开始 */
+        const val PAGER_EVENT_INIT_LAYER_READ_CACHE_START = "onInitLayerReadCacheStart"
+        /** TB缓存读取完成，data含succ（命中附加bytes/children） */
+        const val PAGER_EVENT_INIT_LAYER_READ_CACHE_FINISH = "onInitLayerReadCacheFinish"
+        /** TB缓存首屏渲染开始 */
+        const val PAGER_EVENT_INIT_LAYER_RENDER_CACHE_START = "onInitLayerRenderCacheStart"
+        /** TB缓存首屏渲染完成（TB直出结束，此后业务可交互缓存首屏），data含succ */
+        const val PAGER_EVENT_INIT_LAYER_RENDER_CACHE_FINISH = "onInitLayerRenderCacheFinish"
+        /** 真实视图 diff 开始（缓存视图 → 真实视图的关键更替） */
+        const val PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_START = "onInitLayerRealViewDiffStart"
+        /** 真实视图 diff 完成（diff 结束，真实页面生效） */
+        const val PAGER_EVENT_INIT_LAYER_REAL_VIEW_TAKE_OVER_FINISH = "onInitLayerRealViewDiffFinish"
+
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
 
         const val PAGER_EVENT_ON_BACK_PRESSED = "onBackPressed"
@@ -593,6 +637,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val WIDTH = "width"
         const val HEIGHT = "height"
         const val SAFE_AREA_INSETS = "safeAreaInsets"
+        internal const val HINGE_STATUS = "hingeStatus"
+        internal const val RESERVED_REGIONS = "reservedRegions"
         const val DENSITY_INFO = "densityInfo"
         const val DENSITY_INFO_KEY_NEW_DENSITY = "newDensity"
 

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRNativeRenderController, KRRecord, Kuikly } from '@kuikly-open/render';
+import { KRJsonValue, KRNativeRenderController, KRRecord, KRRouterParams, Kuikly } from '@kuikly-open/render';
 import globalNativeManager from '../kuikly/MyNativeManager';
 import { KuiklyViewDelegate } from '../kuikly/KuiklyViewDelegate';
 import pasteboard from '@ohos.pasteboard';
@@ -22,6 +22,7 @@ import router from '@ohos.router';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { ContextCodeHandler } from '../kuikly/ContextCodeHandler';
 import { AppKRRenderManager } from '../kuikly/adapters/AppKRRenderManager';
+import { LaunchParams } from '../kuikly/LaunchParams';
 
 @Entry
 @Component
@@ -29,7 +30,7 @@ struct Index {
   private kuiklyViewDelegate = new KuiklyViewDelegate();
   private kuiklyController: KRNativeRenderController | null = null;
   private pageName: string | null = null;
-  private pageData?: KRRecord;
+  private pageData?: KRRecord | KRJsonValue;
   private contextCode: string = '';
   private contextCodeHandler: ContextCodeHandler = new ContextCodeHandler();
   private useDefaultBackPress = false;
@@ -50,8 +51,8 @@ struct Index {
   aboutToAppear(): void {
     AppKRRenderManager.getInstance().initIfNeed();
     const params = router.getParams() as Record<string, Object>;
-    this.pageName = params?.pageName as string;
-    this.pageData = (params?.pageData as KRRecord | null) ?? {};
+    this.pageName = (params?.pageName as string) || LaunchParams.pageName || null;
+    this.pageData = KRRouterParams.resolvePageData(params);
     if (this.contextCodeHandler.isNeedGetContextCode(params)) {
       this.contextCodeHandler.handleGetContextCode(getContext(), params, (contextCode) => {
         this.contextCode = contextCode;

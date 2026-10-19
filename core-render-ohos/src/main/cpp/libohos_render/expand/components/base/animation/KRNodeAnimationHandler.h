@@ -43,6 +43,7 @@ class KRNodeAnimationHandler : public std::enable_shared_from_this<KRNodeAnimati
     float durationS = 0;
     bool repeatForever = false;
     bool forceNotCancel = false;
+    bool isSnap = false;
 
     std::string propKey;
     KRAnyValue finalValue = nullptr;
@@ -113,7 +114,11 @@ class KRNodeAnimationHandler : public std::enable_shared_from_this<KRNodeAnimati
      * 取消动画
      */
     void cancel() {
-        // do nothing (通过覆盖新差值动画取消&不复用)
+        // Regular ArkUI animations are replaced by a new interpolation on the same property.
+        // A delayed snap has no ArkUI animator yet, so its timer must be invalidated explicitly.
+        if (isSnap) {
+            playing_ = false;
+        }
     }
 
     bool getFinishValue(bool isCancel) {
@@ -125,6 +130,8 @@ class KRNodeAnimationHandler : public std::enable_shared_from_this<KRNodeAnimati
     }
 
  private:
+    void startSnapAnimation();
+
     bool playing_ = false;
     std::shared_ptr<KRAnimation> animation_;
     KRNodeAnimationOperationEndCallback end_callback_;

@@ -168,6 +168,11 @@ internal fun ScrollableState.shouldRejectNativeScrollOffset(newOffset: Int): Boo
 internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
     if (kuiklyInfo.scrollView == null || delta == 0) return
 
+    if (shouldDeferAndroidOffsetAlignment()) {
+        kuiklyInfo.offsetDirty = true
+        return
+    }
+
     val newOffset = kuiklyInfo.scrollView!!.applyOffsetDelta(delta, kuiklyInfo)
     kuiklyInfo.composeOffset = if (kuiklyInfo.orientation == Orientation.Vertical) {
         newOffset.y.toFloat()

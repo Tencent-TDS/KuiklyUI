@@ -243,7 +243,9 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     private fun setReplaceImageLayerContent(params: Any): Boolean {
         val string = params as? String
         val (layerName, imageFilePath) = string?.split(",") ?: return false
-        pagView?.replaceImageLayerContent(layerName, imageFilePath)
+        val pagImageLoadOption = HRImageLoadOption(imageFilePath, frameWidth, frameHeight, false, ImageView.ScaleType.FIT_CENTER)
+        kuiklyRenderContext?.getImageLoader()?.convertAssetsPathIfNeed(pagImageLoadOption)
+        pagView?.replaceImageLayerContent(layerName, pagImageLoadOption.src)
         return true
     }
 

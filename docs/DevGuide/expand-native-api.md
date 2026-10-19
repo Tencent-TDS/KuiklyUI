@@ -36,11 +36,13 @@ class MyLogModule : Module() {
    4. ``callback``: 用于给``Native Module``将处理结果回调给``Kuikly Module``侧的callback
    5. ``syncCall``: 是否为同步调用。``Kuikly``的代码是运行在一条单独的线程，默认与Native Module是一个异步的通信。如果syncCall指定为true时，可强制``kuikly Module``与``Native Module``同步通信
 
-> 对于``callback``只回调一次的用法，框架提供了4个辅助方法：
-> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数
-> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组（仅支持String、Int、Float、ByteArray）
-> - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
-> - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
+> 对于``callback``只回调一次的用法，框架提供了下面几组辅助方法：
+> - syncToNativeMethod(methodName, params, null): String // 同步调用（native 侧在子线程执行）。params 为 JSONObject，传到 Native 前会 toString() 成 JSON 文本，返回值也是字符串
+> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用。参数为基本类型数组（仅支持 String、Int、Float、ByteArray）。字典 / 数组回参会被转成 JSON 文本
+> - asyncToNativeMethod(methodName, params, callback) // 异步调用（native 侧在主线程执行）。params 为 JSONObject，回调 JSON 字符串
+> - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用。参数为基本类型数组，字典 / 数组回参会被转成 JSON 文本
+> - syncToNativeMethodStructured(methodName, arrayOf(content), null): Any? // 入参与数组版 sync 相同。回参保留结构：字典为 JSONObject，数组为 JSONArray；数组里含 ByteArray 时仍是 Array
+> - asyncToNativeMethodStructured(methodName, arrayOf(content), callback) // 入参与数组版 async 相同，回参保留结构，规则与 sync 的 Structured 版本一致
 
 #### Native侧支持的数据类型
 
@@ -62,7 +64,7 @@ Module 返回值和 callback 参数支持的类型：
 
 #### Native侧序列化规则
 
-数据从 Native 传递到 Kotlin 时的处理方式：
+`syncToNativeMethod` / `asyncToNativeMethod` 从 Native 回到 Kotlin 时：
 
 | 类目         |   序列化方式   | 涉及类型                                                 |
 |:-----------|:---------:|:-----------------------------------------------------|
@@ -72,11 +74,22 @@ Module 返回值和 callback 参数支持的类型：
 | **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
 | **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
 
+`syncToNativeMethodStructured` / `asyncToNativeMethodStructured` 的入参同样是基本类型数组，回参按下面处理：
+
+| 端上带回的值 | Kotlin 收到 |
+|:-----------|:-----------|
+| 字典、`JSONObject` | `JSONObject` |
+| 数组、`JSONArray`（元素里没有二进制） | `JSONArray` |
+| 以 `{` 或 `[` 开头的 JSON 文本 | 解析成 `JSONObject` / `JSONArray`；解析失败则仍是 `String` |
+| 含 `ByteArray` 的数组 | `Array`，二进制元素保持 `ByteArray` |
+| 字符串、数字、布尔、二进制 | 原样 |
+
+`JSONObject.toString()` / `JSONArray.toString()` 输出紧凑 JSON，例如 `{"a":1,"b":"x/y"}`。冒号后没有空格，`/` 不再写成 `\/`。解析两种格式都可以；用字符串相等对比旧输出的代码会对不上。
+
 :::tip 注意
-- syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，
-序列化过程不支持对ByteArray二进制数据进行处理。因此请选择params为Any的syncToNativeMethod/asyncToNativeMethod方法传输二进制参数
-- callback中解析回传至Koltin侧二进制数据，可参考示例：
-```koltin
+- `syncToNativeMethod` 和 `asyncToNativeMethod` 的 JSONObject 重载会把 params `toString()` 成 JSON 文本再传给 Native，这个过程不保留 `ByteArray`。二进制请走 `arrayOf(...)` 重载。
+- 回调里识别二进制：
+```kotlin
 if (data is ByteArray) {
    val byteData = data.decodeToString()
    // ...
@@ -112,8 +125,10 @@ class MyLogModule : Module() {
 ### 获取返回值
 
 ``Kuikly``调用原生API时，可以有两种方式获取原生侧的返回值
-1. 异步获取返回值: 这种方式是在调用``toNative``方法时，传递``CallbackFn``参数，让原生侧将结果已json字符串的形式传递给``CallbackFn``
-2. 同步获取: 这种方式是在``Kuikly``当前线程(非UI线程)中调用原生侧的API方法，原生侧的API方法将结果以String的格式返回
+1. 异步获取返回值: 这种方式是在调用``toNative``方法时，传递``CallbackFn``参数，让原生侧将结果以 json 字符串的形式传递给``CallbackFn``
+2. 同步获取: 这种方式是在``Kuikly``当前线程(非UI线程)中调用原生侧的API方法，原生侧的API方法将结果以 String 的格式返回
+
+上面两条是 ``toNative`` 以及不带 Structured 后缀的辅助方法的约定。``syncToNativeMethodStructured`` / ``asyncToNativeMethodStructured`` 里，字典回参是 ``JSONObject``，数组回参是 ``JSONArray``。
 
 ```kotlin
 class MyLogModule : Module() {
@@ -430,6 +445,16 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 ```
 
 ``Kuikly``的``MyLogModule``的``toNative``方法最终会调用原生对应的``Module``的``call``方法，也就是``KRMyLogModule``中的``call``方法。
+
+对象参数默认仍是 JSON 字符串，数组仍是 ArkTS 数组。要直接读原生 JSON，重写 ``acceptsKRJSON()`` 并返回 ``true``。此时对象形态的 ``params`` 是 ``KRJSON``，用 ``KRJSON.get`` / ``KRJSON.at`` / ``KRJSON.asJSONString`` 取字段。不重写或返回 ``false`` 时，框架走 ``KRJSON.toLegacy()``：对象变成 JSON 文本，数组变成 ArkTS 数组，数组里的二进制仍是 ``Int8Array``。
+
+```ts
+export class KRMyLogModule extends KuiklyRenderBaseModule {
+    acceptsKRJSON(): boolean {
+        return true;
+    }
+}
+```
 
 在``Kuikly``的``MyLogModule``中定义了三个方法，下面我们来看在鸿蒙侧如何实现这三个方法
 

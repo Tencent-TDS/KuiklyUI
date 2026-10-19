@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.zIndex
 import com.tencent.kuikly.compose.ui.draw.clipToBounds
 import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasurable
 import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasureScope
@@ -199,6 +200,14 @@ class ContentTransform(
      * content with the same index, the target content will be placed on top.
      */
     var targetContentZIndex by mutableFloatStateOf(targetContentZIndex)
+
+    /**
+     * Optional z-index used only while the target content is entering. NavHost uses this to keep
+     * a pushed destination at the outgoing destination's level until its initial graphics
+     * transform has reached Native Render. Equal z-index content is still drawn in placement
+     * order, so the incoming destination remains on top without exposing its untransformed frame.
+     */
+    internal var initialTargetContentZIndex: Float? = null
 
     /**
      * [sizeTransform] manages the expanding and shrinking of the container if there is any size
@@ -769,6 +778,13 @@ fun <S> Transition<S>.AnimatedContent(
                 val childData = remember {
                     AnimatedContentTransitionScopeImpl.ChildData(stateForContent == targetState)
                 }
+                val targetZIndex =
+                    if (stateForContent == targetState && currentState != targetState) {
+                        specOnEnter.initialTargetContentZIndex
+                            ?: specOnEnter.targetContentZIndex
+                    } else {
+                        specOnEnter.targetContentZIndex
+                    }
                 // TODO: Will need a custom impl of this to: 1) get the signal for when
                 // the animation is finished, 2) get the target size properly
                 AnimatedEnterExitImpl(
@@ -777,12 +793,10 @@ fun <S> Transition<S>.AnimatedContent(
                     enter = specOnEnter.targetContentEnter,
                     exit = exit,
                     modifier = Modifier
-                        .layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            layout(placeable.width, placeable.height) {
-                                placeable.place(0, 0, zIndex = specOnEnter.targetContentZIndex)
-                            }
-                        }
+                        // Use the public modifier instead of placement-only zIndex. Kuikly's
+                        // native View tree also consumes the modifier property, so the actual
+                        // sibling views keep the same draw order as Compose during page pop.
+                        .zIndex(targetZIndex)
                         .then(childData.apply { isTarget = stateForContent == targetState }),
                     shouldDisposeBlock = { currentState, targetState ->
                         currentState == EnterExitState.PostExit &&

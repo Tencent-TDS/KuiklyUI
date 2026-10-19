@@ -4,6 +4,25 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/tree/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/TextExamplePage.kt)
 
+::: warning 交叉轴拉伸需显式设置 alignSelfStretch()
+为向前兼容，Text 默认包裹文字内容，不响应父容器的 `alignItemsStretch()`。需要在交叉轴上铺满父容器时，在 Text 自身显式设置 `alignSelfStretch()`：
+
+```kotlin
+View {
+    attr {
+        flexDirectionColumn()
+        alignItemsStretch() // ❌ 对 Text 无效
+    }
+    Text {
+        attr {
+            alignSelfStretch() // ✅ 宽度撑满父容器
+            text("撑满宽度")
+        }
+    }
+}
+```
+:::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
@@ -169,8 +188,8 @@ internal class FontSizePage : BasePager() {
 | `fontWeightMedium()` | `fontWeight500()` | 中等 |
 | `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
 | `fontWeightBold()` | `fontWeight700()` | 粗体 |
-| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
-| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗<Badge text="2.14.0 及以上支持" type="warn"/> |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗<Badge text="2.14.0 及以上支持" type="warn"/> |
 
 </div>
 
@@ -318,6 +337,10 @@ internal class FontWeightPage : BasePager() {
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | lineBreakMargin | 最后一行折叠距离text组件frame.right距离 | String |
+
+::::tip 配套事件
+`onLineBreakMargin` 事件用于监听文本是否发生了折叠，H5 自 2.17.0 起支持。
+::::
 
 :::tabs
 
@@ -476,6 +499,10 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+### textOverFlowWordWrapping方法<Badge text="仅 iOS" type="warn"/>
+
+文本超出最大行数时按单词边界换行，不显示"..."
 
 ### textOverFlowClip方法<Badge text="安卓实现中" type="warn"/>
 
@@ -747,6 +774,59 @@ internal class TestPage : BasePager() {
 
 :::
 
+### textAlignJustify方法
+
+文字两端对齐。文本的左右两侧对齐到容器边缘，最后一行除外。
+
+<div class="table-01">
+
+**平台支持**
+
+| 平台 | 说明 |
+|:----|:----|
+| iOS、macOS | 支持 |
+| 鸿蒙 | 支持*（详见下方说明） |
+| H5 | 支持 |
+| 小程序 | 支持 |
+| Android | API 23 及以上支持。API 22 及以下按左对齐显示 |
+
+</div>
+
+:::warning 鸿蒙平台限制
+富文本内嵌图片的两端对齐受鸿蒙文本组件限制，拉伸不均匀。使用时注意验证与规避。
+:::
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{13}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                padding(16f)
+            }
+
+            Text {
+                attr {
+                    text("两端对齐需要使用接近满宽的多行段落才能看清效果。软换行的中间行应撑满容器，最后一行保持左对齐。")
+                    fontSize(18f)
+                    textAlignJustify()
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 效果
+
+软换行且撑满容器的行左右对齐，最后一行保持左对齐。
+
+:::
+
 ### lineHeight方法
 
 文字行高
@@ -794,6 +874,14 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+### paragraphSpacing方法 <Badge text="仅 iOS" type="warn"/>
+
+设置段落之间的间距。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| value | 段落间距 | Float |
 
 ### lineSpacing方法
 
@@ -889,6 +977,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+### fontStyleNormal方法
+
+设置字体样式为正常（默认）。
+
 ### fontStyleItalic方法
 
 设置文本为斜体
@@ -927,9 +1019,13 @@ internal class TestPage : BasePager() {
 
 :::
 
-### firstLineHeadIndent方法
+### firstLineHeadIndent方法 <Badge text="鸿蒙 2.17.0 及以上支持" type="warn"/>
 
 文本首行缩进距离
+
+::::tip 版本说明
+该属性在其他端为基线能力，鸿蒙自 2.17.0 起支持。
+::::
 
 :::tabs
 

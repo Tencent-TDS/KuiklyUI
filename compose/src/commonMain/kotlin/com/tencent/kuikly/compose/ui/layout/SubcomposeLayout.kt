@@ -78,6 +78,7 @@ import com.tencent.kuikly.compose.layout.checkOffScreenNode
 import com.tencent.kuikly.compose.layout.hideOffsetScreenView
 import com.tencent.kuikly.compose.layout.restoreScrollerViewOnReuse
 import com.tencent.kuikly.compose.layout.transferScrollToTopCallback
+import com.tencent.kuikly.compose.scroller.AndroidBackgroundAlignmentEffect
 import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.lastItemVisible
@@ -239,6 +240,8 @@ fun SubcomposeLayout(
     val isPagerView = scrollableState is PagerState || scrollableState is DrawerInternalPagerState
     val isDrawerPager = scrollableState is DrawerInternalPagerState
     val coroutineScope = rememberCoroutineScope()
+
+    scrollableState.AndroidBackgroundAlignmentEffect()
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.calculateAndUpdateContentSize()

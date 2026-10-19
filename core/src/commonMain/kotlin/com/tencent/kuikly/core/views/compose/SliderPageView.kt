@@ -50,6 +50,8 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
                     pageItemWidth(ctx.attr.pageItemWidth)
                     pageItemHeight(ctx.attr.pageItemHeight)
                     defaultPageIndex(ctx.attr.defaultPageIndex + (if (ctx.attr.itemCount > 1) 1 else 0))
+                    // 首屏额外多加载两个 item（前后），避免默认页落在首屏宽度不足被循环归位逻辑误判回 0
+                    firstContentLoadMaxIndex(ctx.attr.defaultPageIndex + (if (ctx.attr.itemCount > 1) 1 else 0) + 2)
                     pageDirection(ctx.attr.isHorizontal)
                     showScrollerIndicator(false)
                     keepItemAlive = true
@@ -138,15 +140,7 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
             val viewWidth = it.flexNode.layoutFrame.width
             val viewHeight = it.flexNode.layoutFrame.height
             if (it.renderView != null && !isDragging && viewWidth > 0 && viewHeight > 0) {
-                var offset = 0f
-                if (attr.itemCount == index ) {
-                    offset = 0.1f
-                }
-                if (attr.isHorizontal) {
-                    it.setContentOffset((index + 1)  * viewWidth + offset, 0f, animation)
-                } else {
-                    it.setContentOffset(0f, (index + 1)  * viewHeight + offset, animation)
-                }
+                it.scrollToPageIndex(index + 1, animation)
             }
         }
     }

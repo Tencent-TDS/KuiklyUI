@@ -126,7 +126,8 @@ fun <T> Transition<T>.Crossfade(
         currentlyVisible.fastForEach { stateForContent ->
             contentMap[stateForContent] = {
                 val alpha by animateFloat(
-                    transitionSpec = { animationSpec }
+                    transitionSpec = { animationSpec },
+                    label = "Crossfade alpha"
                 ) { if (it == stateForContent) 1f else 0f }
                 Box(Modifier.graphicsLayer { this.alpha = alpha }) {
                     content(stateForContent)

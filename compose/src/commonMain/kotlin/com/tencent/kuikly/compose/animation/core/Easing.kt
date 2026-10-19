@@ -103,10 +103,10 @@ val LinearEasing: Easing = Easing { fraction -> fraction }
  */
 @Immutable
 class CubicBezierEasing(
-    private val a: Float,
-    private val b: Float,
-    private val c: Float,
-    private val d: Float
+    internal val a: Float,
+    internal val b: Float,
+    internal val c: Float,
+    internal val d: Float
 ) : Easing {
     private val min: Float
     private val max: Float

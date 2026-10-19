@@ -111,6 +111,20 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "TJ"
+            titleText = "Text Justify"
+            subtitleText = "两端对齐：语言、换行、富文本、点击与选区"
+            declarativeExampleUrl = generateJumpUrl("TextJustifyDemo")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "TS"
+            titleText = "Text Stretch"
+            subtitleText = "Text/RichText 通过 alignSelfStretch 在交叉轴上撑满父容器"
+            declarativeExampleUrl = generateJumpUrl("TextStretchRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Sp"
             titleText = "Span Selection"
             subtitleText = "长按富文本 Span 整体选择，支持字符/WORD/句子/段落/SPAN 多种选择类型"

@@ -28,15 +28,15 @@ constexpr char kPanEventName[] = "pan";
 constexpr char kPinchEventName[] = "pinch";
 constexpr char kCaptureAttrName[] = "capture";
 
-constexpr char kParamKeyX[] = "x";
-constexpr char kParamKeyY[] = "y";
-constexpr char kParamKeyPageX[] = "pageX";
-constexpr char kParamKeyPageY[] = "pageY";
-constexpr char kParamKeyState[] = "state";
+constexpr char16_t kParamKeyX[] = u"x";
+constexpr char16_t kParamKeyY[] = u"y";
+constexpr char16_t kParamKeyPageX[] = u"pageX";
+constexpr char16_t kParamKeyPageY[] = u"pageY";
+constexpr char16_t kParamKeyState[] = u"state";
 constexpr char kStartState[] = "start";
 constexpr char kEndState[] = "end";
-constexpr char kParamKeyScale[] = "scale";
-constexpr char kParamKeyIsCancel[] = "isCancel";
+constexpr char16_t kParamKeyScale[] = u"scale";
+constexpr char16_t kParamKeyIsCancel[] = u"isCancel";
 
 KRBaseEventHandler::KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config) : kr_config_(kr_config) {}
 
@@ -172,7 +172,7 @@ bool KRBaseEventHandler::FireOnLongPressCallback(const std::shared_ptr<KRGesture
     if (!long_press_callback_) {
         return false;
     }
-    std::string state = kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_);
+    std::string state = gesture_event_data->GetActionState();
     if ((is_long_press_happening && state == kStartState) || (!is_long_press_happening && state == kEndState)) {
         return false;
     }
@@ -182,8 +182,8 @@ bool KRBaseEventHandler::FireOnLongPressCallback(const std::shared_ptr<KRGesture
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
-    params[kParamKeyIsCancel] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionType(gesture_event_data->gesture_event_) == GESTURE_EVENT_ACTION_CANCEL);
+    params[kParamKeyState] = NewKRRenderValue(gesture_event_data->GetActionState());
+    params[kParamKeyIsCancel] = NewKRRenderValue(gesture_event_data->GetActionType() == GESTURE_EVENT_ACTION_CANCEL);
     long_press_callback_(NewKRRenderValue(params));
     return true;
 }
@@ -205,7 +205,7 @@ bool KRBaseEventHandler::FireOnPanCallback(const std::shared_ptr<KRGestureEventD
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
+    params[kParamKeyState] = NewKRRenderValue(gesture_event_data->GetActionState());
     pan_event_callback_(NewKRRenderValue(params));
     return true;
 }
@@ -227,8 +227,8 @@ bool KRBaseEventHandler::FireOnPinchCallback(const std::shared_ptr<KRGestureEven
     params[kParamKeyY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_point_.y));
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
-    params[kParamKeyScale] = NewKRRenderValue(kuikly::util::GetArkUIGesturePinchScale(gesture_event_data->gesture_event_));
-    params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
+    params[kParamKeyScale] = NewKRRenderValue(gesture_event_data->GetScale());
+    params[kParamKeyState] = NewKRRenderValue(gesture_event_data->GetActionState());
     pinch_event_callback_(NewKRRenderValue(params));
     return true;
 }

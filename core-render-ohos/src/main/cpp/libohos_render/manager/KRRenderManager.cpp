@@ -15,7 +15,6 @@
 
 #include "libohos_render/manager/KRRenderManager.h"
 
-#include "libohos_render/context/KRRenderNativeContextHandlerManager.h"
 #include "libohos_render/expand/components/ComponentsRegisterEntry.h"
 #include "libohos_render/expand/events/KREventDispatchCenter.h"
 #include "libohos_render/expand/modules/ModulesRegisterEntry.h"
@@ -55,7 +54,7 @@ void KRRenderManager::CreateRenderViewIfNeeded(napi_env env, napi_callback_info 
     ArkUI_NodeContentHandle contentHandle;
     OH_ArkUI_GetNodeContentFromNapiValue(env, args[0], &contentHandle);
 
-    auto id = kuikly::util::getNApiArgsStdString(env, args[1]);
+    auto id = kuikly::util::getNApiArgsAsciiStdString(env, args[1]);
     if (id.empty() || contentHandle == nullptr) {
         return;
     }
@@ -132,14 +131,4 @@ int64_t KRRenderManager::GetLaunchStartTime(std::string &instanceId) {
         return launch_init_time_map_[instanceId];
     }
     return 0;
-}
-
-void KRRenderManager::RegisterExcuteModeCreator(
-    const std::shared_ptr<KRRenderExecuteModeWrapper> &execute_mode_wrapper) {
-    if (execute_mode_wrapper) {
-        KRRenderExecuteMode::RegisterExecuteModeCreator(execute_mode_wrapper->GetMode(),
-                                                        execute_mode_wrapper->GetExecuteModeCreator());
-        KRRenderNativeContextHandlerManager::RegisterContextHandlerCreator(
-            execute_mode_wrapper->GetMode(), execute_mode_wrapper->GetContextHandlerCreator());
-    }
 }

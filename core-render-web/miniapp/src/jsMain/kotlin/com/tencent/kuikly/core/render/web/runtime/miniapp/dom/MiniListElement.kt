@@ -183,7 +183,14 @@ class MiniListElement(
             scrollTo(offsetY, offsetX, animate)
         }, 0)
 
-        if (!hasChangeScrollPosition) {
+        // When animated scrolling is requested, do NOT synchronously overwrite
+        // scrollLeft/scrollTop here: doing so instantly jumps the scroll-view to
+        // the target position (visually a hard jump), and then the asynchronous
+        // scrollTo(..., true) fires but sees "current == target" so no
+        // scroll-with-animation is played. Only apply the immediate write for
+        // the non-animated code path (matches the previous instant-scroll
+        // behavior) or when a touch drag is already in progress.
+        if (!hasChangeScrollPosition && !animate) {
             scrollLeft = offsetX.toDouble()
             scrollTop = offsetY.toDouble()
         }
@@ -476,11 +483,13 @@ class MiniListElement(
     private fun handleAnimate(animate: Boolean?) {
         if (animate != null) {
             if (isMovableArea) {
-                if (firstElementChild?.getAttribute("animation") != animate) {
+                val cur = firstElementChild?.getAttribute("animation")
+                if (cur != animate) {
                     firstElementChild?.setAttribute("animation", animate)
                 }
             } else {
-                if (getAttribute("scroll-with-animation") != animate) {
+                val cur = getAttribute("scroll-with-animation")
+                if (cur != animate) {
                     setAttribute("scroll-with-animation", animate)
                 }
             }
@@ -491,6 +500,17 @@ class MiniListElement(
      * Scroll to specified position
      */
     private fun scrollTo(top: Float?, left: Float?, animate: Boolean?) {
+        // Detect whether the animation flag actually needs to be toggled on this
+        // scroll. Miniprogram <scroll-view> has a well-known pitfall: if
+        // `scroll-with-animation` and `scrollLeft` are committed to the view
+        // layer in the same setData batch, the view sometimes processes the
+        // scrollLeft change before the new animation flag takes effect,
+        // resulting in an instant jump instead of a smooth scroll. To avoid
+        // this, when animation is being turned ON for this scroll, we split
+        // the flag update and the scrollLeft update into two separate ticks
+        // so the animation flag reaches the view layer first.
+        val needsAnimationFlagFlush = animate == true && !isMovableArea &&
+            getAttribute("scroll-with-animation") != true
         handleAnimate(animate)
         if (top != null) {
             tempScrollTop = top
@@ -498,7 +518,6 @@ class MiniListElement(
             if (left == null) {
                 tempScrollLeft = null
             }
-            setAttributeForce("scrollTop", top)
         }
         if (left != null) {
             tempScrollLeft = left
@@ -506,7 +525,23 @@ class MiniListElement(
             if (top == null) {
                 tempScrollTop = null
             }
-            setAttributeForce("scrollLeft", left)
+        }
+        val applyScrollPositions: () -> Unit = {
+            if (top != null) {
+                setAttributeForce("scrollTop", top)
+            }
+            if (left != null) {
+                setAttributeForce("scrollLeft", left)
+            }
+        }
+        if (needsAnimationFlagFlush) {
+            // Defer scrollLeft/scrollTop to the next tick so the animation
+            // flag can be flushed to the view layer first.
+            MiniGlobal.setTimeout({
+                applyScrollPositions()
+            }, 0)
+        } else {
+            applyScrollPositions()
         }
     }
 

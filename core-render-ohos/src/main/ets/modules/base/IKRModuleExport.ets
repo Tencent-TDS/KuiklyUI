@@ -42,6 +42,12 @@ export interface IKuiklyRenderModuleExport {
    * @returns true表示同步模式，false表示异步模式
    */
   syncMode(): boolean;
+
+  /**
+   * 是否直接接收 KRJsonValue 形态的参数（零拷贝，按需用 KRJSON.get/at 取值）。
+   * 未实现或返回 false 时保持历史形态：对象为 JSON 字符串，数组为 ArkTS 数组。
+   */
+  acceptsKRJSON?(): boolean;
 }
 
 export type KRRenderModuleExportCreator = () => IKuiklyRenderModuleExport;

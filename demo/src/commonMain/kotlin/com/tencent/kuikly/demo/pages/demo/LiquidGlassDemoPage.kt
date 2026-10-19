@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.LiquidGlass
+import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.ios.SegmentedControlIOS
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Slider
@@ -485,6 +486,11 @@ internal class LiquidGlassDemoPage : BasePager() {
                     }
                 }()
 
+                // 列表区玻璃演示分组
+                ctx.createDemoSection("列表区玻璃") {
+                    ctx.listGlassDemo()()
+                }()
+
                 vif({ PlatformUtils.isIOSOrMacOS() }) {
                     // 组件方式写法演示分组 - 内置
                     ctx.createDemoSection("独立组件方式使用示例（内置组件）") {
@@ -717,6 +723,52 @@ internal class LiquidGlassDemoPage : BasePager() {
                             alignSelfCenter()
                             sliderDirection(false)
                             trackThickness(6f)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 列表区玻璃：glassEffectIOS() 不支持 Scroller / List（原生侧为 UIScrollView 子类，属性会被丢弃）。
+     * 需要浮动面板内的列表带玻璃效果时，把玻璃加在外层 View 上、列表作为子视图放在里面。
+     */
+    private fun listGlassDemo(): ViewBuilder {
+        return {
+            Text {
+                attr {
+                    text("glassEffectIOS() 不能直接用在 Scroller / List 上，玻璃需加在外层 View。")
+                    fontSize(13f)
+                    lineHeight(18f)
+                    color(Color(0xFF555555L))
+                    marginBottom(10f)
+                }
+            }
+            View {
+                attr {
+                    height(180f)
+                    borderRadius(16f)
+                    // 使用液态玻璃时，不能同时设置背景色
+                    if (PlatformUtils.isLiquidGlassSupported()) {
+                        glassEffectIOS()
+                    } else {
+                        backgroundColor(Color(0x80000000L))
+                    }
+                }
+                List {
+                    attr {
+                        flex(1f)
+                        margin(all = 10f)
+                    }
+                    for (i in 1..10) {
+                        Text {
+                            attr {
+                                text("列表项 $i —— 玻璃由外层 View 承载")
+                                fontSize(14f)
+                                color(Color.WHITE)
+                                margin(left = 8f, top = 6f, bottom = 6f)
+                            }
                         }
                     }
                 }

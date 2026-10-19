@@ -446,6 +446,18 @@ typedef void (*KRTextPostProcessorAdapter)(const char *name,
 KUIKLY_EXPORT void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter);
 
 
+/**
+ * 设置同步主线程任务的告警超时时长（单位：毫秒，默认 10000）。
+ * 该超时用于检测主<->worker 死锁：worker 线程同步等待主线程执行任务超过该时长即触发 assert。
+ *
+ * 注意：g_SyncMainTaskWarnTimeout 为文件级 static 变量，本接口未做线程同步保护，
+ * 仅应在初始化 kuikly 前调用一次（且只调用一次），不要多次调用或在运行期并发设置，
+ * 否则存在数据竞争风险。
+ * @param ms 超时毫秒数；<=0 视为非法输入，保持默认 10000ms。
+ */
+KUIKLY_EXPORT void KRSetSyncMainTaskWarnTimeout(int ms);
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,8 @@ package com.tencent.kuikly.android.demo
 
 import android.content.Context
 import com.tencent.kuikly.android.demo.module.KRBridgeModule
+import com.tencent.kuikly.android.demo.module.KRInteropPerfTestModule
+import com.tencent.kuikly.android.demo.module.KRMyModule
 import com.tencent.kuikly.android.demo.module.KRShareModule
 import com.tencent.kuikly.core.render.android.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
@@ -30,8 +32,14 @@ class KuiklyRenderView(context: Context, delegate: KuiklyRenderViewBaseDelegator
             moduleExport(KRBridgeModule.MODULE_NAME) {
                 KRBridgeModule()
             }
+            moduleExport(KRMyModule.MODULE_NAME) {
+                KRMyModule()
+            }
             moduleExport(KRShareModule.MODULE_NAME) {
                 KRShareModule()
+            }
+            moduleExport(KRInteropPerfTestModule.MODULE_NAME) {
+                KRInteropPerfTestModule()
             }
         }
     }

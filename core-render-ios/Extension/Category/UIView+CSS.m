@@ -20,6 +20,7 @@
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#import "CSSNativeAnimationV2.h"
 
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
@@ -50,8 +51,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @interface CSSAnimation : NSObject
 
 @property (nonatomic, copy) NSString *animationKey;
+@property (nonatomic, readonly) BOOL isNativeV2;
 
 - (instancetype)initWithCSSAnimation:(NSString *)cssAnimation;
+- (CGFloat)nativeV2ProgressForFraction:(CGFloat)fraction;
+- (NSUInteger)nativeV2TransformSampleCount;
 
 - (void)animationWithBlock:(void (^)(void))block completion:(void (^)(BOOL finished))completion;
 
@@ -65,6 +69,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (instancetype)initWithCSSTransform:(NSString *)cssTransform;
 - (void)applyToView:(UIView *)view;
 - (void)applyToView:(UIView *)view animation:(CSSAnimation *)animation oldTransform:(CSSTransform *)oldTransform;
+- (void)applyNativeV2TransformToView:(UIView *)view
+                          animation:(CSSAnimation *)animation
+                       oldTransform:(CSSTransform *)oldTransform
+                       targetAnchor:(CGPoint)anchor;
 + (void)resetTransformWithView:(UIView *)view;
 
 
@@ -91,7 +99,6 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong) UILongPressGestureRecognizer *css_longPressGR;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
-
 @end
 
 @implementation UIView (CSS)
@@ -136,6 +143,14 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         return YES;
     }
+#if DEBUG
+    // glassEffect* 只在 KRView（View 及其子类容器）上实现，Scroller / List 等组件上属性会被丢弃，
+    // 这里给出告警便于业务定位；需要列表区玻璃时应把玻璃加在外层 View 上。
+    // 包装层（kr_commonWrapperView）先收到属性、不认时会回落给宿主视图，不应在包装层上告警
+    if ([key hasPrefix:@"glassEffect"] && ![self isKindOfClass:[KRBoxShadowView class]]) {
+        NSLog(@"[Kuikly] %@ is not supported on %@, dropped.", key, NSStringFromClass([self class]));
+    }
+#endif
     return NO;
 }
 
@@ -381,7 +396,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         //    - clipPath 清空时需要恢复 borderRadius 的 mask
         if (self.css_clipPath.length > 0) {
             // clipPath 优先，刷新 border 即可
-            [self.css_borderLayer setNeedsLayout];
+            [self.css_borderLayer setNeedsRedraw];
             return;
         }
         
@@ -408,6 +423,8 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
                 [self.layer.mask setFrame:self.bounds];
             }
         }
+        // 圆角变化但尺寸不变时，border 会命中尺寸缓存而跳过重绘，需强制重绘
+        [self.css_borderLayer setNeedsRedraw];
     }
     
     // 10. 刷新 border（不管 borderRadius 值是否变化都要刷新）
@@ -830,6 +847,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 - (void)p_boundsDidChanged {
+    // 圆角 / clipPath mask 也是手动挂上去的独立 CAShapeLayer（CSSShapeLayer 在 setFrame: 里同步重算 path），
+    // 同样不享受 UIView backing layer 的隐式动画屏蔽，属性变更会走 CA 默认的 0.25s，这里统一禁掉
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
         // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
@@ -854,6 +875,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
             #endif // [macOS]
         }
     }
+    [CATransaction commit];
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -1549,7 +1571,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 // 标记路径内容变更（如 clipPath 变化），强制下次 layoutSublayers 重绘边框（不依赖尺寸变化）
 - (void)setNeedsRedraw {
-    // 仅由 setCss_clipPath: 调用，确保 clipPath 变化时边框路径同步更新
+    // 由 setCss_clipPath: / setCss_borderRadius: 调用，确保路径变化时边框同步更新
     _needsRedraw = YES;
     [self setNeedsLayout];
 }
@@ -1568,6 +1590,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
  */
 - (void)layoutSublayers {
     [super layoutSublayers];
+    // 边框 layer 是手动 addSublayer 的独立 CAShapeLayer，属性变更默认会带 0.25s 的隐式动画，
+    // 这里统一禁用，让边框与内容在同一帧到位
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     
     // 0. macOS: 确保边框在最顶层（NSScrollView/NSTextView 内部 sublayer 可能覆盖边框）
 #if TARGET_OS_OSX
@@ -1587,8 +1613,9 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
     
     // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
-    // 仅在 clipPath 变化时为 YES）
+    // 在 clipPath / borderRadius 变化时为 YES）
     if (CGSizeEqualToSize(self.bounds.size, _lastSize) && !_needsRedraw) {
+        [CATransaction commit];
         return ;
     }
     _lastSize = self.bounds.size;
@@ -1654,6 +1681,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     #else
     self.path = path.CGPath;
     #endif
+    [CATransaction commit];
 }
 
 @end
@@ -1837,8 +1865,21 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     NSTimeInterval _delay;
     BOOL _repeatForever;
     UIViewAnimationCurve _viewAnimationCurve;
+    NSString *_nativeV2Kind;
+    NSArray<NSNumber *> *_nativeV2Values;
 }
 
+- (BOOL)isNativeV2 {
+    return _nativeV2Kind.length > 0;
+}
+
+- (CGFloat)nativeV2ProgressForFraction:(CGFloat)fraction {
+    return KRNativeAnimationV2Progress(_nativeV2Kind, _nativeV2Values, fraction);
+}
+
+- (NSUInteger)nativeV2TransformSampleCount {
+    return KRNativeAnimationV2TransformSampleCount(_duration);
+}
 
 - (instancetype)initWithCSSAnimation:(NSString *)cssAnimation {
     if (self = [super init]) {
@@ -1864,6 +1905,12 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
             if (splits.count >= 8 && [splits[7] isKindOfClass:[NSString class]]) {
                 _animationKey = splits[7];
             }
+            NSString *nativeV2Kind = nil;
+            NSArray<NSNumber *> *nativeV2Values = nil;
+            if (KRParseNativeAnimationV2(splits, &nativeV2Kind, &nativeV2Values)) {
+                _nativeV2Kind = nativeV2Kind;
+                _nativeV2Values = nativeV2Values;
+            }
         }
     }
     return self;
@@ -1873,7 +1920,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     __block BOOL isKeyFrameAnimation = NO;
     [self performAnimateWithType:_animationType animations:^{
         block();
-        isKeyFrameAnimation = [self performKeyFrameAnimationsWithCompletion:completion]; // 属性动画分解出来的关键帧动画
+        isKeyFrameAnimation = [self performKeyFrameAnimationsWithCompletion:completion];
     } completion:^(BOOL finished) {
         if (completion && !isKeyFrameAnimation) {
             completion(finished);
@@ -1890,7 +1937,21 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     }];
 }
 
-- (void)performAnimateWithType:(CSSAnimationType)type animations:(void (^)(void))animations completion:(void (^)(BOOL finished))completion {
+- (void)performAnimateWithType:(CSSAnimationType)type
+                    animations:(void (^)(void))animations
+                    completion:(void (^)(BOOL finished))completion {
+    if (_nativeV2Kind.length) {
+        if (KRPerformNativeAnimationV2(
+                _nativeV2Kind,
+                _nativeV2Values,
+                _duration,
+                _delay,
+                animations,
+                completion
+            )) {
+            return;
+        }
+    }
     if (type == CSSAnimationTypeSpring) {
         [UIView animateWithDuration:_duration delay:_delay usingSpringWithDamping:_damping initialSpringVelocity:_velocity
                             options:_viewAnimationOption | UIViewAnimationOptionAllowUserInteraction
@@ -1905,13 +1966,15 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 }
 
 
-- (BOOL)performKeyFrameAnimationsWithCompletion:(void (^)(BOOL finished))completion  {
+- (BOOL)performKeyFrameAnimationsWithCompletion:(void (^)(BOOL finished))completion {
     if (!_keyFrameAniamtions.count) {
         return NO;
     }
     NSMutableArray *animations = [_keyFrameAniamtions copy];
     _keyFrameAniamtions = nil;
-    UIViewKeyframeAnimationOptions option = UIViewKeyframeAnimationOptionCalculationModeCubicPaced;
+    UIViewKeyframeAnimationOptions option = self.isNativeV2
+        ? UIViewKeyframeAnimationOptionCalculationModeLinear
+        : UIViewKeyframeAnimationOptionCalculationModeCubicPaced;
     if (_repeatForever) {
         option |= (UIViewKeyframeAnimationOptions)UIViewAnimationOptionRepeat;
     }
@@ -1919,7 +1982,13 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         UIViewAnimationCurve animationCurve = self->_viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
-                [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
+                if (!self.isNativeV2) {
+                    // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIView.setAnimationCurve: → block-based animation API
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+                    [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
+#pragma clang diagnostic pop
+                }
                 block();
             }];
     } completion:^(BOOL finished) {
@@ -2084,8 +2153,25 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     
     // Calculate rotation difference for animation decision
     CGFloat rotationDelta = oldTransform ? fabs(_rotateAngle - oldTransform.rotateAngle) : 0;
-    
-    if (animation && rotationDelta >= 180.0) {
+
+    BOOL isPureTranslation =
+        oldTransform &&
+        fabs(_rotateAngle - oldTransform->_rotateAngle) < 0.0001 &&
+        fabs(_rotateXAngle - oldTransform->_rotateXAngle) < 0.0001 &&
+        fabs(_rotateYAngle - oldTransform->_rotateYAngle) < 0.0001 &&
+        fabs(_scaleX - oldTransform->_scaleX) < 0.0001 &&
+        fabs(_scaleY - oldTransform->_scaleY) < 0.0001 &&
+        fabs(_anchorX - oldTransform->_anchorX) < 0.0001 &&
+        fabs(_anchorY - oldTransform->_anchorY) < 0.0001 &&
+        fabs(_skewX - oldTransform->_skewX) < 0.0001 &&
+        fabs(_skewY - oldTransform->_skewY) < 0.0001;
+
+    if (animation.isNativeV2 && oldTransform && !isPureTranslation) {
+        [self applyNativeV2TransformToView:view
+                                animation:animation
+                             oldTransform:oldTransform
+                             targetAnchor:targetAnchor];
+    } else if (animation && rotationDelta >= 180.0) {
         // Complex rotation animation (multi-step)
         [self applyComplexRotationToView:view
                                animation:animation
@@ -2098,6 +2184,67 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
                                                    relativeTransform:oldTransform
                                                        interpolation:1.0];
         [transform applyTransformToView:view];
+    }
+}
+
+/// V2 transforms preserve Compose semantics by interpolating scalar transform components first,
+/// then composing each native keyframe. UIKit otherwise interpolates the two endpoint matrices,
+/// which can briefly shrink a view when scale and rotation change together.
+- (void)applyNativeV2TransformToView:(UIView *)view
+                          animation:(CSSAnimation *)animation
+                       oldTransform:(CSSTransform *)oldTransform
+                       targetAnchor:(CGPoint)anchor {
+    CALayer *presentationLayer = view.layer.presentationLayer;
+    CSSTransform *keyframeStart = oldTransform;
+    BOOL canResolvePresentationStart =
+        presentationLayer != nil &&
+        view.layer.animationKeys.count > 0 &&
+        CATransform3DIsAffine(presentationLayer.transform) &&
+        fabs(oldTransform->_rotateXAngle) < 0.0001 &&
+        fabs(oldTransform->_rotateYAngle) < 0.0001 &&
+        fabs(oldTransform->_skewX) < 0.0001 &&
+        fabs(oldTransform->_skewY) < 0.0001;
+    if (canResolvePresentationStart) {
+        CGAffineTransform affine = CATransform3DGetAffineTransform(presentationLayer.transform);
+        CGFloat scaleX = hypot(affine.a, affine.b);
+        if (scaleX >= 0.00001) {
+            CGFloat rotation = atan2(affine.b, affine.a) * 180.0 / M_PI;
+            while (rotation - oldTransform->_rotateAngle > 180.0) rotation -= 360.0;
+            while (rotation - oldTransform->_rotateAngle < -180.0) rotation += 360.0;
+
+            keyframeStart = [[CSSTransform alloc] init];
+            keyframeStart->_rotateAngle = rotation;
+            keyframeStart->_scaleX = scaleX;
+            keyframeStart->_scaleY =
+                (affine.a * affine.d - affine.b * affine.c) / scaleX;
+            keyframeStart->_translatePercentageX = CGRectGetWidth(view.bounds) == 0
+                ? oldTransform->_translatePercentageX
+                : affine.tx / CGRectGetWidth(view.bounds);
+            keyframeStart->_translatePercentageY = CGRectGetHeight(view.bounds) == 0
+                ? oldTransform->_translatePercentageY
+                : affine.ty / CGRectGetHeight(view.bounds);
+            keyframeStart->_anchorX = oldTransform->_anchorX;
+            keyframeStart->_anchorY = oldTransform->_anchorY;
+        }
+    }
+    [animation addKeyframeWithRelativeStartTime:0 relativeDuration:0 animations:^{
+        [view hr_setAnchorPointAndKeepFrame:anchor];
+    }];
+    NSUInteger samples = animation.nativeV2TransformSampleCount;
+    for (NSUInteger index = 0; index <= samples; index++) {
+        CGFloat timeFraction = index / (CGFloat)samples;
+        // The enclosing UIViewPropertyAnimator already applies the V2 timing parameters to the
+        // timeline. Keep scalar transform samples linear; applying the cubic here as well makes
+        // the effective curve cubic(cubic(t)) and rushes the transform towards its target.
+        CGFloat componentProgress = timeFraction;
+        [animation addKeyframeWithRelativeStartTime:timeFraction
+                                   relativeDuration:index == samples ? 0 : 1.0 / samples
+                                         animations:^{
+            KRTransformInfo *transform = [self generateTransformForFrame:view.bounds
+                                                       relativeTransform:keyframeStart
+                                                           interpolation:componentProgress];
+            [transform applyTransformToView:view];
+        }];
     }
 }
 

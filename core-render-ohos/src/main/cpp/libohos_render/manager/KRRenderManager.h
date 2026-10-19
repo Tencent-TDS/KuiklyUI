@@ -18,7 +18,6 @@
 
 #include <string>
 #include <pthread.h>
-#include "libohos_render/context/KRRenderExecuteModeWrapper.h"
 #include "libohos_render/view/KRRenderView.h"
 #include "libohos_render/utils/KRScopedSpinLock.h"
 /** 全局递增实例ID */
@@ -41,7 +40,6 @@ class KRRenderManager {
 
     void OnLaunchStart(std::string &instanceId);  //  ArkTS层页面启动事件
     int64_t GetLaunchStartTime(std::string &instanceId);
-    void RegisterExcuteModeCreator(const std::shared_ptr<KRRenderExecuteModeWrapper> &execute_mode_wrapper);
 
     void CreateRenderViewIfNeeded(napi_env env, napi_callback_info info);
 

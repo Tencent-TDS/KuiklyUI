@@ -102,6 +102,54 @@ export class KuiklyWebRenderViewDelegator {
   }
 
   /**
+   * Get exported Kotlin callback invoke bridge function.
+   * @private
+   * @returns {Function|null}
+   */
+  _getInvokeKuiklyRenderCallbackBridge() {
+    const renderWebModule = this._getRenderWebModule();
+    if (renderWebModule.runtime.web && renderWebModule.runtime.web.expand && typeof renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback;
+    }
+    if (renderWebModule.runtime.expand && typeof renderWebModule.runtime.expand.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.expand.invokeKuiklyRenderCallback;
+    }
+    return null;
+  }
+
+  /**
+   * Invoke Kuikly callback via exported Kotlin bridge.
+   * Falls back to direct function call when callback is a plain JS function.
+   * @param {*} callback
+   * @param {*} result
+   * @returns {boolean}
+   */
+  invokeKuiklyRenderCallback(callback, result) {
+    if (!callback) {
+      return false;
+    }
+    const invokeBridge = this._getInvokeKuiklyRenderCallbackBridge();
+    if (typeof invokeBridge === 'function') {
+      try {
+        return !!invokeBridge(callback, result);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (typeof callback === 'function') {
+      try {
+        callback(result);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Create delegate implementation for Kotlin
    * @private
    */
@@ -221,8 +269,8 @@ export class KuiklyWebRenderViewDelegator {
       this.kotlinDelegator = new KotlinDelegator(delegateImpl);
       console.log('✅ Kotlin KuiklyRenderViewDelegator created');
 
-      // Convert JavaScript object to Kotlin Map using jsObjectToMap helper
-      const pageDataMap = this._convertToKotlinMap(pageData);
+      // Convert JavaScript value to Kotlin-compatible value recursively
+      const pageDataMap = this._convertToKotlinValue(pageData);
 
       // Create SizeI object
       const kotlinSize = this._createSizeI(size.width, size.height);
@@ -239,22 +287,61 @@ export class KuiklyWebRenderViewDelegator {
   }
 
   /**
-   * Convert JavaScript object to Kotlin Map
-   * Uses exported jsObjectToMap helper function from Kotlin
+   * Get exported Kotlin value conversion bridge function.
+   * @private
+   * @returns {Function|null}
+   */
+  _getJsValueToKotlinBridge() {
+    const renderWebModule = this._getRenderWebModule();
+    if (renderWebModule.runtime.web && renderWebModule.runtime.web.expand && typeof renderWebModule.runtime.web.expand.jsValueToKotlin === 'function') {
+      return renderWebModule.runtime.web.expand.jsValueToKotlin;
+    }
+    if (renderWebModule.runtime.expand && typeof renderWebModule.runtime.expand.jsValueToKotlin === 'function') {
+      return renderWebModule.runtime.expand.jsValueToKotlin;
+    }
+    return null;
+  }
+
+  /**
+   * Convert JavaScript value to Kotlin-compatible value recursively.
+   * Uses Kotlin exported jsValueToKotlin when available.
+   * Falls back to JS-side recursive normalization and jsObjectToMap/jsArrayToList bridges.
    * @private
    */
-  _convertToKotlinMap(jsObject) {
+  _convertToKotlinValue(value) {
     const renderWebModule = this._getRenderWebModule();
-    
-    // Try to find jsObjectToMap helper
-    if (renderWebModule.runtime.web && renderWebModule.runtime.web.expand && renderWebModule.runtime.web.expand.jsObjectToMap) {
-      return renderWebModule.runtime.web.expand.jsObjectToMap(jsObject);
-    } else if (renderWebModule.runtime.expand && renderWebModule.runtime.expand.jsObjectToMap) {
-      return renderWebModule.runtime.expand.jsObjectToMap(jsObject);
-    } else {
-      console.warn('[Delegate] jsObjectToMap helper not found, passing object directly');
-      return jsObject;
+    const jsValueToKotlin = this._getJsValueToKotlinBridge();
+    if (typeof jsValueToKotlin === 'function') {
+      return jsValueToKotlin(value);
     }
+
+    const runtimeWebExpand = renderWebModule.runtime.web && renderWebModule.runtime.web.expand;
+    const runtimeExpand = renderWebModule.runtime.expand;
+    const jsObjectToMap = (runtimeWebExpand && runtimeWebExpand.jsObjectToMap)
+      || (runtimeExpand && runtimeExpand.jsObjectToMap);
+    const jsArrayToList = (runtimeWebExpand && runtimeWebExpand.jsArrayToList)
+      || (runtimeExpand && runtimeExpand.jsArrayToList);
+
+    if (Array.isArray(value)) {
+      const normalizedArray = value.map(item => this._convertToKotlinValue(item));
+      if (typeof jsArrayToList === 'function') {
+        return jsArrayToList(normalizedArray);
+      }
+      return normalizedArray;
+    }
+
+    if (value && typeof value === 'object') {
+      const normalizedObject = {};
+      Object.keys(value).forEach(key => {
+        normalizedObject[key] = this._convertToKotlinValue(value[key]);
+      });
+      if (typeof jsObjectToMap === 'function') {
+        return jsObjectToMap(normalizedObject);
+      }
+      return normalizedObject;
+    }
+
+    return value;
   }
 
   /**
@@ -346,8 +433,8 @@ export class KuiklyWebRenderViewDelegator {
    */
   sendEvent(event, data) {
     if (this.kotlinDelegator) {
-      // Convert JavaScript object to Kotlin Map
-      const dataMap = this._convertToKotlinMap(data);
+      // Convert JavaScript value to Kotlin-compatible value recursively
+      const dataMap = this._convertToKotlinValue(data);
       this.kotlinDelegator.sendEvent(event, dataMap);
     }
   }

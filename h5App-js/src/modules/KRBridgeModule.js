@@ -11,10 +11,66 @@ export class KRBridgeModule {
   static MODULE_NAME = 'HRBridgeModule';
 
   /**
+   * Get exported Kotlin callback invoke bridge function.
+   * @returns {Function|null}
+   * @private
+   */
+  _getInvokeKuiklyRenderCallbackBridge() {
+    const renderWebModule = window?.com?.tencent?.kuikly?.core?.render?.web;
+    if (!renderWebModule) {
+      return null;
+    }
+
+    if (typeof renderWebModule?.runtime?.web?.expand?.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.web.expand.invokeKuiklyRenderCallback;
+    }
+
+    if (typeof renderWebModule?.runtime?.expand?.invokeKuiklyRenderCallback === 'function') {
+      return renderWebModule.runtime.expand.invokeKuiklyRenderCallback;
+    }
+
+    return null;
+  }
+
+  /**
+   * Invoke module callback through stable bridge.
+   * Fallback to direct function call for plain JS callbacks.
+   * @param {*} callback
+   * @param {*} result
+   * @returns {boolean}
+   * @private
+   */
+  _invokeCallback(callback, result) {
+    if (!callback) {
+      return false;
+    }
+
+    const invokeBridge = this._getInvokeKuiklyRenderCallbackBridge();
+    if (typeof invokeBridge === 'function') {
+      try {
+        return !!invokeBridge(callback, result);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    if (typeof callback === 'function') {
+      try {
+        callback(result);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Call module method
    * @param {string} method - Method name
    * @param {string} params - JSON string params
-   * @param {Function} callback - Callback function
+   * @param {*} callback - Callback object or function
    * @returns {*}
    */
   call(method, params, callback) {
@@ -36,12 +92,10 @@ export class KRBridgeModule {
         return this.readAssetFile(params, callback);
       
       default:
-        if (callback) {
-          callback({
-            code: -1,
-            message: 'Method does not exist'
-          });
-        }
+        this._invokeCallback(callback, {
+          code: -1,
+          message: 'Method does not exist'
+        });
         return null;
     }
   }
@@ -128,19 +182,15 @@ export class KRBridgeModule {
       const response = await fetch(url);
       const data = await response.json();
       
-      if (callback) {
-        callback({
-          result: JSON.stringify(data)
-        });
-      }
+      this._invokeCallback(callback, {
+        result: JSON.stringify(data)
+      });
     } catch (e) {
       console.error('[KRBridgeModule] Read asset file error:', e);
-      if (callback) {
-        callback({
-          code: -1,
-          message: e.message
-        });
-      }
+      this._invokeCallback(callback, {
+        code: -1,
+        message: e.message
+      });
     }
   }
 }

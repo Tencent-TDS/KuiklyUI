@@ -258,6 +258,12 @@ internal class RootDemoPage: BasePager() {
             itemList.add(this)
         }
 
+        ButtonDataItem().apply {
+            title = "MyModule Demo"
+            jumUrl = generateJumpUrl("MyModuleDemoPage")
+            itemList.add(this)
+        }
+
     }
 
     private fun generateJumpUrl(pagerName: String, presentMarginTop: Int = 0) : String {

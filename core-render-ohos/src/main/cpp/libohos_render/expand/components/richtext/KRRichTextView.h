@@ -162,7 +162,7 @@ class KRRichTextView : public IKRRenderViewExport {
         return selection_rects_.selection_rects.empty() ? KRRect() : selection_rects_.selection_rects.back();
     }
     const std::u16string &GetTextContent() {
-        return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->MainThreadTextContent();
+        return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->GetTextContent();
     }
     std::u16string GetSelectedContent(std::u16string &pre, std::u16string &post);
     bool IsTextView() override {

@@ -99,9 +99,9 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
     // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
     // OnForegroundDraw 路径下能被绘制——因为 V2 的 StyledString 是交给 ArkUI 节点直接
     // 渲染，SDK 当前没暴露插入图片绘制 hook 的入口。这个判定已收敛到
-    // shadow->StyledStringEnabled()（含 image span 时返 false），本处只读一个结果。
-    bool use_styled_string = textShadow && textShadow->StyledStringEnabled();
-    bool has_image_span = textShadow && textShadow->HasImageSpans();
+    // context 线程已把 StyledString / image span 状态随 Typography 一起快照到主线程。
+    bool use_styled_string = textShadow && textShadow->MainThreadStyledStringEnabled();
+    bool has_image_span = textShadow && textShadow->MainThreadHasImageSpans();
     if(use_styled_string){
         ArkUI_AttributeItem item;
         if(std::shared_ptr<KRParagraph> paragraph = std::dynamic_pointer_cast<KRRichTextShadow>(shadow)->GetParagraph()){
@@ -188,8 +188,8 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    // 绘制期不能对已经 Layout 过的 Typography 再调 TypographyLayout。
-    // HarmonyOS 6 上这次重入会破坏多行中文的 glyph run。对齐和折行以测量阶段的结果为准。
+    // Typography 已在 context 线程按最终 frame 宽度构建。绘制期不能对同一对象再次
+    // TypographyLayout；HarmonyOS 6 上该重入会破坏多行中文的 glyph run。
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();
@@ -667,8 +667,8 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     paragraph_info.width_ = frame.width;
     paragraph_info.height_ = frame.height;
 
-    paragraph_info.text_content_ = textShadow->GetTextContent();
-    paragraph_info.span_offsets_ = textShadow->span_offsets_;
+    paragraph_info.text_content_ = textShadow->MainThreadTextContent();
+    paragraph_info.span_offsets_ = textShadow->MainThreadSpanOffsets();
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
         KRLineInfo line_info;

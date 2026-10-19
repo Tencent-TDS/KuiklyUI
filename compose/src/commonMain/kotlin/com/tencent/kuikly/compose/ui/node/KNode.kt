@@ -245,16 +245,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     private fun LayoutCoordinates.toCoordinator() =
         (this as? LookaheadLayoutCoordinates)?.coordinator ?: this as NodeCoordinator
 
-    private fun LayoutCoordinates.viewPositionOf(coordinator: LayoutCoordinates): Offset {
-        var nodeCoordinator = coordinator.toCoordinator()
-        var position = Offset.Zero
-        while (nodeCoordinator !== this) {
-            position += nodeCoordinator.position
-            nodeCoordinator = nodeCoordinator.wrappedBy!!
-        }
-        return position
-    }
-
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
 
@@ -263,17 +253,29 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val ksScrollSubView = view.parent is VirtualNodeView
         val parentNode = parent as? KNode<*>
         val parentCoordinator = parentNode?.kuiklyCoordinates ?: parentNode?.innerCoordinator
-        var pos = parentCoordinator?.viewPositionOf(curCoordinator) ?: Offset.Zero
+        val size = curCoordinator.size
+        // Accumulated as plain floats: a nullable Offset would be boxed on every placement.
+        var posX = 0f
+        var posY = 0f
+        if (parentCoordinator != null) {
+            var nodeCoordinator = curCoordinator.toCoordinator()
+            while (nodeCoordinator !== parentCoordinator) {
+                val position = nodeCoordinator.position
+                posX += position.x
+                posY += position.y
+                nodeCoordinator = nodeCoordinator.wrappedBy!!
+            }
+        }
 
         // Child nodes on scrollview, parent is virtual node
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
                 val deltaOffset = composeOffset + snapAnchorOffsetCorrection
-                pos = if (orientation == Orientation.Vertical) {
-                    Offset(pos.x, pos.y + deltaOffset)
+                if (orientation == Orientation.Vertical) {
+                    posY += deltaOffset
                 } else {
-                    Offset(pos.x + deltaOffset, pos.y)
+                    posX += deltaOffset
                 }
             }
         }
@@ -281,29 +283,28 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val densityValue = view.getPager().pagerDensity()
 
         // Check if it's a sticky header and handle position caching
-        val isStickyHeader = isStickyHeaderNode()
-        if (isStickyHeader) {
-            pos = getCachedStickyPosition(pos)
+        if (isStickyHeaderNode()) {
+            val pos = getCachedStickyPosition(Offset(posX, posY))
+            posX = pos.x
+            posY = pos.y
         }
-
-        var newFrame = Frame(
-            x = pos.x / densityValue,
-            y = pos.y / densityValue,
-            width = curCoordinator.size.width.toFloat() / densityValue,
-            height = curCoordinator.size.height.toFloat() / densityValue,
-        )
 
         // Special handling for modalView
         if (view is ModalView) {
-            newFrame = Frame(
+            view.updateFrame(
                 0f,
                 0f,
                 requireOwner().root.width.toFloat() / densityValue,
                 requireOwner().root.height.toFloat() / densityValue,
             )
+        } else {
+            view.updateFrame(
+                posX / densityValue,
+                posY / densityValue,
+                size.width.toFloat() / densityValue,
+                size.height.toFloat() / densityValue,
+            )
         }
-
-        view.updateFrame(newFrame)
     }
 
     /**
@@ -389,20 +390,15 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
     }
 
-    private fun DeclarativeBaseView<*, *>.updateFrame(newFrame: Frame) {
+    private fun DeclarativeBaseView<*, *>.updateFrame(x: Float, y: Float, width: Float, height: Float) {
         val curFrame = renderView?.currentFrame ?: Frame.zero
-        if (!curFrame.approximatelyEqual(newFrame)) {
-            val densityFrame = Frame(
-                x = newFrame.x,
-                y = newFrame.y,
-                width =  newFrame.width,
-                height = newFrame.height
-            )
-
-            updateScrollViewOffset(curFrame, densityFrame)
-            setFrameToRenderView(densityFrame)
-            getViewEvent().notifyLayoutFrameDidChange(newFrame)
+        if (curFrame.approximatelyEqual(x, y, width, height)) {
+            return
         }
+        val newFrame = Frame(x = x, y = y, width = width, height = height)
+        updateScrollViewOffset(curFrame, newFrame)
+        setFrameToRenderView(newFrame)
+        getViewEvent().notifyLayoutFrameDidChange(newFrame)
     }
 
     internal companion object {

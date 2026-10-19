@@ -12,6 +12,7 @@ import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.const.KRTagConst
 import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
+import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
@@ -20,6 +21,7 @@ import com.tencent.kuikly.core.render.web.utils.safeMatchMedia
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
+import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.Json
@@ -423,6 +425,18 @@ var Element.exportAnimationTimeoutId: Int
     set(value) {
         this.asDynamic().exportAnimationTimeoutId = value
     }
+
+private fun richTextClickParams(ele: Element, event: Event, clickEvent: dynamic): Map<String, Any> {
+    val params = mutableMapOf<String, Any>(
+        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+    )
+    val rich = ele.asDynamic().krRichTextView.unsafeCast<KRRichTextView?>()
+    if (rich != null) {
+        params["index"] = rich.spanIndexFromEvent(event)
+    }
+    return params
+}
 
 /**
  * set common prop for element
@@ -963,12 +977,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
             clickEvent.stopPropagation()
             // If no double click handler is registered, invoke the click callback
             if (!hasBindDoubleClick) {
-                value.unsafeCast<KuiklyRenderCallback>().invoke(
-                    mapOf(
-                        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
-                    )
-                )
+                value.unsafeCast<KuiklyRenderCallback>().invoke(richTextClickParams(ele, event, clickEvent))
             } else {
                 // If a double click handler is registered
                 // If the timer exists , clear it (reset the timing)
@@ -977,12 +986,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
                 // Start a new timer and save it
                 ele.asDynamic().clickTimer = kuiklyWindow.setTimeout({
                     // If the double click callback is not triggered within 200ms, invoke the click callback
-                    value.unsafeCast<KuiklyRenderCallback>().invoke(
-                        mapOf(
-                            "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                            "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
-                        )
-                    )
+                    value.unsafeCast<KuiklyRenderCallback>().invoke(richTextClickParams(ele, event, clickEvent))
                     // clear the timer
                     ele.asDynamic().clickTimer = null
                 }, AnimationTimingConst.DOUBLE_CLICK_TIMEOUT_MS)

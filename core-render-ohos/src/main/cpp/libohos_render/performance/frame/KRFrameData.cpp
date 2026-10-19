@@ -24,8 +24,8 @@ double KRFrameData::getFps() const {
 std::string KRFrameData::ToJSONString() {
     cJSON *frame_data = cJSON_CreateObject();
     cJSON_AddNumberToObject(frame_data, kKeyTotalDuration, total_duration);
-    cJSON_AddNumberToObject(frame_data, kKeyHitchesDuration, total_duration);
-    cJSON_AddNumberToObject(frame_data, kKeyFrameCount, total_duration);
+    cJSON_AddNumberToObject(frame_data, kKeyHitchesDuration, hitches_duration);
+    cJSON_AddNumberToObject(frame_data, kKeyFrameCount, frame_count);
     cJSON_AddNumberToObject(frame_data, kKeyMainFPS, getFps());
     char* json_str = cJSON_Print(frame_data);
     std::string result = json_str;

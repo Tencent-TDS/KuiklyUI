@@ -29,6 +29,12 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
     KRNormalDiffView,       // 不使用延迟 diff（经典模式）
 };
 
+/*** @brief 首屏 Diff 执行时机模式枚举 */
+typedef NS_ENUM(NSUInteger, KRDiffExecuteMode) {
+    KRNormalExecuteDiff,         // 系统默认时机：业务首帧渲染完成后立即执行（默认）
+    KRSuspendExecuteDiff,        // 挂起diff：didInit静态挂起，由业务executeTurboDisplayDiff触发执行
+};
+
 /**
  * @brief TurboDisplay 全局配置类
  * 用于配置 TurboDisplay 的各种开关和参数
@@ -43,6 +49,13 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
 /** @brief 延迟 Diff 模式 默认为 KRDelayedDiffModeDisabled（禁用，使用经典模式）*/
 @property (nonatomic, assign) KRDiffViewMode diffViewMode;
 @property (nonatomic, readonly) BOOL isDelayedDiffEnabled;
+
+/** @brief 首屏Diff执行时机模式 默认为 KRNormalExecuteDiff（系统默认时机）
+ *  @note 挂起模式下Diff在didInit静态挂起（早于一切Kotlin渲染与UI批次，免疫sync事件插队竞态；
+ *        Config在init传入零时序依赖，framework/JS动态化两种加载模式下均可靠），
+ *        数据就绪后由Kotlin侧executeTurboDisplayDiff()触发接管；无超时自动执行（业务忘调则页面停留缓存态） */
+@property (nonatomic, assign) KRDiffExecuteMode diffExecuteMode;
+@property (nonatomic, readonly) BOOL isSuspendDiffEnabled;
 
 /** @brief 自动刷新 默认为 true（启用，使用经典模式）*/
 @property (nonatomic, assign) BOOL autoUpdateTurboDisplay;
@@ -98,6 +111,24 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
  * @brief 禁用真实树持久更新
  */
 - (void)disablePersistentRealTree;
+
+/**
+ * @brief 启用挂起Diff（didInit静态挂起，由业务executeTurboDisplayDiff触发执行，无超时自动执行）
+ * @note 开启后会自动联动以下两项，业务无需（也不应）再显式设置：
+ *       1. 自动开启结构感知Diff-DOM（diffDOMMode = KRStructureAwareDiffDOM）：
+ *          挂起意味着首屏存在响应式变更，属结构变更，必须开启结构采集；
+ *       2. 首屏Diff固定按延迟Diff的节奏执行（渲染指令全部执行后再更新），与diffViewMode是否为
+ *          KRDelayedDiffView无关。
+ *       因此开启挂起后不要再调用 enable/disableStructureAwareDiffDOM、enable/disableDelayedDiff，
+ *       前者属于重复设置，后者会破坏挂起Diff的必要前提。
+ *       挂起Diff无框架层超时兜底，业务需自行保证executeTurboDisplayDiff被调用（含超时/失败分支）。
+ */
+- (void)enableSuspendDiff;
+
+/**
+ * @brief 禁用挂起Diff（恢复系统默认时机）
+ */
+- (void)disableSuspendDiff;
 
 /**
  * @brief 重置为默认配置

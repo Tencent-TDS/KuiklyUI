@@ -20,8 +20,8 @@ function kuiklyPullOhosProduct(): HvigorPlugin {
           const soFile = path.join(soDir, 'libshared.so');
           const apiDir = path.join(node.getNodePath(), 'src', 'main', 'cpp', 'thirdparty', 'biz_entry');
           const apiFile = path.join(apiDir, 'libshared_api.h');
-          const soDownloadUrl = 'https://vfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/d88d0cf7.so';
-          const apiDownloadUrl = 'https://vfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/3f86ae77.h';
+          const soDownloadUrl = 'https://wfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/c88f1a40.so';
+          const apiDownloadUrl = 'https://wfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/5df0ee86.h';
           try {
             const shouldDownload = !fs.existsSync(soFile) || !fs.existsSync(apiFile);
             if (!shouldDownload) {

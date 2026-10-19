@@ -55,7 +55,11 @@
 }
 
 - (void)dismiss {
+    // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIApplication.keyWindow → UIWindowScene.windows 取 isKeyWindow
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     id rootVC = [[[UIApplication sharedApplication] keyWindow] rootViewController];
+#pragma clang diagnostic pop
     [rootVC dismissViewControllerAnimated:YES completion:nil];
 }
 

@@ -36,8 +36,8 @@
 ```kotlin
 class DemoPage : ComposeContainer() {
 
-    override fun onCreate() {
-        super.onCreate()
+    override fun willInit() {
+        super.willInit()
         setContent {
             DemoScreen()
         }
@@ -112,7 +112,7 @@ Kuikly 的一大优势是 **动态化与模块化能力**：
 
 更多细节会在单独章节中展开：
 
-- [与 Core 模块协同](./interop-core.md)
+- [与 Core 模块协同：Kuikly DSL 组件接入 Compose](./extend-kuikly-dsl-ui.md)
 
 ### 学习建议
 

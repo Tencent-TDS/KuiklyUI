@@ -15,6 +15,8 @@
 
 #include "KRStringUtil.h"
 
+#include <sstream>
+
 namespace kuikly {
 namespace util {
 std::vector<std::string_view> SplitStringView(const std::string_view &str, std::string separator) {

@@ -14,6 +14,7 @@
  */
 
 import { KRAny, KRValue, KuiklyRenderCallback } from '../../utils/KRDataTypes';
+import { KRJSON } from '../../utils/KRJSON';
 import { ComponentContent, NodeContent, UIContext } from '@kit.ArkUI';
 import { KRNativeManager } from '../../manager/KRNativeManager';
 import { KRNativeInstance } from '../../manager/KRNativeInstance';
@@ -32,6 +33,12 @@ const kMethodAccessibilityFocus = 'accessibilityFocus'
 
 export interface IKuiklyRenderViewExport {
   init(instanceId: string, viewTag: number, viewType: string): void;
+
+  /**
+   * 是否直接接收 KRJsonValue 形态的属性值与方法参数（零拷贝，按需用 KRJSON.get/at 取值）。
+   * 未实现或返回 false 时保持历史形态：对象为 JSON 字符串，数组为 ArkTS 数组。
+   */
+  acceptsKRJSON?(): boolean;
 
   setProp(propKey: string, propValue: KRAny | KuiklyRenderCallback): boolean;
 
@@ -332,7 +339,8 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
    * @final （禁止重写）
    */
   toSetProp(propKey: string, propValue: KRValue): boolean {
-    let res = this.setProp(propKey, propValue);
+    const value = this.acceptsKRJSON() ? propValue : KRJSON.toLegacy(propValue);
+    let res = this.setProp(propKey, value);
     if (this.arkUINode != null) {
       this.arkUINode.update(this);
     }
@@ -376,7 +384,14 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
    * @final  （禁止重写）
    */
   toCall(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
-    this.call(method, params, callback);
+    this.call(method, this.acceptsKRJSON() ? params : KRJSON.toLegacy(params), callback);
+  }
+
+  /**
+   * 返回 true 时 setProp / call 直接收到 KRJsonValue；默认 false 保持历史形态。
+   */
+  acceptsKRJSON(): boolean {
+    return false;
   }
 
   /**

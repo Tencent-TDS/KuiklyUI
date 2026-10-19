@@ -143,6 +143,14 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         return YES;
     }
+#if DEBUG
+    // glassEffect* 只在 KRView（View 及其子类容器）上实现，Scroller / List 等组件上属性会被丢弃，
+    // 这里给出告警便于业务定位；需要列表区玻璃时应把玻璃加在外层 View 上。
+    // 包装层（kr_commonWrapperView）先收到属性、不认时会回落给宿主视图，不应在包装层上告警
+    if ([key hasPrefix:@"glassEffect"] && ![self isKindOfClass:[KRBoxShadowView class]]) {
+        NSLog(@"[Kuikly] %@ is not supported on %@, dropped.", key, NSStringFromClass([self class]));
+    }
+#endif
     return NO;
 }
 
@@ -388,7 +396,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         //    - clipPath 清空时需要恢复 borderRadius 的 mask
         if (self.css_clipPath.length > 0) {
             // clipPath 优先，刷新 border 即可
-            [self.css_borderLayer setNeedsLayout];
+            [self.css_borderLayer setNeedsRedraw];
             return;
         }
         
@@ -415,6 +423,8 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
                 [self.layer.mask setFrame:self.bounds];
             }
         }
+        // 圆角变化但尺寸不变时，border 会命中尺寸缓存而跳过重绘，需强制重绘
+        [self.css_borderLayer setNeedsRedraw];
     }
     
     // 10. 刷新 border（不管 borderRadius 值是否变化都要刷新）
@@ -837,6 +847,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 - (void)p_boundsDidChanged {
+    // 圆角 / clipPath mask 也是手动挂上去的独立 CAShapeLayer（CSSShapeLayer 在 setFrame: 里同步重算 path），
+    // 同样不享受 UIView backing layer 的隐式动画屏蔽，属性变更会走 CA 默认的 0.25s，这里统一禁掉
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
         // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
@@ -861,6 +875,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
             #endif // [macOS]
         }
     }
+    [CATransaction commit];
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -1556,7 +1571,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 // 标记路径内容变更（如 clipPath 变化），强制下次 layoutSublayers 重绘边框（不依赖尺寸变化）
 - (void)setNeedsRedraw {
-    // 仅由 setCss_clipPath: 调用，确保 clipPath 变化时边框路径同步更新
+    // 由 setCss_clipPath: / setCss_borderRadius: 调用，确保路径变化时边框同步更新
     _needsRedraw = YES;
     [self setNeedsLayout];
 }
@@ -1575,6 +1590,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
  */
 - (void)layoutSublayers {
     [super layoutSublayers];
+    // 边框 layer 是手动 addSublayer 的独立 CAShapeLayer，属性变更默认会带 0.25s 的隐式动画，
+    // 这里统一禁用，让边框与内容在同一帧到位
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
     
     // 0. macOS: 确保边框在最顶层（NSScrollView/NSTextView 内部 sublayer 可能覆盖边框）
 #if TARGET_OS_OSX
@@ -1594,8 +1613,9 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
     
     // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
-    // 仅在 clipPath 变化时为 YES）
+    // 在 clipPath / borderRadius 变化时为 YES）
     if (CGSizeEqualToSize(self.bounds.size, _lastSize) && !_needsRedraw) {
+        [CATransaction commit];
         return ;
     }
     _lastSize = self.bounds.size;
@@ -1661,6 +1681,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     #else
     self.path = path.CGPath;
     #endif
+    [CATransaction commit];
 }
 
 @end
@@ -1962,7 +1983,11 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 if (!self.isNativeV2) {
+                    // XCODE27-TODO(deprecated): [临时规避，后续迁移] UIView.setAnimationCurve: → block-based animation API
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
                     [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
+#pragma clang diagnostic pop
                 }
                 block();
             }];

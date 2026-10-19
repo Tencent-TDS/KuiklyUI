@@ -19,6 +19,7 @@
 #include <arkui/native_node.h>
 #include <functional>
 #include <map>
+#include <string>
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
@@ -91,11 +92,15 @@ class KRLineInfo {
 class KRParagraphSelectionInfo {
  public:
     std::vector<KRRect> selection_rects;
-    std::string text_content;
+    std::u16string text_content;
+    std::vector<std::tuple<int, int, int>> span_offsets;  // (spanIndex, begin, end)
     int start = 0;
     int end = 0;
     float first_char_width = 0;
     float last_char_width = 0;
+
+    // 排版下标把每个占位算作 1，text_content 不含占位。
+    int TextIndexForTypographyOffset(int offset) const;
 };
 
 enum SelectionStrategy {
@@ -110,7 +115,7 @@ class KRParagraphInfo {
     KRParagraphSelectionInfo GetSelectionRectsAll();
 
     std::vector<KRLineInfo> line_info_list_;
-    std::string text_content_;
+    std::u16string text_content_;
     OH_Drawing_Typography *typography_ = nullptr;
     float width_ = 0;
     float height_ = 0;
@@ -156,10 +161,10 @@ class KRRichTextView : public IKRRenderViewExport {
     KRRect LastSelectionRect() {
         return selection_rects_.selection_rects.empty() ? KRRect() : selection_rects_.selection_rects.back();
     }
-    std::string GetTextContent() {
+    const std::u16string &GetTextContent() {
         return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->MainThreadTextContent();
     }
-    std::string GetSelectedContent(std::string &pre, std::string &post);
+    std::u16string GetSelectedContent(std::u16string &pre, std::u16string &post);
     bool IsTextView() override {
         return true;
     }

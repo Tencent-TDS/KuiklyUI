@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRRecord } from './utils/KRDataTypes';
+import { KRPageData, KRRecord } from './utils/KRDataTypes';
 import { KRNativeRenderControllerReadyCallback } from './manager/KRNativeInstance';
 import { IKuiklyViewDelegate, KRNativeRenderController } from './KRNativeRenderController';
 import common from '@ohos.app.ability.common';
@@ -38,7 +38,7 @@ export struct KRNativeRender {
   /**
    * 透传给KR侧的页面数据
    */
-  pageData: KRRecord = {};
+  pageData: KRPageData = {};
   /**
    * 执行模式
    */
@@ -72,11 +72,11 @@ export struct KRNativeRender {
   /**
    * @deprecated use pageData instead
    */
-  pagerData?: KRRecord;
+  pagerData?: KRPageData;
   /**
    * @deprecated use pageData instead
    */
-  pageParams?: KRRecord;
+  pageParams?: KRPageData;
   /**
    * @deprecated use controller.registerExceptionCallback from onControllerReadyCallback instead
    */

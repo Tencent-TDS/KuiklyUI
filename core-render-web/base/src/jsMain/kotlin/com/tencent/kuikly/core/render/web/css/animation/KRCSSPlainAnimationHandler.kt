@@ -6,6 +6,7 @@ import com.tencent.kuikly.core.render.web.collection.map.set
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.kuiklyAnimation
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.ktx.toPercentage
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
 import org.w3c.dom.HTMLElement
@@ -90,18 +91,25 @@ class KRCSSPlainAnimationHandler(
                 KRCssConst.FRAME -> {
                     val frameValue = value.unsafeCast<Frame>()
                     // Guard against stale animation entries: if the animation transitioned normally,
-                    // by the time transitionend fires the style.left/top/width/height already equal
+                    // by the time transitionend fires the effective left/top/width/height already equal
                     // the finalValue. If they differ by more than a small threshold, this handler is
                     // a stale residue (e.g. its element was off-screen so transitionend never fired
                     // for this animation, and a later transitionend consumed the wrong queue entry).
                     // Writing the outdated finalValue would clobber the correct current style set by
                     // a newer animation. Skip in that case.
-                    val style = target?.style
-                    if (style != null) {
-                        val curLeft = style.left.removeSuffix("px").toDoubleOrNull()
-                        val curTop = style.top.removeSuffix("px").toDoubleOrNull()
-                        val curWidth = style.width.removeSuffix("px").toDoubleOrNull()
-                        val curHeight = style.height.removeSuffix("px").toDoubleOrNull()
+                    val currentTarget = target
+                    val style = currentTarget?.style
+                    if (style != null && currentTarget != null) {
+                        val computed = kuiklyWindow.getComputedStyle(currentTarget)
+                        fun readPx(primary: String?, fallback: String?): Double? {
+                            return primary?.removeSuffix("px")?.toDoubleOrNull()
+                                ?: fallback?.removeSuffix("px")?.toDoubleOrNull()
+                        }
+
+                        val curLeft = readPx(computed.left, style.left)
+                        val curTop = readPx(computed.top, style.top)
+                        val curWidth = readPx(computed.width, style.width)
+                        val curHeight = readPx(computed.height, style.height)
                         val threshold = 1.0
                         val isStale = (curLeft != null && kotlin.math.abs(curLeft - frameValue.x) > threshold) ||
                             (curTop != null && kotlin.math.abs(curTop - frameValue.y) > threshold) ||

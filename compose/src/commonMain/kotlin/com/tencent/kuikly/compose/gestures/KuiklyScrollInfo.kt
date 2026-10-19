@@ -85,6 +85,14 @@ class KuiklyScrollInfo {
     var realContentSize: Int? = null
 
     /**
+     * Clear the pinned exact size so the next scroll can recompute it
+     * after a real layout change.
+     */
+    internal fun clearExactContentSize() {
+        realContentSize = null
+    }
+
+    /**
      * Whether the offset has deviation
      */
     var offsetDirty = false
@@ -176,7 +184,12 @@ class KuiklyScrollInfo {
      */
     fun updateContentSizeToRender() {
         val frame = createContentFrame()
-        scrollView?.contentView?.setFrameToRenderView(frame)
+        val contentView = scrollView?.contentView
+        // called on every native scroll event; skip the bridge call when the native frame is unchanged
+        if (contentView?.renderView?.currentFrame == frame) {
+            return
+        }
+        contentView?.setFrameToRenderView(frame)
     }
 
     /**

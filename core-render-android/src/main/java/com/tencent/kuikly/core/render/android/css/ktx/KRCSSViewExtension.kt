@@ -552,6 +552,12 @@ private var View.boxShadow: String?
         val viewDecorator = obtainViewDecorator()
         viewDecorator.boxShadow = value ?: KRCssConst.EMPTY_STRING
         if (KuiklyRenderView.lazyClipChildren && viewDecorator.hasBoxShadow) {
+            // View 已挂载时，若直接父容器不需要裁剪内容，则立即关闭其 clipChildren。
+            (parent as? ViewGroup)?.also { parentView ->
+                if (parentView.clipChildren && !parentView.shouldClipContent) {
+                    parentView.clipChildren = false
+                }
+            }
             parent?.setContentOverBounds()
         }
     }
@@ -1028,6 +1034,7 @@ val Context.versionName: String
         return innerVersionName
     }
 
+@Deprecated("实际是 SDK_INT <= M，包含 Android 6.0。判断 M 之前请直接比较 SDK_INT < VERSION_CODES.M")
 val isBeforeM: Boolean
     get() = Build.VERSION.SDK_INT <= Build.VERSION_CODES.M
 

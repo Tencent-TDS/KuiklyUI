@@ -46,6 +46,7 @@ class KRView : public IKRRenderViewExport {
     void CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) override;
     void WillRemoveFromParentView() override;
     std::shared_ptr<SuperTouchHandler> GetSuperTouchHandler() { return super_touch_handler_; }
+    int32_t GetChildCount() override;
 
  protected:
     bool IsSelectable() override;

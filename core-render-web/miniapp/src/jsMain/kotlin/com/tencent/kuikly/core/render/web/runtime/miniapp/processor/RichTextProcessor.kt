@@ -4,8 +4,10 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.add
 import com.tencent.kuikly.core.render.web.collection.array.clear
 import com.tencent.kuikly.core.render.web.collection.array.get
+import com.tencent.kuikly.core.render.web.collection.array.set
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.expand.components.RichTextSpan
+import com.tencent.kuikly.core.render.web.expand.components.SpanHitBox
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.const.KRCssConst.TEXT_SHADOW
 import com.tencent.kuikly.core.render.web.ktx.height
@@ -22,7 +24,6 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal.isIOS
 import com.tencent.kuikly.core.render.web.runtime.miniapp.const.RenderConst
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
-import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniImageElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniSpanElement
 import com.tencent.kuikly.core.render.web.utils.Log
 import kotlinx.dom.clear
@@ -30,12 +31,22 @@ import org.w3c.dom.HTMLElement
 import kotlin.js.json
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.round
 
 /**
  * mini app text process object
  */
 object RichTextProcessor : IRichTextProcessor {
+    // Parallel to the lines flushed by the current measure: true when the line
+    // ended by wrapping, which is the only kind CSS `text-align: justify` stretches.
+    private var lineSoftWrapped: JsArray<Boolean> = JsArray()
+    // Host `word-break: break-all` (set by the tail line-break mode and kept
+    // after the clamp style changes) lets Latin words wrap at any letter.
+    private var breakAllLetters = false
+    // Justified rich text must wrap where the device does, or the stretch lands
+    // on the wrong line; the Android width ratio makes it wrap too early.
+    private var justifyMeasure = false
     // Fixed android width ratio magic value, temporarily set to 1.05,
     // because Android real machine canvas measurement width result is smaller
     private const val WIDTH_RATIO_MAGIC = 1.05f
@@ -52,6 +63,23 @@ object RichTextProcessor : IRichTextProcessor {
     // placeholders (e.g. images), so the measured height matches the real
     // rendered height of the `rich-text` host element.
     private const val LINE_HEIGHT_FACTOR = 1.2f
+
+    // 1×1 gif. rich-text only reserves width for an img with explicit width/height.
+    private const val BLANK_IMG =
+        "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAIBRAA7"
+
+    // Character classes for line breaking and justification.
+    private const val KIND_NONE = 0
+    private const val KIND_SPACE = 1
+    private const val KIND_IDEOGRAPH = 2
+    private const val KIND_OTHER = 3
+
+    // No line break before these (closing punctuation, CJK and half-width).
+    private const val NO_BREAK_BEFORE =
+        "、。，．：；！？）］｝〉》」』】〕〗〙〛’”ヽヾ々〻,.!?);:"
+
+    // No line break after these (opening CJK / fullwidth punctuation).
+    private const val NO_BREAK_AFTER = "（［｛〈《「『【〔〖〘〚‘“"
     /**
      * Real rendered line-height factor for an emoji-bearing line.
      *
@@ -136,9 +164,6 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
-
-    // Set placeholder image delay time
-    private const val IMAGE_SPAN_DELAY = 100
 
     /**
      * Reset the offscreen canvas context and font cache after custom font loaded.
@@ -496,23 +521,37 @@ object RichTextProcessor : IRichTextProcessor {
         // shorter trailing span would shrink the whole final line below the
         // real rendered height.
         val effectiveLineHeight = max(view.currentLineHeight, strutHeight)
+        // A trailing "\n" leaves an untouched line behind. Browsers do not
+        // render a line box for it, so it adds no height.
+        if (view.currentLineWidth == 0f && view.currentLineHeight == 0f && linesSizeList.length > 0) {
+            return
+        }
         if (constraintSize.width > 0f) {
             // Total number of lines, using safe count to absorb word-break
             // induced extra lines that the geometric measurement ignores.
             val totalLines = safeLineCount(view.currentLineWidth, constraintSize.width)
+            if (view.currentLineWidth <= constraintSize.width) {
+                // Text placement already wrapped this line to fit. The open line
+                // keeps its index for hit boxes; guard lines only reserve height.
+                addLine(linesSizeList, view.currentLineWidth, effectiveLineHeight, false)
+                repeat(totalLines - 1) {
+                    addLine(linesSizeList, constraintSize.width, effectiveLineHeight, false)
+                }
+                return
+            }
             // Remaining width that is not full
             val remainWidth = view.currentLineWidth % constraintSize.width
             if (totalLines > 1) {
                 // For parts greater than one line, directly insert full line size list
                 repeat(totalLines - 1) {
-                    linesSizeList.add(SizeF(constraintSize.width, effectiveLineHeight))
+                    addLine(linesSizeList, constraintSize.width, effectiveLineHeight, true)
                 }
             }
-            // Last insert width that is not full line
-            linesSizeList.add(SizeF(remainWidth, effectiveLineHeight))
+            // Last insert width that is not full line. The final line is not justified.
+            addLine(linesSizeList, remainWidth, effectiveLineHeight, false)
         } else {
             // If there is no constraint, just use the remaining width and height directly
-            linesSizeList.add(SizeF(view.currentLineWidth, effectiveLineHeight))
+            addLine(linesSizeList, view.currentLineWidth, effectiveLineHeight, false)
         }
     }
 
@@ -526,6 +565,7 @@ object RichTextProcessor : IRichTextProcessor {
     private fun processPlaceHolderSpan(
         view: KRRichTextView,
         childSpan: RichTextSpan,
+        spanIndex: Int,
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
     ) {
@@ -561,13 +601,10 @@ object RichTextProcessor : IRichTextProcessor {
         val sumWidth = view.currentLineWidth + childSpan.width
         if (sumWidth <= constraintSize.width || constraintSize.width == 0f) {
             // If placeholder span width plus does not exceed one line, or no constraint width,
-            // then directly add current line Record offsetLeft, because the current text width
-            // calculation has been multiplied by the ratio value, so the actual placeholder
-            // offset needs to be divided by the offset ratio
+            // then directly add current line. offsetLeft stays in the same space as
+            // currentLineWidth until layoutHitBoxes resolves the final x.
             childSpan.offsetLeft = view.currentLineWidth
-            if (MiniGlobal.isAndroid) {
-                childSpan.offsetLeft /= WIDTH_RATIO_MAGIC
-            }
+            recordHitBox(view, spanIndex, "", childSpan.offsetLeft, childSpan.width, linesSizeList.length, true)
             // Then just add width to current line
             view.currentLineWidth = sumWidth
             // Record line index
@@ -577,14 +614,15 @@ object RichTextProcessor : IRichTextProcessor {
             // folded, so placeholder span needs to start from new line head Here, it needs to be
             // noted that because placeholder span will not exceed one line, so no need to consider
             // adding width that exceeds two lines after placeholder span
-            // First insert need to be changed line size
-            linesSizeList.add(SizeF(view.currentLineWidth, view.currentLineHeight))
+            // First insert need to be changed line size. Soft wrap: the next
+            // placeholder did not fit, so this line is eligible for justify.
+            addLine(linesSizeList, view.currentLineWidth, view.currentLineHeight, true)
             // Save new line width
             view.currentLineWidth = childSpan.width
             // Record offsetLeft
             childSpan.offsetLeft = 0f
-            // Record line index
             childSpan.lineIndex = linesSizeList.length.toInt()
+            recordHitBox(view, spanIndex, "", 0f, childSpan.width, childSpan.lineIndex, true)
         }
     }
 
@@ -592,15 +630,16 @@ object RichTextProcessor : IRichTextProcessor {
      * Get and calculate the size list of each line of text
      */
     private fun calculateLinesSize(constraintSize: SizeF, view: KRRichTextView): JsArray<SizeF> {
+        resetMeasureState(view)
         val linesSizeList: JsArray<SizeF> = JsArray()
         val lineHeight = view.ele.style.lineHeight
         val containerLineHeight = if (lineHeight.isNotEmpty()) lineHeight.pxToFloat() else 0f
 
         // Process child text nodes in a loop to calculate actual line size of each line
-        view.richTextSpanList.forEach { childSpan ->
+        view.richTextSpanList.forEach { childSpan, index ->
             if (childSpan.width != 0f) {
                 // Placeholder Span processing
-                processPlaceHolderSpan(view, childSpan, constraintSize, linesSizeList)
+                processPlaceHolderSpan(view, childSpan, index, constraintSize, linesSizeList)
             } else {
                 // Plain span processing — use this span's own letter-spacing
                 // so the measured width matches the real rendering width when
@@ -620,7 +659,8 @@ object RichTextProcessor : IRichTextProcessor {
                     constraintSize,
                     linesSizeList,
                     effectiveLineHeight,
-                    childSpan.letterSpacing
+                    childSpan.letterSpacing,
+                    index,
                 )
             }
         }
@@ -633,218 +673,116 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
-     * New line size calculation
+     * Font of one text run, carried through measurement and line breaking.
      */
-    private fun processNewLineSize(
-        view: KRRichTextView,
-        spanSize: SizeF,
-        constraintSize: SizeF,
-        realLineHeight: Float,
-        linesSizeList: JsArray<SizeF>,
-        isLastItem: Boolean,
-    ) {
-        // Calculate by new line, line height is current span height or parent container specified line height
-        view.currentLineHeight = if (realLineHeight > 0f) realLineHeight else spanSize.height
-        if (isLastItem) {
-            // Last element as remain element processing
-            view.currentLineWidth = spanSize.width
-        } else {
-            // For elements that are not the last, each line of the line is independent.
-            // Use safe line count so that word-break-induced extra lines don't
-            // shrink the measured height below the actual rendered height.
-            val totalLines = if (constraintSize.width > 0f) {
-                safeLineCount(spanSize.width, constraintSize.width)
-            } else 1
-            // Current line remaining width — when the safe count was bumped
-            // by 1, the remaining width is just the leftover above the last
-            // full-line; when no bump happened, fall back to width % constraint.
-            view.currentLineWidth = if (constraintSize.width > 0f) {
-                val mod = spanSize.width % constraintSize.width
-                if (mod == 0f && totalLines >= 1 && spanSize.width > 0f) constraintSize.width else mod
-            } else spanSize.width
-            // If there are multiple lines, add them to full line size list
-            if (totalLines > 1) {
-                repeat(totalLines - 1) {
-                    linesSizeList.add(SizeF(constraintSize.width, view.currentLineHeight))
-                }
-            }
-            // Then add the last line
-            linesSizeList.add(SizeF(view.currentLineWidth, view.currentLineHeight))
-        }
-    }
+    private class TextFont(
+        val size: Float,
+        val weight: Int,
+        val family: String,
+        val style: String,
+        val letterSpacing: Float,
+    )
 
     /**
-     * Process the size data of participating lines for inline calculation
+     * Where a line ends: [end] is the next start (after hanging spaces),
+     * [contentEnd] excludes those spaces and [width] is the width up to it.
      */
-    private fun processInlineLineSize(
-        view: KRRichTextView,
-        spanSize: SizeF,
-        constraintSize: SizeF,
-        linesSizeList: JsArray<SizeF>,
-        realLineHeight: Float,
-    ) {
-        val sumWidth = view.currentLineWidth + spanSize.width
-        if (sumWidth <= constraintSize.width || constraintSize.width == 0f) {
-            // If it does not exceed one line or no constraint width, then directly add width
-            view.currentLineWidth += spanSize.width
-            // If line height is greater than current line height, it means line height has not been
-            // set or has been set, but current line height is larger, need to set
-            if (spanSize.height > view.currentLineHeight) {
-                view.currentLineHeight = spanSize.height
-            }
-        } else {
-            // Width that exceeds one line
-            val subWidth = sumWidth - constraintSize.width
-            // The first "full" line we are about to flush should also account
-            // for THIS span's height, because the span occupies a non-zero
-            // portion of that line. Otherwise, when the previous accumulated
-            // line was empty (currentLineHeight == 0) or shorter than this
-            // span, the flushed line would be too short.
-            val firstLineHeight = max(view.currentLineHeight, spanSize.height)
-            // First record full line size, because it is not empty line, so it must have been set line height
-            linesSizeList.add(SizeF(constraintSize.width, firstLineHeight))
-            // Remaining non-one line width — guard against negative / zero
-            // so we don't accidentally emit an empty extra line.
-            val safeSub = if (subWidth < 0f) 0f else subWidth
-            view.currentLineWidth = safeSub % constraintSize.width
-            // Remaining total number of lines, with the safe-count bump.
-            val totalLines = safeLineCount(safeSub, constraintSize.width)
-            // All parts that exceed one line in remaining lines are calculated as full lines
-            if (totalLines > 0) {
-                // Because it is already new line, actual line height will not be affected by placeholder
-                // span, so need to use current span line height or parent container line height
-                view.currentLineHeight = if (realLineHeight > 0f) realLineHeight else spanSize.height
-                repeat(totalLines - 1) {
-                    // Insert full line size, new line height uses actual size
-                    linesSizeList.add(SizeF(constraintSize.width, view.currentLineHeight))
-                }
-            }
-        }
-    }
+    private class LineFit(val end: Int, val contentEnd: Int, val width: Float)
 
     /**
-     * Get size list of non-placeholder spans
+     * Measure one line of [text] (no "\n") with the emoji, letter-spacing
+     * and per-platform width compensation used for the whole layout.
      */
-    private fun getSpanSizeList(
-        value: String,
-        fontSize: Float,
-        fontWeight: Int,
-        fontFamily: String,
-        fontStyle: String,
-        letterSpacing: Float = 0f,
-    ): JsArray<SizeF> {
-        // First split the text into a list based on line breaks
-        val textArray = value.asDynamic().split("\n").unsafeCast<JsArray<String>>()
-        // Span size list
-        val textSizeList: JsArray<SizeF> = JsArray()
-        // Fallback empty-line height, used when a "\n" produces an empty segment
-        // (e.g. leading/trailing "\n" or consecutive "\n"). We must NOT skip
-        // such segments — otherwise the line-break semantics would be lost and
-        // the outer logic would mistakenly concatenate the next span onto the
-        // current line. Height uses fontSize * 1.2 as a conservative estimation
-        // aligned with other canvas-measure fallbacks in this file.
-        val emptyLineHeight = (fontSize * 1.2).toFloat()
-        // Process in a loop
-        textArray.forEach { it ->
-            if (it == "") {
-                // Preserve an empty segment as a zero-width placeholder so the
-                // caller (processTextSpan) can emit a real line break.
-                textSizeList.add(SizeF(0f, emptyLineHeight))
+    private fun measureLine(text: String, font: TextFont): SizeF {
+        val fontSize = font.size
+        // Pick the measurement strategy based on whether the line
+        // contains emoji-ish code units. The mixed path is more
+        // expensive but is the only way to avoid undercounting the
+        // emoji width on canvas (which lacks emoji glyphs).
+        val hasEmoji = containsEmoji(text)
+        var textWidth: Float
+        var textHeight: Float
+        // Number of graphemes used to multiply letter-spacing.
+        // For pure ASCII / CJK lines this equals text.length; for
+        // emoji lines it counts each emoji cluster as 1 instead of
+        // its UTF-16 length (2~8), avoiding the over-compensation
+        // that would otherwise push the line width way too wide.
+        var graphemeCount: Int
+
+        if (hasEmoji) {
+            val mixed = measureMixedLine(text, fontSize, font.weight, font.family, font.style)
+            textWidth = mixed.width.unsafeCast<Float>()
+            textHeight = mixed.height.unsafeCast<Float>()
+            graphemeCount = mixed.graphemeCount.unsafeCast<Int>()
+            // If for any reason the mixed measure produced a zero
+            // height (very short emoji-only string with broken
+            // canvas metrics), fall back to fontSize * 1.2.
+            if (textHeight <= 0f) {
+                textHeight = (fontSize * 1.2f)
+            }
+            // Same for width — emoji glyphs always render with a
+            // non-zero width on screen; if our measurement collapsed
+            // to 0, use a conservative grapheme-based fallback so the
+            // outer logic does not treat this whole line as "empty".
+            if (textWidth <= 0f && graphemeCount > 0) {
+                textWidth = graphemeCount * fontSize * EMOJI_WIDTH_FACTOR
+            }
+        } else {
+            // Calculate the width of each line
+            val textMetrics =
+                measureTextWidth(text, fontSize.toInt(), font.weight, font.family, font.style)
+            // Text width
+            textWidth = if (jsTypeOf(textMetrics.actualBoundingBoxLeft) == "number") {
+                (textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight)
+                    .unsafeCast<Float>()
             } else {
-                // Pick the measurement strategy based on whether the line
-                // contains emoji-ish code units. The mixed path is more
-                // expensive but is the only way to avoid undercounting the
-                // emoji width on canvas (which lacks emoji glyphs).
-                val hasEmoji = containsEmoji(it)
-                var textWidth: Float
-                var textHeight: Float
-                // Number of graphemes used to multiply letter-spacing.
-                // For pure ASCII / CJK lines this equals it.length; for
-                // emoji lines it counts each emoji cluster as 1 instead of
-                // its UTF-16 length (2~8), avoiding the over-compensation
-                // that would otherwise push the line width way too wide.
-                var graphemeCount: Int
-
-                if (hasEmoji) {
-                    val mixed = measureMixedLine(
-                        it, fontSize, fontWeight, fontFamily, fontStyle
-                    )
-                    textWidth = mixed.width.unsafeCast<Float>()
-                    textHeight = mixed.height.unsafeCast<Float>()
-                    graphemeCount = mixed.graphemeCount.unsafeCast<Int>()
-                    // If for any reason the mixed measure produced a zero
-                    // height (very short emoji-only string with broken
-                    // canvas metrics), fall back to fontSize * 1.2.
-                    if (textHeight <= 0f) {
-                        textHeight = (fontSize * 1.2f)
-                    }
-                    // Same for width — emoji glyphs always render with a
-                    // non-zero width on screen; if our measurement collapsed
-                    // to 0, use a conservative grapheme-based fallback so the
-                    // outer logic does not treat this whole line as "empty".
-                    if (textWidth <= 0f && graphemeCount > 0) {
-                        textWidth = graphemeCount * fontSize * EMOJI_WIDTH_FACTOR
-                    }
-                } else {
-                    // Calculate the width of each line
-                    val textMetrics =
-                        measureTextWidth(it, fontSize.toInt(), fontWeight, fontFamily, fontStyle)
-                    // Text width
-                    textWidth = if (jsTypeOf(textMetrics.actualBoundingBoxLeft) == "number") {
-                        (textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight)
-                            .unsafeCast<Float>()
-                    } else {
-                        0f
-                    }
-                    // Text height，use canvas measure result，plus 1px for round missing
-                    textHeight = if (textMetrics.fontBoundingBoxAscent != null && textMetrics.fontBoundingBoxDescent != null) {
-                        textMetrics.fontBoundingBoxAscent.unsafeCast<Float>() +
-                                textMetrics.fontBoundingBoxDescent.unsafeCast<Float>() + 1f
-                    } else {
-                        // wechat 8.0.49 run in ios 18.2 can not get textMetrics.fontBoundingBoxAscent textMetrics.fontBoundingBoxDescent
-                        // use fontSize * 1.2
-                        (fontSize * 1.2).toFloat()
-                    }
-                    // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
-                    textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
-                    graphemeCount = it.length
-                    // === iOS real-device font compensation ===
-                    // Mini-program OffscreenCanvas measures text with a generic
-                    // sans-serif font, but the real <text> element on an iOS
-                    // physical device falls back to PingFang SC, which is
-                    // typically ~6% wider per glyph at the same point size.
-                    // Without this compensation, the parent container width
-                    // (derived from our measurement) is smaller than what
-                    // PingFang actually needs, and the last word is dropped
-                    // (e.g. "Change Theme" rendered as just "Change").
-                    // The compensation is intentionally NOT applied on Android
-                    // (sans-serif == Roboto, measurement matches reality) nor
-                    // on the WeChat DevTools simulator (uses desktop fonts).
-                    if (textWidth > 0f && MiniGlobal.isIOS && !MiniGlobal.isDevTools) {
-                        textWidth *= IOS_REAL_FONT_WIDTH_FACTOR
-                    }
-                }
-                // Canvas measureText does NOT take letter-spacing into account, but the
-                // real rendering of <text> does. Compensate it here otherwise the measured
-                // width would be smaller than the actual drawn width and cause the last
-                // character to be truncated.
-                // NOTE: use `graphemeCount` instead of UTF-16 length so that emoji
-                // clusters contribute exactly one letter-spacing gap (matching the
-                // real renderer), instead of 2~8 of them.
-                if (letterSpacing != 0f && graphemeCount > 0) {
-                    textWidth += graphemeCount * letterSpacing
-                }
-                if (MiniGlobal.isAndroid) {
-                    // Android canvas measurement is not accurate, so we need to multiply a magic number.
-                    // Apply AFTER letter-spacing compensation so both glyph width and spacing
-                    // are scaled by the same factor, keeping them consistent with real rendering.
-                    textWidth *= WIDTH_RATIO_MAGIC
-                }
-                textSizeList.add(SizeF(textWidth, textHeight))
+                0f
+            }
+            // Text height，use canvas measure result，plus 1px for round missing
+            textHeight = if (textMetrics.fontBoundingBoxAscent != null && textMetrics.fontBoundingBoxDescent != null) {
+                textMetrics.fontBoundingBoxAscent.unsafeCast<Float>() +
+                        textMetrics.fontBoundingBoxDescent.unsafeCast<Float>() + 1f
+            } else {
+                // wechat 8.0.49 run in ios 18.2 can not get textMetrics.fontBoundingBoxAscent textMetrics.fontBoundingBoxDescent
+                // use fontSize * 1.2
+                (fontSize * 1.2).toFloat()
+            }
+            // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
+            textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
+            graphemeCount = text.length
+            // === iOS real-device font compensation ===
+            // Mini-program OffscreenCanvas measures text with a generic
+            // sans-serif font, but the real <text> element on an iOS
+            // physical device falls back to PingFang SC, which is
+            // typically ~6% wider per glyph at the same point size.
+            // Without this compensation, the parent container width
+            // (derived from our measurement) is smaller than what
+            // PingFang actually needs, and the last word is dropped
+            // (e.g. "Change Theme" rendered as just "Change").
+            // The compensation is intentionally NOT applied on Android
+            // (sans-serif == Roboto, measurement matches reality) nor
+            // on the WeChat DevTools simulator (uses desktop fonts).
+            if (textWidth > 0f && MiniGlobal.isIOS && !MiniGlobal.isDevTools) {
+                textWidth *= IOS_REAL_FONT_WIDTH_FACTOR
             }
         }
-        // Return overall width and height
-        return textSizeList
+        // Canvas measureText does NOT take letter-spacing into account, but the
+        // real rendering of <text> does. Compensate it here otherwise the measured
+        // width would be smaller than the actual drawn width and cause the last
+        // character to be truncated.
+        // NOTE: use `graphemeCount` instead of UTF-16 length so that emoji
+        // clusters contribute exactly one letter-spacing gap (matching the
+        // real renderer), instead of 2~8 of them.
+        if (font.letterSpacing != 0f && graphemeCount > 0) {
+            textWidth += graphemeCount * font.letterSpacing
+        }
+        if (MiniGlobal.isAndroid && !justifyMeasure) {
+            // Android canvas measurement is not accurate, so we need to multiply a magic number.
+            // Apply AFTER letter-spacing compensation so both glyph width and spacing
+            // are scaled by the same factor, keeping them consistent with real rendering.
+            textWidth *= WIDTH_RATIO_MAGIC
+        }
+        return SizeF(textWidth, textHeight)
     }
 
     /**
@@ -862,56 +800,279 @@ object RichTextProcessor : IRichTextProcessor {
         linesSizeList: JsArray<SizeF>,
         realLineHeight: Float,
         letterSpacing: Float = 0f,
+        spanIndex: Int = -1,
     ) {
-        // Get text span line size list, split by line break
-        val spanSizeList = getSpanSizeList(
-            childSpan.value,
+        val font = TextFont(
             childSpan.fontSize,
             childSpan.fontWeight,
             childSpan.fontFamily,
             childSpan.fontStyle,
             letterSpacing,
         )
-        spanSizeList.forEach { item, index ->
-            // Zero-width item means this segment came from a "\n" that produced
-            // an empty line (leading/trailing/consecutive "\n"). We must flush
-            // whatever has been accumulated on the current line to the result
-            // list and then start a fresh empty line, otherwise the line-break
-            // semantics would be lost.
-            if (item.width == 0f) {
-                if (view.currentLineWidth != 0f || view.currentLineHeight != 0f) {
-                    // Close the currently accumulated line
-                    linesSizeList.add(
-                        SizeF(view.currentLineWidth, view.currentLineHeight)
-                    )
-                } else {
-                    // Even an already-empty current line represents a real blank
-                    // line introduced by the "\n", we still need to record it so
-                    // the total line count is correct.
-                    linesSizeList.add(
-                        SizeF(0f, if (realLineHeight > 0f) realLineHeight else item.height)
-                    )
-                }
-                // Reset current line — the next segment (if any) will start at
-                // the beginning of a brand-new line.
+        // Height of a line that holds nothing but a "\n"
+        val emptyLineHeight = if (realLineHeight > 0f) realLineHeight else childSpan.fontSize * 1.2f
+        childSpan.value.split("\n").forEachIndexed { index, part ->
+            if (index > 0) {
+                // Every "\n" ends the open line, even an empty one.
+                val height = if (view.currentLineHeight > 0f) view.currentLineHeight else emptyLineHeight
+                addLine(linesSizeList, view.currentLineWidth, height, false)
                 view.currentLineWidth = 0f
                 view.currentLineHeight = 0f
-                return@forEach
             }
-            if (index == 0 && view.currentLineWidth != 0f) {
-                // If it is multi-line text, it means there is line break, then the first line, and current
-                // line width is not 0, then should participate in line accumulation calculation, rather than
-                // Start a new line
-                processInlineLineSize(view, item, constraintSize, linesSizeList, realLineHeight)
-            } else {
-                // Other cases are calculated by new line
-                // Whether it is the last element, the last element as remain element processing,
-                // because there may be other span to be appended later
-                val isLastItem = index == spanSizeList.length - 1
-                // Process new line
-                processNewLineSize(view, item, constraintSize, realLineHeight, linesSizeList, isLastItem)
+            if (part.isNotEmpty()) {
+                placeTextSegment(view, part, font, constraintSize, linesSizeList, realLineHeight, spanIndex)
             }
         }
+    }
+
+    /**
+     * Put [text] (no "\n") onto the open line, wrapping where
+     * `word-break: break-word` does: after a word and its hanging spaces,
+     * around each CJK / kana / hangul / fullwidth character, and inside a
+     * word only when the word alone is wider than the line.
+     */
+    private fun placeTextSegment(
+        view: KRRichTextView,
+        text: String,
+        font: TextFont,
+        constraintSize: SizeF,
+        linesSizeList: JsArray<SizeF>,
+        realLineHeight: Float,
+        spanIndex: Int,
+    ) {
+        val whole = measureLine(text, font)
+        val lineHeight = if (realLineHeight > 0f) realLineHeight else whole.height
+        if (lineHeight > view.currentLineHeight) {
+            view.currentLineHeight = lineHeight
+        }
+        val limit = constraintSize.width
+        if (limit <= 0f || view.currentLineWidth + whole.width <= limit) {
+            placeFragment(view, spanIndex, text, whole.width, linesSizeList.length)
+            return
+        }
+        val charWidth = whole.width / text.length
+        var start = 0
+        while (start < text.length) {
+            val space = limit - view.currentLineWidth
+            val fit = fitOnLine(text, start, space, charWidth, font, view.currentLineWidth <= 0f)
+            if (fit == null) {
+                flushSoftLine(view, linesSizeList, lineHeight)
+                continue
+            }
+            if (fit.end == text.length) {
+                // Spaces ending the segment stay on this line for the next span.
+                val width = if (fit.contentEnd < fit.end) {
+                    min(measureLine(text.substring(start), font).width, space)
+                } else {
+                    fit.width
+                }
+                placeFragment(view, spanIndex, text.substring(start), width, linesSizeList.length)
+                return
+            }
+            placeFragment(view, spanIndex, text.substring(start, fit.contentEnd), fit.width, linesSizeList.length)
+            start = fit.end
+            flushSoftLine(view, linesSizeList, lineHeight)
+        }
+    }
+
+    private fun placeFragment(view: KRRichTextView, spanIndex: Int, text: String, width: Float, lineIndex: Int) {
+        recordHitBox(view, spanIndex, text, view.currentLineWidth, width, lineIndex, false)
+        view.currentLineWidth += width
+    }
+
+    /**
+     * Longest run of [text] from [start] that fits in [space] and ends at a
+     * break opportunity. [charWidth] only bounds how many break points are
+     * collected before measuring. Returns null when nothing fits on a line
+     * that already has content; on an empty line at least one grapheme is
+     * returned, so the caller always progresses.
+     */
+    private fun fitOnLine(
+        text: String,
+        start: Int,
+        space: Float,
+        charWidth: Float,
+        font: TextFont,
+        lineEmpty: Boolean,
+    ): LineFit? {
+        if (space <= 0f && !lineEmpty) return null
+        val ends: JsArray<Int> = JsArray()
+        var ahead = max(1, (space / charWidth * 1.5f).toInt() + 1)
+        var scanned = start
+        var low = 0
+        var best: LineFit? = null
+        while (true) {
+            while (scanned < text.length && scanned - start < ahead) {
+                scanned = nextBreak(text, scanned)
+                ends.add(scanned)
+            }
+            var high = ends.length - 1
+            while (low <= high) {
+                val mid = (low + high) ushr 1
+                val fit = measureFit(text, start, ends[mid], font)
+                if (fit.width <= space) {
+                    best = fit
+                    low = mid + 1
+                } else {
+                    high = mid - 1
+                }
+            }
+            if (low < ends.length || scanned >= text.length) break
+            // Every collected break fits: look further ahead.
+            ahead *= 2
+        }
+        if (best != null || !lineEmpty) return best
+        // The first word alone is wider than the line: break inside it.
+        val wordEnd = ends[0]
+        val graphemeEnds: JsArray<Int> = JsArray()
+        var i = start
+        while (i < wordEnd) {
+            i = graphemeEnd(text, i)
+            graphemeEnds.add(i)
+        }
+        var fit = measureFit(text, start, graphemeEnds[0], font)
+        low = 1
+        var high = graphemeEnds.length - 1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val candidate = measureFit(text, start, graphemeEnds[mid], font)
+            if (candidate.width <= space) {
+                fit = candidate
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return fit
+    }
+
+    /** Width of text[start, end) without the spaces that hang at its end. */
+    private fun measureFit(text: String, start: Int, end: Int, font: TextFont): LineFit {
+        var contentEnd = end
+        while (contentEnd > start && isBreakSpace(text[contentEnd - 1])) {
+            contentEnd--
+        }
+        val width = if (contentEnd > start) measureLine(text.substring(start, contentEnd), font).width else 0f
+        return LineFit(end, contentEnd, width)
+    }
+
+    /**
+     * End of the unbreakable unit starting at [pos], including the spaces
+     * after it. A unit is a run of spaces, a word (up to and including a
+     * dash), or one CJK-like grapheme; under `word-break: break-all` every
+     * grapheme is a unit. Closing punctuation joins the unit before it and
+     * opening punctuation joins the unit after it.
+     */
+    private fun nextBreak(text: String, pos: Int): Int {
+        var i = pos
+        if (!isBreakSpace(text[i])) {
+            while (true) {
+                val wordStart = i
+                val perChar = breakAllLetters || breaksPerChar(codePointAt(text, i))
+                i = graphemeEnd(text, i)
+                if (!perChar) {
+                    // A leading dash (e.g. "-5") keeps its word.
+                    while (i < text.length && !(isDash(text[i - 1]) && i - 1 > wordStart) &&
+                        !isBreakSpace(text[i]) && !breaksPerChar(codePointAt(text, i))
+                    ) {
+                        i = graphemeEnd(text, i)
+                    }
+                }
+                while (i < text.length && NO_BREAK_BEFORE.indexOf(text[i]) >= 0) {
+                    i = graphemeEnd(text, i)
+                }
+                if (i < text.length && !isBreakSpace(text[i]) && NO_BREAK_AFTER.indexOf(text[i - 1]) >= 0) {
+                    continue
+                }
+                break
+            }
+        }
+        while (i < text.length && isBreakSpace(text[i])) {
+            i++
+        }
+        return i
+    }
+
+    /** End of the grapheme starting at [i]; never splits surrogates or emoji sequences. */
+    private fun graphemeEnd(text: String, i: Int): Int {
+        var j = i + codePointLength(text, i)
+        // A flag is a pair of regional indicators.
+        if (isRegionalIndicator(codePointAt(text, i)) && j < text.length &&
+            isRegionalIndicator(codePointAt(text, j))
+        ) {
+            j += codePointLength(text, j)
+        }
+        while (j < text.length) {
+            val c = text[j].code
+            j += when {
+                c == 0x200D && j + 1 < text.length -> 1 + codePointLength(text, j + 1)
+                c in 0xFE00..0xFE0F || c in 0x0300..0x036F || c == 0x20E3 -> 1
+                // Emoji skin-tone modifiers U+1F3FB..U+1F3FF
+                c == 0xD83C && j + 1 < text.length && text[j + 1].code in 0xDFFB..0xDFFF -> 2
+                else -> return j
+            }
+        }
+        return j
+    }
+
+    private fun codePointLength(text: String, i: Int): Int =
+        if (text[i].isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate()) 2 else 1
+
+    private fun codePointAt(text: String, i: Int): Int {
+        if (codePointLength(text, i) == 1) return text[i].code
+        return ((text[i].code - 0xD800) shl 10) + (text[i + 1].code - 0xDC00) + 0x10000
+    }
+
+    private fun isBreakSpace(ch: Char): Boolean = ch == ' ' || ch == '\t'
+
+    private fun isDash(ch: Char): Boolean = ch == '-' || ch in '\u2010'..'\u2014'
+
+    private fun isRegionalIndicator(cp: Int): Boolean = cp in 0x1F1E6..0x1F1FF
+
+    /** CJK ideographs (incl. Ext B+), kana, bopomofo, CJK symbols and punctuation, fullwidth forms. */
+    private fun isIdeographic(cp: Int): Boolean =
+        cp in 0x2E80..0x2FFF ||
+            cp in 0x3000..0x4DBF ||
+            cp in 0x4E00..0x9FFF ||
+            cp in 0xF900..0xFAFF ||
+            cp in 0xFE30..0xFE4F ||
+            cp in 0xFF00..0xFFEF ||
+            cp in 0x20000..0x3FFFF
+
+    /** Characters a line may break before and after, like ideographs. */
+    private fun breaksPerChar(cp: Int): Boolean =
+        isIdeographic(cp) ||
+            cp in 0x1100..0x11FF ||
+            cp in 0xA960..0xA97F ||
+            cp in 0xAC00..0xD7FF ||
+            cp in 0x1F000..0x1FAFF
+
+    private fun justifyKind(cp: Int): Int = when {
+        cp == ' '.code || cp == '\t'.code || cp == 0x00A0 -> KIND_SPACE
+        isIdeographic(cp) -> KIND_IDEOGRAPH
+        else -> KIND_OTHER
+    }
+
+    private fun flushSoftLine(
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+        nextLineHeight: Float,
+    ) {
+        addLine(linesSizeList, view.currentLineWidth, view.currentLineHeight, true)
+        view.currentLineWidth = 0f
+        view.currentLineHeight = nextLineHeight
+    }
+
+    private fun addLine(linesSizeList: JsArray<SizeF>, width: Float, height: Float, softWrapped: Boolean) {
+        linesSizeList.add(SizeF(width, height))
+        lineSoftWrapped.add(softWrapped)
+    }
+
+    private fun resetMeasureState(view: KRRichTextView) {
+        lineSoftWrapped = JsArray()
+        breakAllLetters = view.ele.style.wordBreak == "break-all"
+        justifyMeasure = view.isRichText && view.ele.style.textAlign == "justify"
+        view.spanHitBoxes.clear()
     }
 
     /**
@@ -923,9 +1084,144 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Final position of every hit box and placeholder, one line at a time.
+     * Outside justify, Android text widths carry [WIDTH_RATIO_MAGIC] for the
+     * wrap decision only; it is divided out so a placeholder stays next to
+     * the text before it. On a soft-wrapped line under `text-align: justify`
+     * the gap is shared per justification opportunity (spaces, boundaries
+     * next to CJK characters).
+     */
+    private fun layoutHitBoxes(
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+        lineTopPositions: JsArray<Float>,
+        hostWidth: Float,
+    ) {
+        val boxes = view.spanHitBoxes
+        val justify = hostWidth > 0f && view.ele.style.textAlign == "justify"
+        var from = 0
+        while (from < boxes.length) {
+            val line = boxes[from].lineIndex
+            var to = from + 1
+            while (to < boxes.length && boxes[to].lineIndex == line) {
+                to++
+            }
+            if (MiniGlobal.isAndroid && !justifyMeasure) {
+                unscaleLine(boxes, from, to)
+            }
+            val visible = line < linesSizeList.length
+            if (justify && visible && lineSoftWrapped[line]) {
+                justifyLine(boxes, from, to, hostWidth)
+            }
+            for (k in from until to) {
+                val box = boxes[k]
+                if (visible) {
+                    box.y = lineTopPositions[line]
+                    box.height = linesSizeList[line].height
+                } else {
+                    box.height = 0f
+                }
+                if (box.placeholder) {
+                    view.richTextSpanList[box.index].offsetLeft = box.x
+                }
+            }
+            from = to
+        }
+    }
+
+    /** Placeholder widths are real; only text widths were scaled. */
+    private fun unscaleLine(boxes: JsArray<SpanHitBox>, from: Int, to: Int) {
+        var rigid = 0f
+        for (k in from until to) {
+            val box = boxes[k]
+            box.x = (box.x - rigid) / WIDTH_RATIO_MAGIC + rigid
+            if (box.placeholder) {
+                rigid += box.width
+            } else {
+                box.width /= WIDTH_RATIO_MAGIC
+            }
+        }
+    }
+
+    private fun justifyLine(boxes: JsArray<SpanHitBox>, from: Int, to: Int, hostWidth: Float) {
+        val lastBox = boxes[to - 1]
+        val extra = hostWidth - (lastBox.x + lastBox.width)
+        if (extra <= 0.5f) return
+        // Opportunities before each box's start, and between its start and end.
+        val before = IntArray(to - from)
+        val inside = IntArray(to - from)
+        var total = 0
+        var prevKind = KIND_NONE
+        var trailingSpaces = 0
+        for (k in from until to) {
+            val box = boxes[k]
+            var lead = 0
+            var own = 0
+            trailingSpaces = 0
+            if (box.placeholder) {
+                prevKind = KIND_OTHER
+            } else {
+                val text = box.text
+                var i = 0
+                while (i < text.length) {
+                    val kind = justifyKind(codePointAt(text, i))
+                    trailingSpaces = if (kind == KIND_SPACE) trailingSpaces + 1 else 0
+                    if (kind == KIND_SPACE) {
+                        own++
+                    } else if (kind == KIND_IDEOGRAPH) {
+                        if (prevKind == KIND_OTHER) {
+                            if (i == 0) lead++ else own++
+                        }
+                        own++
+                    }
+                    prevKind = kind
+                    i += codePointLength(text, i)
+                }
+            }
+            total += lead
+            before[k - from] = total
+            inside[k - from] = own
+            total += own
+        }
+        // Nothing stretches after the last character of the line, and
+        // hanging spaces at the end do not stretch at all.
+        val trailing = when (prevKind) {
+            KIND_IDEOGRAPH -> 1
+            KIND_SPACE -> trailingSpaces
+            else -> 0
+        }
+        total -= trailing
+        inside[to - from - 1] -= trailing
+        if (total <= 0) return
+        for (k in from until to) {
+            val box = boxes[k]
+            box.x += extra * before[k - from] / total
+            if (!box.placeholder) {
+                box.width += extra * inside[k - from] / total
+            }
+        }
+    }
+
+    private fun recordHitBox(
+        view: KRRichTextView,
+        spanIndex: Int,
+        text: String,
+        x: Float,
+        width: Float,
+        lineIndex: Int,
+        placeholder: Boolean,
+    ) {
+        if (spanIndex < 0 || width <= 0f) return
+        view.spanHitBoxes.add(
+            SpanHitBox(spanIndex, text, x, 0f, width, 0f, lineIndex, placeholder)
+        )
+    }
+
+    /**
      * Calculate the size data of plain text
      */
     private fun calculateTextSize(constraintSize: SizeF, view: KRRichTextView): SizeF {
+        resetMeasureState(view)
         val ele = view.ele
         
         // Try cache first for plain text
@@ -938,7 +1234,8 @@ object RichTextProcessor : IRichTextProcessor {
             letterSpacing = "",
             lineHeight = ele.style.lineHeight,
             constraintWidth = constraintSize.width,
-            numberOfLines = view.numberOfLines
+            numberOfLines = view.numberOfLines,
+            wordBreak = ele.style.wordBreak,
         )
         
         TextMeasureCache.get(cacheKey)?.let { cachedSize ->
@@ -991,17 +1288,7 @@ object RichTextProcessor : IRichTextProcessor {
         // judgement can observe the real overflow state.
         applyLineBreakMargin(constraintSize, view, linesSizeList)
 
-        // If maximum number of lines is set, and actual exceeds maximum number of lines,
-        // use maximum number of lines, otherwise use actual number of lines for processing
-        if (view.numberOfLines in 1..linesSizeList.length) {
-            // Set multi-line style
-            setMultiLineStyle(view.numberOfLines, view)
-            // Keep specified height
-            linesSizeList = linesSizeList.slice(0, view.numberOfLines)
-        } else {
-            // Clear multi-line style
-            setMultiLineStyle(0, view)
-        }
+        linesSizeList = clampVisibleLines(constraintSize, view, linesSizeList)
 
         // Reset current line width and height
         resetCurrentLineSize(view)
@@ -1043,7 +1330,7 @@ object RichTextProcessor : IRichTextProcessor {
     /**
      * Calculate the offset top of placeholder spans
      */
-    private fun calculateSpanOffsetTop(linesSizeList: JsArray<SizeF>, view: KRRichTextView) {
+    private fun calculateSpanOffsetTop(linesSizeList: JsArray<SizeF>, view: KRRichTextView, hostWidth: Float) {
         // Pre-compute the top Y coordinate of each line to avoid repeated accumulation
         val lineTopPositions: JsArray<Float> = JsArray()
         var accumulated = 0f
@@ -1066,6 +1353,7 @@ object RichTextProcessor : IRichTextProcessor {
                 }
             }
         }
+        layoutHitBoxes(view, linesSizeList, lineTopPositions, hostWidth)
     }
 
     /**
@@ -1117,26 +1405,43 @@ object RichTextProcessor : IRichTextProcessor {
         // Apply lineBreakMargin before line-clamp so that the "is truncated"
         // judgement can observe the real overflow state.
         applyLineBreakMargin(constraintSize, view, linesSizeList)
-        // If maximum number of lines is set, and actual exceeds maximum number of lines,
-        // use maximum number of lines, otherwise use actual number of lines for processing
-        if (view.numberOfLines in 1..linesSizeList.length) {
-            // Set multi-line style
-            setMultiLineStyle(view.numberOfLines, view)
-            // Keep specified height
-            linesSizeList = linesSizeList.slice(0, view.numberOfLines)
-        } else {
-            // Clear multi-line style
-            setMultiLineStyle(0, view)
-        }
+        linesSizeList = clampVisibleLines(constraintSize, view, linesSizeList)
         // Here style changed, need to re-set divHtml, considering update queue problem,
         // whether need to delay setting, only rich text needs setting
         view.ele.setAttribute("nodes", view.divHtml)
 
-        // Calculate span offset top
-        calculateSpanOffsetTop(linesSizeList, view)
+        var size = calculateTotalSize(linesSizeList)
+        // A justified paragraph that wraps takes the full constraint, so the host
+        // box, the stretch target and the placeholder positions all agree.
+        if (justifyMeasure && constraintSize.width > size.width && lineSoftWrapped.includes(true)) {
+            size = SizeF(constraintSize.width, size.height)
+        }
+        calculateSpanOffsetTop(linesSizeList, view, size.width)
+        return size
+    }
 
-        // Get occupied size position information based on the final size list
-        return calculateTotalSize(linesSizeList)
+    /**
+     * Keep the lines [KRRichTextView.numberOfLines] allows and apply the
+     * matching clamp style. When lines are cut, the last visible line reports
+     * the full constraint width like native, so the ellipsis is not drawn early.
+     */
+    private fun clampVisibleLines(
+        constraintSize: SizeF,
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+    ): JsArray<SizeF> {
+        val maxLines = view.numberOfLines
+        if (maxLines !in 1..linesSizeList.length) {
+            setMultiLineStyle(0, view)
+            return linesSizeList
+        }
+        setMultiLineStyle(maxLines, view)
+        val visible = linesSizeList.slice(0, maxLines)
+        if (maxLines < linesSizeList.length && constraintSize.width > 0f) {
+            val last = visible.length - 1
+            visible[last] = SizeF(constraintSize.width, visible[last].height)
+        }
+        return visible
     }
 
     /**
@@ -1146,9 +1451,21 @@ object RichTextProcessor : IRichTextProcessor {
         var spanHtml = ""
         view.childSpanList.forEach { child ->
             val span = child.unsafeCast<MiniSpanElement>()
-            spanHtml += "<span style=\"${span.style.cssText}\">${span.textContent}</span>"
+            spanHtml += if (span.offsetWidth != 0f) {
+                // rich-text ignores width/height on span. img width and height
+                // are honored, so the hole matches the overlay's measured box.
+                placeholderImgHtml(span)
+            } else {
+                "<span style=\"${span.style.cssText}\">${span.textContent}</span>"
+            }
         }
         return spanHtml
+    }
+
+    private fun placeholderImgHtml(span: MiniSpanElement): String {
+        val w = span.offsetWidth
+        val h = span.offsetHeight
+        return "<img width=\"$w\" height=\"$h\" style=\"width:${w}px;height:${h}px;vertical-align:middle;opacity:0\" src=\"$BLANK_IMG\"/>"
     }
 
     /**
@@ -1253,37 +1570,6 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
-     * Get placeholder image style
-     */
-    private fun getPlaceHolderImageStyle(view: MiniElement): String {
-        // Style list
-        val styleList: JsArray<String> = JsArray()
-        // First insert fixed style
-        styleList.push("width:100%;height:100%;display:block;")
-        // Then insert external style
-        styleList.push("border-top-left-radius:${view.style.borderTopLeftRadius};")
-        styleList.push("border-top-right-radius:${view.style.borderTopLeftRadius};")
-        styleList.push("border-bottom-left-radius:${view.style.borderBottomLeftRadius};")
-        styleList.push("border-bottom-right-radius:${view.style.borderBottomRightRadius};")
-
-        return styleList.join("")
-    }
-
-    /**
-     * Throttled execution function (supports parameters)
-     */
-    private fun throttle(view: KRRichTextView, action: () -> Unit) {
-        // Cancel unexecuted task
-        if (view.pendingJob != 0) {
-            MiniGlobal.clearTimeout(view.pendingJob)
-        }
-        // Delay execution task
-        view.pendingJob = MiniGlobal.setTimeout({
-            action()
-        }, IMAGE_SPAN_DELAY)
-    }
-
-    /**
      * measure real text size
      */
     override fun measureTextSize(constraintSize: SizeF, view: KRRichTextView, renderText: String): SizeF {
@@ -1337,8 +1623,6 @@ object RichTextProcessor : IRichTextProcessor {
     fun clearRichTextValues(view: KRRichTextView) {
         view.childSpanList.clear()
         view.richTextSpanList.clear()
-        view.imageSpanList.clear()
-        view.imageSpanCount = 0
     }
 
     /**
@@ -1475,10 +1759,6 @@ object RichTextProcessor : IRichTextProcessor {
                             height = span.offsetHeight
                         )
                     )
-                    // Placeholder image count plus 1
-                    view.imageSpanCount += 1
-                    // Placeholder span input
-                    view.imageSpanList.add(span)
                 } else {
                     // For non-placeholder spans, save the text content value.
                     // Also read back each span's own letter-spacing from its
@@ -1537,40 +1817,42 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
-     * Insert placeholder image for span
+     * Mini-app `rich-text` delivers tap on the host only. Hit boxes are the
+     * fragments measured for this view, including justify. [x]/[y] come from
+     * WeChat `tap.detail`, which is page space. A miss returns -1 so the host
+     * `RichText` click can run.
      */
-    fun insertPlaceHolderImageView(parentView: KRRichTextView, view: MiniElement, insertIndex: Int) {
-        if (view.firstElementChild is MiniImageElement) {
-            // Placeholder image
-            val image = view.firstElementChild.unsafeCast<MiniImageElement>()
-            try {
-                // Set placeholder image
-                val imgSpan = parentView.imageSpanList[insertIndex]
-                val childSpan = parentView.childSpanList[parentView.childSpanList.indexOf(imgSpan)]
-                    .unsafeCast<MiniSpanElement>()
-                childSpan.textContent = "<img style='${
-                    getPlaceHolderImageStyle(view)
-                }' mode='${
-                    (view.firstElementChild as MiniImageElement).mode
-                }' src='${image.src}' />"
-                // Set image container corner
-                childSpan.style.borderTopLeftRadius = view.style.borderTopLeftRadius
-                childSpan.style.borderTopRightRadius = view.style.borderTopRightRadius
-                childSpan.style.borderBottomLeftRadius = view.style.borderBottomLeftRadius
-                childSpan.style.borderBottomRightRadius = view.style.borderBottomRightRadius
-                // Update rich text
-                parentView.spanHtml = getChildSpanHtml(parentView)
-                // First save rich text placeholder html content
-                val richTextViewHtml = parentView.divHtml
-                // Throttled execution update node html
-                throttle(parentView) {
-                    parentView.ele.setAttribute("nodes", richTextViewHtml)
-                }
-            } catch (e: dynamic) {
-                // Set placeholder image exception
-                Log.error("set placeholder image error: $e")
+    override fun spanIndexAt(view: KRRichTextView, x: Float, y: Float): Int {
+        if (view.spanHitBoxes.length == 0) return -1
+        val page = pageOffset(view.ele.unsafeCast<MiniElement>())
+        val localX = x - page.first
+        val localY = y - page.second
+        val boxes = view.spanHitBoxes
+        for (i in 0 until boxes.length) {
+            val box = boxes[i]
+            if (box.height <= 0f || box.width <= 0f) continue
+            if (localX >= box.x && localX <= box.x + box.width &&
+                localY >= box.y && localY <= box.y + box.height
+            ) {
+                return box.index
             }
-
         }
+        return -1
+    }
+
+    /**
+     * Sum ancestor [MiniElement.rawLeft]/[MiniElement.rawTop] and subtract
+     * scroll offsets so WeChat page-space taps can be converted to host-local.
+     */
+    private fun pageOffset(ele: MiniElement): Pair<Float, Float> {
+        var x = 0.0
+        var y = 0.0
+        var cur: MiniElement? = ele
+        while (cur != null) {
+            x += (cur.rawLeft ?: 0.0) - cur.scrollLeft
+            y += (cur.rawTop ?: 0.0) - cur.scrollTop
+            cur = cur.parentNode
+        }
+        return x.toFloat() to y.toFloat()
     }
 }

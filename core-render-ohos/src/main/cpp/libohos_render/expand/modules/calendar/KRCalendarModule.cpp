@@ -15,6 +15,7 @@
 
 #include "KRCalendarModule.h"
 
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "thirdparty/cJSON/cJSON.h"
 
 static const char *TAG = __FILE_NAME__;
@@ -123,11 +124,11 @@ util::Date KRCalendarModule::CalDate(util::Date &date, const std::string &op) {
     return newDate;
 }
 
-std::string KRCalendarModule::CurrentTimestamp(const KRAnyValue &params) {
-    return std::to_string(util::Date().Now());
+std::u16string KRCalendarModule::CurrentTimestamp(const KRAnyValue &params) {
+    return util::AsciiToUTF16(std::to_string(util::Date().Now()));
 }
 
-std::string KRCalendarModule::GetField(const KRAnyValue &params) {
+std::u16string KRCalendarModule::GetField(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "getField: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
     cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
@@ -152,30 +153,30 @@ std::string KRCalendarModule::GetField(const KRAnyValue &params) {
     cJSON_Delete(paramObj);
     switch (field) {
     case YEAR:
-        return std::to_string(date.GetFullYear());
+        return util::AsciiToUTF16(std::to_string(date.GetFullYear()));
     case MONTH:
-        return std::to_string(date.GetMonth());
+        return util::AsciiToUTF16(std::to_string(date.GetMonth()));
     case DAY_OF_MONTH:
-        return std::to_string(date.GetDate());
+        return util::AsciiToUTF16(std::to_string(date.GetDate()));
     case DAY_OF_YEAR:
-        return std::to_string(date.GetDateOfYear());
+        return util::AsciiToUTF16(std::to_string(date.GetDateOfYear()));
     case DAY_OF_WEEK:
-        return std::to_string(date.GetDateOfWeek());
+        return util::AsciiToUTF16(std::to_string(date.GetDateOfWeek()));
     case HOUR_OF_DAY:
-        return std::to_string(date.GetHours());
+        return util::AsciiToUTF16(std::to_string(date.GetHours()));
     case MINUS:
-        return std::to_string(date.GetMinutes());
+        return util::AsciiToUTF16(std::to_string(date.GetMinutes()));
     case SECOND:
-        return std::to_string(date.GetSeconds());
+        return util::AsciiToUTF16(std::to_string(date.GetSeconds()));
     case MILLISECOND:
-        return std::to_string(date.GetMilliseconds());
+        return util::AsciiToUTF16(std::to_string(date.GetMilliseconds()));
     default:
         break;
     }
-    return "";
+    return std::u16string();
 }
 
-std::string KRCalendarModule::GetTimeMillis(const KRAnyValue &params) {
+std::u16string KRCalendarModule::GetTimeMillis(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "getTimeMillis: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
     cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
@@ -198,7 +199,7 @@ std::string KRCalendarModule::GetTimeMillis(const KRAnyValue &params) {
     }
     cJSON_Delete(paramObj);
     // KLOG_INFO(TAG) << date.GetTime();
-    return std::to_string(date.GetTime());
+    return util::AsciiToUTF16(std::to_string(date.GetTime()));
 }
 
 std::string KRCalendarModule::ZeroPadded(int num, int digits) {
@@ -206,7 +207,7 @@ std::string KRCalendarModule::ZeroPadded(int num, int digits) {
     return s.substr(s.length() - digits);
 }
 
-std::string KRCalendarModule::Format(const KRAnyValue &params) {
+std::u16string KRCalendarModule::Format(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "format: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
     cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
@@ -238,10 +239,10 @@ std::string KRCalendarModule::Format(const KRAnyValue &params) {
         }
     }
     // KLOG_INFO(TAG) << "format: " << result;
-    return convertResult;
+    return util::UTF8ToUTF16(convertResult);
 }
 
-std::string KRCalendarModule::Parse(const KRAnyValue &params) {
+std::u16string KRCalendarModule::Parse(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "parse: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
     cJSON *dateStrPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_FORMATTED_TIME);
@@ -255,7 +256,7 @@ std::string KRCalendarModule::Parse(const KRAnyValue &params) {
     date.Parse(dateStr, formatStr);
 
     // KLOG_INFO(TAG) << "parse: " << std::to_string(date.GetTime());
-    return std::to_string(date.GetTime());
+    return util::AsciiToUTF16(std::to_string(date.GetTime()));
 }
 
 void KRCalendarModule::Replace(std::string &str, const char *format, std::string substr) {

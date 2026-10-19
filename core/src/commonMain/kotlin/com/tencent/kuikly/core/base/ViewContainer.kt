@@ -345,8 +345,15 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         // only needs a local (non-traversing) read. The attr setter is
         // monotonic (SUB_TREE wins over SELF/NONE), so re-attaching a child
         // under a non-force parent will not downgrade a previously-set mode.
-        if ((getViewAttr() as? ContainerAttr)?.forceRenderView == ForceRenderViewMode.SUB_TREE &&
-            child is ViewContainer<*, *>) {
+        //
+        // Hot-path micro-opts:
+        //   1) Short-circuit on `child is ViewContainer` first so leaf views
+        //      (the common case) skip the attr probe entirely.
+        //   2) Use [attrOrNull] on the parent to avoid eagerly materializing
+        //      a ContainerAttr for containers that never configure any
+        //      styling — the vast majority of containers are in that bucket.
+        if (child is ViewContainer<*, *> &&
+            (attrOrNull() as? ContainerAttr)?.forceRenderView == ForceRenderViewMode.SUB_TREE) {
             (child.getViewAttr() as? ContainerAttr)?.forceRenderView = ForceRenderViewMode.SUB_TREE
         }
         child.didMoveToParentView()
@@ -444,16 +451,24 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
      *   - [ForceRenderViewMode.SELF]     : this container must materialize as a
      *                                      native RenderView, but children are
      *                                      not affected.
-     *   - [ForceRenderViewMode.SUB_TREE] : this container and every descendant
-     *                                      container (propagated at insert time
-     *                                      by [ViewContainer.internalAddChild])
-     *                                      must materialize as RenderViews.
+     *   - [ForceRenderViewMode.SUB_TREE] : this container must materialize as a
+     *                                      RenderView, and the same mode is
+     *                                      propagated to each child container
+     *                                      **at the moment it is inserted**
+     *                                      (see [ViewContainer.internalAddChild]).
      *
-     * The setter is monotonic along the SELF → SUB_TREE direction: once
-     * SUB_TREE is set, assigning SELF or NONE is a no-op (SUB_TREE already
-     * subsumes SELF). This keeps propagation safe — a descendant whose mode
-     * was lifted to SUB_TREE by its ancestor cannot be accidentally downgraded
-     * by a later direct write.
+     * Important semantics of SUB_TREE propagation:
+     *   - Propagation is **insert-time only** and does *not* retroactively
+     *     reach children that were already added before SUB_TREE was set on
+     *     this container. If you need the whole existing subtree covered,
+     *     call [forceRenderViewSubtree] (or write SUB_TREE here) **before**
+     *     attaching children.
+     *   - The setter is monotonic along the SELF → SUB_TREE direction: once
+     *     SUB_TREE is set, assigning SELF or NONE is a no-op (SUB_TREE
+     *     already subsumes SELF). This keeps propagation safe — a descendant
+     *     lifted to SUB_TREE by its ancestor cannot be accidentally
+     *     downgraded by a later direct write, and detaching the descendant
+     *     from the forcing ancestor does *not* automatically clear its mode.
      *
      * Prefer the DSL helpers [forceRenderViewSelf] / [forceRenderViewSubtree] over
      * writing this field directly.
@@ -479,9 +494,15 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
     }
 
     /**
-     * DSL: force the owning container and its entire subtree to materialize
-     * as native RenderViews. Propagation to future children is handled by
-     * [ViewContainer.internalAddChild].
+     * DSL: force the owning container and its subtree to materialize as
+     * native RenderViews.
+     *
+     * Propagation is handled by [ViewContainer.internalAddChild] at
+     * **insert time**, which means this call only affects children that are
+     * attached **after** it runs. Children that were already added before
+     * this call are not retroactively marked — invoke this helper (or set
+     * [forceRenderView] directly) before building out the subtree if you
+     * need full coverage.
      */
     fun forceRenderViewSubtree(): ContainerAttr {
         forceRenderView = ForceRenderViewMode.SUB_TREE

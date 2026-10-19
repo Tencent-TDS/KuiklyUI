@@ -149,7 +149,6 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   /**
    * 流式请求唯一的终态入口：先完成状态转换与资源清理，再通知业务，
    * 保证每个请求最多发出一次 complete/error，且业务回调重入时不会看到中间状态。
-   * 最后一个事件携带 release 标记，释放 native 侧的 keepAlive 回调登记。
    */
   private finishStreamRequest(requestId: string, callback: KuiklyRenderCallback | null,
     events: StreamEventData[]): void {
@@ -157,7 +156,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       return;
     }
     for (let i = 0; i < events.length; i++) {
-      callback(events[i], i == events.length - 1);
+      callback(events[i]);
     }
   }
 
@@ -183,7 +182,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       if (!requestId) {
         KRRenderLog.e("NetworkModule", "Stream request error: requestId is empty");
         if (callback) {
-          callback(KRNetworkModule.streamEvent('error', 'requestId is empty', KRNetworkModule.STATE_CODE_UNKNOWN), true);
+          callback(KRNetworkModule.streamEvent('error', 'requestId is empty', KRNetworkModule.STATE_CODE_UNKNOWN));
         }
         return;
       }
@@ -192,7 +191,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       if (this.activeStreamRequests.has(requestId)) {
         KRRenderLog.e("NetworkModule", `Stream request error: duplicate requestId=${requestId}`);
         if (callback) {
-          callback(KRNetworkModule.streamEvent('error', 'duplicate requestId', KRNetworkModule.STATE_CODE_UNKNOWN), true);
+          callback(KRNetworkModule.streamEvent('error', 'duplicate requestId', KRNetworkModule.STATE_CODE_UNKNOWN));
         }
         return;
       }
@@ -209,8 +208,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       const urlOptions = this.createURLAndOptions(baseParams, null);
       if (urlOptions == null) {
         if (callback) {
-          callback(KRNetworkModule.streamEvent('error', 'invalid request params', KRNetworkModule.STATE_CODE_UNKNOWN),
-            true);
+          callback(KRNetworkModule.streamEvent('error', 'invalid request params', KRNetworkModule.STATE_CODE_UNKNOWN));
         }
         return;
       }
@@ -320,7 +318,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         this.cleanupHttpRequest(httpRequest);
       }
       if (callback) {
-        callback(KRNetworkModule.streamEvent('error', errmsg, KRNetworkModule.STATE_CODE_UNKNOWN), true);
+        callback(KRNetworkModule.streamEvent('error', errmsg, KRNetworkModule.STATE_CODE_UNKNOWN));
       }
     }
   }
@@ -397,10 +395,8 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     try {
       const params = JSON.parse(paramsStr) as Record<string, string>;
       const requestId = params['requestId'];
-      const state = requestId ? this.activeStreamRequests.get(requestId) : undefined;
-      if (state && this.finalizeStreamRequest(requestId) && state.callback) {
-        // 主动关闭不再回调业务，只释放 native 侧的 keepAlive 回调登记
-        state.callback(null, true);
+      if (requestId) {
+        this.finalizeStreamRequest(requestId);
       }
     } catch (e) {
       KRRenderLog.e("NetworkModule", `close stream error: ${(e as BusinessError).message}`);

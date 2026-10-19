@@ -327,13 +327,6 @@ KRRenderCallback KRRenderView::GetArgCallback(std::string callbackId, bool &arg_
     return nullptr;
 }
 
-/**
- * 释放callback_id对应的Callback（含keepAlive Callback）
- */
-void KRRenderView::RemoveArgCallback(const std::string &callbackId) {
-    method_arg_callback_map_.erase(callbackId);
-}
-
 void KRRenderView::OnFirstFramePaint() {
     DispatchInitState(KRInitState::kStateFirstFramePaint);
     SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");

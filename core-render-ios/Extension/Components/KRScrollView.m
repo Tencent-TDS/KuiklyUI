@@ -21,6 +21,7 @@
 #import "KRConvertUtil.h"
 #import "KRScrollViewOffsetAnimator.h"
 #import "KRScrollView+NestedScroll.h"
+#import "NestedScrollCoordinator.h"
 #import "NSObject+KR.h"
 #import "KRContentOffsetAnimator.h"
 
@@ -955,6 +956,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     [super setFrame:frame];
     [self syncScrollViewContentSize];
+    if (scrollView && [NestedScrollCoordinator multiLevelNestedScrollFixEnabled]) {
+        scrollView.skipNestScrollLock = NO;
+    }
 }
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];

@@ -27,7 +27,7 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.ohos.ImmersiveLightSenseOhos
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseOhos
 
 /** 返回箭头图标，自绘版与沉浸光感版共用 */
 private const val NAV_BACK_ICON =

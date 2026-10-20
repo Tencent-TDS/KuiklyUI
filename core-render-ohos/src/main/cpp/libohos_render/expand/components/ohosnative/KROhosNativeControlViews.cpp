@@ -18,6 +18,7 @@
 #include <string>
 
 #include "libohos_render/foundation/KRCommon.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
@@ -26,7 +27,12 @@ namespace {
 constexpr char kPropValue[] = "value";
 constexpr char kPropMin[] = "min";
 constexpr char kPropMax[] = "max";
+constexpr char kPropProgressColor[] = "progressColor";
+constexpr char kPropTrackColor[] = "trackColor";
+constexpr char kPropThumbColor[] = "thumbColor";
+constexpr char kPropTrackThickness[] = "trackThickness";
 constexpr char kPropIsOn[] = "isOn";
+constexpr char kPropOnColor[] = "onColor";
 // Kotlin 侧 OhosSliderEvent / OhosSwitchEvent 注册的事件键
 constexpr char kEventValueChanged[] = "valueChanged";
 constexpr char kEventSwitchChanged[] = "switchChanged";
@@ -40,6 +46,16 @@ void SetFloatAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType type, floa
 
 void SetBoolAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType type, bool value) {
     ArkUI_NumberValue number = {.i32 = value ? 1 : 0};
+    ArkUI_AttributeItem item = {.value = &number, .size = 1};
+    kuikly::util::GetNodeApi()->setAttribute(node, type, &item);
+}
+
+/**
+ * CAPI 颜色属性统一走 .value[0].u32（0xARGB），如 NODE_SLIDER_SELECTED_COLOR。
+ * Kotlin 侧序列化为 "#AARRGGBB" 字符串或 uint 十进制，ConvertToHexColor 都能解。
+ */
+void SetColorAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType type, uint32_t color) {
+    ArkUI_NumberValue number = {.u32 = color};
     ArkUI_AttributeItem item = {.value = &number, .size = 1};
     kuikly::util::GetNodeApi()->setAttribute(node, type, &item);
 }
@@ -99,6 +115,26 @@ bool KROhosSliderView::SetProp(const std::string &prop_key, const KRAnyValue &pr
     }
     if (prop_key == kPropMax) {
         SetFloatAttribute(GetNode(), NODE_SLIDER_MAX_VALUE, prop_value->toFloat());
+        return true;
+    }
+    // 颜色/粗细：对齐 iOS 液态玻璃 iOSSlider 的属性集
+    if (prop_key == kPropProgressColor) {
+        SetColorAttribute(GetNode(), NODE_SLIDER_SELECTED_COLOR,
+                          kuikly::util::ConvertToHexColor(prop_value->toString()));
+        return true;
+    }
+    if (prop_key == kPropTrackColor) {
+        SetColorAttribute(GetNode(), NODE_SLIDER_TRACK_COLOR,
+                          kuikly::util::ConvertToHexColor(prop_value->toString()));
+        return true;
+    }
+    if (prop_key == kPropThumbColor) {
+        SetColorAttribute(GetNode(), NODE_SLIDER_BLOCK_COLOR,
+                          kuikly::util::ConvertToHexColor(prop_value->toString()));
+        return true;
+    }
+    if (prop_key == kPropTrackThickness) {
+        SetFloatAttribute(GetNode(), NODE_SLIDER_TRACK_THICKNESS, prop_value->toFloat());
         return true;
     }
     return IKRRenderViewExport::SetProp(prop_key, prop_value, event_call_back);
@@ -162,6 +198,17 @@ bool KROhosSwitchView::SetProp(const std::string &prop_key, const KRAnyValue &pr
     if (prop_key == kPropIsOn) {
         const bool on = prop_value->toBool() || prop_value->toString() == "1";
         SetBoolAttribute(GetNode(), NODE_TOGGLE_VALUE, on);
+        return true;
+    }
+    // 颜色：对齐 iOS 液态玻璃 iOSSwitch 的属性集（unOnColor ArkUI Toggle 不支持，不开放）
+    if (prop_key == kPropOnColor) {
+        SetColorAttribute(GetNode(), NODE_TOGGLE_SELECTED_COLOR,
+                          kuikly::util::ConvertToHexColor(prop_value->toString()));
+        return true;
+    }
+    if (prop_key == kPropThumbColor) {
+        SetColorAttribute(GetNode(), NODE_TOGGLE_SWITCH_POINT_COLOR,
+                          kuikly::util::ConvertToHexColor(prop_value->toString()));
         return true;
     }
     return IKRRenderViewExport::SetProp(prop_key, prop_value, event_call_back);

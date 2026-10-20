@@ -10,8 +10,9 @@ import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.ohos.OhosSlider
-import com.tencent.kuikly.core.views.ohos.OhosSwitch
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseSelectOhos
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseSliderOhos
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseSwitchOhos
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
@@ -31,6 +32,8 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
     private var materialEnable by observable(true)
     private var sliderValue by observable(50f)
     private var switchOn by observable(false)
+    private var selectIndex by observable(1)
+    private val selectOptions = listOf("低", "中", "高", "自定义")
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -69,7 +72,7 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                 }()
 
                 ctx.sectionTitle("一、原生 Slider")()
-                OhosSlider {
+                ImmersiveLightSenseSliderOhos {
                     attr {
                         margin(left = 10f, right = 10f, top = 8f, bottom = 8f)
                         width(300f)
@@ -77,6 +80,11 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                         value(ctx.sliderValue)
                         min(0f)
                         max(100f)
+                        // 对齐 iOS 液态玻璃 iOSSlider 的颜色/粗细属性
+                        progressColor(Color(0xFF007DFF))
+                        trackColor(Color(0x33808080))
+                        thumbColor(Color(0xFFFFFFFF))
+                        trackThickness(6f)
                         if (ctx.materialEnable) {
                             immersiveMaterial(style = 2)
                         }
@@ -98,11 +106,14 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                 }
 
                 ctx.sectionTitle("二、原生 Switch")()
-                OhosSwitch {
+                ImmersiveLightSenseSwitchOhos {
                     attr {
                         margin(left = 10f, top = 8f, bottom = 8f)
                         size(51f, 31f)
                         isOn(ctx.switchOn)
+                        // 对齐 iOS 液态玻璃 iOSSwitch 的颜色属性
+                        onColor(Color(0xFF007DFF))
+                        thumbColor(Color(0xFFFFFFFF))
                         if (ctx.materialEnable) {
                             immersiveMaterial(style = 2)
                         }
@@ -118,6 +129,34 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                     attr {
                         margin(left = 10f)
                         text("开关：${if (ctx.switchOn) "开" else "关"}")
+                        fontSize(13f)
+                        color(Color(0xFFEEEEEE))
+                    }
+                }
+
+                ctx.sectionTitle("三、原生 Select")()
+                ImmersiveLightSenseSelectOhos {
+                    attr {
+                        margin(left = 10f, top = 8f, bottom = 8f)
+                        width(150f)
+                        height(40f)
+                        options(ctx.selectOptions)
+                        selectedIndex(ctx.selectIndex)
+                        if (ctx.materialEnable) {
+                            immersiveMaterial(style = 2)
+                        }
+                    }
+                    event {
+                        selectChanged { index, value ->
+                            KLog.i("ImmLightTest", "[kotlin] select changed idx=$index value=$value")
+                            ctx.selectIndex = index
+                        }
+                    }
+                }
+                Text {
+                    attr {
+                        margin(left = 10f)
+                        text("当前选项：${ctx.selectOptions[ctx.selectIndex]}")
                         fontSize(13f)
                         color(Color(0xFFEEEEEE))
                     }

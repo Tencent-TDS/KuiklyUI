@@ -9,7 +9,7 @@ import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.ohos.ImmersiveLightSenseTabBarOhos
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseTabBarOhos
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
@@ -20,8 +20,8 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
  * 所以组件用的是原生 `Tabs`（**滑动切换由原生提供**），页签格由组件自己画，
  * 沉浸光感由系统画在原生页签栏上。
  *
- * 关键：容器必须占据「内容区 + 页签栏」整块区域 —— 只给一个 72px 贴在底部时，
- * Tabs 没有内容区，滑动切换会完全没反应。
+ * 关键：组件必须**全屏** —— 业务形态是「item view 全屏 + 页签栏悬浮底部」。
+ * 只给一个贴底的小条时，页签栏被压缩在条内，item view 也全屏不了。
  *
  * 每个页签给了不同底色，滑动时页签栏"背后"的内容随之变化，这是观察材质
  * 折射 / 取色最直观的场景。
@@ -38,13 +38,19 @@ internal class ImmersiveLightSenseTabBarDemoPage : BasePager() {
         val ctx = this
         val statusBar = pagerData.statusBarHeight
         return {
-            // 原生 TabBar 组件：占据 NavBar 以下的整块区域（内容区 + 页签栏）
+            // 原生 TabBar 组件：**全屏**。业务形态是「每个页签的 item view 全屏 +
+            // 页签栏悬浮在页面底部」，所以组件本身铺满整页：
+            // - TabContent（每页底色）= 全屏；
+            // - 页签栏由 barFloatingStyle 悬浮，barInsetX 左右内缩、barBottomOffset 抬离页底。
+            // 之前给 128 高的底部小条时，整条页签栏只能挤在节点那个小区域里。
             ImmersiveLightSenseTabBarOhos {
                 attr {
-                    absolutePosition(top = statusBar + 56f, left = 0f, bottom = 0f, right = 0f)
+                    absolutePosition(left = 0f, top = 0f, right = 0f, bottom = 0f)
                     backgroundColor(Color.TRANSPARENT)
                     items(ctx.tabs)
                     selectedIndex(ctx.selectedIndex)
+                    barInsetX(16f)
+                    barBottomOffset(48f)
                     if (ctx.materialEnable) {
                         immersiveMaterial(style = 2, interactive = true)
                     }

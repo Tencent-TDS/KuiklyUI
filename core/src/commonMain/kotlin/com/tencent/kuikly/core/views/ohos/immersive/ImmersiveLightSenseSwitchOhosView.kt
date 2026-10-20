@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.core.views.ohos
+package com.tencent.kuikly.core.views.ohos.immersive
 
+import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.views.internal.GroupAttr
 import com.tencent.kuikly.core.views.internal.GroupEvent
@@ -30,7 +31,7 @@ import com.tencent.kuikly.core.views.internal.GroupView
  *
  * 用法：
  * ```
- * OhosSwitch {
+ * ImmersiveLightSenseSwitchOhos {
  *     attr {
  *         size(51f, 31f)
  *         isOn(true)
@@ -42,21 +43,25 @@ import com.tencent.kuikly.core.views.internal.GroupView
  * }
  * ```
  */
-fun ViewContainer<*, *>.OhosSwitch(init: OhosSwitchView.() -> Unit) {
-    OhosSwitchView().also {
+fun ViewContainer<*, *>.ImmersiveLightSenseSwitchOhos(init: ImmersiveLightSenseSwitchOhosView.() -> Unit) {
+    ImmersiveLightSenseSwitchOhosView().also {
         addChild(it, init)
     }
 }
 
-open class OhosSwitchView : GroupView<OhosSwitchAttr, OhosSwitchEvent>() {
+open class ImmersiveLightSenseSwitchOhosView : GroupView<ImmersiveLightSenseSwitchOhosAttr, ImmersiveLightSenseSwitchOhosEvent>() {
 
-    override fun createAttr(): OhosSwitchAttr = OhosSwitchAttr()
+    override fun createAttr(): ImmersiveLightSenseSwitchOhosAttr = ImmersiveLightSenseSwitchOhosAttr()
 
-    override fun createEvent(): OhosSwitchEvent = OhosSwitchEvent()
+    override fun createEvent(): ImmersiveLightSenseSwitchOhosEvent = ImmersiveLightSenseSwitchOhosEvent()
 
     override fun viewName(): String = VIEW_NAME
 
     companion object {
+        /**
+         * wire 名：必须与原生侧注册名一致（cpp ComponentsRegisterEntry 注册的是
+         * "KROhosSwitchView"）。类名/DSL 名可以改，这个字符串不能跟着实名走。
+         */
         const val VIEW_NAME = "KROhosSwitchView"
     }
 }
@@ -66,21 +71,35 @@ open class OhosSwitchView : GroupView<OhosSwitchAttr, OhosSwitchEvent>() {
  *
  * 注意：材质参数用基类 [com.tencent.kuikly.core.base.Attr.immersiveMaterial]。
  */
-class OhosSwitchAttr : GroupAttr() {
+class ImmersiveLightSenseSwitchOhosAttr : GroupAttr() {
 
     /** 开关状态 */
-    fun isOn(isOn: Boolean): OhosSwitchAttr {
+    fun isOn(isOn: Boolean): ImmersiveLightSenseSwitchOhosAttr {
         KEY_IS_ON with if (isOn) 1 else 0
+        return this
+    }
+
+    /** 开启态轨道颜色，对齐 iOS 液态玻璃 iOSSwitch.onColor */
+    fun onColor(color: Color): ImmersiveLightSenseSwitchOhosAttr {
+        KEY_ON_COLOR with color.toString()
+        return this
+    }
+
+    /** 圆点（thumb）颜色，对齐 iOSSwitch.thumbColor */
+    fun thumbColor(color: Color): ImmersiveLightSenseSwitchOhosAttr {
+        KEY_THUMB_COLOR with color.toString()
         return this
     }
 
     companion object {
         private const val KEY_IS_ON = "isOn"
+        private const val KEY_ON_COLOR = "onColor"
+        private const val KEY_THUMB_COLOR = "thumbColor"
     }
 }
 
 /** 鸿蒙原生 Switch 的事件。 */
-class OhosSwitchEvent : GroupEvent() {
+class ImmersiveLightSenseSwitchOhosEvent : GroupEvent() {
 
     internal var switchChangedHandlerFn: ((Boolean) -> Unit)? = null
 

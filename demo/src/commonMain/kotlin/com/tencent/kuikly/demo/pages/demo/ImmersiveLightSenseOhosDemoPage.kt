@@ -14,7 +14,7 @@ import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Switch
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.ohos.ImmersiveLightSenseOhos
+import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseOhos
 import com.tencent.kuikly.demo.pages.base.BasePager
 
 /**

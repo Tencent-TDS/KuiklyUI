@@ -20,6 +20,7 @@ import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
 import { KRImmersiveLightSenseView } from './KRImmersiveLightSenseView';
 import { KRImmersiveLightSenseTabBarView } from './KRImmersiveLightSenseTabBarView';
+import { KRImmersiveSelectView } from './KRImmersiveSelectView';
 import { KRBlurView } from './KRBlurView';
 
 /**
@@ -59,6 +60,13 @@ export class ViewsRegisterEntry {
     KRNativeManager.getInstance()
       .registerViewCreatorV2('KRImmersiveLightSenseTabBarView', (): KuiklyRenderBaseView => {
         return new KRImmersiveLightSenseTabBarView();
+      });
+
+    // 鸿蒙沉浸光感 Select：官方白名单控件（可全页面生效），CAPI 无对应节点，
+    // 走 V2 转发（显式尺寸 + JSON 事件回传，规避转发层的两个已知坑）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveSelectView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveSelectView();
       });
   }
 

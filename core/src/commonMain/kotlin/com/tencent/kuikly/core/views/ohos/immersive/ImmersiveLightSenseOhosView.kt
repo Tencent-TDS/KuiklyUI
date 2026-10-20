@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.core.views.ohos
+package com.tencent.kuikly.core.views.ohos.immersive
 
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewContainer

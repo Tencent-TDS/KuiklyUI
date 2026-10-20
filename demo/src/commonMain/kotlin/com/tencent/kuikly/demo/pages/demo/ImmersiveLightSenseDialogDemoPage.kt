@@ -88,6 +88,11 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
                ctx.section("二、材质参数") {
                    ctx.caseButton(3, "材质赋色（半透明红）")()
                    ctx.caseButton(4, "关闭材质自带阴影 applyShadow=false")()
+                   ctx.caseButton(14, "THIN(1) 档（档位全套 0~4 之一）")()
+                   ctx.caseButton(15, "THICK(3) 档（档位全套 0~4 之一）")()
+                   ctx.caseButton(16, "点光源 lightEffectColor（触点光效）")()
+                   ctx.caseButton(17, "深色赋色 materialColor 0x80（不透明度对照 3 号 case）")()
+                   ctx.caseButton(18, "关闭材质 enable=false（降级形态对照）")()
                }()
 
                ctx.section("三、通用属性继承") {
@@ -198,6 +203,12 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
                    )
                )
                9 -> opacity(0.6f)
+               // 14~18：材质参数矩阵（档位全套 + 点光源 + 赋色透明度 + 降级）
+               14 -> immersiveMaterial(style = 1)
+               15 -> immersiveMaterial(style = 3)
+               16 -> immersiveMaterial(style = 2, lightEffectColor = Color(0x80FFFFFF))
+               17 -> immersiveMaterial(style = 2, materialColor = Color(0x80FF3B30))
+               18 -> immersiveMaterial(enable = false)
                else -> { /* 10 / 11 用默认配置，验证事件 */ }
            }
        }
@@ -216,6 +227,11 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
        9 -> "不透明度"
        10 -> "内容按钮关闭"
        11 -> "系统返回键关闭"
+       14 -> "THIN 档"
+       15 -> "THICK 档"
+       16 -> "点光源"
+       17 -> "深色赋色"
+       18 -> "关闭材质"
        SELF_DRAWN_CASE -> "自绘弹窗边框"
        OUTLINE_CASE -> "内容层边框"
        else -> "未知"
@@ -234,6 +250,11 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
        9 -> "opacity=0.6，整体应变淡"
        10 -> "点「关闭」按钮应关闭弹窗"
        11 -> "按系统返回键应触发 willDismiss 并关闭"
+       14 -> "THIN(1)，与 0/2/4 号组成档位全套"
+       15 -> "THICK(3)，与 0/2/4 号组成档位全套"
+       16 -> "lightEffectColor 触点光效，按压背板应有光反馈"
+       17 -> "materialColor 0x80 红调更浓，与 3 号(0x4D)对比透明度影响"
+       18 -> "enable=false 降级：无材质的普通系统弹窗"
        SELF_DRAWN_CASE -> "Kuikly 自绘，边框应严格贴圆角"
        OUTLINE_CASE -> "内容层 8vp 白边，应紧跟背板一圈"
        else -> ""

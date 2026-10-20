@@ -31,6 +31,9 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
     /** 是否让顶部标题栏使用原生沉浸光感（关掉即演示降级路径） */
     private var useImmersive by observable(true)
 
+    /** 容器级材质档位（0~4），与标题栏内子视图各自的档位独立 —— 演示「玻璃上的玻璃」 */
+    private var containerStyle by observable(2)
+
     override fun body(): ViewBuilder {
         val ctx = this
         // 状态栏高度：沉浸光感容器占据标题栏的位置，故顶部要留出状态栏
@@ -57,9 +60,10 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                         flexDirectionRow()
                         alignItemsCenter()
                         backgroundColor(Color.TRANSPARENT)
-                        // 容器级材质：整个标题栏区域的"玻璃底"
-                        // 本页用 REGULAR(2)，与 NavBar 版的 ULTRA_THICK(4) 形成档位对照
-                        immersiveMaterial(style = 2, interactive = true)
+                        // 容器级材质：整个标题栏区域的"玻璃底"。
+                        // 档位由下方按钮实时切换（0~4 全套）；
+                        // 子视图（左右胶囊）各自设 REGULAR 档，形成"玻璃上的玻璃"对照
+                        immersiveMaterial(style = ctx.containerStyle, interactive = true)
                     }
                     ctx.titleBarContent()()
                 }
@@ -125,6 +129,41 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                     }
                 }
 
+                // 容器材质档位矩阵：0~4 全套实时切换，标题栏玻璃底即时跟随
+                ctx.panel("容器材质档位（0~4 实时切换，当前：${ctx.containerStyle}）") {
+                    ctx.styleButton("0 · ULTRA_THIN", 0)()
+                    ctx.styleButton("1 · THIN", 1)()
+                    ctx.styleButton("2 · REGULAR", 2)()
+                    ctx.styleButton("3 · THICK", 3)()
+                    ctx.styleButton("4 · ULTRA_THICK", 4)()
+                }()
+
+                ctx.panel("「玻璃上的玻璃」：子视图覆盖") {
+                    Text {
+                        attr {
+                            margin(top = 4f)
+                            text("标题栏内左右两个胶囊各自设了 REGULAR 档材质 —— 容器换档时，" +
+                                "胶囊档位不变，可观察子视图独立于容器级材质的效果叠加")
+                            fontSize(12f)
+                            color(Color(0x99EEEEEE))
+                        }
+                    }
+                }()
+
+                ctx.panel("定论：自绘按钮 = 官方 Button（无需原生组件）") {
+                    Text {
+                        attr {
+                            margin(top = 4f)
+                            text("官方 Button 仅在标题栏/TabBar 区域生效；本页标题栏内的胶囊是" +
+                                "Kuikly 自绘节点 + immersiveMaterial()，落在生效区域内即获得材质" +
+                                "（CAPI 节点 + NODE_SYSTEM_MATERIAL，日志已证 ret=0）。" +
+                                "容器 + 自绘按钮即 Button 的等价用法，无需额外原生组件")
+                            fontSize(12f)
+                            color(Color(0x99EEEEEE))
+                        }
+                    }
+                }()
+
                 // 对照组：同样的胶囊 + 同样的材质，但不在沉浸光感容器的生效区域内
                 ctx.panel("容器外（对照组，预期无材质）") {
                     View {
@@ -158,6 +197,37 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                     }
                 }
                 content.invoke(this)
+            }
+        }
+    }
+
+    /** 档位切换小按钮（平铺，自带间距） */
+    private fun styleButton(label: String, style: Int): ViewBuilder {
+        val ctx = this
+        return {
+            View {
+                attr {
+                    margin(left = 10f, right = 10f, top = 6f, bottom = 6f)
+                    alignSelfFlexStart()
+                    padding(left = 10f, right = 10f, top = 6f, bottom = 6f)
+                    borderRadius(12f)
+                    backgroundColor(
+                        if (ctx.containerStyle == style) Color(0x66007DFF) else Color(0x66000000)
+                    )
+                    allCenter()
+                }
+                event {
+                    click {
+                        ctx.containerStyle = style
+                    }
+                }
+                Text {
+                    attr {
+                        text(label)
+                        fontSize(12f)
+                        color(Color.WHITE)
+                    }
+                }
             }
         }
     }

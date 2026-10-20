@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-#include "libohos_render/expand/components/ohosnative/KROhosNativeControlViews.h"
+#include "libohos_render/expand/components/immersive/KROhosNativeControlViews.h"
 
 #include <memory>
 #include <string>

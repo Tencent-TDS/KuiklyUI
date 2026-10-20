@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-#include "libohos_render/expand/components/modal/KRImmersiveLightSenseDialogView.h"
+#include "libohos_render/expand/components/immersive/KRImmersiveLightSenseDialogView.h"
 
 #include <cstdlib>
 #include <string>

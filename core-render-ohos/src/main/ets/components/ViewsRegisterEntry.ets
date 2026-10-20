@@ -18,9 +18,9 @@ import { KRNativeManager } from '../manager/KRNativeManager';
 import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
 import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
-import { KRImmersiveLightSenseView } from './KRImmersiveLightSenseView';
-import { KRImmersiveLightSenseTabBarView } from './KRImmersiveLightSenseTabBarView';
-import { KRImmersiveSelectView } from './KRImmersiveSelectView';
+import { KRImmersiveLightSenseView } from './immersive/KRImmersiveLightSenseView';
+import { KRImmersiveLightSenseTabBarView } from './immersive/KRImmersiveLightSenseTabBarView';
+import { KRImmersiveSelectView } from './immersive/KRImmersiveSelectView';
 import { KRBlurView } from './KRBlurView';
 
 /**

@@ -12,10 +12,10 @@
  * limitations under the License.
  */
 
-import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
+import { KuiklyRenderBaseView } from '../base/KRBaseViewExport';
 import { ComponentContent, NodeContent, uiMaterial } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRAny, KRValue, KuiklyRenderCallback } from '../../utils/KRDataTypes';
 
 /**
  * 诊断日志。用 hilog 而不是 KRRenderLog —— 后者依赖宿主注入 adapter，未注入时完全静默，

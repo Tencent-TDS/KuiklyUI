@@ -12,10 +12,10 @@
  * limitations under the License.
  */
 
-import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
+import { KuiklyRenderBaseView } from '../base/KRBaseViewExport';
 import { ComponentContent, uiMaterial } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRAny, KRValue, KuiklyRenderCallback } from '../../utils/KRDataTypes';
 
 /** 诊断日志。过滤关键字：ImmLightTest */
 const kLogDomain = 0xA012;

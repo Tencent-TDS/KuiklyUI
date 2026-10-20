@@ -32,6 +32,7 @@ import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import ohos.KRJSONArrayGet
+import ohos.KRDecodeUTF8Into
 import ohos.KRJSONDumpUTF16
 import ohos.KRJSONFreeString
 import ohos.KRJSONGetBool
@@ -68,6 +69,7 @@ import ohos.KRJSON_U16STRING
 import platform.posix.memcpy
 import platform.posix.size_t
 import platform.posix.size_tVar
+import kotlin.text.CharacterCodingException
 
 /**
  * 类型常量，直接取自 cinterop 生成的枚举值，避免与 C 侧 KRJSON.h 不一致。
@@ -263,43 +265,39 @@ internal object JsonNative {
         return if (n == bytes) chars.concatToString() else chars.concatToString(0, n)
     }
 
-    private fun decodeUTF8Into(src: CPointer<ByteVar>, byteLen: Int, dst: CharArray): Int {
-        var i = 0
-        var o = 0
-        while (i < byteLen) {
-            val c0 = src[i].toInt() and 0xff
-            when {
-                c0 < 0x80 -> {
-                    dst[o++] = c0.toChar()
-                    i++
-                }
-                c0 and 0xe0 == 0xc0 && i + 1 < byteLen -> {
-                    dst[o++] = (((c0 and 0x1f) shl 6) or (src[i + 1].toInt() and 0x3f)).toChar()
-                    i += 2
-                }
-                c0 and 0xf0 == 0xe0 && i + 2 < byteLen -> {
-                    val c1 = src[i + 1].toInt() and 0x3f
-                    val c2 = src[i + 2].toInt() and 0x3f
-                    dst[o++] = (((c0 and 0x0f) shl 12) or (c1 shl 6) or c2).toChar()
-                    i += 3
-                }
-                c0 and 0xf8 == 0xf0 && i + 3 < byteLen -> {
-                    val c1 = src[i + 1].toInt() and 0x3f
-                    val c2 = src[i + 2].toInt() and 0x3f
-                    val c3 = src[i + 3].toInt() and 0x3f
-                    val cp = ((c0 and 0x07) shl 18) or (c1 shl 12) or (c2 shl 6) or c3
-                    val u = cp - 0x10000
-                    dst[o++] = ((u shr 10) + 0xD800).toChar()
-                    dst[o++] = ((u and 0x3FF) + 0xDC00).toChar()
-                    i += 4
-                }
-                else -> {
-                    dst[o++] = '\uFFFD'
-                    i++
-                }
-            }
+    /**
+     * Decode UTF-8 into caller-owned storage.
+     *
+     * `throwOnInvalidSequence = true` is a reserved internal path for a future explicit Kotlin
+     * API. The current JSON bridge always uses replacement mode and has no production caller
+     * for strict decoding.
+     */
+    internal fun decodeUTF8Into(
+        src: CPointer<ByteVar>,
+        byteLen: Int,
+        dst: CharArray,
+        throwOnInvalidSequence: Boolean = false,
+    ): Int {
+        require(byteLen >= 0 && dst.size >= byteLen)
+        if (byteLen == 0) {
+            return 0
         }
-        return o
+        val written = dst.usePinned { pinned ->
+            KRDecodeUTF8Into(
+                src.reinterpret(),
+                byteLen.convert<size_t>(),
+                pinned.addressOf(0).reinterpret(),
+                dst.size.convert<size_t>(),
+                throwOnInvalidSequence,
+            )
+        }
+        if (written != ULong.MAX_VALUE) {
+            return written.toInt()
+        }
+        if (throwOnInvalidSequence) {
+            throw CharacterCodingException("Malformed UTF-8 sequence")
+        }
+        throw IllegalStateException("Native UTF-8 replacement decoding failed")
     }
 
     fun asByteArray(bits: Long): ByteArray {

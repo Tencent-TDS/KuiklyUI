@@ -18,11 +18,10 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/json/Box.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 #include <array>
-#include <codecvt>
 #include <cstdio>
 #include <iostream>
-#include <locale>
 #include <sstream>
 
 namespace kuikly {
@@ -86,13 +85,11 @@ ArkUI_TextInputType ConvertToInputType(const std::string &input_type) {
 }
 
 std::u32string ConvertToU32String(const std::string &input) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.from_bytes(input);
+    return utf::ToUTF32(input);
 }
 
 std::string ConvertToNormalString(const std::u32string &input) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.to_bytes(input);
+    return utf::ToUTF8(input);
 }
 
 ArkUI_TextAlignment ConvertToArkUITextAlign(const std::string &textAlign) {

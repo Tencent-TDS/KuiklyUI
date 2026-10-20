@@ -1,5 +1,5 @@
 # the minimum version of CMake.
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.18)
 project(myNpmLib)
 
 set(NATIVERENDER_ROOT_PATH .)
@@ -106,6 +106,7 @@ set(SOURCE_SET
         libohos_render/utils/KRJsUtil.cpp
         libohos_render/utils/NAPIUtil.cpp
         libohos_render/utils/KRConvertUtil.cpp
+        libohos_render/utils/KRUtfUtil.cpp
         thirdparty/cJSON/cJSON.c
         thirdparty/tinyXml/tinyxml2.cpp
         libohos_render/performance/KRPerformanceManager.cpp
@@ -178,6 +179,8 @@ FetchContent_MakeAvailable(rapidjson)
 # RapidJSON's CMake may reset CMAKE_CXX_STANDARD; keep kuikly on C++17.
 set(CMAKE_CXX_STANDARD 17)
 target_include_directories(kuikly PRIVATE ${rapidjson_SOURCE_DIR}/include)
+include("${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/simdutf/simdutf.cmake")
+target_link_libraries(kuikly PRIVATE simdutf::simdutf)
 target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libability_runtime.so
                                     libace_napi.z.so

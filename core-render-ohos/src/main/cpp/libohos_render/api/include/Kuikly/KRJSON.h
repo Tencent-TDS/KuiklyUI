@@ -114,6 +114,18 @@ KUIKLY_EXPORT const char *KRJSONGetString(KRJSON value, size_t *out_len);
 /** Borrowed, NUL-terminated UTF-16 units; NULL if not `KRJSON_U16STRING`.
  *  `out_units` is the code-unit count (not including the terminator). */
 KUIKLY_EXPORT const uint16_t *KRJSONGetStringUTF16(KRJSON value, size_t *out_units);
+/**
+ * Decode UTF-8 directly into caller-owned UTF-16 storage.
+ * `capacity` is in UTF-16 units and must be at least `bytes`; no terminator.
+ * Default mode replaces each maximal ill-formed subpart with U+FFFD.
+ * Strict mode is reserved for an explicit future caller; the bundled Kotlin JSON bridge
+ * currently always uses default mode.
+ * Strict mode returns SIZE_MAX for invalid arguments/malformed UTF-8; on malformed
+ * input the output may contain a partial prefix, which callers must discard.
+ * Zero bytes returns zero, including for NULL pointers. Does not retain pointers.
+ */
+KUIKLY_EXPORT size_t KRDecodeUTF8Into(
+    const uint8_t *src, size_t bytes, uint16_t *dst, size_t capacity, bool strict);
 /** Borrowed binary data valid while `value` is retained; NULL on mismatch. */
 KUIKLY_EXPORT const uint8_t *KRJSONGetBytes(KRJSON value, size_t *out_len);
 

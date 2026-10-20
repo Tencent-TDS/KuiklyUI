@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/utils/json/Box.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 
 #include <cmath>
 #include <cstdio>
@@ -93,79 +94,14 @@ bool IsDoubleLosslessToFloat(double d) {
     return std::isfinite(d) && static_cast<double>(f) == d;
 }
 
-void AppendUTF8(std::string &out, uint32_t cp) {
-    if (cp < 0x80u) {
-        out.push_back(static_cast<char>(cp));
-    } else if (cp < 0x800u) {
-        out.push_back(static_cast<char>(0xC0u | (cp >> 6)));
-        out.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
-    } else if (cp < 0x10000u) {
-        out.push_back(static_cast<char>(0xE0u | (cp >> 12)));
-        out.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3Fu)));
-        out.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
-    } else {
-        out.push_back(static_cast<char>(0xF0u | (cp >> 18)));
-        out.push_back(static_cast<char>(0x80u | ((cp >> 12) & 0x3Fu)));
-        out.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3Fu)));
-        out.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
-    }
-}
 }  // namespace
 
 std::string UTF16ToUTF8(const uint16_t *s, size_t n) {
-    std::string out;
-    out.reserve(n);
-    for (size_t i = 0; i < n;) {
-        uint32_t w = s[i++];
-        if (w >= 0xD800u && w <= 0xDBFFu) {
-            if (i < n && s[i] >= 0xDC00u && s[i] <= 0xDFFFu) {
-                uint32_t lo = s[i++];
-                AppendUTF8(out, 0x10000u + ((w - 0xD800u) << 10) + (lo - 0xDC00u));
-            } else {
-                AppendUTF8(out, 0xFFFDu);
-            }
-        } else if (w >= 0xDC00u && w <= 0xDFFFu) {
-            AppendUTF8(out, 0xFFFDu);
-        } else {
-            AppendUTF8(out, w);
-        }
-    }
-    return out;
+    return utf::ToUTF8(s, n);
 }
 
 std::u16string UTF8ToUTF16(const char *s, size_t n) {
-    std::u16string out;
-    if (s == nullptr || n == 0) {
-        return out;
-    }
-    out.reserve(n);
-    const auto *p = reinterpret_cast<const unsigned char *>(s);
-    size_t i = 0;
-    while (i < n) {
-        uint32_t cp = p[i++];
-        if (cp < 0x80u) {
-            // ASCII
-        } else if ((cp & 0xE0u) == 0xC0u && i < n) {
-            cp = ((cp & 0x1Fu) << 6) | (p[i++] & 0x3Fu);
-        } else if ((cp & 0xF0u) == 0xE0u && i + 1 < n) {
-            cp = ((cp & 0x0Fu) << 12) | ((p[i] & 0x3Fu) << 6) | (p[i + 1] & 0x3Fu);
-            i += 2;
-        } else if ((cp & 0xF8u) == 0xF0u && i + 2 < n) {
-            cp = ((cp & 0x07u) << 18) | ((p[i] & 0x3Fu) << 12) | ((p[i + 1] & 0x3Fu) << 6) |
-                 (p[i + 2] & 0x3Fu);
-            i += 3;
-        } else {
-            cp = 0xFFFDu;
-        }
-        if (cp >= 0x10000u) {
-            cp -= 0x10000u;
-            out.push_back(static_cast<char16_t>(0xD800u + (cp >> 10)));
-            out.push_back(static_cast<char16_t>(0xDC00u + (cp & 0x3FFu)));
-        } else {
-            out.push_back(static_cast<char16_t>(cp));
-        }
-    }
-    return out;
+    return utf::ToUTF16(s, n);
 }
 
 // DefaultHeapAllocator small-slot must cover short UTF-16 StringBox and NumberBox.

@@ -413,3 +413,75 @@ Kotlin 侧 `PlatformUtils` 通过 `PagerData.hasFeature("immersive_material")` �
 
 **为什么不用 OS 版本号判断**（iOS 的 `isLiquidGlassSupported` 就是按版本号）：同一版本号的机型
 也可能因算力档不支持，用系统接口才是准确的。低版本 ROM 上该接口不存在，故做了异常兜底返回 false。
+
+---
+
+## 十四、官方《组件适配沉浸光感》全量对照与路线定论（终版）
+
+> 依据：官方文档《组件适配沉浸光感》（arkts-immersive-light-sense-component-adaptation）。
+> 核心规则：**沉浸光感按「生效区域」划分，不按组件划分** ——
+> 通用属性 `systemMaterial` 仅在 Navigation/NavDestination 标题栏或横向 Tabs（BarPosition.End）
+> 的底部 TabBar 中生效；白名单控件（弹窗类/Select/Toggle/Slider）则全页面生效。
+
+### A. 全页面生效（无区域限制）—— 主战场，已全部交付
+
+| 官方组件 | 开启方式 | 官方特殊规则 | Kuikly 现状 |
+|---|---|---|---|
+| Select 下拉按钮 | `systemMaterial`(按钮) + `menuSystemMaterial`(菜单,**独立接口**) | 按钮与菜单相互独立；关闭必须 `Material.empty`(不能 undefined,否则组件不上屏)；lightEffect 替代按压态 | ✅ `ImmersiveLightSenseSelectOhos`（按钮+菜单都配） |
+| Toggle 开关 | `systemMaterial` | Checkbox 型官方未适配；**Switch 型参数仅作开关标记**(视觉用系统预设)；Button 型同 Button | ✅ `ImmersiveLightSenseSwitchOhos`(CAPI) |
+| Slider 滑动条 | `systemMaterial` | **参数仅作标记**；交互反馈需 BlockType.DEFAULT 且 Style≠NONE | ✅ `ImmersiveLightSenseSliderOhos`(CAPI, OutSet) |
+| Dialog 系弹窗 | 各 options 的 `systemMaterial` | 默认 ULTRA_THICK；大面积弹窗不建议开；CalendarPicker 弹窗不支持 | ✅ `ImmersiveLightSenseDialogOhos` |
+| Toast / Menu | 应用级 ENABLE 时默认 THICK | 浮层 API,非视图组件 | 见路线③ |
+| Popup / Tips | **仅组件级显式开启** | 必须在调用 options 传 systemMaterial | 见路线③ |
+
+### B. 区域限定（仅标题栏 / 底部 TabBar）—— 容器方案覆盖
+
+| 官方组件 | 开启方式 | Kuikly 现状 |
+|---|---|---|
+| Navigation 标题栏 | 应用级 + `systemMaterial` | ✅ `ImmersiveLightSenseOhos` 容器 |
+| Tabs 底部页签 | `barFloatingStyle.systemMaterial`，三条件缺一不可(barOverlap=true + vertical=false + BarPosition.End)；TabContent 不支持 | ✅ `ImmersiveLightSenseTabBarOhos`(HdsTabs) |
+| **Button 按钮** | 仅组件级 `systemMaterial` | ✅ **无需原生组件**（定论见下） |
+| ChipGroup / SegmentButton | `backgroundSystemMaterial` 等 | 暂缓（低频 HMS 高级组件，Toggle-Button 型可顶替） |
+| **其余任意组件**（通用属性） | `systemMaterial` | ✅ **容器方案等价覆盖**（定论见下） |
+
+### C. 路线定论（三条）
+
+**① 已交付（6 组件）**：标题栏容器 / TabBar / Dialog / Select / Toggle / Slider。
+覆盖官方全部「无区域限制」控件 + 两个区域大件。
+
+**② 无需额外原生组件 —— 含 Button**：
+
+Button 只在标题栏/TabBar 生效（官方原文），而这两个区域我们的容器已覆盖。
+关键事实链：容器内的 Kuikly 自绘节点是**真实的 ArkUI CAPI 节点**，
+其 `immersiveMaterial()` 由 C++ 基类统一下发 `NODE_SYSTEM_MATERIAL`（日志已证 ret=0），
+节点又落在系统生效区域内 —— 因此 **「Kuikly 自绘按钮 + immersiveMaterial() + 放进容器」
+与官方 Button 的用法等价**，无需 NODE_BUTTON 原生组件。
+12013 标题栏内的 glassPill（自绘胶囊 + 材质 + interactive）即此模式，已视觉验收。
+保留条件：若后续实测发现通用属性路径在 CAPI 节点上**缺 per-button 交互形变/点光源**，
+再启动原生 Button（CAPI 有 NODE_BUTTON，模式照抄 Slider）。
+
+**③ 浮层类是能力桥接，不是组件**：
+
+Toast/Menu/Popup 是 API 调用而非视图组件，不落地为 Kuikly 组件。
+- 应用级开关（MaterialState.ENABLE）开启后，**Toast/Menu 默认带 THICK 材质，自然生效**
+  （Kuikly 的 Toast 若路由到系统 showToast 即自动继承）；
+- Popup/Tips 官方要求组件级显式传 systemMaterial —— 由宿主/业务在鸿蒙侧调用处负责；
+- **唯一待落地的桥**：把「应用级 MaterialState 开关」暴露为 Kuikly API（一个 module method，
+  调用 native 设置即可），这是浮层自然生效的前提。单独立项，工作量极小。
+
+### D. 业务侧必须知道的四条
+
+1. 自绘节点拿不到材质 —— 除非放进容器（标题栏 scope）或用原生组件；
+2. Toggle(Switch)/Slider 的 style/interactive 参数**实际只是开关标记**，视觉由系统预设决定；
+3. TabContent 不支持材质 —— TabBar 的玻璃底只在胶囊上；
+4. 自动反色只认系统颜色资源（`$r('sys.color.font_primary')`），Kuikly 硬编码颜色不反色，
+   业务在浅色材质上需手动用深色文字。
+
+### E. Select 适配的三条硬规则（实测踩坑记录）
+
+1. **关闭材质必须 `uiMaterial.Material.empty`**，传 undefined 会导致组件渲染异常
+   （实测：material created 有日志、onAppear 零次，控件空白）；
+2. **菜单材质独立接口 `menuSystemMaterial`**，只配按钮则下拉菜单无光感；
+3. **V2 转发组件不能放进滚动容器**：宿主位置为一次性静态下发（NODE_POSITION），
+   Scroller 内位置不生效且不跟随滚动 —— Select 需 absolutePosition 固定定位
+   （标题栏/TabBar 的固定定位形态不受影响）。

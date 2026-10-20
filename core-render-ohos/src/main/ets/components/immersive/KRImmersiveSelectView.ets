@@ -72,16 +72,42 @@ struct ImmersiveLightSenseSelectInner {
   @Prop viewHeight: number = 0;
 
   build() {
-    Select(this.view!.buildOptions())
-      .selected(this.selected)
-      .value(this.options.length > this.selected ? this.options[this.selected] : '')
-      .width(this.viewWidth > 0 ? this.viewWidth : 150)
-      .height(this.viewHeight > 0 ? this.viewHeight : 40)
-      .onSelect((index: number, text?: string) => {
-        this.view!.fireSelectChanged(index, text !== undefined ? text : '');
-      })
-      // 系统规定 systemMaterial 必须写在其他样式属性之后
-      .systemMaterial(this.view!.buildMaterial())
+    // 根节点固定为 Stack，分支切换放在 Stack 内部 —— **不能让 if/else 直接当 build 根**：
+    // 实测（V2 转发宿主）根级 else→if 分支切换后，新分支的节点创建但不挂载上屏
+    // （material created 有日志、onAppear 零次，控件空白）；TabBar 的
+    // Stack 包 if(items) 结构是已验证可用的形态，这里对齐。
+    Stack() {
+      // 防御（TabBar 同款坑）：options 是创建后才下发的 prop，首帧为空数组。
+      // 带 0 个选项创建的 Select 可能进入不可恢复状态，等 options 到达再创建。
+      if (this.options.length > 0) {
+        Select(this.view!.buildOptions())
+          .selected(this.selected)
+          .value(this.options.length > this.selected ? this.options[this.selected] : '')
+          .width('100%')
+          .height('100%')
+          // 关键诊断：Select 真正进入渲染树才会打这条
+          .onAppear(() => {
+            logI(`select appeared, options=${this.options.length}, size=${this.viewWidth}x${this.viewHeight}`);
+          })
+          .onSelect((index: number, text?: string) => {
+            logI(`select onSelect index=${index}`);
+            this.view!.fireSelectChanged(index, text !== undefined ? text : '');
+          })
+          // 系统规定 systemMaterial 必须写在其他样式属性之后
+          .systemMaterial(this.view!.buildMaterial())
+          // 官方文档：下拉菜单的材质与按钮相互独立，用独立接口配置（默认 THICK）。
+          // 只配按钮不配菜单的话，下拉展开的菜单没有光感。
+          .menuSystemMaterial(this.view!.buildMenuMaterial())
+      } else {
+        // 占位：保持几何稳定，避免 options 到达前后尺寸跳动
+        Column() {
+        }
+        .width('100%')
+        .height('100%')
+      }
+    }
+    .width(this.viewWidth > 0 ? this.viewWidth : 150)
+    .height(this.viewHeight > 0 ? this.viewHeight : 40)
   }
 }
 
@@ -165,10 +191,17 @@ export class KRImmersiveSelectView extends KuiklyRenderBaseView {
   /**
    * 构造材质对象；业务未设置或设备不支持时返回 undefined（自动降级为普通 Select）。
    */
-  buildMaterial(): uiMaterial.ImmersiveMaterial | undefined {
+  buildMaterial(): uiMaterial.Material {
+    // 官方文档（组件适配沉浸光感）明确：关闭 Select 材质必须用 uiMaterial.Material.empty，
+    // **不能把 systemMaterial 设为 undefined** —— undefined 会导致组件渲染异常：
+    // 实测控件创建（material created 有日志）但永不上屏（onAppear 零次）。
+    // 此前 materialEnable=false 的渲染周期返回 undefined，正是 Select 空白的根因。
+    // 另外：工厂方法用 Material.immersive({...})（官方 Select 示例写法），
+    // 不用标题栏容器的 new ImmersiveMaterial(options)。
     if (!isImmersiveMaterialSupported() || !this.materialEnable) {
-      return undefined;
+      return uiMaterial.Material.empty;
     }
+    logI('select material created (Material.immersive)');
     let options: uiMaterial.ImmersiveOptions = {
       style: this.materialStyle,
       applyShadow: this.materialApplyShadow,
@@ -177,7 +210,25 @@ export class KRImmersiveSelectView extends KuiklyRenderBaseView {
     if (this.materialColorValue !== null) {
       options.materialColor = this.materialColorValue;
     }
+    // SDK 实测（@ohos.arkui.uiMaterial.d.ts）：Material 只有 static empty；
+    // 开启用 new ImmersiveMaterial(options) —— ImmersiveMaterial extends Material，
+    // 是 systemMaterial 的合法入参。官方文档摘要里的 Material.immersive() 并不存在。
     return new uiMaterial.ImmersiveMaterial(options);
+  }
+
+  /**
+   * 下拉菜单的材质（与按钮相互独立，官方默认 THICK）。
+   * 同样遵守"不能传 undefined"的规则：关闭时用 Material.empty。
+   */
+  buildMenuMaterial(): uiMaterial.Material {
+    if (!isImmersiveMaterialSupported() || !this.materialEnable) {
+      return uiMaterial.Material.empty;
+    }
+    // 菜单用独立接口 menuSystemMaterial，官方默认 THICK；构造方式同按钮
+    return new uiMaterial.ImmersiveMaterial({
+      style: uiMaterial.ImmersiveStyle.THICK,
+      interactive: this.materialInteractive
+    });
   }
 
   /** Select 组件的选项数组（ArkTS 对象字面量必须落在显式类型上） */

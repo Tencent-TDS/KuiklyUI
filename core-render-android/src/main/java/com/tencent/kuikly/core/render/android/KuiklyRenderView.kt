@@ -30,6 +30,7 @@ import android.util.SparseArray
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
@@ -765,9 +766,16 @@ class KuiklyRenderView(
          *   - `ViewCompat.getRootWindowInsets` 方法不存在
          *   - `WindowInsetsCompat.Builder` / `isVisible(int)` / `getInsets(int)` 也不存在
          *   - `androidx.core.graphics.Insets` 也不存在
-         * 所以这里完全不依赖 androidx 的相关 API，直接通过
-         * 原生 `android.view.View#getRootWindowInsets()`（API 23+），
-         * 并在更低版本（API 21/22）通过反射读取 `View.mAttachInfo.mStableInsets`。
+         * 所以这里完全不依赖 androidx，直接使用框架 `WindowInsets`。
+         *
+         * 分版本：
+         *   - API 30+：`WindowInsets.getInsets(Type)`。`stableInset*` 已废弃，且在部分厂商、
+         *     不同导航模式下会返回过时或不完整的值（例如导航栏约 44dp，`stableInsetBottom` 只有 16dp）。
+         *     取 statusBars | navigationBars | displayCutout 与 mandatorySystemGestures 各边的最大值，
+         *     覆盖三键导航栏和手势导航的强制手势区。不读取 `Settings.Secure.navigation_mode`。
+         *     不包含 `Type.ime()`，避免软键盘高度灌进 safeAreaInsets（#1462）。
+         *   - API 23–29：`Type` API 不存在，继续使用 `stableInset*`。它不含 IME，是该版本仅有的公开接口。
+         *   - API 21/22：反射读取 `View.mAttachInfo.mStableInsets`。
          */
         private object SafeAreaCompat {
 
@@ -787,33 +795,62 @@ class KuiklyRenderView(
             @SuppressLint("ObsoleteSdkInt", "NewApi")
             fun getInsets(view: View): InsetsPx {
                 return when {
-                    Build.VERSION.SDK_INT >= 23 -> getInsetsByPublicApi(view)
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> getInsetsByTypeApi(view)
+                    Build.VERSION.SDK_INT >= 23 -> getInsetsByStableApi(view)
                     Build.VERSION.SDK_INT >= 21 -> getInsetsByReflection(view)
                     else -> InsetsPx.ZERO
                 }
             }
 
             /**
-             * API 23+ 直接调用 android.view.View#getRootWindowInsets()
-             * 和 android.view.WindowInsets 的四个 stable/systemWindowInset 公开 API
+             * API 30+：用 [WindowInsets.Type] 读取当前系统栏、刘海和强制手势区。
              *
-             * 注：stableInsetLeft/Top/Right/Bottom 与 systemWindowInsetLeft/Top/Right/Bottom
-             * 在 API 30 (R) 起被官方标记为 deprecated，但替代品 getInsets(WindowInsets.Type) 仅 API 30+ 可用，
-             * 且当前依赖的低版本 androidx 中 WindowInsetsCompat.getInsets / Insets 也不存在，
-             * 因此为了兼容性继续使用旧 API，并显式抑制 deprecation 警告。
+             * 各边取最大值而不是相加：状态栏与刘海、导航栏与底部手势区通常重叠，相加会把同一块区域算两次。
+             * 返回值是 px，dp 转换只在 [formatSafeAreaInsetsForKuikly] 里做一次。
+             */
+            @SuppressLint("NewApi")
+            private fun getInsetsByTypeApi(view: View): InsetsPx {
+                return try {
+                    val windowInsets = view.rootWindowInsets ?: return InsetsPx.ZERO
+                    val systemBars = windowInsets.getInsets(
+                        WindowInsets.Type.statusBars() or
+                            WindowInsets.Type.navigationBars() or
+                            WindowInsets.Type.displayCutout()
+                    )
+                    val mandatoryGestures = windowInsets.getInsets(
+                        WindowInsets.Type.mandatorySystemGestures()
+                    )
+                    InsetsPx(
+                        left = maxOf(systemBars.left, mandatoryGestures.left),
+                        top = maxOf(systemBars.top, mandatoryGestures.top),
+                        right = maxOf(systemBars.right, mandatoryGestures.right),
+                        bottom = maxOf(systemBars.bottom, mandatoryGestures.bottom),
+                    )
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(TAG, "getInsetsByTypeApi failed: ${e.message}")
+                    InsetsPx.ZERO
+                }
+            }
+
+            /**
+             * API 23–29：`WindowInsets.getInsets(Type)` 尚不存在，使用 stableInset*。
+             *
+             * 这里不能回退到 systemWindowInset*。手势导航下 stableInsetBottom 可能为 0，
+             * 回退值会带上 IME 高度，把 safeAreaInsets.bottom 抬成键盘高度（#1462）。
              */
             @SuppressLint("NewApi")
             @Suppress("DEPRECATION")
-            private fun getInsetsByPublicApi(view: View): InsetsPx {
+            private fun getInsetsByStableApi(view: View): InsetsPx {
                 return try {
                     val windowInsets = view.rootWindowInsets ?: return InsetsPx.ZERO
-                    val left = windowInsets.stableInsetLeft
-                    val top = windowInsets.stableInsetTop
-                    val right = windowInsets.stableInsetRight
-                    val bottom = windowInsets.stableInsetBottom
-                    InsetsPx(left, top, right, bottom)
+                    InsetsPx(
+                        left = windowInsets.stableInsetLeft,
+                        top = windowInsets.stableInsetTop,
+                        right = windowInsets.stableInsetRight,
+                        bottom = windowInsets.stableInsetBottom
+                    )
                 } catch (e: Throwable) {
-                    KuiklyRenderLog.e(TAG, "getInsetsByPublicApi failed: ${e.message}")
+                    KuiklyRenderLog.e(TAG, "getInsetsByStableApi failed: ${e.message}")
                     InsetsPx.ZERO
                 }
             }
@@ -883,7 +920,7 @@ class KuiklyRenderView(
          * 拼接 safeAreaInsets 协议字符串："top left bottom right"，
          * 与 EdgeInsets.decodeWithString 解析顺序保持一致。
          *
-         * 一次反射/系统调用即可拿到四个方向的 inset，避免重复获取。
+         * 一次系统调用拿到四个方向的 px inset，再用宿主 density 转成 dp，只转换一次。
          */
         internal fun formatSafeAreaInsetsForKuikly(view: View, context: IKuiklyRenderContext?): String {
             val insets = SafeAreaCompat.getInsets(view)

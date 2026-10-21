@@ -19,6 +19,7 @@
 #import "KRAsyncDeallocManager.h"
 #import <objc/runtime.h>
 #import "NSObject+KR.h"
+#import <CoreText/CoreText.h>
 
 #define KRAssertMainThread() NSAssert(0 != pthread_main_np(), @"This method must be called on the main thread!")
 NSString *const KRHighlightAttributeKey = @"KRHighlightAttributeKey";
@@ -63,12 +64,27 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     [super setAttributedText:attributedText];
     self.textRender = attributedText.hr_textRender;
     self.attributedText.hr_textRender = self.textRender;
+    // CoreText 测量修复：UILabel.attributedText 为 copy 语义，测量元数据（associated object）
+    // 不随 copy 走。CoreText 路径不再预建渲染树（hr_textRender 为 nil），渲染时惰性构建依赖
+    // 元数据还原 lineBreakMargin/isBreakLine/container 宽度，此处从测量原对象补挂，
+    // 否则 lineBreakMargin 的排版避让（exclusion path）与 span 定位会失效。
+    if (attributedText.hr_measureMeta && !self.attributedText.hr_measureMeta) {
+        self.attributedText.hr_measureMeta = attributedText.hr_measureMeta;
+    }
     [self setNeedsDisplay];
 }
 
 
 - (void)drawTextInRect:(CGRect)rect {
     // 使用TextKit绘制文本
+    // CoreText 测量修复：测量不再预建渲染树，渲染时（主线程）惰性构建，TextKit 对象生命周期收敛在主线程
+    if (!self.textRender && self.attributedText.length > 0) {
+        self.textRender = [NSAttributedString kr_ensureTextRenderForAttributedString:self.attributedText];
+        self.attributedText.hr_textRender = self.textRender;
+    }
+    if (!self.textRender) {
+        return;
+    }
     self.textRender.size = rect.size;
     if (self.textRender.lineBreakMargin > 0 && self.textRender.isBreakLine) {
         CGSize size = self.textRender.size;
@@ -120,33 +136,184 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 }
 
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight {
+    // context 线程文本测量死锁修复。
+    // 方案：测量改用纯 CoreText（不创建 NSTextStorage、不发 TextKit 编辑通知），从源头免疫
+    // 通知中心中任何 block+queue 观察者（如 _UISearchBarTextFieldTokenCounter 悬垂观察者
+    // 叠加 malloc 地址复用触发的死锁）。渲染树（KRTextRender）延迟到主线程渲染时惰性构建。
     attString = [attString isKindOfClass:[NSAttributedString class]] ? attString : [[NSAttributedString alloc] initWithString:@""];
+    CGSize fitSize = CGSizeZero;
+    BOOL isBreakLine = NO;
+    // 含硬换行的文本回退 TextKit 路径——fixEllipsis（硬换行省略号修复，
+    // 对齐 Android/HarmonyOS）仅在 TextKit 路径实现，CoreText 逐行测量未覆盖该场景，
+    // 回退保真；后续版本可将 fixEllipsis 移植到 CoreText 后放开。
+    BOOL useCoreText = ![self kr_containsAttachment:attString] && ![self kr_containsHardLineBreak:attString];
+
+    if (useCoreText) {
+        fitSize = [self kr_coreTextSize:attString width:size.width lines:lines mode:mode lineHeight:lineHeight];
+        if (marin > 0 && lines) {
+            CGSize fullSize = [self kr_coreTextSize:attString width:size.width lines:0 mode:mode lineHeight:lineHeight];
+            isBreakLine = !CGSizeEqualToSize(fitSize, fullSize);
+        }
+    } else {
+        // 含 NSTextAttachment（富文本图片混排）或硬换行时走 TextKit 老路径保真
+        //（CoreText 对齐 attachment 宽度需 CTRunDelegate，后续版本补齐）。
+        KRTextRender *textRender = [self kr_textKitMeasure:attString width:size.width lines:lines mode:mode marin:marin lineHeight:lineHeight];
+        fitSize = attString.hr_size;
+        isBreakLine = textRender.isBreakLine;
+    }
+
+    // 测量元数据存入 attString：渲染树惰性构建（主线程）时还原 lineHeight/lines/mode/margin/isBreakLine/width
+    attString.hr_measureMeta = @{
+        KRMasureMetaLineHeight: @(lineHeight),
+        KRMasureMetaLines: @(lines),
+        KRMasureMetaMode: @(mode),
+        KRMasureMetaMargin: @(marin),
+        KRMasureMetaIsBreakLine: @(isBreakLine),
+        KRMasureMetaWidth: @(size.width),
+    };
+    attString.hr_size = fitSize;
+
+    return fitSize;
+}
+
+#pragma mark - CoreText measure (deadlock fix)
+
+static NSString *const KRMasureMetaLineHeight = @"lineHeight";
+static NSString *const KRMasureMetaLines = @"lines";
+static NSString *const KRMasureMetaMode = @"mode";
+static NSString *const KRMasureMetaMargin = @"margin";
+static NSString *const KRMasureMetaIsBreakLine = @"isBreakLine";
+static NSString *const KRMasureMetaWidth = @"width";
+
+/// 是否含 NSTextAttachment（富文本图片混排）。含 attachment 时走 TextKit fallback 保真。
++ (BOOL)kr_containsAttachment:(NSAttributedString *)attString {
+    if (attString.length == 0) {
+        return NO;
+    }
+    __block BOOL hasAttachment = NO;
+    [attString enumerateAttribute:NSAttachmentAttributeName
+                          inRange:NSMakeRange(0, attString.length)
+                          options:0
+                       usingBlock:^(id value, NSRange range, BOOL *stop) {
+        if (value) {
+            hasAttachment = YES;
+            *stop = YES;
+        }
+    }];
+    return hasAttachment;
+}
+
+/// 是否含硬换行符（\n/\r 等）。含硬换行的文本走 TextKit fallback——
+/// fixEllipsis（硬换行省略号修复）仅在 TextKit 路径实现。
++ (BOOL)kr_containsHardLineBreak:(NSAttributedString *)attString {
+    if (attString.length == 0) {
+        return NO;
+    }
+    return [attString.string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]].location != NSNotFound;
+}
+
+/// 纯 CoreText 测量：逐行断行。行高语义对齐 KRTextRender 的 layoutManager delegate
+/// （lineHeight>0 时 usedRect 高度 = MAX(强制行高, 自然行高)；否则按 font+paragraphStyle 行高）。
++ (CGSize)kr_coreTextSize:(NSAttributedString *)attString width:(CGFloat)width lines:(NSUInteger)lines mode:(NSLineBreakMode)mode lineHeight:(CGFloat)lineHeight {
+    if (attString.length == 0 || width <= 0) {
+        return CGSizeZero;
+    }
+    CTTypesetterRef typesetter = CTTypesetterCreateWithAttributedString((CFAttributedStringRef)attString);
+    if (!typesetter) {
+        return CGSizeZero;
+    }
+    CFIndex length = (CFIndex)attString.length;
+    CGFloat maxWidth = 0;
+    CGFloat lineExtent = 0;
+    // 单行且非换行模式（clipping/truncating）：TextKit 语义返回整段自然宽度，不按 width 断行
+    if (lines == 1 && mode != NSLineBreakByWordWrapping && mode != NSLineBreakByCharWrapping) {
+        CTLineRef fullLine = CTTypesetterCreateLine(typesetter, CFRangeMake(0, length));
+        CGFloat ascent = 0, descent = 0, leading = 0;
+        maxWidth = CTLineGetTypographicBounds(fullLine, &ascent, &descent, &leading);
+        CFRelease(fullLine);
+        // TextKit clip/truncate 单行语义：usedRect 宽度不超过 container 宽（文本延伸被裁剪）
+        maxWidth = MIN(maxWidth, width);
+        NSDictionary *attrs = [attString attributesAtIndex:0 effectiveRange:nil];
+        lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
+                                     paragraphStyle:attrs[NSParagraphStyleAttributeName]
+                                       naturalHeight:ascent + descent + leading];
+    } else {
+        CFIndex index = 0;
+        CGFloat totalHeight = 0;
+        NSUInteger lineCount = 0;
+        while (index < length) {
+            CFIndex next = CTTypesetterSuggestLineBreak(typesetter, index, width);
+            if (next <= 0) {
+                break;
+            }
+            CTLineRef line = CTTypesetterCreateLine(typesetter, CFRangeMake(index, next));
+            CGFloat ascent = 0, descent = 0, leading = 0;
+            double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+            CFRelease(line);
+            NSDictionary *attrs = [attString attributesAtIndex:(NSUInteger)index effectiveRange:nil];
+            lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
+                                        paragraphStyle:attrs[NSParagraphStyleAttributeName]
+                                          naturalHeight:ascent + descent + leading];
+            maxWidth = MAX(maxWidth, (CGFloat)lineWidth);
+            totalHeight += lineExtent;
+            lineCount++;
+            index += next;
+            if (lines > 0 && lineCount >= lines) {
+                break;
+            }
+        }
+        lineExtent = totalHeight;
+    }
+    CFRelease(typesetter);
+    return CGSizeMake(ceil(maxWidth), ceil(lineExtent));
+}
+
+/// 行高对齐 TextKit usedRect 语义，三层约束：
+/// ① 行内实际渲染字体的 metrics：CTLineGetTypographicBounds 的 ascent+descent+leading
+///    （中文等会 fallback，如 SFUI 声明实际按 PingFang 排版，与 NSLayoutManager usedRect 同源）；
+/// ② 段落样式 min/maxLineHeight 约束（Kuikly lineHeight attr 会写入 paragraphStyle，
+///    TextKit 排版强制应用，CT 逐行 metrics 不含此约束，需手动模拟）；
+/// ③ KRTextRender delegate 语义（_lineHeight>0 时 usedRect=MAX(_lineHeight, usedRect)）。
++ (CGFloat)kr_lineExtentOfLineHeight:(CGFloat)lineHeight paragraphStyle:(NSParagraphStyle *)ps naturalHeight:(CGFloat)naturalHeight {
+    CGFloat extent = naturalHeight;
+    if (ps.minimumLineHeight > 0) {
+        extent = MAX(extent, ps.minimumLineHeight);
+    }
+    if (ps.maximumLineHeight > 0) {
+        extent = MIN(extent, ps.maximumLineHeight);
+    }
+    if (lineHeight > 0) {
+        extent = MAX(lineHeight, extent);
+    }
+    return extent;
+}
+
+/// 原 TextKit 测量路径（attachment fallback / 双引擎对比共用）。会创建 NSTextStorage 并发编辑通知，
+/// 主文本测量不再走此路径。
++ (KRTextRender *)kr_textKitMeasure:(NSAttributedString *)attString width:(CGFloat)width lines:(NSUInteger)lines mode:(NSLineBreakMode)mode marin:(CGFloat)marin lineHeight:(CGFloat)lineHeight {
     NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:[attString copy]];
     textStorage.hr_hasAttachmentViews = attString.hr_hasAttachmentViews;
     KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage lineHeight:lineHeight];
     textRender.lineBreakMargin = marin;
     textRender.maximumNumberOfLines = lines;
     textRender.lineBreakMode = mode;
-    CGSize fitSize = [textRender textSizeWithRenderWidth:size.width];
+    CGSize fitSize = [textRender textSizeWithRenderWidth:width];
     if (marin > 0 && lines) {
         textRender.maximumNumberOfLines = 0;
-        CGSize newSize = [textRender textSizeWithRenderWidth:size.width];
+        CGSize newSize = [textRender textSizeWithRenderWidth:width];
         textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);
         textRender.maximumNumberOfLines = lines;//复原
     }
-    
     // Fix the issue of missing ellipsis caused by hard line breaks (aligned with Android/HarmonyOS)
     // Remove this logic if Apple fixes this issue in the future.
     BOOL didModify = [self kr_fixEllipsisIfNeededForTextStorage:textStorage textRender:textRender lines:lines mode:mode fitSize:fitSize];
     if (didModify) {
         // Recalculate fitSize after modifying textStorage
-        fitSize = [textRender textSizeWithRenderWidth:size.width];
+        fitSize = [textRender textSizeWithRenderWidth:width];
     }
-    
     attString.hr_textRender = textRender;
     attString.hr_size = fitSize;
-    
-    return fitSize;
+    return textRender;
 }
 
 /// Fix the issue where iOS TextKit does not display ellipsis after hard line breaks
@@ -665,12 +832,49 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 - (void)setHr_textRender:(KRTextRender *)hr_textRender{
     objc_setAssociatedObject(self, @selector(hr_textRender), hr_textRender, OBJC_ASSOCIATION_RETAIN);
 }
+
+/// 渲染树惰性构建（主线程调用）：CoreText 测量后不再预建 TextKit 渲染树，
+/// 渲染时按测量元数据还原 KRTextRender 并缓存到 attString，TextKit 对象生命周期收敛在主线程。
++ (KRTextRender *)kr_ensureTextRenderForAttributedString:(NSAttributedString *)attString {
+    if (![attString isKindOfClass:[NSAttributedString class]]) {
+        return nil;
+    }
+    KRTextRender *render = attString.hr_textRender;
+    if (render) {
+        return render;
+    }
+    NSDictionary *meta = attString.hr_measureMeta;
+    render = [[KRTextRender alloc] initWithTextStorage:[[NSTextStorage alloc] initWithAttributedString:attString]
+                                              lineHeight:[meta[KRMasureMetaLineHeight] doubleValue]];
+    render.maximumNumberOfLines = [meta[KRMasureMetaLines] unsignedIntegerValue];
+    render.lineBreakMode = [meta[KRMasureMetaMode] unsignedIntegerValue];
+    render.lineBreakMargin = [meta[KRMasureMetaMargin] doubleValue];
+    render.isBreakLine = [meta[KRMasureMetaIsBreakLine] boolValue];
+    // 还原测量时约束宽度到 textContainer（旧路径由 textSizeWithRenderWidth 设置）。
+    // 缺失则 span 定位（boundingRectForCharacterRange）/点击定位（characterIndexForPoint）
+    // 在 0 宽容器上排版，坐标全错。MAXFLOAT 高度与旧路径一致。
+    CGFloat metaWidth = [meta[KRMasureMetaWidth] doubleValue];
+    if (metaWidth > 0) {
+        render.size = CGSizeMake(metaWidth, MAXFLOAT);
+    }
+    attString.hr_textRender = render;
+    return render;
+}
 - (CGSize)hr_size{
     return [objc_getAssociatedObject(self, @selector(hr_size)) CGSizeValue];
 }
 
 - (void)setHr_size:(CGSize)hr_size{
     objc_setAssociatedObject(self, @selector(hr_size), [NSValue valueWithCGSize:hr_size], OBJC_ASSOCIATION_RETAIN);
+}
+
+/// 测量元数据（CoreText 测量后存储，渲染树惰性构建时还原 lineHeight/lines/mode/margin/isBreakLine）
+- (NSDictionary *)hr_measureMeta{
+    return objc_getAssociatedObject(self, @selector(hr_measureMeta));
+}
+
+- (void)setHr_measureMeta:(NSDictionary *)hr_measureMeta{
+    objc_setAssociatedObject(self, @selector(hr_measureMeta), hr_measureMeta, OBJC_ASSOCIATION_RETAIN);
 }
 @end
 

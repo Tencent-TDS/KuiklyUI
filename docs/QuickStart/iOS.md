@@ -842,5 +842,5 @@ class TestPage : Pager(){
 3. 未注册或查找失败时，框架依次尝试 `componentExpandHandler` 的 `hr_fontWithFontFamily:...` 系列方法（`fontWeight`/`italic` 作为参数传出，返回的 UIFont 原样使用），最终回落系统字体并保留 `fontWeight`/`fontStyle`。
 
 ::: tip generic family 说明
-Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：`serif` 映射为系统衬线字体（New York）、`monospace` 映射为系统等宽字体（SF Mono）（二者需 iOS 13+）；`cursive` 映射为系统内置手写字体（Snell Roundhand，加粗用 SnellRoundhand-Bold，中文逐字回落系统字体）；`sans-serif` 回落系统无衬线字体。所有类别名均保留 `fontWeight`/`fontStyle`。注意两端字体产品不同（如 Android 用 Noto Serif、iOS 用 New York），字形无法完全一致。
+Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：`serif` 映射为系统衬线字体（New York）、`monospace` 映射为系统等宽字体（SF Mono）（二者需 iOS 13+）；`cursive` 映射为系统内置手写字体（Snell Roundhand，加粗用 SnellRoundhand-Bold，中文逐字回落系统字体）；`sans-serif` 回落系统无衬线字体。`serif`/`monospace`/`sans-serif` 均保留 `fontWeight`/`fontStyle`；`cursive` 保留 `fontWeight`，但 `fontStyle` 不生效（手写体本身倾斜，无斜体字面）。注意两端字体产品不同（如 Android 用 Noto Serif、iOS 用 New York），字形无法完全一致。
 :::

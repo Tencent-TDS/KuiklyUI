@@ -28,17 +28,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (CGFloat)scaleFitWithFontSize:(CGFloat)fontSize;
 
 /**
- * 根据设置的FontFamily和contextParam 实现动态的加载业务侧的字体资源到IOS环境
+ * 动态注册字体
  */
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
-/**
- * 字体别名映射：业务将 fontFamily（可为业务别名）映射为字体真实名称（PostScript Name），
- * 框架将使用映射结果完成后续的字体查找与动态注册；多字重字体族可结合 fontWeight 返回对应字重的真实名称
- * 返回 nil 表示业务不处理该 fontFamily，继续走框架默认加载逻辑
- */
-- (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
-                                           fontWeight:(UIFontWeight)fontWeight;
 
 @end
 
@@ -57,11 +50,6 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
 
-/**
- * 字体别名映射
- */
-+ (nullable NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
-                                           fontWeight:(UIFontWeight)fontWeight;
 
 @end
 

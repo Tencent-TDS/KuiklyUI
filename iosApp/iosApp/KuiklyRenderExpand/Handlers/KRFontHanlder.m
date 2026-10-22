@@ -29,15 +29,6 @@
     return (fontSize *2);
 }
 
-// 别名映射示例（见 BugReproIosGenericFontWeightPage）：框架用映射结果继续加载
-// 多字重字体族可按 fontWeight 返回对应字重的真实名称（如 CustomSans-Bold）
-- (NSString *)hr_mappedFontNameForFontFamily:(NSString *)fontFamily
-                                  fontWeight:(UIFontWeight)fontWeight {
-    if ([fontFamily isEqualToString:@"SatisfyAlias"]) {
-        return @"Satisfy-Regular";
-    }
-    return nil;
-}
 
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily
             contextParams:(KuiklyContextParam *)contextParam {

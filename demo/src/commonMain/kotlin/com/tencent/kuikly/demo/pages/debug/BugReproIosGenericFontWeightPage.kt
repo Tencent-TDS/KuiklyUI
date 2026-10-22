@@ -38,8 +38,7 @@ import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
 
 /**
- * iOS 字体解析验证页：字体加载失败时回落系统字体并保留字重与斜体、
- * 字体别名映射（SatisfyAlias，见 iosApp KRFontHanlder）
+ * iOS 字体解析验证页：generic family 映射、字体加载失败时回落系统字体并保留字重与斜体
  */
 @Page("BugReproIosGenericFontWeightPage")
 internal class BugReproIosGenericFontWeightPage : ComposeContainer() {
@@ -79,29 +78,15 @@ private fun fontCases(): List<FontCase> = listOf(
         ),
     ),
     FontCase(
-        "别名字体 SatisfyAlias（别名映射）",
-        "iOS: Satisfy 手写体",
-        TextStyle(fontFamily = FontFamily(KuiklyFont("SatisfyAlias", FontWeight.Normal, FontStyle.Normal))),
-    ),
-    FontCase(
-        "别名字体 SatisfyAlias · Bold Italic",
-        "iOS: Satisfy 维持原样（自定义字体不叠加 weight/italic；多字重请提供对应字重文件并经映射返回）",
-        TextStyle(
-            fontFamily = FontFamily(KuiklyFont("SatisfyAlias", FontWeight.Bold, FontStyle.Italic)),
-            fontWeight = FontWeight.Bold,
-            fontStyle = FontStyle.Italic,
-        ),
-    ),
-    FontCase(
         "真实字体名 Satisfy-Regular（静态注册）",
         "Satisfy 手写体",
         TextStyle(fontFamily = FontFamily(KuiklyFont("Satisfy-Regular", FontWeight.Normal, FontStyle.Normal))),
     ),
     FontCase(
-        "未配置别名 UnknownAlias · Bold",
+        "未注册字体名 UnknownFont · Bold",
         "回落系统字体 Bold",
         TextStyle(
-            fontFamily = FontFamily(KuiklyFont("UnknownAlias", FontWeight.Bold, FontStyle.Normal)),
+            fontFamily = FontFamily(KuiklyFont("UnknownFont", FontWeight.Bold, FontStyle.Normal)),
             fontWeight = FontWeight.Bold,
         ),
     ),

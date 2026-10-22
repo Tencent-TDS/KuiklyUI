@@ -58,6 +58,20 @@ object BridgeManager {
     @Deprecated("使用Pager上下文的pagerId代替")
     var currentPageId : String = ""
 
+    /**
+     * Runs framework rendering work with the owning Pager as the legacy bridge context.
+     * The scope is restored after the render pass so later Pager work cannot inherit a stale id.
+     */
+    inline fun <T> withPagerContext(pagerId: String, block: () -> T): T {
+        val previousPageId = currentPageId
+        currentPageId = pagerId
+        return try {
+            block()
+        } finally {
+            currentPageId = previousPageId
+        }
+    }
+
     private val nativeBridgeMap = fastMutableMapOf<String, NativeBridge>()
     private val callObserverMap = fastMutableMapOf<String, IBridgeCallObserver>()
 

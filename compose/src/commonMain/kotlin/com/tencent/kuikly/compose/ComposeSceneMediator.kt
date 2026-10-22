@@ -34,6 +34,7 @@ import com.tencent.kuikly.compose.container.SuperTouchManager
 import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
+import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -50,6 +51,7 @@ internal fun resolveFrameIntervalMillis(frameIntervalNanos: Int?): Double {
 @OptIn(ExperimentalComposeUiApi::class)
 class ComposeSceneMediator(
     private val container: DivView,
+    private val pagerId: String,
     private val windowInfo: WindowInfo,
     private val coroutineContext: CoroutineContext,
     private val density: Float,
@@ -124,17 +126,19 @@ class ComposeSceneMediator(
     }
 
     fun renderFrame(frameIntervalNanos: Int? = null) {
-        val timestampNanos = DateTime.nanoTime()
-        val localTimestampMillis = timestampNanos.toDouble() / NANOS_PER_MILLISECOND
-        val frameIntervalMillis = resolveFrameIntervalMillis(frameIntervalNanos)
-        scene.vsyncTickConditions.updateFrameTiming(
-            frameTimestampMillis = localTimestampMillis,
-            frameIntervalMillis = frameIntervalMillis
-        )
-        scene.vsyncTickConditions.onDisplayLinkTick {
-            // Keep Compose animations on the local monotonic clock. Native frame timing is only
-            // used for idle detection and prefetch deadlines.
-            scene.render(null, timestampNanos)
+        BridgeManager.withPagerContext(pagerId) {
+            val timestampNanos = DateTime.nanoTime()
+            val localTimestampMillis = timestampNanos.toDouble() / NANOS_PER_MILLISECOND
+            val frameIntervalMillis = resolveFrameIntervalMillis(frameIntervalNanos)
+            scene.vsyncTickConditions.updateFrameTiming(
+                frameTimestampMillis = localTimestampMillis,
+                frameIntervalMillis = frameIntervalMillis
+            )
+            scene.vsyncTickConditions.onDisplayLinkTick {
+                // Keep Compose animations on the local monotonic clock. Native frame timing is only
+                // used for idle detection and prefetch deadlines.
+                scene.render(null, timestampNanos)
+            }
         }
     }
 

@@ -56,6 +56,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         };
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
+    BOOL isItalic = [@"italic" isEqual:json[@"fontStyle"]];
 
     // 情形 0: generic family（Compose FontFamily 定义的类别名，非具体字体名），
     // 直接映射为系统对应风格字体并保留 weight/style，避免按字体名查找与业务动态注册的无效调用
@@ -65,7 +66,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             UIFont *genericFont = [self p_systemDesignFontWithGenericFamily:lowercaseFamily
                                                                    fontSize:fontSize
                                                                  fontWeight:fontWeight
-                                                                     italic:[@"italic" isEqual:json[@"fontStyle"]]];
+                                                                     italic:isItalic];
             if (genericFont) {
                 return genericFont;
             }
@@ -121,9 +122,9 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             return font;
         }
     }
-    
+
     // 情形 5: fontFamily 为空（generic family 已置空）或以上全部失败，走系统字体并保留 weight/style
-    if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
+    if (isItalic) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
 

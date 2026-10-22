@@ -84,6 +84,15 @@ private fun fontCases(): List<FontCase> = listOf(
         TextStyle(fontFamily = FontFamily(KuiklyFont("SatisfyAlias", FontWeight.Normal, FontStyle.Normal))),
     ),
     FontCase(
+        "别名字体 SatisfyAlias · Bold Italic",
+        "iOS: Satisfy 维持原样（自定义字体不叠加 weight/italic；多字重请提供对应字重文件并经映射返回）",
+        TextStyle(
+            fontFamily = FontFamily(KuiklyFont("SatisfyAlias", FontWeight.Bold, FontStyle.Italic)),
+            fontWeight = FontWeight.Bold,
+            fontStyle = FontStyle.Italic,
+        ),
+    ),
+    FontCase(
         "真实字体名 Satisfy-Regular（静态注册）",
         "Satisfy 手写体",
         TextStyle(fontFamily = FontFamily(KuiklyFont("Satisfy-Regular", FontWeight.Normal, FontStyle.Normal))),

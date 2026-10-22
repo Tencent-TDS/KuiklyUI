@@ -93,9 +93,6 @@ extern NSString *const KRBGAttributeKey;
  */
 - (void)drawTextAtPoint:(CGPoint)point isCanceled:(BOOL (^__nullable)(void))isCanceled;
 
-/// 行高规则（CoreText 测量对齐用）：font 行高按 lineHeightMultiple/minimum/maximum 修正
-+ (CGFloat)lineHeightForFont:(UIFont *)font paragraphStyle:(NSParagraphStyle *)style;
-
 @end
 
 

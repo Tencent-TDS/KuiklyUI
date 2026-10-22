@@ -241,8 +241,13 @@ static NSString *const KRMasureMetaWidth = @"width";
         CFIndex index = 0;
         CGFloat totalHeight = 0;
         NSUInteger lineCount = 0;
+        CGFloat lastLineSpacing = 0;
         while (index < length) {
-            CFIndex next = CTTypesetterSuggestLineBreak(typesetter, index, width);
+            NSDictionary *attrs = [attString attributesAtIndex:(NSUInteger)index effectiveRange:nil];
+            NSParagraphStyle *ps = attrs[NSParagraphStyleAttributeName];
+            // 首行缩进（TextKit firstLineHeadIndent 语义）：首行断行宽度扣减，后续行全宽
+            CGFloat lineBreakWidth = (index == 0) ? (width - ps.firstLineHeadIndent) : width;
+            CFIndex next = CTTypesetterSuggestLineBreak(typesetter, index, lineBreakWidth);
             if (next <= 0) {
                 break;
             }
@@ -250,18 +255,21 @@ static NSString *const KRMasureMetaWidth = @"width";
             CGFloat ascent = 0, descent = 0, leading = 0;
             double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
             CFRelease(line);
-            NSDictionary *attrs = [attString attributesAtIndex:(NSUInteger)index effectiveRange:nil];
             lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
-                                        paragraphStyle:attrs[NSParagraphStyleAttributeName]
+                                        paragraphStyle:ps
                                           naturalHeight:ascent + descent + leading];
+            // TextKit 语义：lineSpacing 加在行与行之间（前 n-1 行 fragment 含间距，末行不含），
+            // 先每行累加、循环结束后统一减去末行的 spacing。
+            lastLineSpacing = ps.lineSpacing;
+            totalHeight += lineExtent + lastLineSpacing;
             maxWidth = MAX(maxWidth, (CGFloat)lineWidth);
-            totalHeight += lineExtent;
             lineCount++;
             index += next;
             if (lines > 0 && lineCount >= lines) {
                 break;
             }
         }
+        totalHeight -= lastLineSpacing; // 末行不加行间距（对齐 NSLayoutManager）
         lineExtent = totalHeight;
     }
     CFRelease(typesetter);
@@ -833,8 +841,12 @@ static NSString *const KRMasureMetaWidth = @"width";
     objc_setAssociatedObject(self, @selector(hr_textRender), hr_textRender, OBJC_ASSOCIATION_RETAIN);
 }
 
-/// 渲染树惰性构建（主线程调用）：CoreText 测量后不再预建 TextKit 渲染树，
-/// 渲染时按测量元数据还原 KRTextRender 并缓存到 attString，TextKit 对象生命周期收敛在主线程。
+/// 渲染树惰性构建：CoreText 测量后不再预建 TextKit 渲染树，渲染时按测量元数据还原
+/// KRTextRender 并缓存到 attString。调用方线程说明：
+/// - 主线程：渲染（drawTextInRect）、点击/长按定位（kr_findSpanIndexWithLocation）；
+/// - context 线程：spanRect（attachment 定位）——该场景文本必含 attachment、
+///   已由测量阶段的 TextKit fallback 预建渲染树（hr_textRender 非 nil），此处构建
+///   分支仅为防御异常路径，正常不会在子线程创建 NSTextStorage。
 + (KRTextRender *)kr_ensureTextRenderForAttributedString:(NSAttributedString *)attString {
     if (![attString isKindOfClass:[NSAttributedString class]]) {
         return nil;

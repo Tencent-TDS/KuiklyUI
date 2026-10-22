@@ -19,6 +19,8 @@
 #import <CoreText/CoreText.h>
 
 
+
+
 @implementation KRFontHanlder
 
 + (void)load {
@@ -28,7 +30,6 @@
 - (CGFloat)scaleFitWithFontSize:(CGFloat)fontSize {
     return (fontSize *2);
 }
-
 
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily
             contextParams:(KuiklyContextParam *)contextParam {

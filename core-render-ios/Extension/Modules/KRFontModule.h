@@ -28,10 +28,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (CGFloat)scaleFitWithFontSize:(CGFloat)fontSize;
 
 /**
- * 动态注册字体
+ * 根据设置的FontFamily和contextParam 实现动态的加载业务侧的字体资源到IOS环境
  */
 - (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
-
 
 @end
 
@@ -49,7 +48,6 @@ NS_ASSUME_NONNULL_BEGIN
  * 向IOS环境内动态加载字体
  */
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
-
 
 @end
 

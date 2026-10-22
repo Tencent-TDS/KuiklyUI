@@ -51,7 +51,6 @@ internal fun resolveFrameIntervalMillis(frameIntervalNanos: Int?): Double {
 @OptIn(ExperimentalComposeUiApi::class)
 class ComposeSceneMediator(
     private val container: DivView,
-    private val pagerId: String,
     private val windowInfo: WindowInfo,
     private val coroutineContext: CoroutineContext,
     private val density: Float,
@@ -61,6 +60,9 @@ class ComposeSceneMediator(
         prefetchScheduler: PrefetchScheduler,
     ) -> ComposeScene
 ) {
+
+    private val pagerId: String
+        get() = container.pagerId
 
     @OptIn(ExperimentalFoundationApi::class)
     internal val prefetchScheduler: FramePrefetchScheduler =

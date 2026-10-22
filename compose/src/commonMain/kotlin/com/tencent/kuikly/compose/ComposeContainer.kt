@@ -280,7 +280,6 @@ open class ComposeContainer :
         val mediator =
             ComposeSceneMediator(
                 rootKView,
-                pagerId,
                 windowInfo,
                 ComposeDispatcher(pagerId),
                 pagerDensity(),

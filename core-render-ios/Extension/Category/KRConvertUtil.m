@@ -87,14 +87,17 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     }
 
     if (fontFamily.length) {
-        // 情形 2: 静态注册（info.plist）& 动态注册；用户注册fontFamily对应的字体文件，由框架负责加载
-        // Note：注册的路线要求用户提供的字体文件是三端效果一致的，避免使用 fontweight / Italic 导致三端效果不一致
-        if (contextParam) {
-            [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam];
-        }
+        // 情形 1: 静态注册（info.plist）
         UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
         if (font) {
             return font;
+        }
+        // 情形 2: 动态注册字体后再按 fontFamily 获取
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
         }
         
         // 情形 3: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）

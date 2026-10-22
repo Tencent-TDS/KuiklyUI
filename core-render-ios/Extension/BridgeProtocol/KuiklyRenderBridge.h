@@ -154,7 +154,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  * @param fontWeight 字体weight
  * @return 返回自定义字体 （注：若返回nil，则走sdk自身默认创建字体逻辑）
  */
-- (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize fontWeight:(UIFontWeight)fontWeight isItalic:(BOOL)Italic;
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize fontWeight:(UIFontWeight)fontWeight isItalic:(BOOL)isItalic;
 
 /*
  * 扩展Kotlin文本组件的text属性-后置处理

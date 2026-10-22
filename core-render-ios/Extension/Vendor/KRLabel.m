@@ -262,8 +262,9 @@ static NSString *const KRMasureMetaWidth = @"width";
             // TextKit 语义：lineSpacing 加在行与行之间——自然末行的 fragment 不含间距，
             // 但 numberOfLines 截断行不是自然末行、其 fragment 仍含间距（实测对齐）。
             // 先每行累加，仅文本自然排完（index>=length）时减去末行的 spacing。
-            // paragraphSpacing 不处理：仅多段(\n)文本计入段末行（该场景已回退 TextKit 路径），
-            // 单段文本实测 usedRect 自然/截断均不含段后间距，补上反而偏高。
+            // paragraphSpacing 不处理：仅多段(\n)文本计入段末行（该场景已回退 TextKit 路径）；
+            // 单段文本 usedRect 不含段后间距（macOS/iOS 模拟器双平台实测：自然换行与截断均不含，
+            // spacing 落在末个 glyph fragment 之下、usedRect 仅统计 fragment 并集），补上反而偏高。
             lastLineSpacing = ps.lineSpacing;
             totalHeight += lineExtent + lastLineSpacing;
             maxWidth = MAX(maxWidth, (CGFloat)lineWidth);

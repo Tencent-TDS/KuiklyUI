@@ -87,12 +87,12 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     }
 
     if (fontFamily.length) {
-        // 情形 1: 静态注册（info.plist）
+        // 情形 2: 静态注册（info.plist）
         UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
         if (font) {
             return font;
         }
-        // 情形 2: 动态注册字体后再按 fontFamily 获取
+        // 情形 3: 动态注册字体后再按 fontFamily 获取
         if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
             font = [UIFont fontWithName:fontFamily size:fontSize];
             if (font) {
@@ -100,7 +100,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             }
         }
         
-        // 情形 3: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）
+        // 情形 4: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:isItalic:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight isItalic:isItalic];
         }
@@ -115,11 +115,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
     }
 
-    // 情形 4.1: 带 weight/style 的系统字体
+    // 情形 5.1: 带 weight/style 的系统字体
     if (isItalic) {
         return [self italicFontWithSize:fontSize bold:(fontWeight >= UIFontWeightBold) itatic:YES weight:fontWeight];
     }
-    // 情形 4.2: 保留 weight 的系统字体
+    // 情形 5.2: 保留 weight 的系统字体
     return [UIFont systemFontOfSize:fontSize weight:fontWeight];
 }
 

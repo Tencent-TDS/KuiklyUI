@@ -68,7 +68,9 @@ internal object KuiklyContextScheduler : SynchronizedObject() {
         if (taskList.isNullOrEmpty()) {
             return
         }
-        BridgeManager.currentPageId = pagerId
+        if (pagerId.isNotEmpty()) {
+            BridgeManager.currentPageId = pagerId
+        }
         for (task in taskList!!) {
             try {
                 task(cancel)

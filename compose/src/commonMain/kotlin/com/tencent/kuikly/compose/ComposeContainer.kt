@@ -54,7 +54,6 @@ import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
@@ -177,13 +176,11 @@ open class ComposeContainer :
         rootKView.setFrameToRenderView(frame)
         updateWindowContainer(frame)
 
-        BridgeManager.withPagerContext(pagerId) {
-            createMediatorIfNeeded()
-            setComposeContent {
-                this.content?.invoke()
-            }
-            startFrameDispatcher()
+        createMediatorIfNeeded()
+        setComposeContent {
+            this.content?.invoke()
         }
+        startFrameDispatcher()
 
         // 如果 Profiler 已启用（start 先于页面创建），此时补传 FileModule
         if (RecompositionProfiler.isEnabled) {

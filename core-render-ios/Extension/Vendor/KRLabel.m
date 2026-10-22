@@ -245,8 +245,9 @@ static NSString *const KRMasureMetaWidth = @"width";
         while (index < length) {
             NSDictionary *attrs = [attString attributesAtIndex:(NSUInteger)index effectiveRange:nil];
             NSParagraphStyle *ps = attrs[NSParagraphStyleAttributeName];
-            // 首行缩进（TextKit firstLineHeadIndent 语义）：首行断行宽度扣减，后续行全宽
-            CGFloat lineBreakWidth = (index == 0) ? (width - ps.firstLineHeadIndent) : width;
+            // 首行缩进（TextKit firstLineHeadIndent 语义）：首行断行宽度扣减，后续行全宽。
+            // 加下限防御：缩进大于等于容器宽时避免断行宽度非正导致测量归零。
+            CGFloat lineBreakWidth = (index == 0) ? MAX(width - ps.firstLineHeadIndent, 0.1) : width;
             CFIndex next = CTTypesetterSuggestLineBreak(typesetter, index, lineBreakWidth);
             if (next <= 0) {
                 break;
@@ -258,8 +259,9 @@ static NSString *const KRMasureMetaWidth = @"width";
             lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
                                         paragraphStyle:ps
                                           naturalHeight:ascent + descent + leading];
-            // TextKit 语义：lineSpacing 加在行与行之间（前 n-1 行 fragment 含间距，末行不含），
-            // 先每行累加、循环结束后统一减去末行的 spacing。
+            // TextKit 语义：lineSpacing 加在行与行之间——自然末行的 fragment 不含间距，
+            // 但 numberOfLines 截断行不是自然末行、其 fragment 仍含间距（实测对齐）。
+            // 先每行累加，仅文本自然排完（index>=length）时减去末行的 spacing。
             lastLineSpacing = ps.lineSpacing;
             totalHeight += lineExtent + lastLineSpacing;
             maxWidth = MAX(maxWidth, (CGFloat)lineWidth);
@@ -269,7 +271,10 @@ static NSString *const KRMasureMetaWidth = @"width";
                 break;
             }
         }
-        totalHeight -= lastLineSpacing; // 末行不加行间距（对齐 NSLayoutManager）
+        if (index >= length) {
+            // 自然末行不加行间距（对齐 NSLayoutManager；截断/断行失败的行保留间距）
+            totalHeight -= lastLineSpacing;
+        }
         lineExtent = totalHeight;
     }
     CFRelease(typesetter);

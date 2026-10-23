@@ -91,6 +91,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void WillRemoveFromParentView() override;
     ArkUI_GestureInterruptResult OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) override;
     void TryApplyPendingFireOnScroll();
+    void OnStatusBarClicked() override;
 
     bool IsScrollView() override {
         return true;
@@ -142,6 +143,10 @@ class KRScrollerView : public IKRRenderViewExport {
                                     float velocity_y);
     void CancelSpringScrollAnimation();
     void DisposeSpringScrollAnimator();
+    /** 关闭系统内置的"点击状态栏回顶"。节点为空或系统 API < 15 时不设置，保持原有滚动行为。 */
+    void DisableSystemBackToTopIfNeed();
+    /** 框架实现的默认回顶：滚动到顶部 */
+    void ScrollToTopByFramework();
 
  public:
     void OnSpringScrollAnimationFrame(uint32_t generation);
@@ -153,6 +158,7 @@ class KRScrollerView : public IKRRenderViewExport {
     KRRenderCallback on_drag_end_callback_ = nullptr;
     KRRenderCallback on_scroll_end_callback_ = nullptr;
     KRRenderCallback on_will_drag_end_callback_ = nullptr;
+    KRRenderCallback on_scroll_to_top_callback_ = nullptr;
     std::shared_ptr<KRScrollerContentView> content_view_;
     bool bounces_enabled_ = true;
     bool limit_header_bounces_ = false;

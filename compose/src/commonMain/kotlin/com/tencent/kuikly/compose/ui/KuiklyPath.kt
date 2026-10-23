@@ -35,6 +35,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.math.tan
 
 private typealias CanvasOp = PathApi.() -> Unit
@@ -245,6 +246,108 @@ class KuiklyPath : Path {
                 expandRect(rect)
             }
         }
+        /**
+         * 二次贝塞尔曲线在某一轴上的解析极值点参数，即 `B'(t) = 0` 在 (0, 1) 内的根。
+         *
+         * 控制点通常不在曲线上，用控制点扩展包围盒会得到偏大的结果；
+         * 只有曲线自身的极值点（外加两个端点）才能给出紧确的包围盒。
+         */
+        private inline fun quadraticBezierExtrema(
+            p0: Float,
+            p1: Float,
+            p2: Float,
+            action: (Float) -> Unit
+        ) {
+            val denominator = p0 - 2f * p1 + p2
+            if (denominator == 0f) return
+            val t = (p0 - p1) / denominator
+            if (t > 0f && t < 1f) action(t)
+        }
+
+        /**
+         * 三次贝塞尔曲线在某一轴上的解析极值点参数，即 `B'(t) = 0` 在 (0, 1) 内的根。
+         * 导数是一元二次方程，退化为一元一次时按一次求解。
+         */
+        private inline fun cubicBezierExtrema(
+            p0: Float,
+            p1: Float,
+            p2: Float,
+            p3: Float,
+            action: (Float) -> Unit
+        ) {
+            val a = -p0 + 3f * p1 - 3f * p2 + p3
+            val b = 2f * (p0 - 2f * p1 + p2)
+            val c = p1 - p0
+            if (a == 0f) {
+                if (b != 0f) {
+                    val t = -c / b
+                    if (t > 0f && t < 1f) action(t)
+                }
+                return
+            }
+            val discriminant = b * b - 4f * a * c
+            if (discriminant < 0f) return
+            val root = sqrt(discriminant)
+            val t1 = (-b + root) / (2f * a)
+            val t2 = (-b - root) / (2f * a)
+            if (t1 > 0f && t1 < 1f) action(t1)
+            if (t2 > 0f && t2 < 1f) action(t2)
+        }
+
+        private fun quadraticBezierAt(p0: Float, p1: Float, p2: Float, t: Float): Float {
+            val mt = 1f - t
+            return mt * mt * p0 + 2f * mt * t * p1 + t * t * p2
+        }
+
+        private fun cubicBezierAt(p0: Float, p1: Float, p2: Float, p3: Float, t: Float): Float {
+            val mt = 1f - t
+            return mt * mt * mt * p0 + 3f * mt * mt * t * p1 +
+                3f * mt * t * t * p2 + t * t * t * p3
+        }
+
+        /**
+         * 按曲线极值点扩展包围盒。两个端点在调用方已扩展，这里只补曲线自身的极值点。
+         * x、y 两个方向的极值点参数互相独立，因此分别求解。
+         */
+        private fun MutableRect.expandQuadraticBezier(
+            x0: Float,
+            y0: Float,
+            x1: Float,
+            y1: Float,
+            x2: Float,
+            y2: Float
+        ) {
+            quadraticBezierExtrema(x0, x1, x2) { t ->
+                expandPoint(quadraticBezierAt(x0, x1, x2, t), quadraticBezierAt(y0, y1, y2, t))
+            }
+            quadraticBezierExtrema(y0, y1, y2) { t ->
+                expandPoint(quadraticBezierAt(x0, x1, x2, t), quadraticBezierAt(y0, y1, y2, t))
+            }
+        }
+
+        private fun MutableRect.expandCubicBezier(
+            x0: Float,
+            y0: Float,
+            x1: Float,
+            y1: Float,
+            x2: Float,
+            y2: Float,
+            x3: Float,
+            y3: Float
+        ) {
+            cubicBezierExtrema(x0, x1, x2, x3) { t ->
+                expandPoint(
+                    cubicBezierAt(x0, x1, x2, x3, t),
+                    cubicBezierAt(y0, y1, y2, y3, t)
+                )
+            }
+            cubicBezierExtrema(y0, y1, y2, y3) { t ->
+                expandPoint(
+                    cubicBezierAt(x0, x1, x2, x3, t),
+                    cubicBezierAt(y0, y1, y2, y3, t)
+                )
+            }
+        }
     }
 
     private val ops = mutableListOf<CanvasOp>()
@@ -303,9 +406,11 @@ class KuiklyPath : Path {
     }
 
     override fun quadraticBezierTo(x1: Float, y1: Float, x2: Float, y2: Float) {
+        val x0 = currentX
+        val y0 = currentY
         currentX = x2
         currentY = y2
-        bounds.expandPoint(x1, y1) // FIXME: 直接用控制点坐标是不对的，应该换算为解析式的极值点
+        bounds.expandQuadraticBezier(x0, y0, x1, y1, x2, y2)
         bounds.expandPoint(x2, y2)
         ops += {
             quadraticCurveTo(
@@ -322,10 +427,11 @@ class KuiklyPath : Path {
     }
 
     override fun cubicTo(x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) {
+        val x0 = currentX
+        val y0 = currentY
         currentX = x3
         currentY = y3
-        bounds.expandPoint(x1, y1) // FIXME: 直接用控制点坐标是不对的，应该换算为解析式的极值点
-        bounds.expandPoint(x2, y2) // FIXME: 直接用控制点坐标是不对的，应该换算为解析式的极值点
+        bounds.expandCubicBezier(x0, y0, x1, y1, x2, y2, x3, y3)
         bounds.expandPoint(x3, y3)
         ops += {
             bezierCurveTo(

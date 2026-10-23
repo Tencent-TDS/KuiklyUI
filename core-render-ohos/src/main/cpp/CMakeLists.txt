@@ -186,6 +186,7 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libace_napi.z.so
                                     libace_ndk.z.so
                                     libdeviceinfo_ndk.z.so
+                                    libicu.so
                                     libimage_packer_ndk.z.so
                                     libimage_source.so
                                     libjsvm.so

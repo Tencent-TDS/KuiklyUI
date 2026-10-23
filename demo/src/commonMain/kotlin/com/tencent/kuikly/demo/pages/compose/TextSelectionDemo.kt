@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.gestures.detectTapGestures
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
@@ -25,6 +26,10 @@ import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
+import com.tencent.kuikly.compose.ui.text.SpanStyle
+import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
+import com.tencent.kuikly.compose.ui.text.withStyle
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.dp
@@ -64,6 +69,7 @@ private fun TextSelectionDemoContent() {
     var selectedText by remember { mutableStateOf("") }
     var preSelectedText by remember { mutableStateOf("") }
     var postSelectedText by remember { mutableStateOf("") }
+    var longPressType by remember { mutableStateOf(TextSelectionType.WORD) }
     
     val selectionState = rememberSelectionContainerState()
     
@@ -216,7 +222,42 @@ private fun TextSelectionDemoContent() {
             )
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Long-press selection type picker
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "长按:", fontSize = 13.sp, color = Color(0xFF666666))
+            TextSelectionType.values().forEach { type ->
+                val selected = type == longPressType
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (selected) Color(0xFF2196F3) else Color(0xFFE0E0E0))
+                        .clickable { longPressType = type }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = when (type) {
+                            TextSelectionType.CHARACTER -> "字符"
+                            TextSelectionType.WORD -> "单词"
+                            TextSelectionType.PARAGRAPH -> "段落"
+                            TextSelectionType.SENTENCE -> "句子"
+                            TextSelectionType.SPAN -> "Span"
+                        },
+                        fontSize = 12.sp,
+                        color = if (selected) Color.White else Color(0xFF333333)
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
         
         // Selectable Text Container
         SelectionContainer(
@@ -225,6 +266,13 @@ private fun TextSelectionDemoContent() {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFFFFDE7))
+                .pointerInput(longPressType) {
+                    detectTapGestures(
+                        onLongPress = { offset ->
+                            selectionState.createSelection(offset.x, offset.y, longPressType)
+                        }
+                    )
+                }
                 .padding(16.dp),
             onSelectStart = { frame ->
                 selectionStatus = "选择开始"
@@ -290,6 +338,32 @@ private fun TextSelectionDemoContent() {
                     color = Color(0xFF666666),
                     fontStyle = FontStyle.Italic
                 )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    text = "第一段：长按选择段落。\n第二段：段落之间以换行分隔。",
+                    fontSize = 14.sp,
+                    color = Color(0xFF444444)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    text = buildAnnotatedString {
+                        append("富文本由多个Span组成：")
+                        withStyle(SpanStyle(color = Color(0xFFE53935), fontWeight = FontWeight.Bold)) {
+                            append("红色加粗Span")
+                        }
+                        append("、")
+                        withStyle(SpanStyle(color = Color(0xFF1E88E5))) {
+                            append("蓝色Span")
+                        }
+                        append("，长按选择Span。")
+                    },
+                    fontSize = 14.sp,
+                    color = Color(0xFF444444)
+                )
             }
         }
         
@@ -311,7 +385,7 @@ private fun TextSelectionDemoContent() {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "1. 点击上方按钮可以程序化创建选区\n2. 拖动选区两端的游标可以调整选区范围\n3. 点击\"获取选中内容\"可以获取当前选中的文本\n4. DisableSelection内的文本不可选择",
+                text = "1. 点击上方按钮可以程序化创建选区\n2. 选择长按类型后，长按文本按该类型创建选区\n3. 拖动选区两端的游标可以调整选区范围\n4. 点击\"获取选中内容\"可以获取当前选中的文本\n5. DisableSelection内的文本不可选择",
                 fontSize = 13.sp,
                 color = Color(0xFF1976D2)
             )

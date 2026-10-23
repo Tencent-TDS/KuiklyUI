@@ -31,6 +31,7 @@ extern "C" {
  * (null/bool/number/string/array/object/bytes/ext). Heap values are
  * `aligned_ptr | tag`. Copying the word does NOT change ownership;
  * use KRJSONRetain / KRJSONRelease. See KRJSON-pointer-tagging.md.
+ * LLDB: libohos_render/utils/json/krjson_lldb.py. See devDocs/krjson-lldb.md.
  *
  * Immediate values (null / bool / inlined numbers) need no allocation;
  * KRJSONRetain / KRJSONRelease on them are no-ops.

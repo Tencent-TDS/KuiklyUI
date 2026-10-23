@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_JSON_BOX_H
 
 // Pointer-low-bit tagged KRJSON (see /KRJSON-pointer-tagging.md).
+// LLDB formatter for this layout: krjson_lldb.py in this directory.
 // Public C ABI: libohos_render/api/include/Kuikly/KRJSON.h
 //
 //   heap:   word = aligned_ptr | tag     (tag in bits[0..2])

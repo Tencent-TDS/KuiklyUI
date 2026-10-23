@@ -148,6 +148,15 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
 - (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize fontWeight:(UIFontWeight)fontWeight;
 
 /*
+ * 自定义字体创建
+ * @param fontfamily 字体名
+ * @param fontSize 字体大小
+ * @param fontWeight 字体weight
+ * @return 返回自定义字体 （注：若返回nil，则走sdk自身默认创建字体逻辑）
+ */
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize fontWeight:(UIFontWeight)fontWeight isItalic:(BOOL)isItalic;
+
+/*
  * 扩展Kotlin文本组件的text属性-后置处理
  * @param text 源文本
  * @param textPostProcessor 后置处理标记（由kotlin侧text组件属性设置textPostProcessor()而来）

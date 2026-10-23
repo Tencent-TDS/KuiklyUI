@@ -755,3 +755,96 @@ class TestPage : Pager(){
 - 框架引入有libpag库，业务可直接继承libpag的PAGview，获取处理PAG的相关能力
 - PAG适配器的定义与实现可参考类似的`KRVideoViewHandler`与`KRAPNGViewHandler`的实现
 :::
+
+### 实现自定义字体适配器 FontModule
+
+业务实现 `KuiklyFontProtocol` 并通过 `registerFontHandler:` 注册后，可以扩展 iOS 端的自定义字体加载能力：
+
+```objc
+// 注册（一般放在 Handler 的 +load 中）
++ (void)load {
+    [KuiklyRenderBridge registerFontHandler:[[KRFontHandler alloc] init]];
+}
+```
+
+协议提供以下可选方法，按需实现。
+
+#### 方法：动态注册字体文件
+
+```objc
+- (BOOL)hr_loadCustomFont:(NSString *)fontFamily contextParams:(KuiklyContextParam *)contextParam;
+```
+
+区别 info.plist 静态注册，用于在运行时获取 ContextParams 内的字体文件并完成注册。
+
+| 参数 | 说明 |
+|:----|:----|
+| fontFamily | 字体的真实名称（与字体文件内嵌名称一致） |
+| contextParam | 页面资源上下文，可用其 `resourceFolderUrl` 定位字体资源路径 |
+
+注册完成后，**框架会按同一个 `fontFamily` 字符串查找字体**，因此业务必须注册与 `fontFamily` 名称一致的字体文件，否则查找失败。
+
+#### 方法：自定义字体加载（componentExpandHandler 通道）
+
+以下方法定义于 `componentExpandHandler`（`KuiklyRenderBridge.h` 的 `KuiklyRenderComponentExpandProtocol`），**不属于 `KuiklyFontProtocol`**，但同样面向业务开放。需要完全接管字体构建的业务直接使用此处即可。
+
+通过 `[KuiklyRenderBridge registerComponentExpandHandler:]` 注册（一般放在 Handler 的 `+load` 中）。框架按以下顺序尝试，任一返回非 nil 即使用：
+
+```objc
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                        isItalic:(BOOL)isItalic;   // 优先：weight 与 italic 均传出
+
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight;
+
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize;
+```
+
+| 参数 | 说明 |
+|:----|:----|
+| fontFamily | Kotlin 侧设置的 `fontFamily` 原始字符串，**可为业务别名**，业务自行维护"别名 → 字体"的映射 |
+| fontSize | 目标字号，创建 `UIFont` 时传入 |
+| fontWeight | 目标字重；多字重字体族据此选择对应字面的字体文件 |
+| isItalic | 是否斜体 |
+
+**框架原样使用返回的 UIFont**（`fontWeight`/`italic` 已作为参数传出，样式由业务自行处理）；返回 `nil` 则继续走框架默认逻辑，最终回落系统字体。
+
+```objc
++ (void)load {
+    [KuiklyRenderBridge registerComponentExpandHandler:[self new]];
+}
+
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                        isItalic:(BOOL)isItalic {
+    // fontFamily 可为业务别名（如 iconfont 占位名），在此定位并注册字体文件后返回对应 UIFont
+    if ([fontFamily isEqualToString:@"iconfont"]) {
+        return [UIFont fontWithName:@"IconFont-Regular" size:fontSize];
+    }
+    return nil; // 返回 nil 走框架默认逻辑
+}
+```
+
+:::: warning iOS 自定义字体 与 动态注册
+- 自定义（三方）字体建议**不要与 `fontWeight`/`fontStyle` 组合使用**，三端对自定义字体的字重/斜体处理策略不同：iOS 的字重固化在字体文件中，框架加载 fontFamily 时不会叠加字重/斜体；每个字重/斜体都是一款独立的字体（独立 PostScript Name），需在 fontFamily 中直接指定对应名称，例如 `CustomSans` 的 Bold 字面是 `CustomSans-Bold`，系统字体 `PingFangSC-Regular` 的 Medium 字面是 `PingFangSC-Medium`；
+- 若自定义字体需体现 `fontWeight`/`fontStyle`，则确保三端加载的字体文件所示的字体效果本就一致；
+::::
+
+#### 使用步骤
+
+1. 静态注册（info.plist 的 `UIAppFonts`）或系统字体：Kotlin 侧直接使用字体真实名称，无需实现任何方法。
+2. 字体文件需要运行时动态下发/加载：实现 `hr_loadCustomFont:contextParams:`，按 `fontFamily` 注册对应的字体文件。
+3. 未注册或查找失败时，框架依次尝试 `componentExpandHandler` 的 `hr_fontWithFontFamily:...` 系列方法（`fontWeight`/`italic` 作为参数传出，返回的 UIFont 原样使用），最终回落系统字体并保留 `fontWeight`/`fontStyle`。
+
+::: tip generic family 说明
+Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：
+1. `serif` 映射为系统衬线字体（New York）、`monospace` 映射为系统等宽字体（SF Mono）（二者需 iOS 13+）；
+2. `cursive` 映射为系统内置手写字体（Snell Roundhand，加粗用 SnellRoundhand-Bold，中文逐字回落系统字体）；
+3. `sans-serif` 回落系统无衬线字体。
+4. `serif`/`monospace`/`sans-serif` 均保留 `fontWeight`/`fontStyle`；`cursive` 保留 `fontWeight`，但 `fontStyle` 不生效（手写体本身倾斜，无斜体字面）。注意两端字体产品不同（如 Android 用 Noto Serif、iOS 用 New York），字形无法完全一致。
+:::

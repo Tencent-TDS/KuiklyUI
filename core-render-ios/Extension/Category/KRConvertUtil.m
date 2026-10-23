@@ -37,25 +37,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
     KuiklyContextParam* contextParam = json[@"contextParam"];
     
-    if (fontFamily && fontFamily.length) {
-        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
-        if (font) {
-            return font;
-        }
-        
-        // 未静态注册，则调用业务方hr_loadCustomFont
-        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
-            if (font) {
-                return font;
-            }
-        } else {
-            // 动态加载字体失败，返回系统默认字体
-            return [UIFont systemFontOfSize:fontSize];
-        }
-    }
-    
-    // 执行默认字体加载，所覆盖的场景有：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
+    // fontWeight 需先于所有字体解析路径确定，供字体适配器及兜底系统字体使用
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{
@@ -74,28 +56,96 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         };
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
-    
+    BOOL isItalic = [@"italic" isEqual:json[@"fontStyle"]];
+
+    // 情形 1: generic family（Compose FontFamily 定义的类别名，非具体字体名）
+    // 直接映射为系统对应风格字体并保留 weight/style，避免按字体名查找与业务动态注册的无效调用
     if (fontFamily.length) {
-        UIFont *font = nil;
-        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
+        NSString *lowercaseFamily = fontFamily.lowercaseString;
+        if ([lowercaseFamily isEqualToString:@"serif"] || [lowercaseFamily isEqualToString:@"monospace"]) {
+            UIFont *genericFont = [self p_systemDesignFontWithGenericFamily:lowercaseFamily
+                                                                   fontSize:fontSize
+                                                                 fontWeight:fontWeight
+                                                                     italic:isItalic];
+            if (genericFont) {
+                return genericFont;
+            }
+            fontFamily = nil; // iOS 13 以下无对应 Design，回落系统字体
+        } else if ([lowercaseFamily isEqualToString:@"cursive"]) {
+            // iOS 无手写 Design；映射系统内置手写字体（Android 端 cursive 同样解析为系统手写体）
+            // 手写体本身倾斜，不再叠加 fontStyle；无汉字字形，中文由系统逐字回落，与 Android 行为一致
+            NSString *scriptName = fontWeight >= UIFontWeightBold ? @"SnellRoundhand-Bold" : @"SnellRoundhand";
+            UIFont *scriptFont = [UIFont fontWithName:scriptName size:fontSize];
+            if (scriptFont) {
+                return scriptFont;
+            }
+            fontFamily = nil; // 未找到时回落系统字体
+        } else if ([lowercaseFamily isEqualToString:@"sans-serif"] ||
+                   [lowercaseFamily isEqualToString:@"system-ui"]) {
+            fontFamily = nil; // 无独立字形对应，回落系统字体
+        }
+    }
+
+    if (fontFamily.length) {
+        // 情形 2: 静态注册（info.plist）
+        UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
+        if (font) {
+            return font;
+        }
+        // 情形 3: 动态注册字体后再按 fontFamily 获取
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
+        }
+        
+        // 情形 4: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:isItalic:)]) {
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight isItalic:isItalic];
+        }
+        if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
         }
         if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
         }
-        if (font == nil) {
-            font = [UIFont fontWithName:fontFamily size:fontSize];
-        }
         if (font) {
             return font;
         }
     }
-    
-    if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
-        return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
+
+    // 情形 5.1: 带 weight/style 的系统字体
+    if (isItalic) {
+        return [self italicFontWithSize:fontSize bold:(fontWeight >= UIFontWeightBold) itatic:YES weight:fontWeight];
     }
-    
+    // 情形 5.2: 保留 weight 的系统字体
     return [UIFont systemFontOfSize:fontSize weight:fontWeight];
+}
+
+/// serif / monospace 映射为 iOS 13+ 系统 Design 字体（New York / SF Mono）；
+/// 其余 generic family 或低版本系统返回 nil，由调用方回落到系统字体
++ (nullable UIFont *)p_systemDesignFontWithGenericFamily:(NSString *)genericFamily
+                                               fontSize:(CGFloat)fontSize
+                                             fontWeight:(UIFontWeight)fontWeight
+                                                 italic:(BOOL)italic {
+    if (@available(iOS 13.0, *)) {
+        UIFontDescriptorSystemDesign design = nil;
+        if ([genericFamily isEqualToString:@"serif"]) {
+            design = UIFontDescriptorSystemDesignSerif;
+        } else if ([genericFamily isEqualToString:@"monospace"]) {
+            design = UIFontDescriptorSystemDesignMonospaced;
+        }
+        if (!design) {
+            return nil;
+        }
+        UIFontDescriptor *descriptor = [[UIFont systemFontOfSize:fontSize weight:fontWeight].fontDescriptor fontDescriptorWithDesign:design];
+        if (descriptor && italic) {
+            descriptor = [descriptor fontDescriptorWithSymbolicTraits:descriptor.symbolicTraits | UIFontDescriptorTraitItalic] ?: descriptor;
+        }
+        return descriptor ? [UIFont fontWithDescriptor:descriptor size:fontSize] : nil;
+    }
+    return nil;
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize

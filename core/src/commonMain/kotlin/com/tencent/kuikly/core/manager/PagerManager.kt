@@ -38,6 +38,19 @@ object PagerManager {
         return pagerMap[pagerId] ?: throw PagerNotFoundException("pager not found: $pagerId")
     }
 
+    /**
+     * 获取已注册的 Page，未注册时返回 null。
+     *
+     * 与 [getPager] 的区别是不抛异常，供页面上下文之外需要容忍缺失的调用方使用，
+     * 例如不经由 Page 的纯逻辑计算与单元测试。
+     *
+     * @param pagerId Page 标识
+     * @return 已注册的 [IPager]，未注册时为 null
+     */
+    fun getPagerOrNull(pagerId: String): IPager? {
+        return pagerMap[pagerId]
+    }
+
     fun getPagerEventTrace(pagerId: String) : PageEventTrace? {
         try {
             return getPager(pagerId).getPageTrace()?.pageEventTrace
@@ -52,6 +65,17 @@ object PagerManager {
     }
     fun getCurrentPager(): IPager {
         return pagerMap[BridgeManager.currentPageId] ?: throw PagerNotFoundException("pager not found: ${BridgeManager.currentPageId}")
+    }
+
+    /**
+     * 获取当前 Page，没有当前 Page 时返回 null。
+     *
+     * 与 [getCurrentPager] 的区别是不抛异常，供页面上下文之外需要容忍缺失的调用方使用。
+     *
+     * @return 当前的 [IPager]，不存在时为 null
+     */
+    fun getCurrentPagerOrNull(): IPager? {
+        return pagerMap[BridgeManager.currentPageId]
     }
 
     internal fun getReactiveObserver(pagerId: String): ReactiveObserver? = reactiveObserverMap[pagerId]

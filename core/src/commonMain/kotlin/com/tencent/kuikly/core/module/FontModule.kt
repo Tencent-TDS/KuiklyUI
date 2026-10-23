@@ -45,7 +45,9 @@ class FontModule : Module() {
         const val SCALE_FONT_SIZE_METHOD = "scaleFontSize"
 
         fun scaleFontSize(fontSize: Float, scaleFontSizeEnable: Boolean? = null): Float {
-            val pager = PagerManager.getCurrentPager()
+            // 页面上下文之外没有当前 Page，既读不到页面级缩放配置，也不存在端侧缩放，
+            // 此时字号保持原值。
+            val pager = PagerManager.getCurrentPagerOrNull() ?: return fontSize
             var enable = pager.scaleFontSizeEnable()
             if (scaleFontSizeEnable != null) {
                 enable = scaleFontSizeEnable

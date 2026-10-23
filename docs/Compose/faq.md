@@ -260,3 +260,28 @@ class MyComposePage : ComposeContainer() {
 
 - 共存场景务必设置 `enableConsumeSnapshot = false`（解决 ANR / 官方状态丢失，与本节 crash 互补）
 - 尽量减少主线程官方 Compose 动画与 Kuikly 页高频同帧更新的叠加；长期可关注 Kuikly「双 Compose 共存模式」演进
+
+---
+
+## 4. 【Android】调整系统「字体大小 / 显示大小」后，Compose 页面的字号与布局由谁控制
+
+**关键词：** 字体大小、字号、fontScale、显示大小、density、不跟随系统、统一设计宽度、IKRFontAdapter、getDisplayMetrics、useHostDisplayMetrics、scaleFontSizeEnable
+
+### 问题描述
+
+在系统设置里调整「字体大小」或「显示大小」后，Kuikly Compose 页面的文字或布局跟着变了（或反过来：希望跟着变却没变），不清楚 Compose 页面是否需要单独适配。
+
+### 原因分析
+
+Compose 的文本最终由**共享渲染层**渲染，取字号时统一走 `spToPxF()` → `getDisplayMetrics(useHostDisplayMetrics)`，取值来源是 `IKRFontAdapter.getDisplayMetrics`；`ComposeContainer` 的 `Density` 也由 `pagerDensity()`（即 FontAdapter 返回的 `DisplayMetrics.density`）构造。
+
+所以控制权不在 `compose/` 模块，而在 **FontAdapter 与 Pager / Delegate** 这一层。在 `compose/` 里搜不到 `getDisplayMetrics` / `useHostDisplayMetrics` / `IKRFontAdapter` 是正常的，并不代表这套开关没有接入 Compose。
+
+### 解决方案
+
+按 [统一设计尺寸与字号缩放最佳实践](../DevGuide/font-size-and-display-scale.md) 接入即可，Compose 与 DSL 的配置方式完全相同：
+
+1. **统一设计宽度（不跟随系统「显示大小」）**：`Delegate.useHostDisplayMetrics()` 返回 `true`，且 `IKRFontAdapter.getDisplayMetrics` 返回按设计基准计算的 `DisplayMetrics`
+2. **字号不跟随系统「字体大小」**：`Pager.scaleFontSizeEnable()` 返回 `true`，且 `IKRFontAdapter.scaleFontSize` 返回目标字号
+
+> 注意 `ComposeContainer` 需要像普通 Pager 一样重写 `scaleFontSizeEnable()`；漏掉它，`scaleFontSize` 不会被调用。

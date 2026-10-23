@@ -125,6 +125,54 @@ fontSizeScaleFollowSystem(): boolean {
 
 ---
 
+## 三、Kuikly Compose 的适用性
+
+上述两套机制作用在 **Pager / Delegate** 这一层，与页面使用哪种 UI 写法无关。Kuikly Compose 页面同样适用，**不需要在 `compose/` 模块侧写任何适配代码**。
+
+### 为什么 Compose 页面会自动生效
+
+Compose 的文本最终交给**共享渲染层**渲染，而不是由 Compose 自己绘制：
+
+| Compose 组件 | 实际渲染节点 |
+|--------------|--------------|
+| `Text` / `BasicText` | `KRRichTextShadow`、`KRRichTextView` |
+| `BasicTextField` / `TextArea` | `KRTextFieldView` |
+
+这些节点取字号时统一走 `spToPxF()` → `getDisplayMetrics(useHostDisplayMetrics)`，也就是 `IKRFontAdapter.getDisplayMetrics` 返回的那份 `DisplayMetrics`。
+
+布局侧同理：`ComposeContainer` 的 `Density` 由 `pagerDensity()`（即 `pageData.density`）构造，而这个值正是 FontAdapter 返回的 `DisplayMetrics.density`，因此「统一设计宽度」对 Compose 的 `dp` 布局同样生效。
+
+> ⚠️ 在 `compose/` 模块里搜不到 `getDisplayMetrics` / `useHostDisplayMetrics` / `IKRFontAdapter` 是正常的：Compose 经由共享渲染层接入，无需自己引用这些符号。
+
+### 实测对照（Android，density 2.625）
+
+字号（16sp → px）：
+
+| 配置 | Compose | DSL |
+|------|---------|-----|
+| 不接 adapter，系统 fontScale = 2.0 | 73.5 | 73.5 |
+| 接入 adapter，系统 fontScale = 2.0 | 42.0 | 42.0 |
+| 接入 adapter，系统 fontScale = 1.0 | 42.0 | 42.0 |
+
+布局（100dp 色块的物理像素，系统 density 用 `adb shell wm density` 切换）：
+
+| 配置 | Compose | DSL |
+|------|---------|-----|
+| 接入 adapter，density = 2.625 | 200 × 200 | 200 × 200 |
+| 接入 adapter，density = 3.5 | 200 × 200 | 200 × 200 |
+| 不接 adapter，density = 3.5 | 350 × 350 | 350 × 350 |
+
+两种场景下 Compose 与 DSL 的数值均完全一致：接入 adapter 后不再跟随系统设置，关闭后同步跟随。
+
+### Compose 页面要做的配置
+
+与 DSL 页面完全相同：
+
+1. **统一设计宽度**：`Delegate.useHostDisplayMetrics()` 返回 `true`，并在 `IKRFontAdapter.getDisplayMetrics` 中返回按设计基准计算的 `DisplayMetrics`
+2. **字号不跟随系统**：`Pager.scaleFontSizeEnable()` 返回 `true`，并在 `IKRFontAdapter.scaleFontSize` 中返回目标字号（不跟随则原样返回）
+
+---
+
 ## 注意事项
 
 - **两条能力独立**：只想统一布局尺寸就只做「统一设计宽度」；只想锁字号就只做「字号不跟随系统」；可同时启用。

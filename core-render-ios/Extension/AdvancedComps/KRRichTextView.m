@@ -170,6 +170,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 }
 
 - (NSInteger)kr_findSpanIndexWithLocation:(CGPoint)location {
+    // CoreText 测量修复：渲染树惰性构建（主线程），点击/长按定位前确保存在
+    if (!self.attributedText.hr_textRender) {
+        [NSAttributedString kr_ensureTextRenderForAttributedString:self.attributedText];
+    }
     NSInteger charIndex = [self.attributedText.hr_textRender characterIndexForPoint:location];
     NSInteger textLength = (NSInteger)self.attributedText.length;
     for (NSInteger probe = charIndex; probe >= 0 && probe > charIndex - 2; probe--) {
@@ -610,6 +614,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     if (!_mAttributedString) { // 文本还未排版，调用无效
         return @"";
     }
+    // CoreText 测量修复：渲染树可能尚未构建（主线程惰性），span 定位前确保存在
+    if (!_mAttributedString.hr_textRender) {
+        [NSAttributedString kr_ensureTextRenderForAttributedString:_mAttributedString];
+    }
     NSInteger spanIndex = [params intValue];
     if (spanIndex < _spans.count ) {
         KRRichTextAttachment *attachment = _spans[spanIndex][@"attachment"];
@@ -643,7 +651,8 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 }
 
 - (NSString *)isLineBreakMargin {
-    return _mAttributedString.hr_textRender.isBreakLine ? @"1" : @"0";
+    // CoreText 测量修复：isBreakLine 权威来源改为测量元数据（textRender 惰性构建时不再重算）
+    return [_mAttributedString.hr_measureMeta[@"isBreakLine"] boolValue] ? @"1" : @"0";
 }
 
 

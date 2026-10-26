@@ -35,7 +35,7 @@ object PagerManager {
     private val reactiveObserverMap = fastHashMapOf<String, ReactiveObserver>()
 
     fun getPager(pagerId: String): IPager {
-        return pagerMap[pagerId] ?: throw PagerNotFoundException("pager not found: $pagerId")
+        return getPagerOrNull(pagerId) ?: throw PagerNotFoundException("pager not found: $pagerId")
     }
 
     /**
@@ -64,7 +64,7 @@ object PagerManager {
         return pagerNameMap.containsKey(pageName.lowercase())
     }
     fun getCurrentPager(): IPager {
-        return pagerMap[BridgeManager.currentPageId] ?: throw PagerNotFoundException("pager not found: ${BridgeManager.currentPageId}")
+        return getCurrentPagerOrNull() ?: throw PagerNotFoundException("pager not found: ${BridgeManager.currentPageId}")
     }
 
     /**

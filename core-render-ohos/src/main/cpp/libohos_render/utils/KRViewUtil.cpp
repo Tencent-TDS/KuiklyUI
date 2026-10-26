@@ -945,6 +945,13 @@ void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, floa
 }
 
 void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_px, float height_px) {
+    // NODE_IMAGE_SOURCE_SIZE 自 API 21 引入。更低版本的属性表没有这一项，
+    // setAttribute 会返回不支持；部分镜像已经把分发加进表，但 compatible 库里的
+    // setSourceSizeWithPX 仍是空指针，调用会跳到地址 0。这里按版本直接跳过。
+    constexpr int kImageSourceSizeApiLevel = 21;
+    if (OH_GetSdkApiVersion() < kImageSourceSizeApiLevel) {
+        return;
+    }
     if (!handle) {
         return;
     }

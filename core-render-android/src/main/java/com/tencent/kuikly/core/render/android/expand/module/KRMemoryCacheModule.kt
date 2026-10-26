@@ -38,7 +38,7 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
     private val cacheMap = ConcurrentHashMap<String, Any>()
 
     override fun onDestroy() {
-        // 不能 recycle：缓存的 Drawable 可能正被 KRImageView 显示，或归属宿主图片库缓存
+        // 只 clear() 解除引用，不得对 cacheMap 中的 Bitmap 做 recycle：Drawable 可能仍被视图显示，Bitmap 也可能属于宿主图片库缓存
         cacheMap.clear()
     }
 

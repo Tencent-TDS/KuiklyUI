@@ -3,7 +3,7 @@
 ## 简介
 Kuikly 是基于Kotlin Multiplatform的UI与逻辑全面跨端综合解决方案，由腾讯大前端领域Oteam（公司级）推出，旨在提供一套一码多端、极致易用、动态灵活的全平台高性能开发框架。
 
-**[主页](https://framework.tds.qq.com/)**
+**[主页](https://kuikly.tds.qq.com/home)**
 
 **[github](https://github.com/Tencent-TDS/KuiklyUI)**
 

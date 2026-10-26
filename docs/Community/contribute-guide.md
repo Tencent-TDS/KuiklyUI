@@ -6,8 +6,8 @@
 
 | | 入口 | 说明 |
 | --- | --- | --- |
-| 🧩 | **[组件市场](https://kuikly.tds.qq.com/third-party?tab=component)** | 浏览和发现社区共享组件 |
-| 📝 | **[社区分享](https://kuikly.tds.qq.com/third-party?tab=artical)** | 技术文章、教程与实践经验 |
+| 🧩 | **[组件市场](https://kuikly.tds.qq.com/home/components)** | 浏览和发现社区共享组件 |
+| 📝 | **[社区分享](https://kuikly.tds.qq.com/home/blog)** | 技术文章、教程与实践经验 |
 | 💬 | **[Q&A 问答](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/q-a)** | 使用疑问交流与解答 |
 | 🌐 | **[GitHub 仓库](https://github.com/Tencent-TDS/KuiklyUI)** | 源码、Issue 与 PR |
 

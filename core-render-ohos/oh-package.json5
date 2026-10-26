@@ -9,7 +9,7 @@
   },
   "license": "KuiklyUI",
   "repository": "https://github.com/Tencent-TDS/KuiklyUI",
-  "homepage": "https://framework.tds.qq.com/",
+  "homepage": "https://kuikly.tds.qq.com/home",
   "keywords": ["kuikly", "cross-platform"],
   "dependencies": {
     "libkuikly.so": "file:./src/main/cpp/types"

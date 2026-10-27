@@ -21,6 +21,7 @@
 #include <exception>
 #include <future>
 #include <memory>
+#include "libohos_render/api/include/Kuikly/KuiklyExport.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
@@ -289,7 +290,7 @@ EXTERN_C_START
  * 仅应在初始化 kuikly 前调用一次（且只调用一次），不要多次调用或在运行期并发设置，
  * 否则存在数据竞争风险。
  */
-void KRSetSyncMainTaskWarnTimeout(int ms) {
+KUIKLY_EXPORT void KRSetSyncMainTaskWarnTimeout(int ms) {
     // 负数 / 0 视为非法输入，保持默认 10s，避免把等待阈值直接打到 0 导致
     // 任何一次主线程轻微抖动都被判为死锁而触发 assert。
     if (ms > 0) {

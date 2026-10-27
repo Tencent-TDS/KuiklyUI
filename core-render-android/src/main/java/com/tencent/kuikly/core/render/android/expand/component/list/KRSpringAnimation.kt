@@ -27,7 +27,7 @@ internal class KRSpringAnimation(
 ): KRScrollAnimation() {
     private var currentValue = startValue
     private var currentVelocity = velocity
-    private var lastTime = 0L
+    private var lastTimeNanos = 0L
     private val mass = 1f
     // c = 2 * m * sqrt(k/m) * zeta = 2 * sqrt(m*k) * zeta
     private val dampingCoefficient = 2f * kotlin.math.sqrt((mass * stiffness).toDouble()).toFloat() * dampingRatio
@@ -37,13 +37,14 @@ internal class KRSpringAnimation(
         repeatCount = ValueAnimator.INFINITE
         interpolator = LinearInterpolator()
         addUpdateListener {
-            val currentTime = System.currentTimeMillis()
-            if (lastTime == 0L) {
-                lastTime = currentTime
+            // 对齐鸿蒙 SpringNowUs()：使用单调时钟，避免墙钟受系统时间调整影响导致 dt 跳变
+            val currentTimeNanos = System.nanoTime()
+            if (lastTimeNanos == 0L) {
+                lastTimeNanos = currentTimeNanos
                 return@addUpdateListener
             }
-            var dt = (currentTime - lastTime) / 1000f
-            lastTime = currentTime
+            var dt = (currentTimeNanos - lastTimeNanos) / 1_000_000_000f
+            lastTimeNanos = currentTimeNanos
 
             // Cap dt to avoid instability in case of long pauses (e.g. backgrounding)
             if (dt > 0.064f) dt = 0.064f
@@ -83,7 +84,7 @@ internal class KRSpringAnimation(
     override var onEnd: () -> Unit = {}
 
     override fun start() {
-        lastTime = 0L
+        lastTimeNanos = 0L
         animator.start()
     }
 

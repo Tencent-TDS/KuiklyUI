@@ -1046,6 +1046,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         val params = value ?: return
+        // 对齐鸿蒙：设置新 offset 前无条件取消进行中的滚动动画
+        scrollAnimationManager.cancel()
         val isVertical = rvLayoutManager.canScrollVertically()
         val contentOffsetSplits = params.split(KRCssConst.BLANK_SEPARATOR)
         var offsetX = kuiklyRenderContext.toPxI(contentOffsetSplits[0].toFloat())
@@ -1136,13 +1138,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 if (animationDuration > 0) {
                     when (animationCurve) {
                         0 -> {
-                            // Spring 动画
-                            if (animationDamping == 1f) {
-                                // 无需弹簧效果时使用默认方案，目前startSpringScroll会存在快速滑动无法准确停靠问题
-                                // 待后续优化后移除这段代码
-                                smoothScrollBy(dx, dy)
-                            } else {
+                            // Spring 动画：对齐鸿蒙，damping >= 1.0 才走弹簧
+                            if (animationDamping >= 1.0f) {
                                 startSpringScroll(dx, dy, animationDuration, animationDamping, animationVelocity, isVertical)
+                            } else {
+                                smoothScrollBy(dx, dy)
                             }
                         }
                         1 -> {

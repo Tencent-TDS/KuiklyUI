@@ -1,6 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
 import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRListConst
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.ktx.hrAnimation
@@ -61,7 +62,9 @@ class KRHoverView : IKuiklyRenderViewExport {
         while (node != null) {
             val style = kuiklyWindow.getComputedStyle(node)
             val overflowY = style?.overflowY ?: ""
-            val isScrollableY = (overflowY == "auto" || overflowY == "scroll") && node.scrollHeight > node.clientHeight
+            // A Hover may attach before its Kuikly list overflows.
+            val isScrollableY = (overflowY == "auto" || overflowY == "scroll") &&
+                (node.classList.contains(KRListConst.IS_LIST) || node.scrollHeight > node.clientHeight)
             if (isScrollableY) {
                 return node
             }

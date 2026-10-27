@@ -16,6 +16,8 @@
 package com.tencent.kuikly.core.render.android.core
 
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.util.SizeF
 import android.util.SparseArray
 import android.view.View
@@ -171,7 +173,6 @@ class KuiklyRenderCore(
     override fun destroy() {
         val destroyTracer = KuiklyRenderTracer("KuiklyRenderCore.destroy")
         renderLayerHandler?.willDealloc()
-        renderLayerHandler?.onDestroy()
         performOnContextQueue {
             val destroyCallKotlinTracer = KuiklyRenderTracer("KuiklyRenderCore.destroy.performOnContextQueue")
             contextHandler?.call(
@@ -182,6 +183,9 @@ class KuiklyRenderCore(
             )
             contextHandler?.destroy()
             destroyCallKotlinTracer.end()
+            Handler(Looper.getMainLooper()).post {
+                renderLayerHandler?.onDestroy()
+            }
         }
         uiScheduler?.destroy()
         destroyTracer.end()

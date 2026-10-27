@@ -53,6 +53,10 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
 /** attr is flingEnable */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(flingEnable);
+/** attr is hideTopScrollEdgeEffect (iOS 26+) */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(hideTopScrollEdgeEffect);
+/** attr is hideBottomScrollEdgeEffect (iOS 26+) */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(hideBottomScrollEdgeEffect);
 /** attr nestedScroll */
 @property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
@@ -537,6 +541,28 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         _css_showScrollerIndicator = css_showScrollerIndicator;
         self.showsVerticalScrollIndicator = [css_showScrollerIndicator boolValue];
         self.showsHorizontalScrollIndicator = [css_showScrollerIndicator boolValue];
+    }
+}
+
+- (void)setCss_hideTopScrollEdgeEffect:(NSNumber *)css_hideTopScrollEdgeEffect {
+    if (self.css_hideTopScrollEdgeEffect != css_hideTopScrollEdgeEffect) {
+        _css_hideTopScrollEdgeEffect = css_hideTopScrollEdgeEffect;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
+        if (@available(iOS 26.0, *)) {
+            self.topEdgeEffect.hidden = css_hideTopScrollEdgeEffect.boolValue;
+        }
+#endif
+    }
+}
+
+- (void)setCss_hideBottomScrollEdgeEffect:(NSNumber *)css_hideBottomScrollEdgeEffect {
+    if (self.css_hideBottomScrollEdgeEffect != css_hideBottomScrollEdgeEffect) {
+        _css_hideBottomScrollEdgeEffect = css_hideBottomScrollEdgeEffect;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
+        if (@available(iOS 26.0, *)) {
+            self.bottomEdgeEffect.hidden = css_hideBottomScrollEdgeEffect.boolValue;
+        }
+#endif
     }
 }
 

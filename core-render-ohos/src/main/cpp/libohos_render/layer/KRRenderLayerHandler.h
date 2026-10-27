@@ -178,6 +178,12 @@ class KRRenderLayerHandler : public IKRRenderLayer {
     std::shared_ptr<IKRRenderViewExport> GetRenderView(ArkUI_NodeHandle handle);
 
     /**
+     * 只读遍历当前已注册的全部视图（要求在主线程调用）
+     * @param callback 每个视图的回调
+     */
+    void ForEachRenderView(const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) override;
+
+    /**
      * 将要销毁时调用
      */
     void WillDestroy() override;

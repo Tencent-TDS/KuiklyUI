@@ -104,6 +104,11 @@ extern NSString *const KRBGAttributeKey;
 @interface NSAttributedString(MIJAsync)
 @property(nullable, nonatomic, strong) KRTextRender * hr_textRender;
 @property(nonatomic, assign) CGSize hr_size;
+/// CoreText 测量修复：测量元数据（lineHeight/lines/mode/margin/isBreakLine），
+/// 渲染树主线程惰性构建时还原。键见 KRLabel.m 的 KRMasureMeta* 常量。
+@property(nullable, nonatomic, strong) NSDictionary * hr_measureMeta;
+/// 惰性构建渲染树（主线程调用），CoreText 测量后渲染前使用
++ (KRTextRender *)kr_ensureTextRenderForAttributedString:(NSAttributedString *)attString;
 @end
 
 

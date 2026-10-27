@@ -70,6 +70,12 @@ class KRBlurView(context: Context) : FrameLayout(context), IKuiklyRenderViewExpo
         true
     }
 
+    /**
+     * 页面销毁后置位。销毁时 View 可能仍挂在窗口上（不会先走 onDetachedFromWindow），
+     * preDraw 监听摘不掉，需要靠这个标志阻止后续继续刷新模糊内容。
+     */
+    private var destroyed = false
+
     init {
         setWillNotDraw(false)
     }
@@ -120,6 +126,7 @@ class KRBlurView(context: Context) : FrameLayout(context), IKuiklyRenderViewExpo
 
     override fun onDestroy() {
         super.onDestroy()
+        destroyed = true
         blur.destroy()
     }
 
@@ -163,7 +170,8 @@ class KRBlurView(context: Context) : FrameLayout(context), IKuiklyRenderViewExpo
     }
 
     private fun updateBlurBitmap() {
-        if (!initialized) {
+        // 销毁后不再刷新：避免把未模糊的底图写进 internalBitmap 后上屏
+        if (!initialized || destroyed) {
             return
         }
 

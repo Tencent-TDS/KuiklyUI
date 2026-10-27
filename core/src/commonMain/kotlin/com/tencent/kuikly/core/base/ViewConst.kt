@@ -53,7 +53,14 @@ object ViewConst {
     const val TYPE_IOS_SLIDER = "KRiOSGlassSlider"
     const val TYPE_IOS_TABBAR = "KRTabbarView"
     const val TYPE_IOS_SEGMENTED_CONTROL = "KRSegmentedControl"
-    
+    const val TYPE_IOS_UI_NAVIGATION_BAR = "KRUINavigationBar"
+    const val TYPE_IOS_UI_NAVIGATION_ITEM = "KRUIBarButtonItem"
+    const val TYPE_IOS_UI_NAVIGATION_ITEM_CONTENT = "KRUIBarButtonItemContentHost"
+    const val TYPE_IOS_UI_NAVIGATION_TITLE = "KRUINavigationBarTitleHost"
+    const val TYPE_IOS_UI_TOOLBAR = "KRUIToolbar"
+    const val TYPE_IOS_UI_TOOLBAR_ITEM = "KRUIToolbarItem"
+    const val TYPE_IOS_UI_TOOLBAR_ITEM_CONTENT = "KRUIToolbarItemContentHost"
+
     const val TYPE_PAG_VIEW = "KRPAGView"
     const val TYPE_APNG_VIEW = "KRAPNGView"
     const val TYPE_VIDEO_VIEW = "KRVideoView"

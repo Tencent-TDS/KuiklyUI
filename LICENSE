@@ -55,6 +55,19 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+Open Source Software Licensed under the MIT License:
+--------------------------------------------------------------------
+1. RapidJSON
+Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+
+A copy of the MIT License is included in this file.
+
+2. simdutf
+Copyright 2021 The simdutf authors
+
+A copy of the MIT License is included in this file.
+
+
 
 Open Source Software Licensed under the Apache License Version 2.0:
 The below software in this distribution may have been modified by Tencent ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2025 Tencent.

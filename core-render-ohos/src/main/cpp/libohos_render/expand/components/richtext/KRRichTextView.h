@@ -84,6 +84,20 @@ class KRLineInfo {
     int BackIndex() {
         return rects_.begin() == rects_.end() ? 0 : rects_.rbegin()->first;
     }
+    // First glyph offset within [begin, end), or -1 if this line has none.
+    int FirstIndexInRange(int begin, int end) const {
+        auto it = rects_.lower_bound(begin);
+        return (it == rects_.end() || it->first >= end) ? -1 : it->first;
+    }
+    // Last glyph offset within [begin, end), or -1 if this line has none.
+    int LastIndexInRange(int begin, int end) const {
+        auto it = rects_.lower_bound(end);
+        if (it == rects_.begin()) {
+            return -1;
+        }
+        --it;
+        return it->first < begin ? -1 : it->first;
+    }
 
  private:
     std::map<int, KRRect> rects_;
@@ -122,9 +136,13 @@ class KRParagraphInfo {
     std::vector<std::tuple<int, int, int>> span_offsets_;  // (spanIndex, begin, end)
 
  private:
+    // All boundaries are half-open [begin, end) in typography offsets; begin == end means "not found".
+    std::pair<int, int> GetCharacterBoundary(int offset);
+    std::pair<int, int> GetWordBoundary(int offset);
     std::pair<int, int> GetSentenceBoundary(int offset);
     std::pair<int, int> GetParagraphBoundary(int offset);
     std::pair<int, int> GetSpanBoundary(int offset);
+    std::pair<int, int> GetBoundary(int type, int offset);
 };
 
 class KRRichTextView : public IKRRenderViewExport {

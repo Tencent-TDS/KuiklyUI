@@ -33,6 +33,30 @@
 | --------------------- | ------------------------------------------------------------ | ------------- |
 | showScrollerIndicator | 是否显示滚动条，默认 `true`                                  | Boolean       |
 
+### hideTopScrollEdgeEffect / hideBottomScrollEdgeEffect <Badge text="Kuikly 2.30.0+" type="warn"/> <Badge text="仅 iOS 26.0+" type="warn"/>
+
+控制 `UIScrollView` 在滚动到内容边缘时，系统绘制的 **scroll edge effect**（边缘模糊 / 渐隐，与导航栏、工具栏下方的「磨砂」叠层相关）。对应系统 API 为 `topEdgeEffect` / `bottomEdgeEffect`。
+
+:::tip 版本与平台
+- **Kuikly 2.30.0 及以上** 提供该属性；低于该版本的 Kuikly 侧无对应 attr，请勿依赖。
+- **仅 iOS 26.0+** 生效；更低 iOS 版本、Android、鸿蒙、Web 在 2.30.0+ 上调用为 **安全 no-op**（仅下发属性，不改变滚动表现）。
+- `List`、`PageList`、`WaterfallList` 等继承 `ScrollerAttr` 的组件同样支持。
+:::
+
+| 方法 | 描述 | 类型 | 默认值 |
+| -- | -- | -- | -- |
+| hideTopScrollEdgeEffect | 是否隐藏顶部 scroll edge effect | Boolean | 未设置时保持系统默认 |
+| hideBottomScrollEdgeEffect | 是否隐藏底部 scroll edge effect | Boolean | 未设置时保持系统默认 |
+
+```kotlin
+List {
+    attr {
+        showScrollerIndicator(false)
+        hideBottomScrollEdgeEffect(true) // 例如：底栏 / 工具栏与列表底边叠层时减轻残影
+    }
+}
+```
+
 ### flexDirection
 
 指定排版方向

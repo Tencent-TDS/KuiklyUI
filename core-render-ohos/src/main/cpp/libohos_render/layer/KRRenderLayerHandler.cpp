@@ -299,6 +299,24 @@ std::shared_ptr<IKRRenderViewExport> KRRenderLayerHandler::GetRenderView(ArkUI_N
     return nullptr;
 }
 
+void KRRenderLayerHandler::ForEachRenderView(
+    const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) {
+    if (callback == nullptr) {
+        return;
+    }
+    // 先取快照再遍历，避免回调过程中新增/移除视图导致迭代器失效
+    std::vector<std::shared_ptr<IKRRenderViewExport>> views;
+    views.reserve(view_registry_.size());
+    for (const auto &pair : view_registry_) {
+        if (pair.second != nullptr) {
+            views.push_back(pair.second);
+        }
+    }
+    for (const auto &view : views) {
+        callback(view);
+    }
+}
+
 /**
  * 将要销毁时调用
  */

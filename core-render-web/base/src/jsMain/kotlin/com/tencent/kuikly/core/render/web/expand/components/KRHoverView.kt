@@ -40,8 +40,8 @@ class KRHoverView : IKuiklyRenderViewExport {
      * Set hover view's display layer
      */
     private fun setBringIndex(index: Any): Boolean {
-        // Set display layer
-        ele.style.zIndex = index.unsafeCast<Int>().toString()
+        // Start at layer 1 so bringIndex=0 paints above later list rows.
+        ele.style.zIndex = (index.unsafeCast<Int>() + 1).toString()
         return true
     }
 

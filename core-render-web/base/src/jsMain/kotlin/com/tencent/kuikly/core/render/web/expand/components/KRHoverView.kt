@@ -1,6 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
+import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.ktx.pxToFloat
@@ -18,8 +19,11 @@ class KRHoverView : IKuiklyRenderViewExport {
     // div instance
     private val hover = kuiklyDocument.createElement(ElementType.DIV)
 
-    // Component's original top value in normal flow
+    // Component's original top value in normal flow.
+    // NOTE: 0f is a VALID original top (e.g. the first hover header sits at top=0),
+    // so we must not use 0f as a "not measured yet" sentinel. Use a dedicated flag instead.
     private var initialTop = 0f
+    private var initialTopMeasured = false
     private var hoverViewMarginTop = 0f
 
     override val ele: HTMLDivElement
@@ -83,15 +87,26 @@ class KRHoverView : IKuiklyRenderViewExport {
         val parentElement = parent.unsafeCast<HTMLElement?>() ?: return
         val scrollContainer = findNearestScrollContainer(parentElement) ?: return
 
-        val updateInitialTop = {
+        // Only measure the original top while the element is in normal flow (NOT fixed),
+        // otherwise `getBoundingClientRect().top` is a viewport coordinate and adding
+        // `scrollTop` would corrupt the baseline (observed as sticky-header drift after
+        // fast wheel scroll).
+        val updateInitialTop = updateInitialTop@{
+            if (ele.style.position == "fixed") {
+                return@updateInitialTop
+            }
             initialTop = getTopRelativeToContainer(ele, scrollContainer)
+            initialTopMeasured = true
         }
 
         updateInitialTop()
 
         // Listen to scroll changes, handle hover state.
         scrollContainer.addEventListener("scroll", {
-            if (initialTop == 0f) {
+            // Re-measure only when we have never obtained a valid baseline yet.
+            // Never trust `initialTop == 0f` as "not measured", because top=0 is a
+            // legitimate position for the first hover header.
+            if (!initialTopMeasured) {
                 updateInitialTop()
             }
             val contentOffsetTop = scrollContainer.scrollTop.toFloat()
@@ -111,6 +126,16 @@ class KRHoverView : IKuiklyRenderViewExport {
             BRING_INDEX -> setBringIndex(propValue)
             else -> super.setProp(propKey, propValue)
         }
+    }
+
+    /**
+     * When the framework pushes a new frame (e.g. after data update or size change),
+     * invalidate the cached baseline so the next scroll re-measures the original top
+     * from a stable absolute layout.
+     */
+    override fun onFrameChange(frame: Frame) {
+        super.onFrameChange(frame)
+        initialTopMeasured = false
     }
 
     companion object {

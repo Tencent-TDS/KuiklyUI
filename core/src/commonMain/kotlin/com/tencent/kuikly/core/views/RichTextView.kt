@@ -197,6 +197,8 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         }
     }
 
+    override fun relayoutWhenAbsoluteWidthChanges(): Boolean = true
+
     override fun measure(
         node: FlexNode,
         width: Float,
@@ -213,6 +215,9 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         }
         if (!flexNode.styleMinWidth.isUndefined()) {
             size = widthLayoutSize(size, flexNode.styleMinWidth, height)
+        }
+        flexNode.absoluteExactContentWidth(width)?.let { exactWidth ->
+            size = Size(exactWidth, size.height)
         }
         shadow?.layoutAtWidth(size.width)?.let { textLayout ->
             val stretched = flexNode.textStretchSize(textLayout, width, height)

@@ -496,6 +496,12 @@ interface MeasureFunction {
         height: Float,
         measureOutput: MeasureOutput
     )
+
+    /**
+     * Loop G can assign an absolute node's final width after its first measure.
+     * Leaves are not laid out again, so text opts in and measures once more at that width.
+     */
+    fun relayoutWhenAbsoluteWidthChanges(): Boolean = false
 }
 
 class MeasureOutput {

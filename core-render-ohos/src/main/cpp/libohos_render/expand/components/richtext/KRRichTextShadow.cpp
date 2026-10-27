@@ -125,6 +125,7 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
     context_constraint_height_ = constraint_height;
     context_width_resolved_ = false;
+    context_resolved_width_ = -1.0f;
     if(StyledStringEnabled()){
         KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
         return sz;
@@ -136,15 +137,48 @@ KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double
     return context_measure_size_;
 }
 
+static KRAnyValue GetKRValue(const char16_t *key, const KRRenderValue::Map &map0, const KRRenderValue::Map &map1);
+
+bool KRRichTextShadow::CanReuseParagraphForContainerWidth(float width) {
+    if (context_layout_width_ == width) {
+        return true;
+    }
+    if (!context_thread_typography_ || context_layout_width_ <= 0) {
+        return false;
+    }
+    // Left-aligned glyphs stay at the start. A container that still holds the longest
+    // line, and is not wider than the width already used to break lines, does not change
+    // breaks or positions. Center, right, justify, ellipsis, indents, placeholders and
+    // post-processed content can, so those still rebuild.
+    if (context_thread_text_align_ != TEXT_ALIGN_LEFT || did_exceed_max_lines_) {
+        return false;
+    }
+    if (!placeholder_index_map_.empty() || !image_draw_records_.empty()) {
+        return false;
+    }
+    if (GetKRValue(u"headIndent", props_, props_)->toFloat() > 0) {
+        return false;
+    }
+    if (!GetKRValue(u"textPostProcessor", props_, props_)->toString().empty()) {
+        return false;
+    }
+    if (GetKRValue(u"lineBreakMargin", props_, props_)->toFloat() > 0) {
+        return false;
+    }
+    const float longest = static_cast<float>(context_measure_size_.width);
+    if (width + 0.05f < longest || width > context_layout_width_) {
+        return false;
+    }
+    return true;
+}
+
 KRAnyValue KRRichTextShadow::LayoutAtWidth(float width) {
     if (!std::isfinite(width) || width <= 0 || StyledStringEnabled() || !context_thread_typography_) {
         return KRRenderValue::Make(u"");
     }
-    // Both widths originate as Kotlin Floats. Compare that same representation rather
-    // than longestLine (content width) or a tolerance that could hide a line-break change.
-    const bool width_changed = context_layout_width_ != width;
-    const bool publish = width_changed || !context_width_resolved_;
-    if (width_changed) {
+    const bool reuse = CanReuseParagraphForContainerWidth(width);
+    const bool publish = !reuse || !context_width_resolved_ || context_resolved_width_ != width;
+    if (!reuse) {
         // Virtual dispatch preserves gradient text's size-dependent brush construction.
         // CalculateRenderViewSize builds a new object; never mutate a published paragraph.
         CalculateRenderViewSize(width, context_constraint_height_);
@@ -153,6 +187,7 @@ KRAnyValue KRRichTextShadow::LayoutAtWidth(float width) {
         }
     }
     context_width_resolved_ = true;
+    context_resolved_width_ = width;
     // Return the current height even when the paragraph was reused. The intrinsic
     // measurement may have a different height and must keep its own cache entry.
     std::u16string result = publish ? u"1|" : u"0|";
@@ -233,8 +268,10 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto exceeded = did_exceed_max_lines_;
     auto styled_string = StyledStringEnabled();
     auto width_resolved = context_width_resolved_;
+    auto resolved_width = context_resolved_width_;
     return [self, typography, offsetY, offsetX, measure_size, text_align,
-            text_content, span_offsets, image_records, exceeded, styled_string, width_resolved] {
+            text_content, span_offsets, image_records, exceeded, styled_string, width_resolved,
+            resolved_width] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
@@ -247,6 +284,7 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
         shadow->main_thread_did_exceed_max_lines_ = exceeded;
         shadow->main_thread_styled_string_enabled_ = styled_string;
         shadow->main_thread_width_resolved_ = width_resolved;
+        shadow->main_thread_resolved_width_ = resolved_width;
     };
 }
 
@@ -831,6 +869,7 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_measure_size_ = KRSize(0, 0);
     context_layout_width_ = -1.0f;
     context_width_resolved_ = false;
+    context_resolved_width_ = -1.0f;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====

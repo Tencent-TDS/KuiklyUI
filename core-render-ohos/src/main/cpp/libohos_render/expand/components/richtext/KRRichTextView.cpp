@@ -201,6 +201,18 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         richTextShadow->DestroyCachedTextLines();
         richTextShadow->main_thread_did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(textTypo);
     }
+#ifndef NDEBUG
+    else if (richTextShadow->MainThreadWidthResolved()) {
+        // A resolved flag only means measure finished a paragraph. Log when the frame
+        // is not the width that paragraph was accepted for. Do not Layout here: the
+        // height already returned to the parent would no longer match the glyphs.
+        const float resolvedWidth = richTextShadow->MainThreadResolvedWidth();
+        if (resolvedWidth > 0.f && std::fabs(static_cast<float>(frameWidth) - resolvedWidth) > 0.5f) {
+            KR_LOG_ERROR << "text layout width mismatch frame:" << frameWidth
+                         << " resolved:" << resolvedWidth << " shadow:" << richTextShadow;
+        }
+    }
+#endif
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

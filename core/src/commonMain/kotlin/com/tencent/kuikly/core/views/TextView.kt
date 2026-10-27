@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexLayout
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.layout.MeasureFunction
@@ -109,6 +110,8 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         }
     }
 
+    override fun relayoutWhenAbsoluteWidthChanges(): Boolean = true
+
     override fun measure(
         node: FlexNode,
         width: Float,
@@ -124,6 +127,11 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         }
         if (!flexNode.styleMinWidth.isUndefined()) {
             size = widthLayoutSize(size, flexNode.styleMinWidth, height)
+        }
+        // left/right already fixed this width. Keep it so the paragraph matches the frame
+        // Loop G writes back; shrinking to the natural width would align inside the wrong box.
+        flexNode.absoluteExactContentWidth(width)?.let { exactWidth ->
+            size = Size(exactWidth, size.height)
         }
         shadow?.layoutAtWidth(size.width)?.let { textLayout ->
             // Return the height of the final paragraph in this measure, before the
@@ -244,6 +252,26 @@ internal fun FlexNode.textStretchSize(size: Size, width: Float, height: Float): 
 
 private fun stretchTo(measured: Float, available: Float, stretch: Boolean): Float {
     return if (stretch && !available.isUndefined() && measured < available) available else measured
+}
+
+/**
+ * Width already computed from both horizontal edges and a known parent size.
+ * Undefined layout width means the parent size is not known yet; that path is
+ * measured again after Loop G assigns the final width.
+ */
+internal fun FlexNode.absoluteExactContentWidth(measureWidth: Float): Float? {
+    if (positionType != FlexPositionType.ABSOLUTE || !styleWidth.isUndefined()) {
+        return null
+    }
+    if (measureWidth.isUndefined() || !measureWidth.isFinite() || measureWidth <= 0f) {
+        return null
+    }
+    val left = stylePosition[FlexLayout.PositionType.POSITION_LEFT.ordinal]
+    val right = stylePosition[FlexLayout.PositionType.POSITION_RIGHT.ordinal]
+    if (left.isUndefined() || right.isUndefined() || layoutWidth.isUndefined()) {
+        return null
+    }
+    return measureWidth
 }
 
 open class TextAttr : Attr() {

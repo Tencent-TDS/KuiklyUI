@@ -191,6 +191,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     bool MainThreadWidthResolved() const {
         return main_thread_width_resolved_;
     }
+    // Container width the published paragraph was accepted for. Not the typography max width.
+    float MainThreadResolvedWidth() const {
+        return main_thread_resolved_width_;
+    }
     bool MainThreadStyledStringEnabled() const {
         return main_thread_styled_string_enabled_;
     }
@@ -273,6 +277,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
  private:
     void DestroyCachedTextLines();
     KRAnyValue LayoutAtWidth(float width);
+    bool CanReuseParagraphForContainerWidth(float width);
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
     // ===== Phase 3: 委托 KRCustomEmojiPixmapCache 异步预加载 =====
@@ -292,6 +297,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     // Resolved during measure by newer core bundles; older bundles retain draw-time fitting.
     bool context_width_resolved_ = false;
     bool main_thread_width_resolved_ = false;
+    // Width passed to LayoutAtWidth. May be narrower than context_layout_width_ when a
+    // left-aligned paragraph is reused instead of rebuilt.
+    float context_resolved_width_ = -1.0f;
+    float main_thread_resolved_width_ = -1.0f;
     float context_layout_width_ = -1.0f;
     double context_constraint_height_ = -1.0;
     // 持有 typography 的两个槽位：

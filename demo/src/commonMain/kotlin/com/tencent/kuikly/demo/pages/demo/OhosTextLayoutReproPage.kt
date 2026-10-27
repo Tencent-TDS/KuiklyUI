@@ -26,6 +26,8 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
  * Manual OHOS regression page: toggle width repeatedly and check glyphs, alignment,
  * and the position of the following label. minWidth exercises height changes within
  * one measure; it must not require a second Pager layout to place the label correctly.
+ * Absolute left/right samples must align to the final background, including when the
+ * parent width comes from a sibling rather than an explicit width.
  */
 @Page("OhosTextLayoutRepro")
 internal class OhosTextLayoutReproPage : BasePager() {
@@ -94,6 +96,62 @@ internal class OhosTextLayoutReproPage : BasePager() {
                         }
                     }
                     Text { attr { text("这一行应紧随正文，无重叠或旧高度空隙") } }
+                }
+                View {
+                    attr {
+                        width(if (ctx.narrow) 220f else 300f)
+                        height(72f)
+                        marginBottom(12f)
+                    }
+                    Text {
+                        attr {
+                            absolutePosition(top = 0f, left = 0f, right = 0f)
+                            text("短文本")
+                            fontSize(18f)
+                            textAlignRight()
+                            backgroundColor(Color(0xFFFFF1B8))
+                        }
+                    }
+                }
+                View {
+                    attr {
+                        width(if (ctx.narrow) 220f else 300f)
+                        height(72f)
+                        marginBottom(12f)
+                    }
+                    Text {
+                        attr {
+                            absolutePosition(top = 0f, left = 0f, right = 0f)
+                            text("短文本")
+                            fontSize(18f)
+                            textAlignCenter()
+                            backgroundColor(Color(0xFFD9F7BE))
+                        }
+                    }
+                }
+                View {
+                    // Width comes from the relative sibling after that sibling is measured.
+                    attr {
+                        alignSelfFlexStart()
+                        height(120f)
+                        marginBottom(12f)
+                    }
+                    Text {
+                        attr {
+                            text(if (ctx.narrow) "短父宽" else "相对布局这一行撑开父宽度")
+                            fontSize(18f)
+                            backgroundColor(Color(0xFFE0EFFF))
+                        }
+                    }
+                    Text {
+                        attr {
+                            absolutePosition(top = 32f, left = 0f, right = 0f)
+                            text(sample)
+                            fontSize(16f)
+                            textAlignRight()
+                            backgroundColor(Color(0xFFFFF1B8))
+                        }
+                    }
                 }
                 View {
                     attr { width(if (ctx.narrow) 180f else 280f) }

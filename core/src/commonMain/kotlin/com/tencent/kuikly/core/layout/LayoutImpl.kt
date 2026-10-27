@@ -757,6 +757,8 @@ object LayoutImpl {
         while (currentAbsoluteChild != null) {
             if (currentAbsoluteChild.isShow) {
                 var relayoutAbsoluteChild = false
+                var absoluteWidthAssigned = false
+                var absoluteHeightAssigned = false
                 // 绝对坐标的子视图在主轴上的宽度，在侧轴上的高度都不能比Padding、Border的总和小
                 for (index in 0 until 2) {
                     axis = if (index != 0) {
@@ -781,6 +783,14 @@ object LayoutImpl {
                                 currentAbsoluteChild.paddingAndBorderDimension(axis))
                         val oldDim = currentAbsoluteChild.getLayoutDimension(axis)
                         currentAbsoluteChild.setLayoutDimension(axis, dimen)
+                        if (axis == FlexDirection.ROW || axis == FlexDirection.ROW_REVERSE) {
+                            if (oldDim.isUndefined() || !oldDim.valueEquals(dimen)) {
+                                absoluteWidthAssigned = true
+                            }
+                        } else {
+                            // Both vertical edges define the height, even when the value is unchanged.
+                            absoluteHeightAssigned = true
+                        }
 
                         if (!relayoutAbsoluteChild) {
                             relayoutAbsoluteChild = currentAbsoluteChild.detectNeedRelayoutAbsoluteChild(oldDim, dimen, axis)
@@ -799,8 +809,28 @@ object LayoutImpl {
                     }
                 }
 
-                if (needLayoutAbsoluteChild && currentAbsoluteChild.childCount > 0 && relayoutAbsoluteChild) {
+                val relayoutSubtree =
+                    needLayoutAbsoluteChild && currentAbsoluteChild.childCount > 0 && relayoutAbsoluteChild
+                if (relayoutSubtree) {
                     node.relayoutAbsoluteChild(currentAbsoluteChild, layoutContext, direction, dirtyList)
+                } else if (absoluteWidthAssigned &&
+                    currentAbsoluteChild.measureFunction?.relayoutWhenAbsoluteWidthChanges() == true
+                ) {
+                    // The final width was not available at the first measure. Measure this leaf
+                    // here and keep the width just assigned; do not start another Pager layout.
+                    val resolvedWidth = currentAbsoluteChild.layoutWidth
+                    val resolvedHeight =
+                        if (absoluteHeightAssigned) currentAbsoluteChild.layoutHeight else Float.undefined
+                    currentAbsoluteChild.performMeasureFunction(
+                        parentMaxWidth,
+                        currentAbsoluteChild.paddingAndBorderDimension(resolvedRowAxis),
+                        resolvedRowAxis,
+                        layoutContext
+                    )
+                    currentAbsoluteChild.layoutWidth = resolvedWidth
+                    if (!resolvedHeight.isUndefined()) {
+                        currentAbsoluteChild.layoutHeight = resolvedHeight
+                    }
                 }
             }
             child = currentAbsoluteChild

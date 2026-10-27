@@ -158,9 +158,44 @@ typedef bool (*KRRenderViewOnResetProp)(void *arkui_handle, const char *propKey)
 
 /**
  * 设置自定义属性handler
- * @param handler
+ * @param set 属性设置回调
+ * @param reset 属性重置回调
  */
+[[deprecated("Use KRRenderViewSetExternalPropHandlerV2 instead.")]]
 KUIKLY_EXPORT void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewOnResetProp reset);
+
+/**
+ * 带页面实例信息的自定义属性handler。
+ * @param instanceId 页面实例ID
+ * @param arkui_handle view对应的ArkUI节点
+ * @param propKey 属性名称
+ * @param propValue 属性值
+ */
+typedef bool (*KRRenderViewOnSetPropV2)(uint64_t instanceId, ArkUI_NodeHandle arkui_handle,
+                                       const char *propKey, KRAnyData propValue);
+
+/**
+ * 带页面实例信息的自定义属性重置handler。
+ * @param instanceId 页面实例ID
+ * @param arkui_handle view对应的ArkUI节点
+ * @param propKey 属性名称
+ */
+typedef bool (*KRRenderViewOnResetPropV2)(uint64_t instanceId, ArkUI_NodeHandle arkui_handle,
+                                         const char *propKey);
+
+/**
+ * 设置带页面实例信息的自定义属性handler。
+ * 注册V2 handler后将不再调用V1 handler。
+ */
+KUIKLY_EXPORT void KRRenderViewSetExternalPropHandlerV2(KRRenderViewOnSetPropV2 set,
+                                                        KRRenderViewOnResetPropV2 reset);
+
+/**
+ * 根据页面实例ID和tag获取ArkUI节点。
+ * 仅允许在ArkUI主线程调用。返回的句柄由Kuikly管理，节点删除、复用或页面销毁后失效。
+ * @return 找不到页面或节点时返回nullptr
+ */
+KUIKLY_EXPORT ArkUI_NodeHandle KRRenderViewGetNodeHandle(uint64_t instanceId, int tag);
 
 /**
  * @brief 一个用于析构KRFontAdapterFontBufferForFamily返回的fontBuffer的回调函数

@@ -120,11 +120,19 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             runUpdate()
         }
 
+    /**
+     * Stable onChanged callback instance for observeReads. SnapshotStateObserver keys its
+     * internal ObservedScopeMap by callback identity (===) and its map list only grows, so
+     * passing a fresh lambda per call leaks one scope map per notification: each leaked map
+     * keeps its own stale derived-state baseline and notifies this node again on every state
+     * change, fanning one change out into N duplicate updates (observed on device as
+     * Fibonacci-growing duplicate viewUpdate calls: 1,1,2,3,5,8,13...).
+     */
+    private val onStateChanged: (KNode<T>) -> Unit = { runUpdate() }
+
     private val runUpdate: () -> Unit = {
         if (isAttached) {
-            requireOwner().snapshotObserver.observeReads(this, {
-                update()
-            }, update)
+            requireOwner().snapshotObserver.observeReads(this, onStateChanged, update)
         }
     }
 

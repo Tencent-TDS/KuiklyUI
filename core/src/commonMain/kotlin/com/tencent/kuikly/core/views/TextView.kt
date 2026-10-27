@@ -125,6 +125,12 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         if (!flexNode.styleMinWidth.isUndefined()) {
             size = widthLayoutSize(size, flexNode.styleMinWidth, height)
         }
+        shadow?.layoutAtWidth(size.width)?.let { textLayout ->
+            // Return the height of the final paragraph in this measure, before the
+            // parent places siblings. Reapply height stretching without changing width.
+            val stretched = flexNode.textStretchSize(textLayout, width, height)
+            size = Size(size.width, stretched.height)
+        }
         if (!flexNode.styleHeight.isUndefined()) {
             size = Size(size.width, flexNode.styleHeight)
         }

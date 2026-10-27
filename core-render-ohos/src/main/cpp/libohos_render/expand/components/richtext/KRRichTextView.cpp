@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <algorithm>
+#include <cmath>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_path.h>
@@ -34,6 +35,7 @@
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,10 +101,10 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
     auto textShadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow);
     // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
     // OnForegroundDraw 路径下能被绘制——因为 V2 的 StyledString 是交给 ArkUI 节点直接
-    // 渲染，SDK 当前没暴露插入图片绘制 hook 的入口。这个判定已收敛到
-    // shadow->StyledStringEnabled()（含 image span 时返 false），本处只读一个结果。
-    bool use_styled_string = textShadow && textShadow->StyledStringEnabled();
-    bool has_image_span = textShadow && textShadow->HasImageSpans();
+    // 渲染，SDK 当前没暴露插入图片绘制 hook 的入口。
+    // Read the state published with the typography, not a later context-thread measure.
+    bool use_styled_string = textShadow && textShadow->MainThreadStyledStringEnabled();
+    bool has_image_span = textShadow && !textShadow->GetImageDrawRecords().empty();
     if(use_styled_string){
         ArkUI_AttributeItem item;
         if(std::shared_ptr<KRParagraph> paragraph = std::dynamic_pointer_cast<KRRichTextShadow>(shadow)->GetParagraph()){
@@ -148,7 +150,6 @@ void KRRichTextView::DidRemoveFromParentView() {
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
     paragraph_ = nullptr;
-    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -186,26 +187,19 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         return;
     }
     double drawOffsetY = richTextShadow->DrawOffsetY();
-    OH_Drawing_TextAlign textAlign = richTextShadow->TextAlign();
-    auto textTypoSize = richTextShadow->MainMeasureSize();
     // 在容器前景上绘制额外图形，实现图形显示在子组件之上。
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    bool needReLayout = false;
-    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
-        needReLayout = true;
-    }
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
-        needReLayout = true;
-    }
-    if (needReLayout) {
+    // New core bundles finish layout before publishing the shadow. Keep width fitting
+    // only for older bundles, which cannot call layoutAtWidth during measure.
+    // Even for those bundles, alignment and longestLine are not reasons to repeat Layout.
+    if (!richTextShadow->MainThreadWidthResolved() &&
+        static_cast<float>(OH_Drawing_TypographyGetMaxWidth(textTypo) / KRConfig::GetDpi()) != frameWidth) {
         auto dpi = KRConfig::GetDpi();
         OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        last_draw_frame_width_ = frameWidth;
-        if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();
-        }
+        richTextShadow->DestroyCachedTextLines();
+        richTextShadow->main_thread_did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(textTypo);
     }
 
     if (!selection_rects_.selection_rects.empty()) {
@@ -357,7 +351,7 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
         IKRRenderViewExport::ToSetProp(prop_key, prop_value, middleManCallback);
     } else if(prop_key == kPropNameLineBreakMargin) {
         line_break_margin_ = prop_value->toFloat();
-    }else {
+    } else {
         IKRRenderViewExport::ToSetProp(prop_key, prop_value, event_callback);
     }
 }
@@ -776,8 +770,8 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     paragraph_info.width_ = frame.width;
     paragraph_info.height_ = frame.height;
 
-    paragraph_info.text_content_ = textShadow->GetTextContent();
-    paragraph_info.span_offsets_ = textShadow->span_offsets_;
+    paragraph_info.text_content_ = textShadow->MainThreadTextContent();
+    paragraph_info.span_offsets_ = textShadow->main_thread_span_offsets_;
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
         KRLineInfo line_info;

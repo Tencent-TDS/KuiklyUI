@@ -214,6 +214,10 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         if (!flexNode.styleMinWidth.isUndefined()) {
             size = widthLayoutSize(size, flexNode.styleMinWidth, height)
         }
+        shadow?.layoutAtWidth(size.width)?.let { textLayout ->
+            val stretched = flexNode.textStretchSize(textLayout, width, height)
+            size = Size(size.width, stretched.height)
+        }
         if (!flexNode.styleHeight.isUndefined()) {
             size = Size(size.width, flexNode.styleHeight)
         }

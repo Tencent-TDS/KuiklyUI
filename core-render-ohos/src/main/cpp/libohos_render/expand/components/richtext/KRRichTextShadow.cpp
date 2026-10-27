@@ -30,6 +30,7 @@
 #include <multimedia/image_framework/image/image_source_native.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 
+#include <cmath>
 #include <thread>
 #include <unordered_set>
 
@@ -109,6 +110,8 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
         return SpanRect(NewKRRenderValue(params)->toInt());
     } else if(method_name == "isLineBreakMargin"){
         return KRRenderValue::Make(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines ? u"1" : u"0");
+    } else if (method_name == "layoutAtWidth") {
+        return LayoutAtWidth(NewKRRenderValue(params)->toFloat());
     }
     return KRRenderValue::Make(nullptr);
 }
@@ -120,6 +123,8 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
  * @return
  */
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
+    context_constraint_height_ = constraint_height;
+    context_width_resolved_ = false;
     if(StyledStringEnabled()){
         KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
         return sz;
@@ -129,6 +134,30 @@ KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double
     ReleaseLastTypography();
     BuildTextTypography(constraint_width, constraint_height);
     return context_measure_size_;
+}
+
+KRAnyValue KRRichTextShadow::LayoutAtWidth(float width) {
+    if (!std::isfinite(width) || width <= 0 || StyledStringEnabled() || !context_thread_typography_) {
+        return KRRenderValue::Make(u"");
+    }
+    // Both widths originate as Kotlin Floats. Compare that same representation rather
+    // than longestLine (content width) or a tolerance that could hide a line-break change.
+    const bool width_changed = context_layout_width_ != width;
+    const bool publish = width_changed || !context_width_resolved_;
+    if (width_changed) {
+        // Virtual dispatch preserves gradient text's size-dependent brush construction.
+        // CalculateRenderViewSize builds a new object; never mutate a published paragraph.
+        CalculateRenderViewSize(width, context_constraint_height_);
+        if (!context_thread_typography_) {
+            return KRRenderValue::Make(u"");
+        }
+    }
+    context_width_resolved_ = true;
+    // Return the current height even when the paragraph was reused. The intrinsic
+    // measurement may have a different height and must keep its own cache entry.
+    std::u16string result = publish ? u"1|" : u"0|";
+    result += kuikly::util::ConvertSizeToString(context_measure_size_);
+    return KRRenderValue::Make(result);
 }
 
 KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height) {
@@ -198,13 +227,26 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto offsetX = context_thread_drawOffsetX_;
     auto measure_size = context_measure_size_;
     auto text_align = context_thread_text_align_;
-    return [self, typography, offsetY, offsetX, measure_size, text_align] {
+    auto text_content = text_content_;
+    auto span_offsets = span_offsets_;
+    auto image_records = image_draw_records_;
+    auto exceeded = did_exceed_max_lines_;
+    auto styled_string = StyledStringEnabled();
+    auto width_resolved = context_width_resolved_;
+    return [self, typography, offsetY, offsetX, measure_size, text_align,
+            text_content, span_offsets, image_records, exceeded, styled_string, width_resolved] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
         shadow->main_thread_drawOffsetX_ = offsetX;
         shadow->main_thread_text_align_ = text_align;
         shadow->main_measure_size_ = measure_size;
+        shadow->main_thread_text_content_ = text_content;
+        shadow->main_thread_span_offsets_ = span_offsets;
+        shadow->main_thread_image_draw_records_ = image_records;
+        shadow->main_thread_did_exceed_max_lines_ = exceeded;
+        shadow->main_thread_styled_string_enabled_ = styled_string;
+        shadow->main_thread_width_resolved_ = width_resolved;
     };
 }
 
@@ -745,6 +787,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
+    context_layout_width_ = static_cast<float>(constraint_width);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(typography_raw);
@@ -786,6 +829,8 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
+    context_layout_width_ = -1.0f;
+    context_width_resolved_ = false;
 }
 
 // ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====
@@ -872,10 +917,10 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
     if (main_typo_raw == nullptr) {
         return resultIndex;
     }
-    for (int index = 0; index < span_offsets_.size(); ++index) {
-        int lastSpanIndex = std::get<0>(span_offsets_[index]);
-        int lastSpanBegin = std::get<1>(span_offsets_[index]);
-        int lastSpanEnd = std::get<2>(span_offsets_[index]);
+    for (int index = 0; index < main_thread_span_offsets_.size(); ++index) {
+        int lastSpanIndex = std::get<0>(main_thread_span_offsets_[index]);
+        int lastSpanBegin = std::get<1>(main_thread_span_offsets_[index]);
+        int lastSpanEnd = std::get<2>(main_thread_span_offsets_[index]);
         OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(
             main_typo_raw, lastSpanBegin, lastSpanEnd, RECT_HEIGHT_STYLE_MAX, RECT_WIDTH_STYLE_MAX);
         int n = OH_Drawing_GetSizeOfTextBox(box);

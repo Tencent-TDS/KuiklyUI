@@ -153,6 +153,20 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Tl"
+            titleText = "Text layout"
+            subtitleText = "测量阶段按最终宽度排版：flex、包裹、minWidth、富文本和限行"
+            declarativeExampleUrl = generateJumpUrl("OhosTextLayoutRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "Tc"
+            titleText = "Compose text layout"
+            subtitleText = "Constraints 之后排版：右对齐、固定宽度、intrinsic 和限行省略"
+            declarativeExampleUrl = generateJumpUrl("OhosComposeTextLayoutRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Cr"
             titleText = "ToImage Crash Repro"
             subtitleText = "复现鸿蒙 toImage(CACHE_KEY) 延迟设置 Image src 的 crash"

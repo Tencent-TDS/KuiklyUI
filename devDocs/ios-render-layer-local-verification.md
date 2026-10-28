@@ -56,34 +56,41 @@ xcrun --sdk macosx clang -target "$TRI" -isysroot "$SDK" -o "$OUT/probe" "$OUT"/
 NSTextStorage *ts = [[NSTextStorage alloc] initWithAttributedString:as];
 KRTextRender *tr = [[KRTextRender alloc] initWithTextStorage:ts lineHeight:0];
 CGSize sz = [tr textSizeWithRenderWidth:460];
-KRLabel *label = [[KRLabel alloc] initWithFrame:CGRectMake(0, 0, 460, ceil(sz.height) + 8)];
+KRLabel *label = [[KRLabel alloc] initWithFrame:NSMakeRect(0, 0, 460, ceil(sz.height))];
 label.textRender = tr;
 label.selectedRange = NSMakeRange(4, 10);
 // …此处触发被测逻辑…
 ```
 
-AppKit 位图上下文的原点在左下，渲染前要翻转，才和 UIKit 语义下的 `drawTextInRect:` 一致：
+绘制交给 AppKit 的视图快照，不要自己造位图上下文：
 
 ```objc
-NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:W pixelsHigh:H
-    bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
-    colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
-NSGraphicsContext *ctx = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep];
-[NSGraphicsContext saveGraphicsState];
-[NSGraphicsContext setCurrentContext:ctx];
-CGContextRef cg = [ctx CGContext];
-CGContextTranslateCTM(cg, 0, H);
-CGContextScaleCTM(cg, 1, -1);
-// 先铺容器底色，再让视图绘制
-[label drawTextInRect:label.bounds];
-[NSGraphicsContext restoreGraphicsState];
+// 宿主视图只负责铺容器底色
+@interface KRProbeHostView : NSView
+@property (nonatomic, strong) NSColor *fillColor;
+@end
+@implementation KRProbeHostView
+- (void)drawRect:(NSRect)dirtyRect { [self.fillColor setFill]; NSRectFill(self.bounds); }
+@end
+
+KRProbeHostView *host = [[KRProbeHostView alloc] initWithFrame:NSMakeRect(0, 0, 460, ceil(sz.height))];
+host.fillColor = [NSColor colorWithRed:0xFF/255.0 green:0xFD/255.0 blue:0xE7/255.0 alpha:1.0];
+[host addSubview:label];
+[host layoutSubtreeIfNeeded];            // 必须先布局，否则快照是空的
+NSBitmapImageRep *rep = [host bitmapImageRepForCachingDisplayInRect:host.bounds];
+[host cacheDisplayInRect:host.bounds toBitmapImageRep:rep];
 [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
 ```
+
+`KRUILabel` 的 `isFlipped` 返回 YES，快照接口会按视图自己的翻转设置准备绘制上下文。产出的位图是 2 倍像素（Retina），断言里的坐标要按 2 折算。
+
+> 不要自己建 `NSBitmapImageRep`、手动 `CGContextTranslateCTM` + `CGContextScaleCTM` 翻转后直接调 `drawTextInRect:`。选区矩形与文字会落在不同空间里，相差约一个行高：实测高亮带占 0..21 行、文字墨迹占 17..35 行，两者几乎不重叠。快照接口没有这个问题。
 
 ## 判据
 
 - **逻辑类**：断言 + 退出码，逐条打印 `ok:` / `FAIL:`。
 - **绘制类**：按合成公式算期望色。半透明层叠在已知底色上的结果可以直接预测——例如选区色 `(33,196,94)` 以 0.4 alpha 叠在 `#FFFDE7` 上应为 `#A6E6B0`。同时比对命中像素数是否与改动前一致，用来区分「只换了颜色」和「选区范围也变了」。
+- **绘制类先断言几何，再比颜色**：文字墨迹的行范围必须落在高亮带的行范围内，高亮带的列范围要覆盖被选中的字符。只比颜色会把错位的图当成好图——错位的图颜色照样是对的。
 - **一定要留阴性对照**：把被测文件换成改动前的版本单独链接，确认探针会失败。改动提交之前用 `git show HEAD:<path>` 取旧实现；**提交之后要写 `HEAD~1`**，否则取到的是改后代码，对照静默失效。
 
 ## 覆盖不到的
@@ -96,4 +103,4 @@ CGContextScaleCTM(cg, 1, -1);
 
 ## 实例
 
-#1793 的 iOS 一侧（选区色下发时序）用此法验证：逻辑断言修复前 4 项 FAIL、修复后全通过；渲染位图的选区底色从 `KRLabel` 内置默认的 `#B2DEEE` 变为上层配置色 `#A6E6B0`，两侧选区像素数 3922 / 3983、文字笔画 991 / 991。对应 PR 见 #1845。
+#1793 的 iOS 一侧（选区色下发时序）用此法验证：逻辑断言修复前 4 项 FAIL、修复后全通过；快照渲染的高亮底色从 `KRLabel` 内置默认的 `#B7D7E9` 变为上层配置色 `#A7E2A5`，两版高亮像素数相同（10224）、文字墨迹数也相同（8894）——只换了颜色，选区范围与排版未动。对应 PR 见 #1845。

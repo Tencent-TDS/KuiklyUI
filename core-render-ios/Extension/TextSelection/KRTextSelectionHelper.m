@@ -64,6 +64,9 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
 /// Flag to track if containerView frame observer is added
 @property (nonatomic, assign) BOOL isObservingContainerFrame;
 
+/// 把当前持有的 selectionColor 下发给所有 labels。labels 为空时是空操作。
+- (void)applySelectionColorToLabels;
+
 @end
 
 @implementation KRTextSelectionHelper
@@ -114,13 +117,11 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
     self.labels = labels;
     self.containerView = containerView;
     
-    // 调用方可能先 setSelectionColor: 再 startSelectionWithLabels:（此时 self.labels 尚为空，
+    // 调用方可能先 setSelectionColor: 再 startSelectionWithLabels:（此时 labels 尚为空，
     // 颜色只存在 _selectionColor 里），因此这里把已持有的颜色补发给刚注入的 labels，
     // 否则每个 KRLabel 的 selectionColor 为 nil，绘制时会回退到内置默认色。
     if (self.selectionColor) {
-        for (KRLabel *label in self.labels) {
-            label.selectionColor = self.selectionColor;
-        }
+        [self applySelectionColorToLabels];
     }
     
     // Reset state
@@ -859,12 +860,16 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     return unionRect;
 }
 
+/// 颜色下发的唯一出口：setSelectionColor: 与 startSelectionWithLabels: 都经过这里。
+- (void)applySelectionColorToLabels {
+    for (KRLabel *label in self.labels) {
+        label.selectionColor = _selectionColor;
+    }
+}
+
 - (void)setSelectionColor:(UIColor *)color {
     _selectionColor = color;
-    // Apply to all labels
-    for (KRLabel *label in self.labels) {
-        label.selectionColor = color;
-    }
+    [self applySelectionColorToLabels];
 }
 
 - (void)setCursorColor:(UIColor *)color {

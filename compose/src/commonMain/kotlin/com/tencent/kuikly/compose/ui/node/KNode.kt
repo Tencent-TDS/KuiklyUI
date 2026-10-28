@@ -120,19 +120,9 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             runUpdate()
         }
 
-    /**
-     * Stable onChanged callback instance for observeReads. SnapshotStateObserver keys its
-     * internal ObservedScopeMap by callback identity (===) and its map list only grows, so
-     * passing a fresh lambda per call leaks one scope map per notification: each leaked map
-     * keeps its own stale derived-state baseline and notifies this node again on every state
-     * change, fanning one change out into N duplicate updates (observed on device as
-     * Fibonacci-growing duplicate viewUpdate calls: 1,1,2,3,5,8,13...).
-     */
-    private val onStateChanged: (KNode<T>) -> Unit = { runUpdate() }
-
     private val runUpdate: () -> Unit = {
         if (isAttached) {
-            requireOwner().snapshotObserver.observeReads(this, onStateChanged, update)
+            requireOwner().snapshotObserver.observeReads(this, OnStateChanged, update)
         }
     }
 
@@ -410,6 +400,20 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     internal companion object {
+
+        /**
+         * Shared onChanged callback for observeReads, intentionally capturing no node.
+         * SnapshotStateObserver keys its internal ObservedScopeMap by callback identity (===):
+         * - a fresh lambda per call leaks one map per notification, each keeping its own stale
+         *   derived-state baseline and re-notifying the node on every state change, fanning one
+         *   change out into N duplicate updates (observed on device as Fibonacci-growing
+         *   duplicate viewUpdate calls: 1,1,2,3,5,8,13...);
+         * - a per-node instance field would allocate one map per node, and every state-change
+         *   apply then walks the whole per-node map list in drainChanges.
+         * One shared instance keeps a single map for all nodes, matching the shared
+         * OwnerSnapshotObserver.onCommitAffecting* callbacks of the official pattern.
+         */
+        private val OnStateChanged: (KNode<*>) -> Unit = { it.runUpdate() }
 
         internal val ShadowLayoutConstructor: (Boolean) -> (() -> KNode<*>) = { hasShadow ->
             {

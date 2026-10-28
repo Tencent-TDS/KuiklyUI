@@ -20,6 +20,7 @@
 #include "libohos_render/expand/components/view/SuperTouchHandler.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
+#include "libohos_render/utils/KRSelectionColorUtil.h"
 #include "libohos_render/view/IKRRenderView.h"
 
 class KRViewInternalScrollViewObserver;
@@ -116,6 +117,9 @@ class KRView : public IKRRenderViewExport {
     bool stop_propagation_ = false;
 
     SelectableOption selectable_option_ = SelectableOption::ENABLE;
+
+    /// 容器下发的选区高亮色，未配置时为 kDefaultSelectionColor
+    uint32_t selection_color_ = kuikly::util::kDefaultSelectionColor;
 
     KRRenderCallback select_start_callback_ = nullptr;
     KRRenderCallback select_change_callback_ = nullptr;

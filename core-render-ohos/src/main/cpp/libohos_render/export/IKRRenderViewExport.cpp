@@ -381,6 +381,12 @@ bool IKRRenderViewExport::UpdateSelection(std::shared_ptr<IKRRenderViewExport> a
     return selected_;
 }
 
+void IKRRenderViewExport::SetSelectionColor(uint32_t color) {
+    for (const auto &subview : sub_render_views_) {
+        subview->SetSelectionColor(color);
+    }
+}
+
 std::tuple<std::vector<std::shared_ptr<IKRRenderViewExport>>, std::vector<std::shared_ptr<IKRRenderViewExport>>>
 IKRRenderViewExport::GetSelectedTextAndScrollViews() {
     std::vector<std::shared_ptr<IKRRenderViewExport>> text_views;

@@ -211,7 +211,7 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();
         OH_Drawing_Brush *backgroundBrush = OH_Drawing_BrushCreate();
-        OH_Drawing_BrushSetColor(backgroundBrush, 0x33007DFF);
+        OH_Drawing_BrushSetColor(backgroundBrush, selection_color_);
         OH_Drawing_CanvasAttachBrush(drawingHandle, backgroundBrush);
         OH_Drawing_Path *backgroundPath = OH_Drawing_PathCreate();
         for (const KRRect &rect : selection_rects_.selection_rects) {
@@ -368,6 +368,11 @@ void KRRichTextView::ClearSelection() {
     selection_rects_.selection_rects.clear();
     SetSelected(false);
     SetNeedsDisplay();
+}
+
+void KRRichTextView::SetSelectionColor(uint32_t color) {
+    selection_color_ = color;
+    IKRRenderViewExport::SetSelectionColor(color);
 }
 
 void KRRichTextView::SetSelectionAll() {

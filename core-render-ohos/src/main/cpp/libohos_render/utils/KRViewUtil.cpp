@@ -1382,14 +1382,6 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color) {
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_CARET_COLOR, &item);
 }
 
-uint32_t ClampSelectionColorAlpha(uint32_t color) {
-    uint32_t alpha = (color >> kColorAlphaShift) & kColorAlphaMask;
-    if (alpha > kSelectionColorMaxAlpha) {
-        color = (kSelectionColorMaxAlpha << kColorAlphaShift) | (color & kColorRGBMask);
-    }
-    return color;
-}
-
 void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color) {
     color = ClampSelectionColorAlpha(color);
     ArkUI_NumberValue value = {.u32 = color};

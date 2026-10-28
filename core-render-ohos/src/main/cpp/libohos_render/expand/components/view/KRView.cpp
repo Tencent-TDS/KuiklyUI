@@ -34,6 +34,7 @@ static const char *KRTextSelectionMethodGetSelection = "getSelection";
 static const char *KRTextSelectionMethodClearSelection = "clearSelection";
 static const char *KRTextSelectionMethodCreateSelectionAll = "createSelectionAll";
 static const char *kTextSelectable = "selectable";
+static const char *kTextSelectionColor = "selectionColor";
 static const char *kTextSelectStart = "selectStart";
 static const char *kTextSelectEnd = "selectEnd";
 static const char *kTextSelectChange = "selectChange";
@@ -137,6 +138,10 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectable)) {
         selectable_option_ = static_cast<SelectableOption>(prop_value->toInt());
+        didHand = true;
+    } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
+        selection_color_ = kuikly::util::ParseSelectionBackgroundColor(
+            prop_value->toString(), kuikly::util::kDefaultSelectionColor);
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectStart)) {
         select_start_callback_ = event_call_back;
@@ -282,6 +287,8 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
 }
 
 void KRView::CreateSelection(KRPoint p0, KRPoint p1, int type, bool from_user) {
+    // 色值存在容器上，选择前才下发：子视图在属性设置阶段可能尚未创建
+    IKRRenderViewExport::SetSelectionColor(selection_color_);
     UpdateSelection(shared_from_this(), p0, p1, type);
     CalculateHandleFramesAndDoUpdate(from_user);
 }
@@ -432,6 +439,9 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectable)) {
         selectable_option_ = ENABLE;
+        didHande = true;
+    } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
+        selection_color_ = kuikly::util::kDefaultSelectionColor;
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectStart)) {
         select_start_callback_ = nullptr;

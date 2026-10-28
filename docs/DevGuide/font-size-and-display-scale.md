@@ -68,6 +68,43 @@ val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
 
 这样无论真机分辨率多少，Kuikly 页面的逻辑宽度都恒为 `393`，与 iOS 按 `393` 实现的界面在尺寸与比例上一一对齐。
 
+#### 不要用 `setTo()` 复制系统 metrics
+
+若想保留系统除 density 以外的字段，容易写成下面这样，**但它在字号上不等价于上例**：
+
+```kotlin
+override fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics {
+    return DisplayMetrics().apply {
+        setTo(Resources.getSystem().displayMetrics) // ❌
+        scaledDensity = density
+    }
+}
+```
+
+`DisplayMetrics.setTo()` 会一并拷贝 `fontScaleConverter` 字段（Android 14 起的非线性字体缩放曲线），而 `TypedValue.applyDimension` 的 SP 分支优先使用它：
+
+```java
+// android.util.TypedValue
+case COMPLEX_UNIT_SP:
+    if (metrics.fontScaleConverter != null) {
+        return applyDimension(COMPLEX_UNIT_DIP,
+                metrics.fontScaleConverter.convertSpToDp(value), metrics);
+    } else {
+        return value * metrics.scaledDensity;
+    }
+```
+
+因此只要 `fontScaleConverter` 非空，覆写 `scaledDensity` 就不起作用，字号仍按系统字体缩放放大。上例采用逐个字段显式赋值，不触碰该字段，才能让 `scaledDensity` 真正生效。
+
+实测（16sp，`font_scale` 均为 1.3）：
+
+| 设备（系统） | density | 系统 metrics | `setTo()` 写法 | 显式赋值写法 |
+|---|---|---|---|---|
+| PFEM10（Android 14） | 3.0 | 60.60 px | **60.60 px** | **48.00 px** |
+| 模拟器（Android 16） | 2.625 | 53.03 px | **53.03 px** | **42.00 px** |
+
+`setTo()` 写法的输出与系统 metrics 完全相同，说明字号未被锁定；显式赋值写法则稳定等于 `16 × density`。
+
 > - 设计基准可按团队设计稿调整（如 `375`），三端务必使用同一个值。
 > - 上例以全屏宽度（`widthPixels`）为基准；若 Kuikly 容器不是全屏，应改用容器实际宽度参与计算。
 > - iOS / HarmonyOS 无 Android 这种由系统「显示大小」改变 density 的机制，按基准设计稿实现即可，无需额外对齐代码。
@@ -179,3 +216,4 @@ Compose 的文本最终交给**共享渲染层**渲染，而不是由 Compose �
 - **务必先接入字体适配器**：Android `getDisplayMetrics` / `scaleFontSize` 都属于 `IKRFontAdapter`，需先注册 `krFontAdapter`；iOS 需 `registerFontHandler:`。详见各端接入文档：[Android 接入](../QuickStart/android.md)、[iOS 接入](../QuickStart/iOS.md)、[HarmonyOS 接入](../QuickStart/harmony.md)。
 - **总开关易遗漏**：Android / iOS 即使实现了 `scaleFontSize` / `scaleFitWithFontSize:`，若 `Pager.scaleFontSizeEnable()` 仍为默认 `false`，缩放算法不会被调用。
 - **`useHostDisplayMetrics` 易遗漏**：FontAdapter 即使返回了自定义 `DisplayMetrics`，若 Delegate 的 `useHostDisplayMetrics()` 未返回 `true`，框架仍使用系统默认 metrics，统一宽度不生效。
+- **`setTo()` 会带走 `fontScaleConverter`**：用 `setTo(Resources.getSystem().displayMetrics)` 构造 metrics 时，覆写 `scaledDensity` 对字号无效，需按字段显式赋值，见「一、统一设计宽度（跨端）」中的对照实测。

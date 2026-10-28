@@ -31,6 +31,7 @@ const kPropItems = 'items';
 const kPropSelectedIndex = 'selectedIndex';
 const kPropBarInsetX = 'barInsetX';
 const kPropBarBottomOffset = 'barBottomOffset';
+const kPropContentTransparent = 'contentTransparent';
 const kEventTabChanged = 'tabChanged';
 
 const kDefaultInsetX = 16;
@@ -73,6 +74,8 @@ struct ImmersiveLightSenseTabBarInner {
   @Prop barSideMargin: number = kDefaultInsetX;
   @Prop barBottomMargin: number = kDefaultBottomOffset;
   @Prop materialEnable: boolean = false;
+  /** TabContent 底色开关：true=透明（露出页面背景/下层 Kuikly 内容），false=默认换色页 */
+  @Prop contentTransparent: boolean = false;
   /**
    * Kuikly 节点的真实尺寸（来自 sizeDidChanged）。
    * **不要用 width('100%')**：V2 转发组件的 ArkTS 根节点解析到的是全屏 wrapper，
@@ -106,7 +109,10 @@ struct ImmersiveLightSenseTabBarInner {
             }
             .width('100%')
             .height('100%')
-            .backgroundColor(kPageColors[idx % kPageColors.length])
+            // contentTransparent=true 时透明：全屏挂载场景下不透明的页底色会把
+            // 整页盖住（12017 实测淡紫色铺满、控制面板被盖点不到）
+            .backgroundColor(this.contentTransparent ?
+            Color.Transparent : kPageColors[idx % kPageColors.length])
           }
           .tabBar(new BottomTabBarStyle(
             {
@@ -122,6 +128,8 @@ struct ImmersiveLightSenseTabBarInner {
       }
       .width(this.viewWidth > 0 ? this.viewWidth : '100%')
       .height(this.viewHeight > 0 ? this.viewHeight : '100%')
+      // Tabs 容器整体背景透明（默认白底会遮挡页面背景）
+      .backgroundColor(Color.Transparent)
       // 底部页签三件套，官方示例缺一不可：
       // - barPosition(End)：bar 放到组件底部（默认 Start 是顶部）
       // - barOverlap(true)：悬浮胶囊样式需要
@@ -170,6 +178,7 @@ function createImmersiveLightSenseTabBarView(view: KuiklyRenderBaseView) {
     barSideMargin: (view as KRImmersiveLightSenseTabBarView).barInsetX,
     barBottomMargin: (view as KRImmersiveLightSenseTabBarView).barBottomOffset,
     materialEnable: (view as KRImmersiveLightSenseTabBarView).materialEnable,
+    contentTransparent: (view as KRImmersiveLightSenseTabBarView).contentTransparent,
     viewWidth: (view as KRImmersiveLightSenseTabBarView).frameWidth,
     viewHeight: (view as KRImmersiveLightSenseTabBarView).frameHeight
   });
@@ -181,6 +190,8 @@ export class KRImmersiveLightSenseTabBarView extends KuiklyRenderBaseView {
   barInsetX: number = kDefaultInsetX;
   barBottomOffset: number = kDefaultBottomOffset;
   materialEnable: boolean = false;
+  /** TabContent 底色开关（见 Inner 同名 @Prop 注释） */
+  contentTransparent: boolean = false;
   /** Kuikly 节点的实际尺寸（sizeDidChanged），用于把 ArkTS 内容钉在节点尺寸内 */
   frameWidth: number = 0;
   frameHeight: number = 0;
@@ -219,6 +230,12 @@ export class KRImmersiveLightSenseTabBarView extends KuiklyRenderBaseView {
     }
     if (propKey === kPropBarInsetX) {
       this.barInsetX = Number.parseFloat(text);
+      this.updateArkUI();
+      return true;
+    }
+    if (propKey === kPropContentTransparent) {
+      this.contentTransparent = text === 'true' || text === '1';
+      logI(`hdstabs contentTransparent -> ${this.contentTransparent}`);
       this.updateArkUI();
       return true;
     }

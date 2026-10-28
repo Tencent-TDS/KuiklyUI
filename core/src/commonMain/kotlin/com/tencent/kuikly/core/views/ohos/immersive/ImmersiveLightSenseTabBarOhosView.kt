@@ -95,12 +95,21 @@ class ImmersiveLightSenseTabBarOhosAttr : GroupAttr() {
         KEY_BAR_BOTTOM_OFFSET with offset
     }
 
+    /**
+     * TabContent 底色透明开关。全屏挂载时建议 true：HdsTabs 内置的逐页换色
+     * 底色不透明，会把整页（背景图/下层 Kuikly 内容）盖住。
+     */
+    fun contentTransparent(transparent: Boolean) {
+        KEY_CONTENT_TRANSPARENT with transparent.toString()
+    }
+
     private companion object {
         const val KEY_ITEMS = "items"
         const val KEY_SELECTED_INDEX = "selectedIndex"
         const val KEY_BAR_HEIGHT = "barHeight"
         const val KEY_BAR_INSET_X = "barInsetX"
         const val KEY_BAR_BOTTOM_OFFSET = "barBottomOffset"
+        const val KEY_CONTENT_TRANSPARENT = "contentTransparent"
     }
 }
 

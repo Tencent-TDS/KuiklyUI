@@ -127,8 +127,10 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         textDrawer?.also {
             canvas.save()
             canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
-            it.draw(canvas)
+            // 选区高亮先绘制，文字再覆盖在其上方：否则半透明高亮会与已完成抗锯齿的文字笔画二次混合，
+            // 导致选中文字发灰、对比度下降。绘制顺序与 iOS（KRLabel）和鸿蒙保持一致。
             parentTextSelector?.drawSelection(this, canvas)
+            it.draw(canvas)
             canvas.restore()
         }
     }

@@ -114,6 +114,15 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
     self.labels = labels;
     self.containerView = containerView;
     
+    // 调用方可能先 setSelectionColor: 再 startSelectionWithLabels:（此时 self.labels 尚为空，
+    // 颜色只存在 _selectionColor 里），因此这里把已持有的颜色补发给刚注入的 labels，
+    // 否则每个 KRLabel 的 selectionColor 为 nil，绘制时会回退到内置默认色。
+    if (self.selectionColor) {
+        for (KRLabel *label in self.labels) {
+            label.selectionColor = self.selectionColor;
+        }
+    }
+    
     // Reset state
     self.startLabel = nil;
     self.endLabel = nil;

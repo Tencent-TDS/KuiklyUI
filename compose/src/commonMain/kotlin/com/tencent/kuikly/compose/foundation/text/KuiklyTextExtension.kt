@@ -266,7 +266,10 @@ internal fun TextAttr.applyTextDecoration(decoration: TextDecoration?) {
  *
  * 该属性与 [applyOverflow] 共用 `lineBreakMode`，调用方先应用 overflow 再应用 softWrap，
  * 因此这里不能无条件覆盖：显式设置的 `tail` / `clip` 必须保留。
- * 仅在调用方未指定溢出模式时才写入默认值。
+ *
+ * `TEXT_OVERFLOW` 为空时的兜底是防御性的：`TextStringRichNode.updateLayoutProperties`
+ * 总是先调用 [applyOverflow]，溢出模式在到达这里之前就已写入，生产路径不会进入该分支；
+ * 仅当调用方未先应用溢出模式而直接调用本函数时才会生效。
  */
 internal fun TextAttr.applySoftWrap(softWrap: Boolean) {
     if (softWrap) {
@@ -282,6 +285,12 @@ internal fun TextAttr.applySoftWrap(softWrap: Boolean) {
     }
 }
 
+/**
+ * 写入显式溢出模式；`clip` 也必须写入，不能因属性为空而跳过。
+ *
+ * iOS 的 `KRConvertUtil.NSLineBreakMode` 与 OHOS 的 `ConvertToTextBreakMode` 都把「未设置」
+ * 兜底为 `tail`，跳过写入会让 `TextOverflow.Clip` 在这两个平台上静默变成省略号。
+ */
 internal fun TextAttr.applyOverflow(overflow: TextOverflow) {
     val mode = when (overflow) {
         TextOverflow.Clip -> "clip"

@@ -76,4 +76,23 @@ class TextSoftWrapOverflowTest {
         val attr = attrWith(TextOverflow.Clip, softWrap = true, maxLines = 1)
         assertEquals("clip", attr.getProp(TextConst.TEXT_OVERFLOW))
     }
+
+    /**
+     * `applyOverflow(Clip)` 在属性为空时必须写入 `clip`，不能依赖平台对「未设置」的兜底。
+     *
+     * iOS `KRConvertUtil.NSLineBreakMode` 与 OHOS `ConvertToTextBreakMode` 对未设置都回退
+     * `tail`，跳过写入会让 `TextOverflow.Clip` 在这两个平台上静默变成省略号。
+     * 该写入使未显式传 `overflow` 的受限行数文本在 iOS / OHOS 上由省略号变为硬截断，
+     * 与 Compose 默认语义一致，由此用例锁定。
+     */
+    @Test
+    fun clipIsWrittenExplicitlyInsteadOfLeftUnset() {
+        val attr = RichTextAttr()
+        attr.applyOverflow(TextOverflow.Clip)
+        assertEquals(
+            "clip",
+            attr.getProp(TextConst.TEXT_OVERFLOW),
+            "clip 必须显式写入，不能依赖平台对未设置的兜底",
+        )
+    }
 }

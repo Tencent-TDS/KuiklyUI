@@ -54,7 +54,9 @@ class KRForwardArkTSView : public IKRRenderViewExport {
     ArkUI_NodeHandle ark_node_ = nullptr;
     bool pixel_map_capture_running_ = false;
     int pixel_map_capture_interval_ms_ = 100;
-    int pixel_map_capture_sample_size_ = 2;
+    int pixel_map_capture_sample_size_ = 1;
+    float pixel_map_capture_output_width_px_ = 0;
+    float pixel_map_capture_output_height_px_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRFORWARDARKTSVIEW_H

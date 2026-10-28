@@ -19,6 +19,9 @@
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
 #include <algorithm>
+#include <cmath>
+
+extern int32_t OH_ArkUI_NodeUtils_GetLayoutSize(ArkUI_NodeHandle node, ArkUI_IntSize *size) __attribute__((weak));
 
 namespace {
 int CaptureIntervalMs(const KRAnyValue &params) {
@@ -41,23 +44,23 @@ int CaptureIntervalMs(const KRAnyValue &params) {
     }
 }
 
-int CaptureSampleSize(const KRAnyValue &params) {
+float CaptureDimension(const KRAnyValue &params, const char *key) {
     if (!params) {
-        return 2;
+        return 0;
     }
     const std::string value = params->toString();
-    const auto keyPosition = value.find("sampleSize");
+    const auto keyPosition = value.find(key);
     if (keyPosition == std::string::npos) {
-        return 2;
+        return 0;
     }
     const auto colonPosition = value.find(':', keyPosition);
     if (colonPosition == std::string::npos) {
-        return 2;
+        return 0;
     }
     try {
-        return std::max(1, std::stoi(value.substr(colonPosition + 1)));
+        return std::stof(value.substr(colonPosition + 1));
     } catch (...) {
-        return 2;
+        return 0;
     }
 }
 }
@@ -172,7 +175,8 @@ void KRForwardArkTSView::CallMethod(const std::string &method, const KRAnyValue 
                                     const KRRenderCallback &callback) {
     if (GetViewName() == "KRNaviMirrorCaptureView" && method == "startCapture") {
         StartPixelMapCapture(CaptureIntervalMs(params));
-        pixel_map_capture_sample_size_ = CaptureSampleSize(params);
+        pixel_map_capture_output_width_px_ = CaptureDimension(params, "outputWidthPx");
+        pixel_map_capture_output_height_px_ = CaptureDimension(params, "outputHeightPx");
         if (callback) {
             KRRenderValue::Map result;
             result["code"] = KRRenderValue::Make(0);
@@ -215,6 +219,22 @@ void KRForwardArkTSView::SchedulePixelMapCapture(int delay_ms) {
         auto forwardView = std::dynamic_pointer_cast<KRForwardArkTSView>(self);
         if (!forwardView || !forwardView->pixel_map_capture_running_) {
             return;
+        }
+
+        // Get the physical CAPI layout size. The Kuikly width/height values are
+        // logical vp/dp values and cannot be compared directly with codec pixels.
+        if (OH_ArkUI_NodeUtils_GetLayoutSize && forwardView->pixel_map_capture_output_width_px_ > 0 &&
+            forwardView->pixel_map_capture_output_height_px_ > 0) {
+            ArkUI_IntSize layoutSize = {0, 0};
+            if (OH_ArkUI_NodeUtils_GetLayoutSize(forwardView->GetNode(), &layoutSize) == 0 &&
+                layoutSize.width > 0 && layoutSize.height > 0) {
+                const float widthRatio = static_cast<float>(layoutSize.width) /
+                    forwardView->pixel_map_capture_output_width_px_;
+                const float heightRatio = static_cast<float>(layoutSize.height) /
+                    forwardView->pixel_map_capture_output_height_px_;
+                forwardView->pixel_map_capture_sample_size_ = std::max(
+                    1, static_cast<int>(std::floor(std::min(widthRatio, heightRatio))));
+            }
         }
         forwardView->CapturePixelMapOnce();
     });

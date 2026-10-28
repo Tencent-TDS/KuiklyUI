@@ -75,6 +75,19 @@ open class ImmersiveLightSenseOhosView : GroupView<ImmersiveLightSenseOhosAttr, 
 class ImmersiveLightSenseOhosAttr : GroupAttr() {
 
     /**
+     * 标题栏内容层（ContentSlot 承载层）背景色，默认完全透明。
+     * 白底会挡住页面背景、毁掉沉浸光感的折射观感（与原生 HdsNavigation 对齐）。
+     * 业务需要标题栏底色时显式设置。
+     */
+    fun contentBackgroundColor(color: Color) {
+        KEY_CONTENT_BACKGROUND_COLOR with color.toString()
+    }
+
+    private companion object {
+        const val KEY_CONTENT_BACKGROUND_COLOR = "contentBackgroundColor"
+    }
+
+    /**
      * 标题栏区域本身的沉浸光感材质（"玻璃底"）。
      *
      * 注意落点：材质**不是**设在容器节点上（容器节点不在系统规定的生效区域内），

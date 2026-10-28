@@ -13,6 +13,7 @@
  */
 
 import { KuiklyRenderBaseView } from '../base/KRBaseViewExport';
+import { HdsNavigation } from '@kit.UIDesignKit';
 import { ComponentContent, NodeContent, uiMaterial } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { KRAny, KRValue, KuiklyRenderCallback } from '../../utils/KRDataTypes';
@@ -30,6 +31,7 @@ function logI(msg: string): void {
 
 /** Kotlin 侧下发的属性键，与 Attr.StyleConst.SYSTEM_MATERIAL_OHOS 保持一致。 */
 const kPropNameSystemMaterialOhos = 'system-material-ohos';
+const kPropContentBackgroundColor = 'contentBackgroundColor';
 
 /**
  * 从属性串里取出指定键的值。
@@ -90,6 +92,9 @@ struct ImmersiveLightSenseContainer {
    * 标题栏内容：承载 Kuikly 子节点的 ContentSlot。
    * 容器级材质就设在这一层上 —— 容器自身的节点不在系统规定的生效区域内，
    * 只有标题栏内这一层才在，因此表现为"整个标题栏区域有一层玻璃底"。
+   *
+   * 高度显式用节点高度（sizeDidChanged）：stackBuilder 槽位不提供高度参数，
+   * '100%' 会塌陷（节点树里有、屏幕上不渲染）。
    */
   @Builder
   TitleBarContent() {
@@ -97,7 +102,9 @@ struct ImmersiveLightSenseContainer {
       ContentSlot(this.view!.getTitleBarContent());
     }
     .width('100%')
-    .height('100%')
+    .height(this.titleHeight > 0 ? this.titleHeight : 56)
+    // ContentSlot 承载层默认白底会挡住页面背景 —— 显式透明（可用 attr 定制）
+    .backgroundColor(this.view!.contentBackgroundColor)
     // 系统规定 systemMaterial 必须写在其他样式属性之后
     .systemMaterial(this.view!.buildMaterial())
   }
@@ -107,24 +114,32 @@ struct ImmersiveLightSenseContainer {
   }
 
   /**
-   * 根节点始终是 Navigation —— 它是普通组件，任何版本都能渲染标题栏与内容；
-   * 缺的只是 uiMaterial（设备不支持时 buildMaterial 返回 undefined，即不设材质）。
-   * 因此不需要"降级为另一个根"的分支：ArkUI 的 build() 只允许一个根节点，
-   * 而且 if/else 分支出两个根会直接编译失败。
+   * 根节点是官方 HdsNavigation —— 沉浸光感 Navigation scope 的官方组件
+   * （12018 验证过其能力面）。Kuikly 子节点经 stackBuilder（API 20+ 的
+   * 标题栏自定义 builder 槽）挂进标题栏，仍落在生效区域内。
+   * 返回键/菜单由 HdsNavigation 提供（容器版默认隐藏返回键，内容全自绘）。
    */
   build() {
-    Navigation() {
+    HdsNavigation() {
       Column() {
-      }.width('100%').height('100%')
+      }.width('100%').height('100%').backgroundColor(Color.Transparent)
     }
-    // barStyle 使用 STACK —— 官方沉浸光感文档推荐的标题栏样式
-    .title({ builder: this.TitleBarContent, height: this.titleHeight },
-      { barStyle: BarStyle.STACK })
-    .titleMode(NavigationTitleMode.Mini)
+    .mode(NavigationMode.Stack)
+    .titleBar({
+      content: {
+        stackBuilder: this.TitleBarContent
+      },
+      // 避让安全区：标题栏下移到状态栏之下（12018 实测 avoidLayoutSafeArea:false
+      // 会顶进状态栏）
+      avoidLayoutSafeArea: true,
+      enableComponentSafeArea: false
+    })
     .hideBackButton(true)
-    .hideToolBar(true)
     .width('100%')
     .height('100%')
+    // HdsNavigation 本体也显式透明：对齐官方 HdsNavigation 默认透明观感，
+    // 不挡页面背景图
+    .backgroundColor(Color.Transparent)
   }
 }
 
@@ -148,6 +163,12 @@ export class KRImmersiveLightSenseView extends KuiklyRenderBaseView {
    */
   titleBarHeight: number = 0;
 
+  /**
+   * 标题栏内容层（ContentSlot 承载层）背景色，默认完全透明。
+   * 白底会挡住页面背景、毁掉沉浸光感的折射观感（与原生 HdsNavigation 对齐）。
+   */
+  contentBackgroundColor: string = '#00000000';
+
   // 容器级材质参数，由 Kotlin 侧 immersiveMaterial() / systemMaterialOhos() 下发
   private materialEnable: boolean = false;
   private materialStyle: uiMaterial.ImmersiveStyle = uiMaterial.ImmersiveStyle.REGULAR;
@@ -163,6 +184,12 @@ export class KRImmersiveLightSenseView extends KuiklyRenderBaseView {
     if (propKey === kPropNameSystemMaterialOhos) {
       this.applyMaterialProp(propValue as string);
       this.updateArkUI();
+      return true;
+    }
+    if (propKey === kPropContentBackgroundColor) {
+      this.contentBackgroundColor = propValue as string;
+      this.updateArkUI();
+      return true;
     }
     return false;
   }

@@ -52,6 +52,13 @@ typedef void (^KuiklyRenderCallback)(id _Nullable result);
                     params:(id _Nullable)params
                   callback:(KuiklyRenderCallback _Nullable)callback;
 
+/*
+ * @brief 页面销毁前由框架统一调用，Module 需在此断开自身持有的外部强引用
+ *        （业务回调/completion、CADisplayLink、NSTimer、通知观察者、缓存与反射注册表等），
+ *        保证 Module 生命周期不超过页面，避免其反向持有链路导致 KuiklyRenderView 无法释放。
+ *        注：需要可重复调用（dealloc 前可能与其他清理路径叠加）。
+ */
+- (void)hr_pageWillDestroy;
 
 @end
 

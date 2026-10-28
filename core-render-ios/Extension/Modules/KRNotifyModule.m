@@ -91,7 +91,7 @@
     NSString * callbackId = param[CALLBACK_ID];
     NSMutableArray<KRNotifyCallbackObject *> * queue = [self callbackQueueWithEventName:eventName];
     [queue.copy enumerateObjectsUsingBlock:^(KRNotifyCallbackObject *  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        if (obj.callback_id == callbackId) {
+        if ([obj.callback_id isEqualToString:callbackId]) {
             [queue removeObject:obj];
         }
     }];
@@ -128,6 +128,12 @@
 }
 
 #pragma mark - dealloc
+
+// 页面销毁前清空回调表并注销观察者，避免页面关闭后仍被通知中心回调
+- (void)hr_pageWillDestroy {
+    [_eventCallbackMap removeAllObjects];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];

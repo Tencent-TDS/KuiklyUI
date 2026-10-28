@@ -66,6 +66,11 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
 /*
+ * @brief 页面销毁前统一清理 Module 持有的外部强引用（业务回调、计时器、观察者、缓存等）。
+ *        宿主容器（VC/Delegator）释放时主动调用，避免 Module 反向持有导致本视图无法释放。
+ */
+- (void)invalidateAllModules;
+/*
  * @brief 通过KuiklyRenderView发送事件到KuiklyKotlin侧，并显式指定是否走同步发送路径.
  * @param event 事件名
  * @param data 事件对应的参数

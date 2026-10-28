@@ -23,18 +23,23 @@ namespace util {
 namespace utf {
 namespace {
 
-// Widens well-formed UTF-16, the only shape ToUTF16 produces, by combining surrogate pairs.
+// Widens UTF-16 by combining surrogate pairs. A surrogate without a partner becomes U+FFFD,
+// mirroring NarrowToUTF16, so both directions apply one replacement rule and neither can emit an
+// ill-formed code point.
 std::u32string WidenToUTF32(const std::u16string &input) {
     std::u32string out;
     out.reserve(input.size());
     for (size_t i = 0; i < input.size(); ++i) {
-        const char16_t high = input[i];
-        if (high < 0xD800 || high > 0xDBFF || i + 1 == input.size()) {
-            out.push_back(static_cast<char32_t>(high));
-            continue;
+        const char16_t unit = input[i];
+        if (unit >= 0xD800 && unit <= 0xDBFF && i + 1 < input.size() &&
+            input[i + 1] >= 0xDC00 && input[i + 1] <= 0xDFFF) {
+            out.push_back(static_cast<char32_t>(0x10000 + ((unit - 0xD800) << 10) +
+                                                (input[++i] - 0xDC00)));
+        } else if (unit >= 0xD800 && unit <= 0xDFFF) {
+            out.push_back(U'�');
+        } else {
+            out.push_back(static_cast<char32_t>(unit));
         }
-        out.push_back(static_cast<char32_t>(0x10000 + ((high - 0xD800) << 10) +
-                                            (input[++i] - 0xDC00)));
     }
     return out;
 }

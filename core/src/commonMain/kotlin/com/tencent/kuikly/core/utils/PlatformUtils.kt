@@ -142,4 +142,35 @@ object PlatformUtils {
         return getCurrentPageData()?.hasFeature("immersive_material") ?: false
     }
 
+    /** 应用级沉浸光感材质状态（MaterialState），由系统/用户设置控制、应用只读。 */
+    object ImmersiveMaterialState {
+        /** 默认：仅 Dialog/Toast/AlphabetIndexer 默认开，其余组件需显式设置 */
+        const val DEFAULT = 0
+
+        /** 开启：Toast/Menu/Dialog 等浮层默认带材质，且材质样式优先于背景/模糊/阴影 */
+        const val ENABLE = 1
+
+        /** 关闭：任何组件的沉浸光感都不生效 */
+        const val DISABLE = 2
+    }
+
+    /**
+     * 读取应用级材质状态（鸿蒙专属）。
+     *
+     * 决定 Toast/Menu 等系统浮层是否**默认带材质**：
+     * - [ImmersiveMaterialState.ENABLE]：浮层默认带 THICK 材质，业务无需逐个设置；
+     * - [ImmersiveMaterialState.DISABLE]：所有材质不生效（业务应回退普通样式）；
+     * - [ImmersiveMaterialState.DEFAULT]：仅 Dialog/Toast 等少数浮层默认开。
+     *
+     * 该状态由系统/用户设置控制（系统设置中的沉浸光感开关），应用只读不可写；
+     * 低版本系统或非鸿蒙平台返回 [ImmersiveMaterialState.DEFAULT]。
+     */
+    fun getImmersiveMaterialState(): Int {
+        if (!isOhOs()) {
+            return ImmersiveMaterialState.DEFAULT
+        }
+        return getCurrentPageData()?.getFeatureInt("immersive_material_state")
+            ?: ImmersiveMaterialState.DEFAULT
+    }
+
 }

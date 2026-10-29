@@ -45,6 +45,8 @@ class KRView : public IKRRenderViewExport {
     void DidSetProp(const std::string &prop_key) override;
     void CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) override;
     void WillRemoveFromParentView() override;
+    void OnDestroy() override;
+    void SetEventSync(const std::string &event_name, bool sync) override;
     std::shared_ptr<SuperTouchHandler> GetSuperTouchHandler() { return super_touch_handler_; }
     int32_t GetChildCount() override;
 
@@ -55,6 +57,12 @@ class KRView : public IKRRenderViewExport {
     void StopObservingInternalScrollViews();
     void CalculateHandleFramesAndDoUpdate(bool from_user = false);
     void OnInternalScrollViewDidScroll(float offsetX, float offsetY);
+    void UpdateTouchSession(ArkUI_UIInputEvent *input_event, int32_t action);
+    void EndTouchSession();
+    void StopTouchPropagation(ArkUI_NodeEvent *event, int32_t action,
+                              const std::vector<std::weak_ptr<KRView>> &ancestors);
+    void ApplyTouchEndFromDescendant(int32_t action);
+    void ReleaseInputSessions();
     void EnsureRegisterTouchEvent();
     bool RegisterTouchDownEvent(const KRRenderCallback &event_call_back);
     bool RegisterTouchMoveEvent(const KRRenderCallback &event_call_back);
@@ -106,6 +114,11 @@ class KRView : public IKRRenderViewExport {
     KRRenderCallback touch_down_callback_ = nullptr;
     KRRenderCallback touch_move_callback_ = nullptr;
     KRRenderCallback touch_up_callback_ = nullptr;
+    // touchMove 是否以同步方式注册（由 core 在 SetEvent 时告知）。
+    bool touch_move_sync_ = false;
+    // 当前触摸是否已通知 KRInputFirstGate，以及还按着的手指数。
+    bool touch_session_active_ = false;
+    int32_t active_touch_pointers_ = 0;
 
     bool register_touch_event_ = false;
     short using_target_hit_test_mode = -1;

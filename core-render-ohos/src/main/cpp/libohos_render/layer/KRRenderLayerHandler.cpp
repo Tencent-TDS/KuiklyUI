@@ -15,6 +15,8 @@
 
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 
+#include <vector>
+
 /**
  * 初始化
  * @param rootView 渲染根容器view
@@ -327,6 +329,21 @@ void KRRenderLayerHandler::WillDestroy() {}
  */
 void KRRenderLayerHandler::OnDestroy() {
     destroying_ = true;
+    // view 的 ToDestroy 会释放连续同步事件会话，并投出暂存的帧任务。
+    // 先让 KRVsyncModule 反注册并递增 generation，这次投递才会因 generation 不匹配被丢掉。
+    std::vector<std::shared_ptr<IKRRenderModuleExport>> modules;
+    {
+        std::unique_lock lock(module_rw_mutex_);
+        modules.reserve(module_registry_.size());
+        for (const auto &entry : module_registry_) {
+            if (entry.second) {
+                modules.push_back(entry.second);
+            }
+        }
+    }
+    for (const auto &module : modules) {
+        module->WillDestroy();
+    }
     for (const auto &entry : view_registry_) {
         const std::shared_ptr<IKRRenderViewExport> &value = entry.second;
         if (value) {

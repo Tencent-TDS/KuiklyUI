@@ -20,6 +20,8 @@
 
 #include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/scheduler/KRInputFirstGate.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRStringUtil.h"
 
 namespace kuikly {
@@ -66,6 +68,10 @@ KRAnyValue KRVsyncModule::CallMethod(bool sync, const std::string &method, KRAny
     return KREmptyValue();
 }
 
+void KRVsyncModule::WillDestroy() {
+    UnRegisterVsync();
+}
+
 void KRVsyncModule::OnDestroy() {
     UnRegisterVsync();
 }
@@ -88,14 +94,17 @@ void KRVsyncModule::RegisterVsync(const KRRenderCallback &callback) {
 }
 
 void KRVsyncModule::UnRegisterVsync() {
-    std::lock_guard<std::mutex> guard(mutex_);
-    running_ = false;
-    callback_ = nullptr;
-    // 代数递增后，在途回调因 generation 不匹配被安全丢弃
-    generation_++;
-    // 释放槽侧引用；若在途回调尚未到达，其引用减法会将计数归零并完成释放
-    ReleaseRequestRef(pending_request_);
-    pending_request_ = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        running_ = false;
+        callback_ = nullptr;
+        // 代数递增后，在途回调因 generation 不匹配被安全丢弃
+        generation_++;
+        // 释放槽侧引用；若在途回调尚未到达，其引用减法会将计数归零并完成释放
+        ReleaseRequestRef(pending_request_);
+        pending_request_ = nullptr;
+    }
+    KRInputFirstGate::GetInstance().DropDeferred(this);
 }
 
 // 调用前须持有 mutex_
@@ -115,6 +124,7 @@ void KRVsyncModule::OnVsync(long long timestamp, void *data) {
     auto *context = static_cast<VsyncRequestContext *>(data);
     KRRenderCallback callback = nullptr;
     int32_t interval_nanos = 0;
+    bool tick_was_pending = false;
     // 字段读取阶段内存必然存活：槽侧引用此时至少为 1(见 VsyncRequestContext 注释)。
     std::shared_ptr<KRVsyncModule> self = context->weak_module.lock();
     const uint64_t generation = context->generation;
@@ -149,29 +159,52 @@ void KRVsyncModule::OnVsync(long long timestamp, void *data) {
             ReleaseRequestRef(context);
             return;
         }
-        // 背压：上一 tick 仍在 context 线程排队/执行时丢弃本 tick，防止堆积。
-        // 下一帧 vsync 会带来新的时间戳，慢帧消化后自动恢复。
-        if (self->tick_pending_.exchange(true)) {
-            ReleaseRequestRef(context);
-            return;
-        }
+        // 上一帧还在 context 线程排队或执行时，这一帧不再单独投递。
+        // 若上一帧是因为输入还没处理完而暂存的，则合并投递（见下方）；否则丢弃。慢帧执行完后会恢复。
+        tick_was_pending = self->tick_pending_.exchange(true);
         callback = self->callback_;
     }
-    if (callback) {
+    if (!callback) {
+        if (self && !tick_was_pending) {
+            self->tick_pending_.store(false);
+        }
+        ReleaseRequestRef(context);
+        return;
+    }
+    std::weak_ptr<KRVsyncModule> weak_self = self;
+    // 帧任务可能被暂存，真正执行时要再检查模块是否还在。反注册或销毁之后丢弃。
+    auto dispatch = [weak_self, generation, callback, interval_nanos] {
+        auto locked = weak_self.lock();
+        if (!locked) {
+            return;
+        }
+        bool drop = false;
+        {
+            std::lock_guard<std::mutex> guard(locked->mutex_);
+            drop = !locked->running_ || generation != locked->generation_;
+        }
+        if (drop) {
+            KR_LOG_INFO_WITH_TAG("KRVsyncModule") << "drop deferred frame";
+            return;
+        }
         // 注意：必须传 int32_t。KRRenderValue(int32) -> KRRenderCValue::Type::INT ->
         // Kotlin 侧 Type.INT -> value.intValue 转为 Kotlin Int；若传 int64 会变为
         // Kotlin Long，Kotlin 侧 (data as? Int) 匹配失败而回退默认帧间隔。
         callback(KRRenderValue::Make(interval_nanos));
-        // callback 内部已把帧任务投递到 context 队列；把背压复位任务排到同一
-        // FIFO 队列紧随其后，保证 tick_pending_ 在帧任务实际消费后才清除。
-        std::weak_ptr<KRVsyncModule> weak_self = self;
+        // callback 内部已经把帧任务投到 context 队列。把清除 tick_pending_ 的任务排在同一队列的后面，
+        // 保证帧任务真正执行完之后才清除。
         KRContextScheduler::ScheduleTask(0, [weak_self] {
             if (auto locked = weak_self.lock()) {
                 locked->tick_pending_.store(false);
             }
         });
-    } else if (self) {
-        self->tick_pending_.store(false);
+    };
+    auto &gate = KRInputFirstGate::GetInstance();
+    if (tick_was_pending) {
+        // 本模块上一帧被暂存且整帧没有输入：用这一帧的信息合并后投递；否则丢弃这一帧。
+        gate.MergeDeferred(self.get(), dispatch);
+    } else if (!gate.OnVsync(self.get(), timestamp, dispatch)) {
+        dispatch();
     }
     ReleaseRequestRef(context);
 }

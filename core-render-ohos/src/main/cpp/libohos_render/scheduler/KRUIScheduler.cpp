@@ -124,6 +124,7 @@ void KRUIScheduler::PerformOnMainQueueWithTask(bool sync, const std::function<vo
             },
             1);
     } else {
+        // 主线程正持有 context 任务锁执行 context 任务时，RunOnMainThread 会改到下一轮主线程循环执行。
         KRMainThread::RunOnMainThread(task);
     }
 }
@@ -153,8 +154,10 @@ void KRUIScheduler::RunMainQueueTasks(const std::vector<KRSchedulerTask> &tasks)
 }
 
 void KRUIScheduler::PerformMainThreadTaskWaitToSyncBlockIfNeed() {
-    if (m_main_thread_task_wait_to_sync_block_) {
-        m_main_thread_task_wait_to_sync_block_();
-        m_main_thread_task_wait_to_sync_block_ = nullptr;
+    // 先移出再执行。block 里的 UI 可能同步触发下一次事件，并给这个成员重新赋值。
+    auto block = std::move(m_main_thread_task_wait_to_sync_block_);
+    m_main_thread_task_wait_to_sync_block_ = nullptr;
+    if (block) {
+        block();
     }
 }

@@ -49,6 +49,22 @@ class KRMainThread {
      */
     static bool IsCurrentOnMainThread();
 
+    /**
+     * @brief 主线程持有 context 任务锁 m_taskMutex 执行队列里的 context 任务时，在这段时间内构造本对象。
+     *        期间 delay 为 0 的 RunOnMainThread 不在当前调用栈执行，改到下一轮主线程循环：
+     *        任务里的 UI 操作可能同步触发同步事件，而这把锁还没释放。
+     */
+    class RunInNextLoopScope {
+     public:
+        RunInNextLoopScope();
+        ~RunInNextLoopScope();
+        RunInNextLoopScope(const RunInNextLoopScope &) = delete;
+        RunInNextLoopScope &operator=(const RunInNextLoopScope &) = delete;
+
+     private:
+        bool previous_;
+    };
+
  private:
     KRMainThread();
 };

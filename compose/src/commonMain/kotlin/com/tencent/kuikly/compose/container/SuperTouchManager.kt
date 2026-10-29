@@ -43,10 +43,6 @@ class SuperTouchManager {
     private var layoutNode: KNode<*>? = null
     private val touchActivityOwner = Any()
 
-    private var _useSyncMove: Boolean? = null
-    private val DivEvent.useSyncMove
-        get() = _useSyncMove ?: (!getPager().pageData.isOhOs).also { _useSyncMove = it }
-
     internal fun manage(container: DivView, scene: ComposeScene, layoutNode: KNode<*>? = null) {
         this.layoutNode = layoutNode
         this.container = container
@@ -54,7 +50,8 @@ class SuperTouchManager {
         this.container.getViewAttr().superTouch(true)
         this.container.getViewEvent().run {
             setTouchDown(true)
-            setTouchMove(useSyncMove)
+            // 这次移动由谁消费，必须在回调返回前决定。
+            setTouchMove(true)
             setTouchUp(false)
             setTouchCancel(false)
             setMouseHover()
@@ -78,9 +75,7 @@ class SuperTouchManager {
             TouchActivityTracker.onTouchEnd(container.getPager().pageData, touchActivityOwner)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
-                if (useSyncMove) {
-                    container.getViewEvent().setTouchMove(true)
-                }
+                container.getViewEvent().setTouchMove(true)
             }
         }
     }
@@ -91,9 +86,7 @@ class SuperTouchManager {
             if (!it.consumed) {
                 if (result.anyMovementConsumed) {
                     container.getViewAttr().preventTouch(true)
-                    if (useSyncMove) {
-                        container.getViewEvent().setTouchMove(false)
-                    }
+                    container.getViewEvent().setTouchMove(false)
                 }
             }
         }
@@ -105,9 +98,7 @@ class SuperTouchManager {
             TouchActivityTracker.onTouchEnd(container.getPager().pageData, touchActivityOwner)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
-                if (useSyncMove) {
-                    container.getViewEvent().setTouchMove(true)
-                }
+                container.getViewEvent().setTouchMove(true)
             }
         }
     }

@@ -75,6 +75,13 @@ internal fun ScrollableState.calculateContentSize(): Int {
                 exact = previousExact
             }
         }
+        // Compose can report both directions as non-scrollable while the native
+        // content frame is still a few pixels larger than the viewport. Those pixels
+        // become a real scroll range, and the drag is reset because Compose is already
+        // at the top. Clamp to the viewport so that range does not exist.
+        if (this is LazyListState && viewportSize > 0 && !canScrollForward && !canScrollBackward) {
+            exact = viewportSize
+        }
         kuiklyInfo.realContentSize = exact
         return exact
     }

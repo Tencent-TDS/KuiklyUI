@@ -8,6 +8,7 @@ import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.ktx.setFrame
 import com.tencent.kuikly.core.render.web.ktx.splitCanvasColorDefinitions
 import com.tencent.kuikly.core.render.web.ktx.toJSONObjectSafely
@@ -23,6 +24,7 @@ import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.ROUND
 import org.w3c.dom.SQUARE
 import kotlin.math.tan
+import kotlin.math.ceil
 
 /**
  * Kuikly canvas view, corresponding to web's canvas
@@ -38,6 +40,7 @@ class KRCanvasView(
      * real canvas context instance
      */
     private var _context: CanvasRenderingContext2D? = null
+    private var pixelRatio = 1.0
 
     /**
      * get canvas context
@@ -64,9 +67,14 @@ class KRCanvasView(
                 val frame = propValue.unsafeCast<Frame>()
                 // First set canvas size
                 ele.setFrame(frame, ele.style)
-                // Then set drawing area size
-                ele.width = frame.width.toInt()
-                ele.height = frame.height.toInt()
+                // Keep layout/drawing coordinates in CSS pixels, but rasterize at display density.
+                // A 0.5px ticket border must occupy one physical pixel on a 2x display.
+                val density = kuiklyWindow.asDynamic().devicePixelRatio.unsafeCast<Double?>() ?: 1.0
+                pixelRatio = if (density.isFinite() && density > 0.0) density else 1.0
+                ele.width = ceil(frame.width * pixelRatio).toInt()
+                ele.height = ceil(frame.height * pixelRatio).toInt()
+                // Assigning width/height resets the context, so scaling never accumulates.
+                canvasContext?.scale(pixelRatio, pixelRatio)
                 // If setting size, notify that size information has changed
                 onFrameChange(frame)
                 true
@@ -308,7 +316,7 @@ class KRCanvasView(
     private fun reset() {
         // because canvasRenderingContext2D's reset method support degree too low,
         // so use clearRect to implement, clear the whole canvas
-        canvasContext?.clearRect(0.0, 0.0, ele.width.toDouble(), ele.height.toDouble())
+        canvasContext?.clearRect(0.0, 0.0, ele.width / pixelRatio, ele.height / pixelRatio)
     }
 
     /**
@@ -500,8 +508,8 @@ class KRCanvasView(
         val json = params.toJSONObjectSafely()
         val x = json.optDouble(KRViewConst.X, 0.0)
         val y = json.optDouble(KRViewConst.Y, 0.0)
-        val width = json.optDouble(KRViewConst.WIDTH, ele.width.toDouble())
-        val height = json.optDouble(KRViewConst.HEIGHT, ele.height.toDouble())
+        val width = json.optDouble(KRViewConst.WIDTH, ele.width / pixelRatio)
+        val height = json.optDouble(KRViewConst.HEIGHT, ele.height / pixelRatio)
         ctx.save()
         ctx.beginPath()
         ctx.rect(x, y, width, height)
@@ -598,7 +606,7 @@ class KRCanvasView(
         ctx.save()
         ctx.globalAlpha = alpha
         ctx.fillStyle = gradient
-        ctx.fillRect(0.0, 0.0, ele.width.toDouble(), ele.height.toDouble())
+        ctx.fillRect(0.0, 0.0, ele.width / pixelRatio, ele.height / pixelRatio)
         ctx.restore()
     }
 

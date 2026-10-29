@@ -15,7 +15,7 @@ private data class KRCallbackWrapper(
 )
 
 /**
- * Event notification module, web event notification does not support different pages, notifications between different pages need to use higher-level host capabilities
+ * Notifications are shared by live Kuikly pages in the same Web runtime (including cached SPA pages).
  */
 open class KRNotifyModule : KuiklyRenderBaseModule() {
     // Notification event Map, cache registered event callbacks
@@ -30,6 +30,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         super.onDestroy()
         // clean up when module is destroyed
         moduleInstances.remove(this)
+        toKRMap.clear()
     }
 
     /**
@@ -101,9 +102,9 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         val data = jsonObject.optString(KEY_DATA)
         // Execute callbacks if event name exists
         if (eventName != "") {
-            // 1. Notify other Kuikly pages (existing logic)
-            dispatchEvent(eventName, data)
-            // 2. Notify Web host (new feature - like iOS/Android/Ohos)
+            // Include the sender once and notify cached SPA pages before returning.
+            dispatchGlobalEventData(eventName, data)
+            // Notify the host once per post, rather than once per receiving page.
             dispatchToHost(eventName, data)
         }
     }
@@ -123,7 +124,8 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
      * Execute registered event callbacks
      */
     private fun dispatchEvent(eventName: String, data: String) {
-        toKRMap[eventName]?.forEach {
+        // Callbacks may remove listeners while handling a notification.
+        toKRMap[eventName]?.toList()?.forEach {
             it.callback.invoke(data)
         }
     }
@@ -160,8 +162,15 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
 
         // dispatch global event to all KRNotifyModule instances
         fun dispatchGlobalEvent(eventName: String, data: JSONObject) {
-            moduleInstances.forEach { module ->
-                module.dispatchEvent(eventName, data.toString())
+            dispatchGlobalEventData(eventName, data.toString())
+        }
+
+        private fun dispatchGlobalEventData(eventName: String, data: String) {
+            // A callback can create or destroy a page during dispatch.
+            moduleInstances.toList().forEach { module ->
+                if (module in moduleInstances) {
+                    module.dispatchEvent(eventName, data)
+                }
             }
         }
     }

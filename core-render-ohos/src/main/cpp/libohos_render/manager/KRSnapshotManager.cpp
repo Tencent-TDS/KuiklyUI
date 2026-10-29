@@ -34,6 +34,8 @@ using kuikly::util::NapiValue;
 
 constexpr static int TIME_TO_UPDATE_SNAPSHOT_URI_MS = 100;
 constexpr static int MAX_DELAY_DURATION_MS = 1000;
+// 快照编码缓冲上限：4 * 4096 * 4096 ≈ 64MB，覆盖常规 View 截图，避免异常尺寸下 malloc 越界/OOM。
+constexpr static size_t kMaxSnapshotBufferSize = 4 * 4096 * 4096;
 
 static void ReleaseDrawableItem(struct KRSnapshotItem *item) {
     if (item) {
@@ -116,6 +118,11 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
     ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
     struct ResultData resultData;
     NativePixelMap *nativePixelMap = OH_PixelMap_InitNativePixelMap(env, pixelMap);
+    if (nativePixelMap == nullptr) {
+        resultData.code = -1;
+        resultData.message = "failed to init native pixelmap";
+        return resultData;
+    }
     OhosPixelMapInfos info;
     OH_PixelMap_GetImageInfo(nativePixelMap, &info);
     struct ImagePacker_Opts_ opts;
@@ -123,7 +130,17 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
     opts.quality = 80;
 
     size_t size = info.width * info.height * 4;
+    if (size == 0 || size > kMaxSnapshotBufferSize) {
+        resultData.code = -1;
+        resultData.message = "invalid snapshot size";
+        return resultData;
+    }
     uint8_t *outData = reinterpret_cast<uint8_t *>(malloc(size));
+    if (outData == nullptr) {
+        resultData.code = -1;
+        resultData.message = "failed to alloc snapshot buffer";
+        return resultData;
+    }
 
     napi_value packer;
     OH_ImagePacker_Create(env, &packer);
@@ -259,6 +276,12 @@ void KRSnapshotManager::TakeSnapshot(const KRAnyValue &instance_id, const std::s
                             if (type == "dataUri") {
                                 resultData = snapshotManager->ProcessSnapshotResultWithDataType(
                                     env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                                // dataUri 分支仅使用 pixelMap，drawableDescriptorPtr 由本次调用取得，
+                                // 需显式释放，否则每次 toImage(DATA_URI) 泄漏一个 native DrawableDescriptor。
+                                if (drawableDescriptorPtr) {
+                                    OH_ArkUI_DrawableDescriptor_Dispose(drawableDescriptorPtr);
+                                    drawableDescriptorPtr = nullptr;
+                                }
                             } else if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                                 std::u16string path16 = arkTs.GetStringUTF16(path);

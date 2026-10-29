@@ -140,8 +140,10 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
         selectable_option_ = static_cast<SelectableOption>(prop_value->toInt());
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
-        selection_color_ = kuikly::util::ParseSelectionBackgroundColor(
-            prop_value->toString(), kuikly::util::kDefaultSelectionColor);
+        const kuikly::util::KRSelectionColors colors =
+            kuikly::util::ParseSelectionColors(prop_value->toString());
+        selection_color_ = colors.background;
+        selection_cursor_color_ = colors.cursor;
         // 选区可能已经激活，色值改变后立即生效，与 Android 端改 paint 即时生效对齐
         RefreshActiveSelectionColor();
         didHand = true;
@@ -289,10 +291,21 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
 }
 
 void KRView::RefreshActiveSelectionColor() {
+    ApplySelectionCursorColor();
     if (!selection_info_.visible) {
         return;
     }
     IKRRenderViewExport::SetSelectionColor(selection_color_);
+}
+
+void KRView::ApplySelectionCursorColor() {
+    for (auto &handles : selection_info_.handle_nodes) {
+        if (handles.wrapper == nullptr) {
+            continue;
+        }
+        kuikly::util::UpdateNodeBackgroundColor(handles.head, selection_cursor_color_);
+        kuikly::util::UpdateNodeBackgroundColor(handles.body, selection_cursor_color_);
+    }
 }
 
 void KRView::CreateSelection(KRPoint p0, KRPoint p1, int type, bool from_user) {
@@ -451,6 +464,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
         selection_color_ = kuikly::util::kDefaultSelectionColor;
+        selection_cursor_color_ = kuikly::util::kDefaultSelectionCursorColor;
         RefreshActiveSelectionColor();
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectStart)) {
@@ -794,7 +808,6 @@ static void ConfigureSelectionHandleNode(ArkUI_NodeHandle node) {
 void KRView::UpdateSelectionHandles() {
     constexpr int kSelectorWidth = 20;
     constexpr int kSelectorCapWidth = 12;
-    constexpr int kSelectorColor = 0xFF0000FF;
     if (selection_info_.handle_nodes[0].wrapper == nullptr) {
         auto nodeApi = kuikly::util::GetNodeApi();
         auto gesture_api = kuikly::util::GetGestureApi();
@@ -808,8 +821,6 @@ void KRView::UpdateSelectionHandles() {
             kuikly::util::UpdateNodeBorderRadius(head,
                                                  KRBorderRadiuses(kSelectorWidth / 2, kSelectorWidth / 2,
                                                                   kSelectorWidth / 2, kSelectorWidth / 2));
-            kuikly::util::UpdateNodeBackgroundColor(head, kSelectorColor);
-            kuikly::util::UpdateNodeBackgroundColor(body, kSelectorColor);
             ConfigureSelectionHandleNode(wrapper);
 
             kuikly::util::UpdateNodeVisibility(wrapper, 0);
@@ -829,6 +840,9 @@ void KRView::UpdateSelectionHandles() {
             handles->body = body;
         }
     }
+
+    // 手柄色取自 selectionColor 的 cursor 分量；每次重建后都重设，激活期间改色也能跟上
+    ApplySelectionCursorColor();
 
     KRRect wrapper_rect(selection_info_.start.x - kSelectorWidth / 2,
                         selection_info_.start.y - kSelectorCapWidth, kSelectorWidth,

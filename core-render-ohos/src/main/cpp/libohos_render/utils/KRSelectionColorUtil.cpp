@@ -22,6 +22,25 @@
 namespace kuikly {
 namespace util {
 
+namespace {
+
+/// 读取 JSON 对象里的 uint32 颜色字段。缺字段、非数字、负数、超 UINT32_MAX 与 NaN 都返回 false：
+/// double 转 uint32_t 时超出目标范围是未定义行为，NaN 参与比较也一律为假。
+bool ReadColorField(const cJSON *root, const char *key, uint32_t *out) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, key);
+    if (!cJSON_IsNumber(item)) {
+        return false;
+    }
+    const double value = item->valuedouble;
+    if (value < 0 || value > static_cast<double>(UINT32_MAX)) {
+        return false;
+    }
+    *out = static_cast<uint32_t>(value);
+    return true;
+}
+
+}  // namespace
+
 uint32_t ClampSelectionColorAlpha(uint32_t color) {
     uint32_t alpha = (color >> kColorAlphaShift) & kColorAlphaMask;
     if (alpha > kSelectionColorMaxAlpha) {
@@ -30,26 +49,25 @@ uint32_t ClampSelectionColorAlpha(uint32_t color) {
     return color;
 }
 
-uint32_t ParseSelectionBackgroundColor(const std::string &selection_color, uint32_t fallback) {
+KRSelectionColors ParseSelectionColors(const std::string &selection_color) {
+    KRSelectionColors colors;
     if (selection_color.empty()) {
-        return fallback;
+        return colors;
     }
     cJSON *root = cJSON_Parse(selection_color.c_str());
     if (root == nullptr) {
-        return fallback;
+        return colors;
     }
-    uint32_t background = fallback;
-    const cJSON *background_item = cJSON_GetObjectItemCaseSensitive(root, "background");
-    if (cJSON_IsNumber(background_item)) {
-        // 取值是 0xRRGGBB 形式的整数。负数、超 UINT32_MAX 与 NaN 都按非法输入回退：
-        // double 转 uint32_t 时超出目标范围是未定义行为，NaN 参与比较也一律为假。
-        const double value = background_item->valuedouble;
-        if (value >= 0 && value <= static_cast<double>(UINT32_MAX)) {
-            background = ClampSelectionColorAlpha(static_cast<uint32_t>(value));
-        }
+    uint32_t background = 0;
+    if (ReadColorField(root, "background", &background)) {
+        colors.background = ClampSelectionColorAlpha(background);
+    }
+    uint32_t cursor = 0;
+    if (ReadColorField(root, "cursor", &cursor)) {
+        colors.cursor = cursor;
     }
     cJSON_Delete(root);
-    return background;
+    return colors;
 }
 
 }  // namespace util

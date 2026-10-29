@@ -55,46 +55,66 @@ static std::string SelectionColorJson(uint32_t background, uint32_t cursor) {
 
 // 上层按 0x66 上限下发时原样保留，RGB 分量不可被 alpha 收敛动到
 void TestBackgroundColorIsParsed() {
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(SelectionColorJson(0x66FF0000u, 0xFF000000u), 0),
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66FF0000u, 0xFF000000u)).background,
                  0x66FF0000u);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(SelectionColorJson(0x66ABCDEFu, 0xFFFFFFFFu), 0),
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66ABCDEFu, 0xFFFFFFFFu)).background,
                  0x66ABCDEFu);
     // alpha 低于上限时不下压
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(SelectionColorJson(0x33FF0000u, 0xFF000000u), 0),
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x33FF0000u, 0xFF000000u)).background,
                  0x33FF0000u);
     // alpha 高于上限时收敛到上限，RGB 保持不变
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(SelectionColorJson(0xFFFF0000u, 0xFF000000u), 0),
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0xFFFF0000u, 0xFF000000u)).background,
                  0x66FF0000u);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(SelectionColorJson(0xFFFFFFFFu, 0xFF000000u), 0),
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0xFFFFFFFFu, 0xFF000000u)).background,
                  0x66FFFFFFu);
 }
 
-// 结构不合法时回退到调用方的默认值，而不是抛异常或产生半截颜色
+// 手柄色与 Android / iOS 一致，只取值不做 alpha 收敛
+void TestCursorColorIsParsedWithoutClamping() {
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66FF0000u, 0xFF123456u)).cursor,
+                 0xFF123456u);
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66FF0000u, 0x80ABCDEFu)).cursor,
+                 0x80ABCDEFu);
+    // 全不透明与全透明都原样保留
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66FF0000u, 0xFFFFFFFFu)).cursor,
+                 0xFFFFFFFFu);
+    EXPECT_COLOR(util::ParseSelectionColors(SelectionColorJson(0x66FF0000u, 0x00000000u)).cursor,
+                 0x00000000u);
+}
+
+// 结构不合法时两路都回退到各自默认值，而不是抛异常或产生半截颜色
 void TestIllFormedInputFallsBack() {
-    const uint32_t fallback = util::kDefaultSelectionColor;
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor("", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor("{background:oops", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"cursor":4278190080})", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":"0x66FF0000"})", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor("[1,2]", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor("null", fallback), fallback);
-    // 越界数值同样回退，而不是走未定义的 double → uint32_t 转换
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":-1})", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":4294967296})", fallback), fallback);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":1e300})", fallback), fallback);
+    const uint32_t bg = util::kDefaultSelectionColor;
+    const uint32_t cursor = util::kDefaultSelectionCursorColor;
+    const char *cases[] = {
+        "", "{background:oops", R"({"background":"0x66FF0000"})", "[1,2]", "null",
+        R"({"background":-1})", R"({"background":4294967296})", R"({"background":1e300})",
+    };
+    for (const char *input : cases) {
+        const util::KRSelectionColors colors = util::ParseSelectionColors(input);
+        EXPECT_COLOR(colors.background, bg);
+        EXPECT_COLOR(colors.cursor, cursor);
+    }
+    // 缺 background 但 cursor 合法时，只回退 background
+    char cursor_only[64];
+    std::snprintf(cursor_only, sizeof(cursor_only), R"({"cursor":%u})", 0xFF123456u);
+    const util::KRSelectionColors partial = util::ParseSelectionColors(cursor_only);
+    EXPECT_COLOR(partial.background, bg);
+    EXPECT_COLOR(partial.cursor, 0xFF123456u);
     // 范围两端仍要生效：0 是合法取值，UINT32_MAX 收敛到 alpha 上限
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":0})", fallback), 0x00000000u);
-    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":4294967295})", fallback),
-                 0x66FFFFFFu);
+    EXPECT_COLOR(util::ParseSelectionColors(R"({"background":0})").background, 0x00000000u);
+    EXPECT_COLOR(util::ParseSelectionColors(R"({"background":4294967295})").background, 0x66FFFFFFu);
 }
 
-// 迁移前 KRRichTextView 硬编码 0x33007DFF，未配置时必须仍是它
-void TestDefaultMatchesPreviousHardCodedValue() {
+// 迁移前背景是 KRRichTextView 硬编码 0x33007DFF、手柄是 KRView 硬编码 0xFF0000FF
+void TestDefaultsMatchPreviousHardCodedValues() {
     EXPECT_COLOR(util::kDefaultSelectionColor, 0x33007DFFu);
-    EXPECT_COLOR((util::kDefaultSelectionColor >> util::kColorAlphaShift) & util::kColorAlphaMask, 0x33u);
-    EXPECT(util::kDefaultSelectionColor <= util::kSelectionColorMaxAlpha << util::kColorAlphaShift ||
-           (((util::kDefaultSelectionColor >> util::kColorAlphaShift) & util::kColorAlphaMask) <=
-            util::kSelectionColorMaxAlpha));
+    EXPECT_COLOR(util::kDefaultSelectionCursorColor, 0xFF0000FFu);
+    EXPECT(((util::kDefaultSelectionColor >> util::kColorAlphaShift) & util::kColorAlphaMask) <=
+           util::kSelectionColorMaxAlpha);
+    const util::KRSelectionColors empty = util::ParseSelectionColors("");
+    EXPECT_COLOR(empty.background, 0x33007DFFu);
+    EXPECT_COLOR(empty.cursor, 0xFF0000FFu);
 }
 
 void TestClampBoundaries() {
@@ -107,8 +127,9 @@ void TestClampBoundaries() {
 
 int main() {
     TestBackgroundColorIsParsed();
+    TestCursorColorIsParsedWithoutClamping();
     TestIllFormedInputFallsBack();
-    TestDefaultMatchesPreviousHardCodedValue();
+    TestDefaultsMatchPreviousHardCodedValues();
     TestClampBoundaries();
     if (g_failures == 0) {
         std::printf("krselectioncolor_test: all passed\n");

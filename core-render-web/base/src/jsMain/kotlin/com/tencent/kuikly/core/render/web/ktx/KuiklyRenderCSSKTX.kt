@@ -951,10 +951,13 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
 
             // PC optimization: filter out drag/selection operations (only for PC)
             if (isPCDevice) {
-                // Check if text is selected (user is selecting text, not clicking)
+                // A selection elsewhere must not disable unrelated controls, e.g. a modal close button.
                 val selection = kuiklyWindow.asDynamic().getSelection()
                 val selectedText = selection?.toString() ?: ""
-                if (selectedText.unsafeCast<String>().isNotEmpty()) {
+                if (selectedText.unsafeCast<String>().isNotEmpty() &&
+                    (ele.asDynamic().contains(selection.anchorNode) == true ||
+                        ele.asDynamic().contains(selection.focusNode) == true)
+                ) {
                     return@addEventListener
                 }
 

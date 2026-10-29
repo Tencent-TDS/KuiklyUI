@@ -78,6 +78,14 @@ void TestIllFormedInputFallsBack() {
     EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":"0x66FF0000"})", fallback), fallback);
     EXPECT_COLOR(util::ParseSelectionBackgroundColor("[1,2]", fallback), fallback);
     EXPECT_COLOR(util::ParseSelectionBackgroundColor("null", fallback), fallback);
+    // 越界数值同样回退，而不是走未定义的 double → uint32_t 转换
+    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":-1})", fallback), fallback);
+    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":4294967296})", fallback), fallback);
+    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":1e300})", fallback), fallback);
+    // 范围两端仍要生效：0 是合法取值，UINT32_MAX 收敛到 alpha 上限
+    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":0})", fallback), 0x00000000u);
+    EXPECT_COLOR(util::ParseSelectionBackgroundColor(R"({"background":4294967295})", fallback),
+                 0x66FFFFFFu);
 }
 
 // 迁移前 KRRichTextView 硬编码 0x33007DFF，未配置时必须仍是它

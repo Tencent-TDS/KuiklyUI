@@ -30,7 +30,9 @@ static constexpr uint32_t kColorRGBMask = 0x00FFFFFF;
 // 选中高亮色 alpha 上限（0x66 ≈ 40%），避免高亮完全覆盖文字，多端统一
 static constexpr uint32_t kSelectionColorMaxAlpha = 0x66;
 
-// 上层未配置 selectionColor 时选区底色的回退值，与 Android / iOS 保持一致
+// 上层未配置 selectionColor 时选区底色的回退值，沿用迁移前 KRRichTextView 的硬编码值。
+// 三端默认色并不相同（Android KRTextSelector 用 textColorHighlight 兜底，iOS KRLabel 用内置
+// 0x0099FF@0.3），此取值与它们无关，只是保持鸿蒙既有观感不变。
 static constexpr uint32_t kDefaultSelectionColor = 0x33007DFF;
 
 /// 限制选中色 alpha 不超过 kSelectionColorMaxAlpha，返回 clamped 后的颜色值

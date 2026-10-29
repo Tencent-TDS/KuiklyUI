@@ -39,10 +39,14 @@ uint32_t ParseSelectionBackgroundColor(const std::string &selection_color, uint3
         return fallback;
     }
     uint32_t background = fallback;
-    // 取值是 0xRRGGBB 形式的整数，double 可精确承载 32 位整数
     const cJSON *background_item = cJSON_GetObjectItemCaseSensitive(root, "background");
     if (cJSON_IsNumber(background_item)) {
-        background = ClampSelectionColorAlpha(static_cast<uint32_t>(background_item->valuedouble));
+        // 取值是 0xRRGGBB 形式的整数。负数、超 UINT32_MAX 与 NaN 都按非法输入回退：
+        // double 转 uint32_t 时超出目标范围是未定义行为，NaN 参与比较也一律为假。
+        const double value = background_item->valuedouble;
+        if (value >= 0 && value <= static_cast<double>(UINT32_MAX)) {
+            background = ClampSelectionColorAlpha(static_cast<uint32_t>(value));
+        }
     }
     cJSON_Delete(root);
     return background;

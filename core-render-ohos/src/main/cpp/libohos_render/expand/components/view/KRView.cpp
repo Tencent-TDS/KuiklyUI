@@ -142,6 +142,8 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
     } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
         selection_color_ = kuikly::util::ParseSelectionBackgroundColor(
             prop_value->toString(), kuikly::util::kDefaultSelectionColor);
+        // 选区可能已经激活，色值改变后立即生效，与 Android 端改 paint 即时生效对齐
+        RefreshActiveSelectionColor();
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectStart)) {
         select_start_callback_ = event_call_back;
@@ -284,6 +286,13 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
     selection_info_.visible = true;
 
     UpdateSelectionHandles();
+}
+
+void KRView::RefreshActiveSelectionColor() {
+    if (!selection_info_.visible) {
+        return;
+    }
+    IKRRenderViewExport::SetSelectionColor(selection_color_);
 }
 
 void KRView::CreateSelection(KRPoint p0, KRPoint p1, int type, bool from_user) {
@@ -442,6 +451,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectionColor)) {
         selection_color_ = kuikly::util::kDefaultSelectionColor;
+        RefreshActiveSelectionColor();
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kTextSelectStart)) {
         select_start_callback_ = nullptr;

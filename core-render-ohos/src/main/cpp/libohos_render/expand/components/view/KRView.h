@@ -80,6 +80,9 @@ class KRView : public IKRRenderViewExport {
 
     void CreateSelection(KRPoint point, KRPoint point2, int type, bool from_user = false);
 
+    /// 选区已激活时把当前色值重新下发给后代视图；未激活时是空操作
+    void RefreshActiveSelectionColor();
+
     std::vector<std::shared_ptr<KRRichTextView>> GetSelectedNodes(KRPoint p0, KRPoint p1);
     void GetSelectedNodes(std::shared_ptr<KRRenderView> root_render_view,
                           std::vector<std::shared_ptr<KRRichTextView>> &result, ArkUI_NodeHandle node,

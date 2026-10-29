@@ -371,7 +371,11 @@ void KRRichTextView::ClearSelection() {
 }
 
 void KRRichTextView::SetSelectionColor(uint32_t color) {
-    selection_color_ = color;
+    if (color != selection_color_) {
+        selection_color_ = color;
+        // 选区已绘制时按新色立即重绘；Android 端改 paint 后即时生效，行为与此对齐
+        SetNeedsDisplay();
+    }
     IKRRenderViewExport::SetSelectionColor(color);
 }
 

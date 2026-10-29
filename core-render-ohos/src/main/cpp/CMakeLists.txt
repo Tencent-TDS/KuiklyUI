@@ -21,6 +21,8 @@ set(SOURCE_SET
         libohos_render/view/KRRenderView.cpp
         libohos_render/scheduler/KRUIScheduler.cpp
         libohos_render/scheduler/KRContextScheduler.cpp
+        libohos_render/scheduler/KRInputFirstGate.cpp
+        libohos_render/scheduler/KRMainThreadTaskPuller.cpp
         libohos_render/context/IKRRenderNativeContextHandler.cpp
         libohos_render/context/KRRenderNativeContextHandlerManager.cpp
         libohos_render/context/DefaultRenderNativeContextHandler.cpp

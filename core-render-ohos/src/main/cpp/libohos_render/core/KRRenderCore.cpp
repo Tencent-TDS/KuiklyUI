@@ -15,6 +15,7 @@
 
 #include "libohos_render/core/KRRenderCore.h"
 
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -23,7 +24,9 @@
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/scheduler/KRInputFirstGate.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/view/KRRenderView.h"
 #include "libohos_render/manager/KRRenderManager.h"
 
@@ -55,6 +58,41 @@ bool com_tencent_kuikly_IsCurrentOnContextThread(const char *pagerId) {
     return KRContextScheduler::IsCurrentOnContextThread();
 }
 EXTERN_C_END
+
+/**
+ * 一次手势或动画里逐帧连续触发、且支持同步的事件。开始和结束由对应 view 上报。
+ * keyboardHeightChange 每次只推一次，没有结束标志，不在此列。
+ */
+static bool IsContinuousSyncEvent(const std::string &eventName) {
+    return eventName == "touchMove" || eventName == "scroll" || eventName == "pan" || eventName == "pinch" ||
+           eventName == "longPress";
+}
+
+// 耗时统计：不是连续同步事件时不读时钟，事件之外不产生开销。
+static std::chrono::steady_clock::time_point MetricsNow(bool enabled) {
+    return enabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+}
+
+static double ElapsedMs(std::chrono::steady_clock::time_point from, std::chrono::steady_clock::time_point to) {
+    return std::chrono::duration<double, std::milli>(to - from).count();
+}
+
+/**
+ * 输入时间戳到当前的延迟（毫秒）。事件时间戳与 steady_clock 同为 CLOCK_MONOTONIC。
+ * @return 无时间戳时返回负数
+ */
+static double InputLatencyMs(const KRAnyValue &res) {
+    if (!res) {
+        return -1;
+    }
+    const auto timestamp = res->opt(u"timestamp");
+    if (!timestamp) {
+        return -1;
+    }
+    const double nowMs = std::chrono::duration<double, std::milli>(
+                             std::chrono::steady_clock::now().time_since_epoch()).count();
+    return nowMs - timestamp->toDouble();
+}
 
 /**
  * 是否为同步调用Mask
@@ -302,24 +340,74 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         if (isEvent) {
             bool sync = IsSyncCallback(arg5);
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
-            KRRenderCallback callback = [weakSelf, arg1, arg2, arg3, arg4, arg5, sync](KRAnyValue res) {
-                auto shouldSync = sync;
-                KRContextScheduler::DirectRunOnMainThread(shouldSync, [weakSelf, shouldSync, res, arg1, arg2, arg3, arg4, arg5] {
+            KRRenderCallback callback = [weakSelf, arg1, arg2, sync](KRAnyValue res) {
+                auto fireEvent = [weakSelf, arg1, arg2, res](bool syncFlush) {
                     if (auto locked = weakSelf.lock()) {
                         locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireViewEvent, arg1, arg2,
                                                  res, locked->defaultNullValue_, locked->defaultNullValue_);
-                        if (shouldSync) {  // 主线程
+                        if (syncFlush) {
                             locked->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
                         }
                     }
-                });
-                if (shouldSync) {
-                    if (auto locked = weakSelf.lock()) {
-                        locked->uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+                };
+                if (!sync) {
+                    KRContextScheduler::DirectRunOnMainThread(false, [fireEvent] { fireEvent(false); });
+                    return;
+                }
+                // 同步连续事件从 Kotlin 回调开始，到同步 UI 提交结束。KRInputFirstGate 用这两个点判断本帧输入是否处理完。
+                const bool continuous = IsContinuousSyncEvent(arg2->toAsciiString());
+                if (continuous) {
+                    KRInputFirstGate::GetInstance().OnInputBegin();
+                }
+                auto finishInput = [continuous, res](double lockWaitMs, double execMs) {
+                    if (!continuous) {
+                        return;
                     }
+                    auto &gate = KRInputFirstGate::GetInstance();
+                    if (gate.IsInSession()) {
+                        gate.RecordInput(lockWaitMs, execMs, InputLatencyMs(res));
+                    }
+                    gate.OnInputDone();
+                };
+                const auto callStart = MetricsNow(continuous);
+                double lockWaitMs = 0;
+                double execMs = 0;
+                const bool ranOnMain = KRContextScheduler::TryDirectRunOnMainThread(
+                    KRThread::kDirectRunFastFailWindow,
+                    [&fireEvent, &lockWaitMs, &execMs, callStart, continuous] {
+                        const auto execStart = MetricsNow(continuous);
+                        lockWaitMs = ElapsedMs(callStart, execStart);
+                        fireEvent(true);
+                        execMs = ElapsedMs(execStart, MetricsNow(continuous));
+                    });
+                if (!ranOnMain) {
+                    KR_LOG_INFO << "DispatchAsync when run sync event";
+                    // 没拿到锁，改成异步执行。输入要等这次异步执行完才算处理完，否则帧任务会在输入还没处理时被投递。
+                    KRContextScheduler::ScheduleTask(0, [fireEvent, finishInput, callStart, continuous] {
+                        const auto execStart = MetricsNow(continuous);
+                        fireEvent(true);
+                        finishInput(ElapsedMs(callStart, execStart), ElapsedMs(execStart, MetricsNow(continuous)));
+                    });
+                }
+                if (KRContextScheduler::IsContextTaskLockHeldByCurrentThread()) {
+                    // 嵌套进来时外层还拿着 context 任务锁 m_taskMutex。等这把锁释放后的下一轮主线程循环再执行 UI。
+                    KRMainThread::RunOnMainThreadForNextLoop([weakSelf] {
+                        if (auto locked = weakSelf.lock()) {
+                            locked->uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+                        }
+                    });
+                } else if (auto locked = weakSelf.lock()) {
+                    locked->uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+                }
+                if (ranOnMain) {
+                    finishInput(lockWaitMs, execMs);
                 }
             };
             renderLayerHandler_->SetEvent(arg1->toInt(), arg2->toAsciiString(), callback);
+            // 是否同步只在注册时由 core 持有。view 用它决定要不要向 KRInputFirstGate 上报这次连续事件。
+            if (auto view = GetView(arg1->toInt())) {
+                view->SetEventSync(arg2->toAsciiString(), sync);
+            }
         } else {
             renderLayerHandler_->SetProp(arg1->toInt(), arg2->toAsciiString(), arg3);
         }

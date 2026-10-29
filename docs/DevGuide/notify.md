@@ -8,6 +8,13 @@
 
 我们首先在想要监听事件的``Pager``中监听事件, 然后在页面将要销毁时，解注册监听
 
+::: warning 页面销毁时必须解除监听
+调用 ``addNotify`` 后，务必在 ``pageWillDestroy`` 中调用 ``removeNotify`` 解除监听，否则：
+
+- 所有平台都会出现回调闭包持有 Pager 引用，页面无法被 GC 的内存泄漏；
+- 在 **H5 / 小程序** 平台上，通知会在同一 JS 运行时内的所有活跃 Kuikly 页面之间共享（含 SPA 中被缓存的页面），未解注册的回调会被其他页面的 ``postNotify`` 持续触发，可能访问已销毁页面的视图/状态引发异常，出现"幽灵页面"收到事件的现象。
+:::
+
 ```kotlin{4,8-11,16}
 @Page("1")
 internal class NotifyPage : Pager() {

@@ -85,3 +85,13 @@ h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，shared �
 
 最终我们可以将 h5App/build/dist/js/productionExecutable 中的全部内容作为 H5 的部署产物进行部署，这里实际的部署方式则依赖您的 H5 项目的实际部署方式了。您可以将产物内置到 APP 中进行加载运行，也可以作为通用的 H5 服务进行提供。
 这取决于你们的业务需要
+
+## 事件通知使用注意事项
+
+H5 平台使用 ``NotifyModule`` 时，有以下与 Native 平台不同的行为，开发时需特别留意：
+
+- **同一 JS 运行时内跨页面共享**：H5 实现基于一个进程内的全局事件分发表，同一个 html 页面（含 SPA 中被路由切换但尚未销毁的 Kuikly 页面）内所有活跃的 ``KRNotifyModule`` 实例都会收到 ``postNotify`` 的事件；
+- **不支持跨浏览器页签 / iframe / window 的通知**：不同 Tab、iframe、window 属于独立的 JS Runtime，彼此之间无法通过 ``NotifyModule`` 直接通信。如需跨 Tab 通信，建议由宿主通过 ``BroadcastChannel``、``postMessage``、``storage`` 事件等能力桥接；
+- **页面销毁时务必解除监听**：由于跨页面共享的特性，若在 ``addNotify`` 之后没有在 ``pageWillDestroy`` 中调用 ``removeNotify``，已销毁页面残留的回调会被其他页面的 ``postNotify`` 继续触发，可能访问已销毁页面的视图/状态引发异常，同时回调闭包会持有 Pager 引用造成内存泄漏。请始终配对使用 ``addNotify`` 与 ``removeNotify``。
+
+更多 ``NotifyModule`` 的使用说明请参考 [发送事件通知](notify.md) 以及 [NotifyModule API](../API/modules/notify.md)。

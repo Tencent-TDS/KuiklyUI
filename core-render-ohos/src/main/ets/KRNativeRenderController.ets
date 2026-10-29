@@ -625,6 +625,18 @@ export class KRNativeRenderController {
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);
+      } else if (this.windowClass != null && !this.imeMode) {
+        // 回前台补刷：后台期间窗口/避让区可能已变化而回调未送达（或送达时未初始化），
+        // 主动重取 safeAreaRect 经唯一入库口验货后统一下发，防止旧 insets 影响回前台后的布局
+        try {
+          if (this.updateSafeInsetsHandler > 0) {
+            clearTimeout(this.updateSafeInsetsHandler);
+            this.updateSafeInsetsHandler = 0;
+          }
+          this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass), true, 'pageShow');
+        } catch (e) {
+          KRRenderLog.e('Window', `pageShow refresh safearea error code:${e.code}`);
+        }
       }
     }
   }

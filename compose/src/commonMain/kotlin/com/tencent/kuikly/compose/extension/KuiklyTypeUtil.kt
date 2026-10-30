@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.abs
 
@@ -74,7 +75,21 @@ fun shouldWrapShadowView(modifier: Modifier): Boolean {
 }
 
 fun Attr.scaleToDensity(density: Density, value: Float): Float {
-    return value * density.density / getPager().pagerDensity()
+    return value * density.density / pagerDensityOrSelf(density)
+}
+
+/**
+ * 页面基准 density，用于把值从当前 Compose 上下文单位换算回页面逻辑单位。
+ *
+ * 页面上下文之外（例如不经由 Pager 的纯逻辑测试）没有注册的 Pager，
+ * 此时传入的 [density] 自身就是基准，换算退化为恒等。
+ *
+ * @receiver Attr 持有 pagerId 的样式对象
+ * @param density 当前 Compose 上下文的 density
+ * @return 页面基准 density
+ */
+private fun Attr.pagerDensityOrSelf(density: Density): Float {
+    return PagerManager.getPagerOrNull(pagerId)?.pagerDensity() ?: density.density
 }
 
 private const val MAX_FIND_SCROLLER_VIEW_DEPTH = 2

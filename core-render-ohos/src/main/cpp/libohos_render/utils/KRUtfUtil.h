@@ -33,6 +33,17 @@ std::string ToUTF8(const std::u32string &input);
 // UTF-16 unit count after Unicode maximal-subpart replacement.
 size_t UTF16Length(const std::string &input);
 
+// Clamps a byte cut to a UTF-8 character boundary.
+//
+// Call this before slicing a UTF-8 buffer at an arbitrary byte offset. A cut inside a
+// multi-byte sequence yields ill-formed UTF-8, which the strict ToUTF32 overload
+// rejects by throwing std::range_error; an uncaught throw aborts the renderer process.
+//
+// `bytes` must be <= strlen(input), so reading input[bytes] stays in bounds (it is a
+// real byte or the terminator). Returns the largest boundary-aligned length <= bytes:
+// continuation bytes (0x80..0xBF) at the cut point are dropped one by one.
+size_t TruncateToUTF8Boundary(const char *input, size_t bytes);
+
 // Allocation-free decode. Strict mode is reserved for a future explicit caller and returns
 // SIZE_MAX on malformed input; default mode replaces each maximal ill-formed subpart with U+FFFD.
 // Capacity is in UTF-16 units and must be at least bytes. No terminator is written.

@@ -114,6 +114,17 @@ std::string ToUTF8(const std::u32string &input) {
     return out;
 }
 
+size_t TruncateToUTF8Boundary(const char *input, size_t bytes) {
+    if (input == nullptr || bytes == 0) {
+        return 0;
+    }
+    size_t end = bytes;
+    while (end > 0 && (static_cast<unsigned char>(input[end]) & 0xC0) == 0x80) {
+        --end;
+    }
+    return end;
+}
+
 size_t UTF16Length(const std::string &input) {
     if (input.empty()) {
         return 0;

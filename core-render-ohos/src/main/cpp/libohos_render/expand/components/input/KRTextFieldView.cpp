@@ -17,6 +17,7 @@
 
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 #include <algorithm>
 #include <arkui/drag_and_drop.h>
 #include <cstddef>
@@ -794,6 +795,9 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         int32_t size = MAX_INSERT_LENGTH;
         char *pBuffer = buffer;
         OH_ArkUI_NodeEvent_GetStringValue(event, 0, &pBuffer, &size);
+        // 与 OnPasteText 同理：若系统回写的字符串在缓冲区上限处被切断，尾部可能残留
+        // 半个 UTF-8 序列，需要回退到字符边界，避免 ConvertToU32String 抛异常。
+        buffer[kuikly::util::utf::TruncateToUTF8Boundary(buffer, strlen(buffer))] = '\0';
         // KR_LOG_DEBUG << "OnWillInsertText: to insert text: " << buffer;
         auto destText = GetContentText();
         auto range = GetInputNodeTextSelectionRange();
@@ -829,6 +833,10 @@ void KRTextFieldView::OnPasteText(ArkUI_NodeEvent *event) {
             return;
         }
         size_t size = std::min(strlen(stringAsyncEvent->pStr), static_cast<size_t>(max_length_) * 4);
+        // 粗截必须落在 UTF-8 字符边界上：切在多字节序列中间会产生非法 UTF-8，
+        // 后续 filter -> CalculateTextLength -> ConvertToU32String 会抛 range_error，
+        // 未被捕获时直接 abort（如粘贴 18 个汉字到 maxLength=10 的输入框）。
+        size = kuikly::util::utf::TruncateToUTF8Boundary(stringAsyncEvent->pStr, size);
         char *buffer = new char[size + 1];
         strncpy(buffer, stringAsyncEvent->pStr, size);
         buffer[size] = '\0';

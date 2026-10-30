@@ -20,6 +20,7 @@
 #include "libohos_render/expand/components/view/SuperTouchHandler.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
+#include "libohos_render/utils/KRSelectionColorUtil.h"
 #include "libohos_render/view/IKRRenderView.h"
 
 class KRViewInternalScrollViewObserver;
@@ -87,6 +88,12 @@ class KRView : public IKRRenderViewExport {
 
     void CreateSelection(KRPoint point, KRPoint point2, int type, bool from_user = false);
 
+    /// 重新下发当前选区色与手柄色：选区未激活时只更新已存在的手柄节点
+    void RefreshActiveSelectionColor();
+
+    /// 把当前手柄色写到已创建的选区手柄节点上；节点尚未创建时是空操作
+    void ApplySelectionCursorColor();
+
     std::vector<std::shared_ptr<KRRichTextView>> GetSelectedNodes(KRPoint p0, KRPoint p1);
     void GetSelectedNodes(std::shared_ptr<KRRenderView> root_render_view,
                           std::vector<std::shared_ptr<KRRichTextView>> &result, ArkUI_NodeHandle node,
@@ -129,6 +136,12 @@ class KRView : public IKRRenderViewExport {
     bool stop_propagation_ = false;
 
     SelectableOption selectable_option_ = SelectableOption::ENABLE;
+
+    /// 容器下发的选区高亮色，未配置时为 kDefaultSelectionColor
+    uint32_t selection_color_ = kuikly::util::kDefaultSelectionColor;
+
+    /// 容器下发的选区手柄色，未配置时为 kDefaultSelectionCursorColor
+    uint32_t selection_cursor_color_ = kuikly::util::kDefaultSelectionCursorColor;
 
     KRRenderCallback select_start_callback_ = nullptr;
     KRRenderCallback select_change_callback_ = nullptr;

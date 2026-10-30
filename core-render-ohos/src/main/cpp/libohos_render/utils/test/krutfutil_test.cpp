@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 
 #include "libohos_render/utils/KRUtfUtil.h"
@@ -81,6 +82,17 @@ void TestBoundaryLengthFloorsToCharacterBoundary() {
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc", 2), 2);
 }
 
+// ArkUI copies a long insert into a fixed byte buffer and appends '\0'. Unlike a cut
+// into a complete source string, the incomplete sequence is already at the tail.
+void TestTruncatedBufferDropsIncompleteTail() {
+    const char *cjkTail = "a\xE4\xB8";
+    const char *emojiTail = "a\xF0\x9F\x98";
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(cjkTail, strlen(cjkTail)), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(emojiTail, strlen(emojiTail)), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8", strlen("\xE4\xB8")), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98", strlen("\xF0\x9F\x98")), 0);
+}
+
 void TestValidInputRoundTrips() {
     EXPECT(utf::ToUTF32(kCjkText) == kCjkCodePoints);
     EXPECT(utf::ToUTF8(kCjkCodePoints) == kCjkText);
@@ -117,6 +129,7 @@ void TestSupplementaryPlaneRoundTrips() {
 int main() {
     TestByteTruncatedPasteDecodes();
     TestBoundaryLengthFloorsToCharacterBoundary();
+    TestTruncatedBufferDropsIncompleteTail();
     TestValidInputRoundTrips();
     TestIllFormedUTF8DecodesWithReplacement();
     TestIllFormedUTF32EncodesWithReplacement();

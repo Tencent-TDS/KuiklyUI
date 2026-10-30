@@ -22,6 +22,7 @@
 #include <arkui/drag_and_drop.h>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <deviceinfo.h>
 #include <regex>
 
@@ -795,6 +796,10 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         int32_t size = MAX_INSERT_LENGTH;
         char *pBuffer = buffer;
         OH_ArkUI_NodeEvent_GetStringValue(event, 0, &pBuffer, &size);
+        // ArkUI copies at most MAX_INSERT_LENGTH - 1 bytes, which can leave an incomplete UTF-8
+        // tail. Drop that tail before filter -> CalculateTextLength decodes the buffer.
+        buffer[MAX_INSERT_LENGTH - 1] = '\0';
+        buffer[kuikly::util::utf::UTF8BoundaryLength(buffer, strlen(buffer))] = '\0';
         // KR_LOG_DEBUG << "OnWillInsertText: to insert text: " << buffer;
         auto destText = GetContentText();
         auto range = GetInputNodeTextSelectionRange();

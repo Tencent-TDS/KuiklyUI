@@ -967,8 +967,9 @@ export class KRNativeRenderController {
    * Configuration.fontSizeScale 恒为系统原值、不含应用上限，不能直接当作有效倍率）。
    * Kuikly 段落字号在 C++ 侧（KRParagraph）直接乘以下发倍率、不经过 ArkUI，
    * 故须在入口统一限幅，保持与宿主原生文字一致。
-   * 未配置上限时 getMaxFontScale 返回极大值、API 12 及以下设备（该方法为 API 13+）
-   * 读取抛异常，两种情况均返回 MAX_VALUE，min 后保持原行为。
+   * 未配置上限时 getMaxFontScale 返回 ArkUI 默认上限 2.0（取值范围 1~3，与宿主
+   * 原生组件默认行为一致）；仅 API 12 及以下设备（该方法为 API 13+）读取抛异常
+   * 或 uiContext 为空时返回 Number.MAX_VALUE 兜底，min 后保持原行为。
    */
   private getEffectiveMaxFontScale(): number {
     try {

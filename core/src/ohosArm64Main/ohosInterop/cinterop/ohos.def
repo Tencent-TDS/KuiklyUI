@@ -1,4 +1,6 @@
 headers = ../include/KRRenderCValue.h ../include/KRJSON.h
+# const char* 参数保留为 CPointer，避免 cinterop 隐式转成 Kotlin String（需在原生缓冲区上解析）
+noStringConversion = KRJSONParse
 ---
 #include <sys/time.h>
 #include <dlfcn.h>

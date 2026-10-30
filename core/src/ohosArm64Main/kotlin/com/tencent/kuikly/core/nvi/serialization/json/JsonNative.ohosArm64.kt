@@ -17,6 +17,7 @@
 
 package com.tencent.kuikly.core.nvi.serialization.json
 
+
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -50,6 +51,7 @@ import ohos.KRJSONObjectKeyAt
 import ohos.KRJSONObjectKeyAtUTF16
 import ohos.KRJSONObjectKeysAreUTF16
 import ohos.KRJSONObjectValueAt
+import ohos.KRJSONParse
 import ohos.KRJSONParseUTF16
 import ohos.KRJSONRelease
 import ohos.KRJSONRetain
@@ -120,14 +122,14 @@ internal object JsonNative {
         if (json.isEmpty()) {
             return 0L
         }
-        val parsed = json.toCharArray().usePinned { pinned ->
-            KRJSONParseUTF16(
+        return json.usePinned { pinned ->
+            val parsed = KRJSONParseUTF16(
                 pinned.addressOf(0).reinterpret(),
                 json.length.convert<size_t>(),
                 null,
             )
+            if (parsed == KRJSON_INVALID) 0L else parsed.toLong()
         }
-        return if (parsed == KRJSON_INVALID) 0L else parsed.toLong()
     }
 
     fun type(bits: Long): Int {
@@ -155,19 +157,47 @@ internal object JsonNative {
         if (objectBits == JSON_NULL_BITS || isInvalid(objectBits)) {
             return KRJSON_INVALID.toLong()
         }
-        if (KRJSONObjectKeysAreUTF16(objectBits.toULong())) {
+        val bits = objectBits.toULong()
+        if (KRJSONObjectKeysAreUTF16(bits)) {
             if (key.isEmpty()) {
-                return KRJSONObjectGetUTF16(objectBits.toULong(), null, 0.convert<size_t>()).toLong()
+                return KRJSONObjectGetUTF16(bits, null, 0.convert<size_t>()).toLong()
             }
-            return key.toCharArray().usePinned { pinned ->
+            val len = key.length
+            return key.usePinned { pinned ->
                 KRJSONObjectGetUTF16(
-                    objectBits.toULong(),
-                    pinned.addressOf(0).reinterpret(),
-                    key.length.convert<size_t>(),
+                    bits,
+                    pinned.addressOf(0).reinterpret<UShortVar>(),
+                    len.convert<size_t>(),
                 ).toLong()
             }
         }
-        return KRJSONObjectGet(objectBits.toULong(), key).toLong()
+        return KRJSONObjectGet(bits, key).toLong()
+    }
+
+
+    /**
+     * 直接解析一个字符串节点的 payload，返回 owned 字（失败为 0）。
+     * 跳过「拷成 Kotlin String 再交回原生」这一步；调用方负责 [release]。
+     */
+    fun parseFromStringNode(bits: Long): Long {
+        if (isInvalid(bits)) {
+            return 0L
+        }
+        return memScoped {
+            val len = alloc<size_tVar>()
+            when (type(bits)) {
+                JSON_KIND_U16STRING -> {
+                    val ptr = KRJSONGetStringUTF16(bits.toULong(), len.ptr) ?: return@memScoped 0L
+                    KRJSONParseUTF16(ptr, len.value.convert<size_t>(), null).toLong()
+                }
+                JSON_KIND_STRING -> {
+                    // UTF-8 盒（KRJSONParse / Make(std::string) 产出）：len 是字节数，按 UTF-8 原样解析
+                    val ptr = KRJSONGetString(bits.toULong(), len.ptr) ?: return@memScoped 0L
+                    KRJSONParse(ptr, len.value.convert<size_t>(), null).toLong()
+                }
+                else -> 0L
+            }
+        }
     }
 
     fun objectKeyAt(objectBits: Long, index: Int): String? {

@@ -36,6 +36,32 @@ actual class JSONObject internal actual constructor(
         return lazy.keyAt(index)
     }
 
+    internal actual override fun optParsedChild(name: String): JSONObject? {
+        val lazy = nameValuePairs as? LazyJsonMap ?: return super.optParsedChild(name)
+        val child = lazy.childBits(name)
+        if (child == 0L) {
+            return super.optParsedChild(name)
+        }
+        val kind = JsonNative.type(child)
+        if (kind != JSON_KIND_U16STRING && kind != JSON_KIND_STRING) {
+            // 不是字符串节点（结构化数据等），交给默认实现
+            return super.optParsedChild(name)
+        }
+        val owned = JsonNative.parseFromStringNode(child)
+        if (JsonNative.isInvalid(owned) || JsonNative.type(owned) != JSON_KIND_OBJECT) {
+            // 字符串节点但解析失败：不再回退去拷一份字符串重新解析
+            if (!JsonNative.isInvalid(owned)) {
+                JsonNative.release(owned)
+            }
+            return null
+        }
+        return try {
+            LazyJsonMap.fromOwner(owned)
+        } finally {
+            JsonNative.release(owned)   // fromOwner 已 retain 一份，这里放掉自己那份
+        }
+    }
+
     actual override fun opt(index: Int): Any? {
         // null is a valid value here; falling back to super would index every key.
         val lazy = nameValuePairs as? LazyJsonMap ?: return super.opt(index)

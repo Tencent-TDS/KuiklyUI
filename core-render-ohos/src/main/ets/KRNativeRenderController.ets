@@ -472,15 +472,19 @@ export class KRNativeRenderController {
 
   /**
    * safeAreaRect 唯一入库口：所有来源（windowSizeChange 同步刷新 / avoidAreaChange 去抖 /
-   * 密度变化 / 初始化）统一过判据B注入检测后再入库，杜绝脏值绕过验货直入缓存。
+   * 密度变化 / 初始化 / pageShow 补刷）统一过判据B注入检测后再入库，杜绝脏值绕过验货直入缓存。
    * notify=false 仅存不下发（windowSizeChange 专用）：
    * 此刻 ArkUI 尚未布局、viewRect 仍是旧朝向，立即下发必产生错配 insets。
+   * 值未显著变化时跳过下发（float 容差判等）：correctInjectedSafeArea 只做注入纠偏不做
+   * 变更判等，avoidAreaChange 同值补发、pageShow 回前台常态等场景会白跑一遍全量
+   * rootViewSizeDidChanged 下发与布局调度；下游全链路幂等，跳过纯属去冗余、不影响兜底语义。
    */
   onSafeAreaInsetsChanged(rect: KRRect, notify: boolean = true, source: string = 'unknown') {
     const verified = this.correctInjectedSafeArea(rect, source);
+    const changed = this.safeAreaRect == null || !this.isSameSafeAreaRect(this.safeAreaRect, verified);
     this.safeAreaRect = verified;
     if (this.didInit) {
-      if (notify) {
+      if (notify && changed) {
         this.notifySizeChange();
       }
     } else {
@@ -625,6 +629,19 @@ export class KRNativeRenderController {
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);
+      } else if (this.windowClass != null && !this.imeMode) {
+        // 回前台补刷：后台期间窗口/避让区可能已变化而回调未送达（或送达时未初始化），
+        // 主动重取 safeAreaRect 经唯一入库口验货下发（入库口含变更判等，
+        // 值未变化时不产生冗余的全量 rootViewSizeDidChanged 事件）
+        try {
+          if (this.updateSafeInsetsHandler > 0) {
+            clearTimeout(this.updateSafeInsetsHandler);
+            this.updateSafeInsetsHandler = 0;
+          }
+          this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass), true, 'pageShow');
+        } catch (e) {
+          KRRenderLog.e('Window', `pageShow refresh safearea error code:${e.code}`);
+        }
       }
     }
   }
@@ -953,6 +970,20 @@ export class KRNativeRenderController {
    */
   fontSizeScaleFollowSystem(): boolean {
     return true
+  }
+
+  /**
+   * 安全区矩形近似判等（浮点容差比较）。
+   * 供 onSafeAreaInsetsChanged 入库口使用：验货后的值与上一帧未显著变化时跳过下发，
+   * 避免 avoidAreaChange 同值补发、pageShow 回前台常态等场景的冗余全量事件与布局调度。
+   */
+  private isSameSafeAreaRect(a: KRRect | null, b: KRRect | null): boolean {
+    if (a == null || b == null) {
+      return a === b;
+    }
+    const eps = 0.01;
+    return Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps &&
+      Math.abs(a.width - b.width) < eps && Math.abs(a.height - b.height) < eps;
   }
 
   /**

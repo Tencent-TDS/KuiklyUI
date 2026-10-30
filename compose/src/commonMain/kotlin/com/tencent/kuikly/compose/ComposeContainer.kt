@@ -51,6 +51,7 @@ import com.tencent.kuikly.compose.ui.platform.LocalActivity
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.BackPressHandler
+import com.tencent.kuikly.core.base.EdgeInsets
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
@@ -300,6 +301,14 @@ open class ComposeContainer :
             setFrameToRenderView(newFrame)
             rootKView.setFrameToRenderView(newFrame)
             updateWindowContainer(newFrame)
+            // 安全区桥接：事件携带的 safeAreaInsets 接入 Compose 可观察状态。
+            // 此前该字段被丢弃，且 pageData.safeAreaInsets 属自研 DSL 响应式，
+            // Compose 感知不到其变化——"同尺寸仅 Insets 变化"时布局停在旧值。
+            // 无该字段的旧版本端上行为不变（向后兼容）。
+            val safeAreaInsetsString = eventData.optString(SAFE_AREA_INSETS, "")
+            if (safeAreaInsetsString.isNotEmpty()) {
+                configuration?.onSafeAreaInsetsChanged(EdgeInsets.decodeWithString(safeAreaInsetsString))
+            }
         } else if (pagerEvent == PAGER_EVENT_WINDOW_SIZE_CHANGED) {
             configuration?.onWindowSizeChanged(eventData.optDouble(WIDTH),eventData.optDouble(
                 HEIGHT))

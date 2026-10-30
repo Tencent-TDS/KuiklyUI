@@ -54,6 +54,7 @@ class KuiklyPaint : Paint {
     override var strokeMiterLimit: Float = 4f
     override var style: PaintingStyle = PaintingStyle.Fill
     override var shader: Any? = null
+    override var pathEffect: PathEffect? = null
 }
 
 interface Paint {
@@ -121,4 +122,15 @@ interface Paint {
      * When this is null, the [color] is used instead.
      */
     var shader: Any?
+
+    /**
+     * Specifies the effect applied to the geometry of a stroked shape, for example a dash
+     * pattern. Defaults to null, which draws a solid outline.
+     *
+     * The default implementation ignores the value so existing [Paint] implementations keep
+     * compiling; [KuiklyPaint] stores it.
+     */
+    var pathEffect: PathEffect?
+        get() = null
+        set(value) {}
 }

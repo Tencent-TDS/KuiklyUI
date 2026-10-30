@@ -23,6 +23,8 @@ actual class JSONObject internal actual constructor(
     nameValuePairs: MutableMap<String, Any?>
 ) : AbstractJSONObject(nameValuePairs) {
 
+    internal actual override fun optParsedChild(name: String): JSONObject? = super.optParsedChild(name)
+
     actual constructor() : this(JSONEngine.getMutableMap())
 
     actual constructor(json: String) : this(requireJSONObjectPairs(JSONEngine.parse(json)))

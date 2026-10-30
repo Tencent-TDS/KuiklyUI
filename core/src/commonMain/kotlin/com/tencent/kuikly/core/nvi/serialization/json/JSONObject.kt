@@ -64,6 +64,9 @@ expect class JSONObject {
 
     fun optJSONArray(name: String): JSONArray?
 
+    /** 见 [AbstractJSONObject.optParsedChild]：平台可跳过中间字符串直接解析子节点。 */
+    internal fun optParsedChild(name: String): JSONObject?
+
     fun optJSONObject(name: String): JSONObject?
 
     fun keys(): Iterator<String>

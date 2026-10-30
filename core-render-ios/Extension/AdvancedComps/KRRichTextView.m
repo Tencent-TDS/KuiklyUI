@@ -643,7 +643,23 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         }
 
         CGRect frame = [_mAttributedString.hr_textRender boundingRectForCharacterRange:NSMakeRange(attachment.charIndex, 1)];
-        CGFloat offsetY = (CGRectGetHeight(frame) - attachment.bounds.size.height) / 2.0;
+        // Non-last line boundingRect height includes lineSpacing; center against line box (align Android).
+        CGFloat layoutHeight = CGRectGetHeight(frame);
+        NSParagraphStyle *paragraphStyle = [_mAttributedString attribute:NSParagraphStyleAttributeName
+                                                                   atIndex:attachment.charIndex
+                                                            effectiveRange:NULL];
+        CGFloat lineSpacing = paragraphStyle ? ceil(paragraphStyle.lineSpacing) : 0;
+        if (lineSpacing > 0 && layoutManager && textContainer) {
+            NSUInteger glyphIndex = [layoutManager glyphIndexForCharacterAtIndex:attachment.charIndex];
+            NSRange lineGlyphRange = NSMakeRange(0, 0);
+            [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex effectiveRange:&lineGlyphRange];
+            NSRange containerGlyphRange = [layoutManager glyphRangeForTextContainer:textContainer];
+            BOOL isLastLine = (NSMaxRange(lineGlyphRange) >= NSMaxRange(containerGlyphRange));
+            if (!isLastLine) {
+                layoutHeight = MAX(attachment.bounds.size.height, layoutHeight - lineSpacing);
+            }
+        }
+        CGFloat offsetY = (layoutHeight - attachment.bounds.size.height) / 2.0;
         return [NSString stringWithFormat:@"%.2lf %.2lf %.2lf %.2lf", CGRectGetMinX(frame), CGRectGetMinY(frame) + offsetY, attachment.bounds.size.width , attachment.bounds.size.height];
     }
     return @"";

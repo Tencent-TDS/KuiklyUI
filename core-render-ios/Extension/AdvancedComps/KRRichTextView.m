@@ -654,9 +654,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
             NSRange lineGlyphRange = NSMakeRange(0, 0);
             [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex effectiveRange:&lineGlyphRange];
             NSRange containerGlyphRange = [layoutManager glyphRangeForTextContainer:textContainer];
+            // Whole-container last line, same as Android `lineNum < lineCount - 1` (not per-paragraph).
             BOOL isLastLine = (NSMaxRange(lineGlyphRange) >= NSMaxRange(containerGlyphRange));
             if (!isLastLine) {
-                layoutHeight = MAX(attachment.bounds.size.height, layoutHeight - lineSpacing);
+                layoutHeight = MAX(0.0, layoutHeight - lineSpacing);
             }
         }
         CGFloat offsetY = (layoutHeight - attachment.bounds.size.height) / 2.0;

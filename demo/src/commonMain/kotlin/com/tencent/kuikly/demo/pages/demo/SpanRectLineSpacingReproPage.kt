@@ -23,14 +23,16 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.PlaceholderSpan
 import com.tencent.kuikly.core.views.RichText
+import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Span
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 
 /**
- * PlaceholderSpan + lineSpacing 复现页：同一段内容分别以 lineSpacing = 10 / 0 排版，
- * 对比首行（非末行）与末行占位框回传的 spanFrame.y。
+ * PlaceholderSpan + lineSpacing 复现页：
+ * 1) 单段折行：对比非末行 / 末行 spanFrame.y（lineSpacing 10 vs 0）
+ * 2) 多段：段1末行（非全文末行）与全文末行，核对 isLastLine 按整篇判定是否与 Android 一致
  */
 @Page("SpanRectLineSpacingRepro")
 internal class SpanRectLineSpacingReproPage : BasePager() {
@@ -39,28 +41,41 @@ internal class SpanRectLineSpacingReproPage : BasePager() {
     private var spacedLast by observable(Frame.zero)
     private var plainFirst by observable(Frame.zero)
     private var plainLast by observable(Frame.zero)
+    private var spacedParaEnd by observable(Frame.zero)
+    private var spacedDocEnd by observable(Frame.zero)
+    private var plainParaEnd by observable(Frame.zero)
+    private var plainDocEnd by observable(Frame.zero)
 
     override fun body(): ViewBuilder {
         val ctx = this
         return {
             attr {
                 backgroundColor(Color.WHITE)
-                padding(top = ctx.pageData.statusBarHeight + 20f, left = 16f, right = 16f)
             }
-            Text {
+            Scroller {
                 attr {
-                    fontSize(14f)
-                    color(Color.BLACK)
-                    text(
-                        "lineSpacing=10  首行 y=${ctx.spacedFirst.y}  末行 y=${ctx.spacedLast.y}\n" +
-                            "lineSpacing=0   首行 y=${ctx.plainFirst.y}  末行 y=${ctx.plainLast.y}\n" +
-                            "首行 Δ(10 − 0) = ${ctx.spacedFirst.y - ctx.plainFirst.y}\n" +
-                            "末行 Δ(10 − 0) = ${ctx.spacedLast.y - ctx.plainLast.y}"
-                    )
+                    flex(1f)
+                    padding(top = ctx.pageData.statusBarHeight + 20f, left = 16f, right = 16f, bottom = 24f)
                 }
+                Text {
+                    attr {
+                        fontSize(14f)
+                        color(Color.BLACK)
+                        text(
+                            "单段  lineSpacing=10  首行 y=${ctx.spacedFirst.y}  末行 y=${ctx.spacedLast.y}\n" +
+                                "单段  lineSpacing=0   首行 y=${ctx.plainFirst.y}  末行 y=${ctx.plainLast.y}\n" +
+                                "单段  首行 Δ(10 − 0) = ${ctx.spacedFirst.y - ctx.plainFirst.y}\n" +
+                                "单段  末行 Δ(10 − 0) = ${ctx.spacedLast.y - ctx.plainLast.y}\n" +
+                                "多段  段末(非文末) Δ = ${ctx.spacedParaEnd.y - ctx.plainParaEnd.y}\n" +
+                                "多段  文末 Δ = ${ctx.spacedDocEnd.y - ctx.plainDocEnd.y}"
+                        )
+                    }
+                }
+                ctx.reproBlock(this, 10f, { ctx.spacedFirst = it }, { ctx.spacedLast = it }, { ctx.spacedFirst }, { ctx.spacedLast })
+                ctx.reproBlock(this, 0f, { ctx.plainFirst = it }, { ctx.plainLast = it }, { ctx.plainFirst }, { ctx.plainLast })
+                ctx.multiParaBlock(this, 10f, { ctx.spacedParaEnd = it }, { ctx.spacedDocEnd = it }, { ctx.spacedParaEnd }, { ctx.spacedDocEnd })
+                ctx.multiParaBlock(this, 0f, { ctx.plainParaEnd = it }, { ctx.plainDocEnd = it }, { ctx.plainParaEnd }, { ctx.plainDocEnd })
             }
-            ctx.reproBlock(this, 10f, { ctx.spacedFirst = it }, { ctx.spacedLast = it }, { ctx.spacedFirst }, { ctx.spacedLast })
-            ctx.reproBlock(this, 0f, { ctx.plainFirst = it }, { ctx.plainLast = it }, { ctx.plainFirst }, { ctx.plainLast })
         }
     }
 
@@ -109,6 +124,57 @@ internal class SpanRectLineSpacingReproPage : BasePager() {
                     absolutePosition(top = last().y, left = last().x)
                     size(last().width, last().height)
                     backgroundColor(Color(0xAA3366FF))
+                }
+            }
+        }
+    }
+
+    /** 两段：绿块 = 第一段末行（非全文末行），橙块 = 全文末行。 */
+    private fun multiParaBlock(
+        container: ViewContainer<*, *>,
+        spacing: Float,
+        onParaEnd: (Frame) -> Unit,
+        onDocEnd: (Frame) -> Unit,
+        paraEnd: () -> Frame,
+        docEnd: () -> Frame,
+    ) {
+        container.View {
+            attr {
+                marginTop(20f)
+                width(300f)
+            }
+            RichText {
+                attr {
+                    fontSize(18f)
+                    color(Color.BLACK)
+                    backgroundColor(Color(0xFFEEEEEE))
+                    if (spacing > 0f) {
+                        lineSpacing(spacing)
+                    }
+                }
+                Span { text("段一末") }
+                PlaceholderSpan {
+                    placeholderSize(24f, 24f)
+                    spanFrameDidChanged { onParaEnd(it) }
+                }
+                Span { text("\n段二末") }
+                PlaceholderSpan {
+                    placeholderSize(24f, 24f)
+                    spanFrameDidChanged { onDocEnd(it) }
+                }
+            }
+            View {
+                attr {
+                    absolutePosition(top = paraEnd().y, left = paraEnd().x)
+                    size(paraEnd().width, paraEnd().height)
+                    backgroundColor(Color(0xAA33AA55))
+                }
+            }
+            View {
+                attr {
+                    absolutePosition(top = docEnd().y, left = docEnd().x)
+                    size(docEnd().width, docEnd().height)
+                    backgroundColor(Color(0xAAFF8800))
                 }
             }
         }

@@ -46,6 +46,9 @@ uv_async_t g_main_async{};
 std::mutex g_queue_mutex;
 std::queue<std::unique_ptr<PendingTask>> g_pending_queue;
 
+// 见 KRMainThread::RunInNextLoopScope。
+thread_local bool t_run_in_next_loop = false;
+
 // 在主线程上注册一个一次性定时器，到点执行 task 并清理自身。
 // 设计要点：
 //   * uv_timer_init 返回值必须检查；失败时不能泄漏 timer/holder 堆内存，
@@ -184,6 +187,11 @@ void KRMainThread::RunOnMainThread(std::function<void()> task, int delayMillisec
     if (IsCurrentMainThread()) {
         // 已经在主线程（loop 线程），可以直接安全地操作 uv 句柄。
         if (delayMilliseconds <= 0) {
+            if (t_run_in_next_loop) {
+                // 主线程正持有 context 任务锁 m_taskMutex 执行 context 任务，不在持锁的调用栈里执行。
+                EnqueueAndNotify(std::move(task), 0);
+                return;
+            }
             // 立即执行：保持与原实现一致的"同步直跑"语义。
             // 不套 C++ catch：异常若发生则直接冒到 caller 栈，最终由 K/N unhandled hook 处理。
             task();
@@ -228,4 +236,12 @@ bool KRMainThread::IsCurrentOnMainThread() {
         return false;
     }
     return IsCurrentMainThread();
+}
+
+KRMainThread::RunInNextLoopScope::RunInNextLoopScope() : previous_(t_run_in_next_loop) {
+    t_run_in_next_loop = true;
+}
+
+KRMainThread::RunInNextLoopScope::~RunInNextLoopScope() {
+    t_run_in_next_loop = previous_;
 }

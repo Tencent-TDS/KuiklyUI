@@ -594,6 +594,14 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         return nullptr;
     }
 
+ public:
+    /**
+     * 事件注册后调用，告知该事件是否以同步方式注册
+     * @param event_name 事件名
+     * @param sync 是否同步
+     */
+    virtual void SetEventSync(const std::string &event_name, bool sync) {}
+
  private:
     void UnregisterEvent() {
         KREventDispatchCenter::GetInstance().UnregisterEvent(shared_from_this());

@@ -140,6 +140,26 @@ abstract class AbstractJSONObject internal constructor(nameValuePairs: MutableMa
         return result ?: fallback
     }
 
+    /**
+     * 尝试把 [name] 对应的子节点直接解析成 [JSONObject]，跳过中间字符串。
+     *
+     * 只有当平台底层持有可被解析器直接消费的缓冲时才可能成功（例如 OHOS 的
+     * KRJSON 字符串节点）；不支持、不是字符串节点、解析失败或结果不是对象时
+     * 一律返回 null，调用方必须准备兜底路径，这样各平台行为一致。
+     */
+    internal open fun optParsedChild(name: String): JSONObject? {
+        return when (val value = opt(name)) {
+            is JSONObject -> value
+            // 失败时不落日志：value 可能是几十 MB 的回包正文。
+            is String -> try {
+                JSONObject(value)
+            } catch (e: Throwable) {
+                null
+            }
+            else -> null
+        }
+    }
+
     fun optJSONArray(name: String): JSONArray? {
         return when (val value = opt(name)) {
             is JSONArray -> {

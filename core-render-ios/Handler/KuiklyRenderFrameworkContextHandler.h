@@ -39,6 +39,8 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  * @brief framework模式预热：在主线程提前执行一次Kotlin入口调用，
  * 完成Kotlin/Native runtime的主线程注册（规避finalizer 0xf8崩溃）
+ * @discussion 本预热为 Kotlin/Native 2.1.21 专属 workaround
+ * （KT-84331，上游 2.4.0 已修复），升级 Kotlin >= 2.4.0 后可移除
  * @param frameworkName 编译出来的framework名字
  */
 + (void)warmupMainThreadRuntimeWithFrameworkName:(nullable NSString *)frameworkName;

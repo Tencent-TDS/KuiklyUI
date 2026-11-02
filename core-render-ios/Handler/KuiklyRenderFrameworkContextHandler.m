@@ -154,6 +154,8 @@
  * run loop 上挂 finalizer source，若主线程从未执行过 Kotlin 代码（未注册
  * runtime），source 回调构造 ThreadStateGuard 时会崩溃（fault 0xf8）。
  * 在主线程调用一次 companion class getter 即可完成 runtime 注册。
+ * 本预热为 Kotlin/Native 2.1.21 专属 workaround（KT-84331，
+ * 上游 2.4.0 已修复），升级 Kotlin >= 2.4.0 后可移除。
  * @param frameworkName 编译出来的framework名字
  */
 + (void)warmupMainThreadRuntimeWithFrameworkName:(NSString *)frameworkName {
@@ -168,19 +170,22 @@
         !frameworkName.length || frameworkName.length >= MAX_FRAMEWORK_NAME_LENGTH) {
         return;
     }
+    // 先确认入口类可解析且实现 companion，再记录去重；
+    // 解析失败（名字错误/类未加载）时不记录，下次调用可重试
+    Class entryClass = [KuiklyRenderFrameworkContextHandler entryClassWithFrameworkName:frameworkName];
+    if (!entryClass || ![entryClass respondsToSelector:@selector(companion)]) {
+        return;
+    }
     @synchronized (warmedFrameworks) {
         if ([warmedFrameworks containsObject:frameworkName]) {
             return;
         }
         [warmedFrameworks addObject:frameworkName];
     }
+    // companion 是 Kotlin/Native 生成的 class getter，无业务副作用，
+    // 与 isPageExistWithPageName: 中的调用同一入口
     dispatch_block_t warmup = ^{
-        Class entryClass = [KuiklyRenderFrameworkContextHandler entryClassWithFrameworkName:frameworkName];
-        // companion 是 Kotlin/Native 生成的 class getter，无业务副作用，
-        // 与 isPageExistWithPageName: 中的调用同一入口
-        if (entryClass && [entryClass respondsToSelector:@selector(companion)]) {
-            (void)[(id)entryClass performSelector:@selector(companion)];
-        }
+        (void)[(id)entryClass performSelector:@selector(companion)];
     };
     if ([NSThread isMainThread]) {
         warmup();

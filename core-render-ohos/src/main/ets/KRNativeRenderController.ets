@@ -351,7 +351,12 @@ export class KRNativeRenderController {
     this.densityPixels = this.getWindowActiveDensity();
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
     const currentConfig = uiAbilityContext.config;
-    this.fontSizeScale = currentConfig.fontSizeScale ? currentConfig.fontSizeScale : 1;
+    // 应用上限限幅：config.fontSizeScale 为系统原值（不含 app.json5 configuration
+    // fontSizeMaxScale / setMaxFontScale 声明的应用上限），ArkUI 原生组件遵循上限，
+    // Kuikly 段落（C++ 侧直接乘倍率、不经 ArkUI）须在此取小，保持与宿主原生一致
+    this.fontSizeScale = currentConfig.fontSizeScale
+      ? Math.min(currentConfig.fontSizeScale, this.getEffectiveMaxFontScale())
+      : 1;
     if (!this.fontSizeScaleFollowSystem()) {
       this.fontSizeScale = 1;
     }
@@ -441,7 +446,8 @@ export class KRNativeRenderController {
       data['fontWeightScale'] = config.fontWeightScale;
     }
     if (config.fontSizeScale) {
-      data['fontSizeScale'] = config.fontSizeScale;
+      // 运行中字号更新沿用同一应用上限（config 恒为系统原值，见 init 处注释）
+      data['fontSizeScale'] = Math.min(config.fontSizeScale, this.getEffectiveMaxFontScale());
     }
     let fontSizeScaleFollowSystem = this.fontSizeScaleFollowSystem();
     if (!fontSizeScaleFollowSystem) {
@@ -953,6 +959,27 @@ export class KRNativeRenderController {
    */
   fontSizeScaleFollowSystem(): boolean {
     return true
+  }
+
+  /**
+   * 应用配置的最大字体倍率（宿主经 app.json5 configuration fontSizeMaxScale 或
+   * UIContext.setMaxFontScale 设置，ArkUI 原生组件遵循该上限；而系统
+   * Configuration.fontSizeScale 恒为系统原值、不含应用上限，不能直接当作有效倍率）。
+   * Kuikly 段落字号在 C++ 侧（KRParagraph）直接乘以下发倍率、不经过 ArkUI，
+   * 故须在入口统一限幅，保持与宿主原生文字一致。
+   * 未配置上限时 getMaxFontScale 返回 ArkUI 默认上限 2.0（取值范围 1~3，与宿主
+   * 原生组件默认行为一致）；仅 API 12 及以下设备（该方法为 API 13+）读取抛异常
+   * 或 uiContext 为空时返回 Number.MAX_VALUE 兜底，min 后保持原行为。
+   */
+  private getEffectiveMaxFontScale(): number {
+    try {
+      if (this.uiContext != null) {
+        return this.uiContext.getMaxFontScale();
+      }
+    } catch (e) {
+      KRRenderLog.e('Configuration', `getMaxFontScale failed: ${e}`);
+    }
+    return Number.MAX_VALUE;
   }
 
   /**

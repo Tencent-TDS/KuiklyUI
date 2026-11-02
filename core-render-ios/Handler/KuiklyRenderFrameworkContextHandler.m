@@ -149,6 +149,47 @@
 
 #pragma mark - public
 /*
+ * @brief framework模式预热：在主线程执行一次Kotlin入口调用
+ * @discussion Kotlin/Native 2.1.21 的 RunLoopFinalizerProcessor 会在主线程
+ * run loop 上挂 finalizer source，若主线程从未执行过 Kotlin 代码（未注册
+ * runtime），source 回调构造 ThreadStateGuard 时会崩溃（fault 0xf8）。
+ * 在主线程调用一次 companion class getter 即可完成 runtime 注册。
+ * @param frameworkName 编译出来的framework名字
+ */
++ (void)warmupMainThreadRuntimeWithFrameworkName:(NSString *)frameworkName {
+    static NSMutableSet<NSString *> *warmedFrameworks = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        warmedFrameworks = [[NSMutableSet alloc] init];
+    });
+    // 与 isFrameworkWithContextCode: 的判定对齐，避免动态化场景下
+    // 把 JS bundle 内容等超长字符串误当作 framework 名处理
+    if (![frameworkName isKindOfClass:[NSString class]] ||
+        !frameworkName.length || frameworkName.length >= MAX_FRAMEWORK_NAME_LENGTH) {
+        return;
+    }
+    @synchronized (warmedFrameworks) {
+        if ([warmedFrameworks containsObject:frameworkName]) {
+            return;
+        }
+        [warmedFrameworks addObject:frameworkName];
+    }
+    dispatch_block_t warmup = ^{
+        Class entryClass = [KuiklyRenderFrameworkContextHandler entryClassWithFrameworkName:frameworkName];
+        // companion 是 Kotlin/Native 生成的 class getter，无业务副作用，
+        // 与 isPageExistWithPageName: 中的调用同一入口
+        if (entryClass && [entryClass respondsToSelector:@selector(companion)]) {
+            (void)[(id)entryClass performSelector:@selector(companion)];
+        }
+    };
+    if ([NSThread isMainThread]) {
+        warmup();
+    } else {
+        // 只异步派发、不等待，避免与 Context 线程互相同步等待造成死锁
+        dispatch_async(dispatch_get_main_queue(), warmup);
+    }
+}
+/*
  * @brief 对应contextCode是否framework模式
  */
 + (BOOL)isFrameworkWithContextCode:(NSString *)contextCode {

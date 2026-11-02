@@ -36,6 +36,12 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 根据framework名获取Kotlin/Native入口类
  */
 + (Class _Nullable)entryClassWithFrameworkName:(NSString *)frameworkName;
+/*
+ * @brief framework模式预热：在主线程提前执行一次Kotlin入口调用，
+ * 完成Kotlin/Native runtime的主线程注册（规避finalizer 0xf8崩溃）
+ * @param frameworkName 编译出来的framework名字
+ */
++ (void)warmupMainThreadRuntimeWithFrameworkName:(nullable NSString *)frameworkName;
 
 @end
 

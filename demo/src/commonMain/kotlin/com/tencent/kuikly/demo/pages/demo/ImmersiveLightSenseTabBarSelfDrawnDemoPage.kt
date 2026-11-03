@@ -42,8 +42,8 @@ internal class ImmersiveLightSenseTabBarSelfDrawnDemoPage : BasePager() {
     /** 整个 bar 的圆角，实时可调（自绘版核心卖点：作用在 bar 底板，非单个格子） */
     private var pillRadius by observable(0f)
 
-    /** 材质档位：0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK */
-    private var materialStyle by observable(2)
+    /** 材质档位：0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK（默认 THIN 更通透） */
+    private var materialStyle by observable(1)
 
     private val tabs = listOf("首页", "发现", "消息", "我的", "设置")
 

@@ -57,13 +57,6 @@ struct CustomTabCell {
   @Prop materialEnable: boolean = false;
   @Prop materialStyle: number = 2;
 
-  /** 横向滑动切换：按下时的起始 x（普通字段，非状态，不触发重渲染） */
-  private startX: number = 0;
-  /** 本次手势是否已触发过切换（防一次滑动连切多页） */
-  private swiped: boolean = false;
-  /** 触发切换的横向位移阈值（vp） */
-  private readonly swipeThreshold: number = 30;
-
   aboutToAppear(): void {
     // builder/格子创建的诊断锚点：一条没有 = tabBar builder 根本没执行
     logI(`customTabbar cell builder idx=${this.idx}, label=${this.label}`);
@@ -84,8 +77,10 @@ struct CustomTabCell {
     .justifyContent(FlexAlign.Center)
     .width('100%')
     .height('100%')
-    .backgroundColor(this.selectedIndex === this.idx ? '#1A0A59F7' : Color.Transparent)
-    // 切换动画近似：选中态背景/图标字号变化平滑过渡（HdsTabs 的跨格滑动指示器
+    // 选中态不做背景色块（原生 HdsTabs 同款：仅图标/文字变色反馈）——
+    // 之前的 '#1A0A59F7' 方形色块是与原生观感差异的最大来源
+    .backgroundColor(Color.Transparent)
+    // 切换动画近似：选中态图标字号变化平滑过渡（HdsTabs 的跨格滑动指示器
     // 是 HDS 闭源实现，Tabs 的 tabBar 槽位布局不归我们管，跨格滑动做不了）
     .animation({ duration: 250, curve: Curve.EaseOut })
     .padding({ left: 8, right: 8 })
@@ -97,26 +92,25 @@ struct CustomTabCell {
     .onAppear(() => {
       logI(`customTabbar cell appeared idx=${this.idx}, selected=${this.selectedIndex === this.idx}`);
     })
-    // ── bar 上左右滑动切换页签 ──
+    // ── bar 上 pan 手势切换页签（与玻璃版同款语义）──
     // HdsTabs 版能"在页签栏上滑动切换"是系统组件内部的闭源行为；自绘格子的
-    // bar 区域手势归自己的节点管，官方不会代劳，因此这里自绘实现：
-    // 位移超过阈值即切到相邻页签（与内容区滑动方向一致：右滑上一页、左滑下一页）。
-    .onTouch((event: TouchEvent) => {
-      if (event.type === TouchType.Down) {
-        this.startX = event.touches[0].x;
-        this.swiped = false;
-        return;
-      }
-      if (event.type === TouchType.Move && !this.swiped) {
-        const dx: number = event.touches[0].x - this.startX;
-        if (Math.abs(dx) > this.swipeThreshold) {
-          this.swiped = true;
-          const next: number = dx > 0 ? this.idx - 1 : this.idx + 1;
-          logI(`customTabbar swipe idx=${this.idx} dx=${dx.toFixed(1)} -> next=${next}`);
-          this.view?.selectTab(next);
-        }
-      }
-    })
+    // bar 区域手势归自己的节点管，官方不会代劳，因此自绘 PanGesture：
+    // 松手时按 位移 ÷ 槽宽（格子宽 = 组件宽 ÷ item 数）四舍五入决定切几页。
+    // tap（onClick）与 pan 由系统手势仲裁自动区分：拖动判 pan，轻点判 tap。
+    .gesture(
+      PanGesture({ direction: PanDirection.Horizontal })
+        .onActionEnd((event: GestureEvent) => {
+          const itemsCount: number = this.view?.items.length ?? 1;
+          const width: number = this.view?.frameWidth ?? 360;
+          const slotWidth: number = itemsCount > 0 ? width / itemsCount : 90;
+          const movedSlots: number = Math.round(event.offsetX / slotWidth);
+          if (movedSlots !== 0) {
+            logI(`customTabbar pan offset=${event.offsetX.toFixed(1)} ` +
+              `slotWidth=${slotWidth.toFixed(1)} -> movedSlots=${movedSlots}`);
+            this.view?.selectTab(this.idx + movedSlots);
+          }
+        })
+    )
   }
 }
 
@@ -154,7 +148,8 @@ struct ImmersiveTabBarSelfDrawnInner {
    */
   @Prop pillBackgroundColor: string = '#00000000';
   @Prop materialEnable: boolean = false;
-  @Prop materialStyle: number = 2;
+  /** 材质厚薄：1=THIN 更通透（贴近原生胶囊观感）；REGULAR(2) 偏白雾 */
+  @Prop materialStyle: number = 1;
   /** 悬浮位置：左右内缩 / 底部抬离（FloatingTabBarStyle，与 HdsTabs 版同义） */
   @Prop barSideMargin: number = 16;
   @Prop barBottomMargin: number = 48;
@@ -292,7 +287,7 @@ export class KRImmersiveTabBarSelfDrawnView extends KuiklyRenderBaseView {
   /** 悬浮位置：底部抬离（FloatingTabBarStyle.barBottomMargin，与 HdsTabs 版同义） */
   barBottomOffset: number = 48;
   materialEnable: boolean = false;
-  materialStyle: number = 2;
+  materialStyle: number = 1;
   /** Kuikly 节点的实际尺寸（sizeDidChanged），ArkTS 内容钉在节点尺寸内 */
   frameWidth: number = 0;
   frameHeight: number = 0;

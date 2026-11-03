@@ -74,8 +74,17 @@ class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>() {
 iOS 端可通过实现 `viewControllerHostWindow` 方法，指定当前页面获取 safeAreaInsets 的参考窗口。这在多 Window 场景（如悬浮窗、分屏模式）确保获取到正确的安全区域。[参考示例](../QuickStart/iOS.md#实现kuikly承载容器)
 :::
 
-:::warning 版本要求
-`hingeStatus` 与 `reservedRegions` 需要 **KuiklyUI 2.29.0** 及以上版本，且仅在 iOS 27.1+ 系统的 iPhone Duo 折叠设备上返回有效数据；其他平台/设备上 `hingeStatus` 为 `UNKNOWN(0)`，`reservedRegions` 为空列表，可放心直接使用。
+:::warning hingeStatus 版本与平台
+| KuiklyUI 版本 | 平台 | 有效数据条件 |
+|-------------|------|------------|
+| **2.30.0+** | **iOS** | iOS **27.1+** 折叠设备（如 iPhone Duo）；Native 通过 `UIHingeInteraction` 写入 `hingeStatus`，随 `rootViewSizeDidChanged` 更新 |
+| **2.31.0+** | **HarmonyOS** | **API 12+** 可折叠设备；Native 通过 `display.getFoldStatus` / `display.on('foldStatusChange')` 获取物理折叠态，**映射**为 `HingeStatus` 随 `rootViewSizeDidChanged` 更新 |
+
+上述条件不满足时（含普通手机、平板、不可折鸿蒙机、更低系统版本），`hingeStatus` 为 `UNKNOWN(0)`，可直接按未知处理。
+:::
+
+:::warning reservedRegions 版本与平台
+`reservedRegions` 需要 **KuiklyUI 2.29.0+**，且**仅 iOS 27.1+** 折叠设备（如 iPhone Duo）返回数据；HarmonyOS 及其他平台恒为**空列表**。验证 Demo：`ReservedRegionDemo`。
 :::
 
 ## ReservedRegion（避让区域）
@@ -110,7 +119,7 @@ val halfFolded = pageData.hingeStatus == HingeStatus.PARTIALLY_OPEN
 ```
 
 :::tip 提示
-区域变化（折叠/展开/旋转）会随 `rootViewSizeDidChanged` 事件自动更新到上述字段，无需手动刷新。
+`hingeStatus` 变化（以及 iOS 上 `reservedRegions` 变化）会随 `rootViewSizeDidChanged` 事件自动更新到上述字段，无需手动轮询。HarmonyOS 折叠态与窗口尺寸变化可能同帧或先后到达，均以最新一次事件快照为准。
 :::
 
 ## PagerData业务扩展参数

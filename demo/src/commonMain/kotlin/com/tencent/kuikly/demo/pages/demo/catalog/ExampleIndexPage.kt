@@ -373,6 +373,20 @@ internal class ExampleIndexPage : BasePager() {
             })
         }
 
+        itemList.add(ExampleItemData().apply {
+            avatarText = "Fd"
+            titleText = "Fold hingeStatus"
+            subtitleText = "折叠铰链状态：HarmonyOS foldStatusChange → pageData.hingeStatus（折叠真机验证）"
+            declarativeExampleUrl = generateJumpUrl("FoldHingeStatusDemo")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "Fr"
+            titleText = "Fold 阅读 / 避让 / 分栏"
+            subtitleText = "FoldReading、FoldAvoid、FoldAdaptiveSettingsDemo 等；路由输入对应 Page 名"
+            declarativeExampleUrl = generateJumpUrl("FoldReading")
+        })
+
     }
 
     private fun generateJumpUrl(pagerName: String) : String {

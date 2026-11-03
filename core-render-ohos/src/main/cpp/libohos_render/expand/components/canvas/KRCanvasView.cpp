@@ -31,6 +31,7 @@
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
+#include "libohos_render/utils/KRShaderEffectUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -230,6 +231,8 @@ void KRCanvasView::SetStrokeStyle(const std::string &params) {
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
             OH_Drawing_PenSetShaderEffect(pen_, colorShaderEffect);
+            // pen_ 已接管引用，交出所有权，避免每次设置渐变样式都泄漏一个
+            kuikly::util::KRSafeDestroyShaderEffect(colorShaderEffect);
         } else {
             OH_Drawing_PenSetShaderEffect(pen_, nullptr);
             OH_Drawing_PenSetColor(pen_, kuikly::util::ConvertToHexColor(style));
@@ -244,6 +247,8 @@ void KRCanvasView::SetFillStyle(const std::string &params) {
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
             OH_Drawing_BrushSetShaderEffect(brush_, colorShaderEffect);
+            // brush_ 已接管引用，交出所有权
+            kuikly::util::KRSafeDestroyShaderEffect(colorShaderEffect);
         } else {
             OH_Drawing_BrushSetShaderEffect(brush_, nullptr);
             kuikly::graphics::Color color = kuikly::graphics::Color::FromString(style);

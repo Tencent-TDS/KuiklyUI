@@ -16,9 +16,11 @@
 import 'libkuikly_entry.so';
 import { AbilityStage } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { MMKV } from '@tencent/mmkv';
 import { setup, init } from '@kuiklybase/knoi';
 import BuildProfile from 'BuildProfile';
 import { CrashReport } from '../kuikly/CrashReport/CrashReport';
+import { LeakWatcherManager } from '../kuikly/LeakWatcherManager';
 
 export default class EntryAbilityStage extends AbilityStage {
   onCreate(): void {
@@ -28,5 +30,10 @@ export default class EntryAbilityStage extends AbilityStage {
     init();
 
     CrashReport.getInstance().initCrashReport(this.context);
+
+    // MMKV 初始化（必须先于任何 defaultMMKV() 调用）。
+    // 用 applicationContext，避免持有 AbilityStage 的 context。
+    MMKV.initialize(this.context.getApplicationContext());
+    LeakWatcherManager.init(this.context.getApplicationContext());
   }
 }

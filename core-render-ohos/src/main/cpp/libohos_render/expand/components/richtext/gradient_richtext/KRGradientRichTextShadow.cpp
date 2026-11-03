@@ -19,6 +19,7 @@
 #include <native_drawing/drawing_point.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include "libohos_render/utils/KRLinearGradientParser.h"
+#include "libohos_render/utils/KRShaderEffectUtil.h"
 
 const char *gBackgroundImage = "backgroundImage";
 /**
@@ -89,5 +90,8 @@ void KRGradientRichTextShadow::DidBuildTextStyle(OH_Drawing_TextStyle *textStyle
         OH_Drawing_BrushDestroy(brush);
         OH_Drawing_PointDestroy(startPt);
         OH_Drawing_PointDestroy(endPt);
+        // brush 已接管 shaderEffect 的引用，此处交出所有权。
+        // 漏掉这步会每次排版泄漏一个 shader effect（反复进出页面时线性累积）。
+        kuikly::util::KRSafeDestroyShaderEffect(shaderEffect);
     }
 }

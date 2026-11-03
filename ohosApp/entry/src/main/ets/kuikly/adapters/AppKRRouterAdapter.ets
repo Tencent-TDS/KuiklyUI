@@ -55,6 +55,9 @@ export class AppKRRouterAdapter implements IKRRouterAdapter {
       url = 'pages/NativeAppWaterfall';
     } else if (pageName === 'KuiklyInList') {
       url = 'pages/KuiklyInList';
+    } else if (pageName === 'LeakRepro') {
+      // 内存泄漏复现台：宿主原生页，供重复进出 Kuikly 页面时观察对象累积
+      url = 'pages/LeakReproPage';
     } else {
       url = 'pages/Index';
     }

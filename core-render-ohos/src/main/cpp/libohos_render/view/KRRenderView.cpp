@@ -17,6 +17,7 @@
 
 #include <cstdio>
 #include <functional>
+#include <rawfile/raw_file_manager.h>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 #include "libohos_render/expand/events/common_event/KRCommonEventManager.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
@@ -83,6 +84,12 @@ KRRenderView::~KRRenderView() {
         root_node_ = nullptr;
     }
     node_content_handle_ = nullptr;
+    // 已知泄漏：native_resources_manager_ 由 napi_init.cpp 的 OnInitRenderView
+    // 每次进入页面时通过 OH_ResourceManager_InitNativeResourceManager 新建，此处只置空未释放。
+    // 实测占 app native 总量仅 0.49%（103 KB / 442 次），且 native heap 不随轮次累积。
+    // 暂不释放的原因：KRImageLoadOption 等处以裸指针持有该 manager，存在异步图片解码路径
+    // （KRCustomEmojiPixmapCache::ImageLoadedCallback），若在 view 析构后仍被访问会变成悬垂
+    // 指针导致随机崩溃。要安全修复需先把持有方改成 weak/shared 所有权，属于独立改造。
     native_resources_manager_ = nullptr;
     method_arg_callback_map_.clear();
     // 防御性注销：正常路径在 WillDestroy 中已注销，此处兜底避免订阅泄漏

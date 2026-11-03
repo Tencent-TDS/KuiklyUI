@@ -40,6 +40,7 @@
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRLinearGradientParser.h"
+#include "libohos_render/utils/KRShaderEffectUtil.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
@@ -729,6 +730,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         if (textBackgroundBrush) {
             OH_Drawing_BrushDestroy(textBackgroundBrush);
             textBackgroundBrush = nullptr;
+        }
+        if (colorShaderEffect) {
+            // brush 已通过 OH_Drawing_BrushSetShaderEffect 接管引用，此处交出所有权。
+            // 漏掉会每个 span 泄漏一个 shader effect。
+            kuikly::util::KRSafeDestroyShaderEffect(colorShaderEffect);
+            colorShaderEffect = nullptr;
         }
     }
     // 根据handler对象生成文本排版布局typography

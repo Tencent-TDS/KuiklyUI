@@ -24,6 +24,7 @@
 #include "libohos_render//foundation/KRCommon.h"
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRShaderEffectUtil.h"
 #include "libohos_render/utils/KRUtfUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
@@ -50,11 +51,8 @@ static void KRSafeCall_OH_Drawing_ShaderEffectDestroy(OH_Drawing_ShaderEffect *s
     // /system/lib64/lib2d_graphics.z.so(OHOS::Rosen::Drawing::ColorFilter::Serialize()
     // const+8)(16bfef5cc4fcfd7dcea9585dd5c33a22))
     // 2. Works with api 19
-    if (OH_GetSdkApiVersion() >= SHADER_EFFECT_DESTROY_API_LEVEL) {
-        OH_Drawing_ShaderEffectDestroy(shaderEffect);
-    } else {
-        // noop
-    }
+    // 实现收敛到 kuikly::util::KRSafeDestroyShaderEffect，供其他组件共用
+    kuikly::util::KRSafeDestroyShaderEffect(shaderEffect);
 }
 
 class KRFontCollectionManager final {

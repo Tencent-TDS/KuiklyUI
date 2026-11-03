@@ -10,6 +10,7 @@
     "libkuikly_entry.so": "file:./src/main/cpp/types/kuikly_entry",
     "@tencent/libpag": "4.4.25",
     "bugly": "0.5.1",
-    "@kuiklybase/knoi": "0.0.4"
+    "@kuiklybase/knoi": "0.0.4",
+    "@tencent/mmkv": "2.4.3"
   }
 }

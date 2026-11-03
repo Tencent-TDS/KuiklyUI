@@ -25,7 +25,7 @@ import { KRRect } from './foundation/KRRect';
 import { KRRenderViewExportCreator } from './components/base/KRBaseViewExport';
 import { KRRenderModuleExportCreator } from './modules/base/IKRModuleExport';
 import { KRRenderLog } from './adapter/KRRenderLog';
-import { BusinessError, Callback } from '@kit.BasicServicesKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { Configuration } from '@ohos.app.ability.Configuration';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';

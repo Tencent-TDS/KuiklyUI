@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_KRVIEW_H
 
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
+#include "libohos_render/expand/components/scroller/KRScrollerView.h"
 #include "libohos_render/expand/components/view/SuperTouchHandler.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -156,6 +157,9 @@ class KRView : public IKRRenderViewExport {
 
     friend class KRViewInternalScrollViewObserver;
     KRViewInternalScrollViewObserver *scroll_observer_ = nullptr;
+    // 记录 scroll_observer_ 实际注册过的 scroller，析构时精确反注册。
+    // 避免在 ~KRView 里对整棵子树做 GetInternalScrollViews 递归收集（主线程冻结根因）。
+    std::vector<std::weak_ptr<KRScrollerView>> observing_scroll_views_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRVIEW_H

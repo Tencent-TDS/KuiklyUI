@@ -155,6 +155,17 @@ export class KRNativeRenderController {
   private lastTrustedInsets: string | null = null;
   /** viewRect 是否已跟随当前窗口重新测量：false = 窗口已变而页面未量完（判据A的拦截条件） */
   private viewSyncedByWindow: boolean = true;
+  /** 窗口尺寸已变化、等待布局回调确认 viewRect 与新窗口同步（判据A 的开门依据） */
+  private windowSizeChangedPending: boolean = false;
+  /** windowSizeChange 之后是否已有布局回调（onAreaChange/onSizeChange）写入过 viewRect */
+  private viewRectUpdatedAfterWindowChange: boolean = false;
+  /** 上次真正下发到 Kotlin 的 rootViewSizeDidChanged 快照：判等基线必须是「已送达值」，
+   * 不能用 safeAreaRect 缓存——后者会被 notify=false 静默更新，导致同值补发被误判为未变化而漏发 */
+  private lastNotifiedInsets: string | null = null;
+  private lastNotifiedWidth: number = -1;
+  private lastNotifiedHeight: number = -1;
+  private lastNotifiedDeviceWidth: number = -1;
+  private lastNotifiedDeviceHeight: number = -1;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -199,6 +210,10 @@ export class KRNativeRenderController {
     this.windowRect = new KRRect(0, 0, w, h);
     // 窗口已变而页面尚未重新测量，viewRect 旧尺寸作废（判据A拦截条件），等布局回调重新确认
     this.viewSyncedByWindow = false;
+    // 登记待确认：后续布局回调（即便重测变化量 < 0.1dp）或补发通知都要能确认同步，
+    // 否则 viewSyncedByWindow 永远卡在 false，新 insets 被 lastTrustedInsets 钳制无法送达
+    this.windowSizeChangedPending = true;
+    this.viewRectUpdatedAfterWindowChange = false;
 
     this.notifyWindowSizeChanged(w, h);
     // 同步刷新 safeArea（不走 setTimeout），避免与布局回调竞争产生「旧 viewRect − 新 safeAreaRect」错配
@@ -481,16 +496,31 @@ export class KRNativeRenderController {
    * 密度变化 / 初始化 / pageShow 补刷）统一过判据B注入检测后再入库，杜绝脏值绕过验货直入缓存。
    * notify=false 仅存不下发（windowSizeChange 专用）：
    * 此刻 ArkUI 尚未布局、viewRect 仍是旧朝向，立即下发必产生错配 insets。
-   * 值未显著变化时跳过下发（float 容差判等）：correctInjectedSafeArea 只做注入纠偏不做
-   * 变更判等，avoidAreaChange 同值补发、pageShow 回前台常态等场景会白跑一遍全量
-   * rootViewSizeDidChanged 下发与布局调度；下游全链路幂等，跳过纯属去冗余、不影响兜底语义。
+   *
+   * 判等不在入库口做：判等基线是「上次真正下发的事件快照」（见 notifySizeChange），
+   * 而不是 safeAreaRect 缓存。缓存会被 notify=false 静默更新却不触发下发，若用它判等，
+   * 窗口变化后布局链路未补发时（重测变化量 < 0.1dp 或非全屏视图形态），
+   * 后续同值的 avoidAreaChange/pageShow 会被误判成「未变化」而跳过，这条更新就丢了。
    */
   onSafeAreaInsetsChanged(rect: KRRect, notify: boolean = true, source: string = 'unknown') {
     const verified = this.correctInjectedSafeArea(rect, source);
-    const changed = this.safeAreaRect == null || !this.isSameSafeAreaRect(this.safeAreaRect, verified);
     this.safeAreaRect = verified;
     if (this.didInit) {
-      if (notify && changed) {
+      if (notify) {
+        // 窗口变化后同步状态尚未确认时，在此补一次开门判定，避免新 insets 被判据A
+        // 钳制为 lastTrustedInsets 旧值而无法送达。布局回调来过自然可信；若布局回调
+        // 完全没来（组件区域未变，onAreaChange 不触发），只要 viewRect 与窗口同朝向
+        // （无旋转轴差）也可安全开门；旋转后 viewRect 仍是旧朝向时保持判据A 保护。
+        if (this.windowSizeChangedPending) {
+          const view = this.viewRect;
+          const win = this.windowRect;
+          const orientationAligned = view != null && win != null &&
+            (view.width > view.height) === (win.width > win.height);
+          if (this.viewRectUpdatedAfterWindowChange || orientationAligned) {
+            this.viewSyncedByWindow = true;
+            this.windowSizeChangedPending = false;
+          }
+        }
         this.notifySizeChange();
       }
     } else {
@@ -520,20 +550,42 @@ export class KRNativeRenderController {
     if (this.viewRect == null) {
       return;
     }
+    const insets = this.encodeSafeAreaInsetsString();
+    const width = this.viewRect.width;
+    const height = this.viewRect.height;
+    const deviceWidth = this.windowRect != null ? this.windowRect.width : -1;
+    const deviceHeight = this.windowRect != null ? this.windowRect.height : -1;
     const data: KRRecord = {};
-    data[KRWidthKey] = this.viewRect.width;
-    data[KRHeightKey] = this.viewRect.height;
-    data[KRSafeAreaInsets] = this.encodeSafeAreaInsetsString();
+    data[KRWidthKey] = width;
+    data[KRHeightKey] = height;
+    data[KRSafeAreaInsets] = insets;
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
     // 随事件下发最新窗口尺寸，Kotlin 侧 PagerData 收到后同步更新，
     // Compose screenWidthDp/screenHeightDp 随之跟随旋转互换，否则冻结在初始朝向
     if (this.windowRect != null) {
-      data[KRDeviceWidthKey] = this.windowRect.width;
-      data[KRDeviceHeightKey] = this.windowRect.height;
+      data[KRDeviceWidthKey] = deviceWidth;
+      data[KRDeviceHeightKey] = deviceHeight;
     }
-    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
+
+    // 事件级去重：基线是「上次真正下发」的快照，而非 safeAreaRect 缓存。
+    // 缓存会被 notify=false 静默更新却不触发下发，用缓存判等会吞掉尚未送达的 insets 更新；
+    // 这里只有内容完全一致才跳过，density 变化属独立信息，强制下发且不纳入常规快照。
+    const unchanged = this.lastNotifiedInsets === insets &&
+      Math.abs(this.lastNotifiedWidth - width) < 0.01 &&
+      Math.abs(this.lastNotifiedHeight - height) < 0.01 &&
+      Math.abs(this.lastNotifiedDeviceWidth - deviceWidth) < 0.01 &&
+      Math.abs(this.lastNotifiedDeviceHeight - deviceHeight) < 0.01;
+    const willSend = densityInfo != null || !unchanged;
+    if (willSend) {
+      this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
+      this.lastNotifiedInsets = insets;
+      this.lastNotifiedWidth = width;
+      this.lastNotifiedHeight = height;
+      this.lastNotifiedDeviceWidth = deviceWidth;
+      this.lastNotifiedDeviceHeight = deviceHeight;
+    }
 
     this.runKRRenderTask(() => {
       render.onRenderViewSizeChanged(this.instanceId, this.viewRect?.width as number, this.viewRect?.height as number);
@@ -559,17 +611,23 @@ export class KRNativeRenderController {
       newValue.globalPosition.y as number,
       newWidth,
       newHeight);
-    // 仅尺寸被布局系统重新测量时才确认同步：纯位置滚动不代表重新测量，
-    // 此时尺寸仍是旧朝向，提前开门会让 encode 用旧尺寸减新 safeAreaRect 产出错配 insets
-    if (sizeChanged) {
+    this.viewRectUpdatedAfterWindowChange = true;
+    // 窗口变化后的首个布局回调：viewRect 已由本回调写入最新值，可确认同步。
+    // 纯位置滚动（无 windowSizeChange）且尺寸未变时不开门，保留判据A 对「旧朝向尺寸」的保护；
+    // 但窗口确实变过、只是重测量低于 0.1dp 阈值（非全屏/固定尺寸视图形态）时必须开门——
+    // 此时不存在旋转轴差，若继续拦着，新 insets 会被 lastTrustedInsets 永久钳制而无法送达。
+    const windowChangeConfirmed = this.windowSizeChangedPending;
+    if (sizeChanged || windowChangeConfirmed) {
       this.viewSyncedByWindow = true;
+      this.windowSizeChangedPending = false;
     }
     if (this.didInit) {
       if (this.sizeChangeHandledByOnSizeChange) {
         // 已在 onSizeChange 中提前处理过，消费标志位，跳过重复执行
         this.sizeChangeHandledByOnSizeChange = false;
-      } else if (sizeChanged) {
-        // 兜底：onSizeChange 未处理（syncSendEvent=false 或未触发），在此处触发
+      } else if (sizeChanged || windowChangeConfirmed) {
+        // 尺寸未变但窗口确认同步时同样补发一次，把新 insets 送达 Kotlin；
+        // 事件级判等会消除与 onSizeChange 提前路径的重复下发
         this.doOnAreaChange(newValue);
         this.notifySizeChange();
       }
@@ -596,7 +654,10 @@ export class KRNativeRenderController {
       // syncSendEvent=false 时不在此开门，由 onAreaChange 重建 viewRect 后开门并兜底下发
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
+      this.viewRectUpdatedAfterWindowChange = true;
       this.viewSyncedByWindow = true;
+      // 提前路径已用新 viewRect 完成同步，消费窗口变化待确认标志
+      this.windowSizeChangedPending = false;
       this.runKRRenderTask(() => {
         render.onRenderViewSizeChanged(this.instanceId, newWidth, newHeight);
       });
@@ -637,7 +698,7 @@ export class KRNativeRenderController {
         this.doOnDensityChanged(newDensity);
       } else if (this.windowClass != null && !this.imeMode) {
         // 回前台补刷：后台期间窗口/避让区可能已变化而回调未送达（或送达时未初始化），
-        // 主动重取 safeAreaRect 经唯一入库口验货下发（入库口含变更判等，
+        // 主动重取 safeAreaRect 经唯一入库口验货下发（下发口按「上次已送达快照」判等，
         // 值未变化时不产生冗余的全量 rootViewSizeDidChanged 事件）
         try {
           if (this.updateSafeInsetsHandler > 0) {
@@ -976,20 +1037,6 @@ export class KRNativeRenderController {
    */
   fontSizeScaleFollowSystem(): boolean {
     return true
-  }
-
-  /**
-   * 安全区矩形近似判等（浮点容差比较）。
-   * 供 onSafeAreaInsetsChanged 入库口使用：验货后的值与上一帧未显著变化时跳过下发，
-   * 避免 avoidAreaChange 同值补发、pageShow 回前台常态等场景的冗余全量事件与布局调度。
-   */
-  private isSameSafeAreaRect(a: KRRect | null, b: KRRect | null): boolean {
-    if (a == null || b == null) {
-      return a === b;
-    }
-    const eps = 0.01;
-    return Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps &&
-      Math.abs(a.width - b.width) < eps && Math.abs(a.height - b.height) < eps;
   }
 
   /**

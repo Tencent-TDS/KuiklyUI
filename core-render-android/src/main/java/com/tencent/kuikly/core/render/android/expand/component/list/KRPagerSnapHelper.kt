@@ -214,6 +214,9 @@ internal class KRPagerSnapHelper(
         } else {
             targetView.frameWidth
         }
+        if (itemSize == 0) {
+            return
+        }
         val newPageIndex = offset / itemSize
         if (newPageIndex != currentPageIndex) {
             pageIndexChangeBlock.invoke(newPageIndex)

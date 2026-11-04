@@ -204,6 +204,10 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 }
 
 - (void)initRenderViewWithContextCode:(id)contextCode {
+    // framework 模式下先在主线程完成 Kotlin/Native runtime 注册，
+    // 规避主线程 finalizer source 在未注册线程上的空队列崩溃（0xf8）
+    [KuiklyRenderFrameworkContextHandler warmupMainThreadRuntimeWithFrameworkName:
+        [contextCode isKindOfClass:[NSString class]] ? contextCode : nil];
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderView) object:nil];
     NSURL *resourceFolderUrl = nil;
     if ([self.delegate respondsToSelector:@selector(resourceFolderUrlForKuikly:)]) {

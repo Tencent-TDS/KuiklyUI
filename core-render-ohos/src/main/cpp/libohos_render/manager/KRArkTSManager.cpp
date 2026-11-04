@@ -24,6 +24,7 @@ using kuikly::util::NapiValue;
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRNapiHandleScope.h"
 #include "libohos_render/view/KRRenderView.h"
 
 napi_value CToNApiValue(napi_env env, const KRAnyValue &value) {
@@ -93,6 +94,7 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const KRAnyValue &instanceId, KRNativ
         return nullptr;
     }
     napi_env env = arkTSCallbackData_->env;
+    KRNapiHandleScope handle_scope(env);
     napi_value callbackFun;
     napi_get_reference_value(env, arkTSCallbackData_->callbackRef, &callbackFun);
     napi_value callbackArgs[8] = {nullptr};

@@ -17,6 +17,7 @@
 
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRUtfUtil.h"
 #include <algorithm>
 #include <arkui/drag_and_drop.h>
 #include <cstddef>
@@ -829,6 +830,10 @@ void KRTextFieldView::OnPasteText(ArkUI_NodeEvent *event) {
             return;
         }
         size_t size = std::min(strlen(stringAsyncEvent->pStr), static_cast<size_t>(max_length_) * 4);
+        // 这里只是避免拷贝超大剪贴板的粗估上限，不是语义截断（语义截断由 filter 完成）。
+        // 必须回退到字符边界：buffer 随后进入 filter → CalculateTextLength，CHARACTER /
+        // VISUAL_WIDTH 分支会对它调 ConvertToU32String，残缺序列会让长度计算与截断都失真。
+        size = kuikly::util::utf::UTF8BoundaryLength(stringAsyncEvent->pStr, size);
         char *buffer = new char[size + 1];
         strncpy(buffer, stringAsyncEvent->pStr, size);
         buffer[size] = '\0';

@@ -80,6 +80,9 @@ export const KRNativeBuild = 'nativeBuild';
 
 export const KRSafeAreaInsets = 'safeAreaInsets';
 
+/** 铰链/折叠状态，取值对齐 Kotlin [HingeStatus] / iOS UIHingeStatus，非鸿蒙 FoldStatus 原值 */
+export const KRHingeStatusKey = 'hingeStatus';
+
 export const KRDensityInfo = 'densityInfo';
 
 export const KRExecuteMode = 'executeMode';
@@ -195,6 +198,9 @@ export class KRNativeRenderController {
   private updateSafeInsetsHandler: number = 0;
   private windowClass: window.Window | null = null;
   private destroyed: boolean = false;
+  /** 已映射为 Kuikly HingeStatus.rawValue 的折叠状态 */
+  private lastHingeStatusRaw: number = 0;
+  private foldStatusCallback: Callback<display.FoldStatus> | null = null;
   private onWindowSizeChanged: Callback<window.Size> = (params: window.Size) => {
     if (this.imeMode) {
       return;
@@ -402,6 +408,7 @@ export class KRNativeRenderController {
         this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!), true, 'attach');
         this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
         this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+        this.registerFoldStatusListenerIfNeeded();
       } catch (e) {
         KRRenderLog.e('Window', `Error obtaining window, stack:${e}`);
       }
@@ -547,6 +554,7 @@ export class KRNativeRenderController {
     data[KRWidthKey] = width;
     data[KRHeightKey] = height;
     data[KRSafeAreaInsets] = insets;
+    data[KRHingeStatusKey] = this.lastHingeStatusRaw;
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
@@ -660,6 +668,7 @@ export class KRNativeRenderController {
         this.windowClass.off('avoidAreaChange', this.avoidAreaListener);
         this.windowClass.off('windowSizeChange', this.onWindowSizeChanged);
       }
+      this.unregisterFoldStatusListener();
       if (this.environmentCallbackId != -1) {
         let applicationContext = this.uiAbilityContext?.getApplicationContext();
         applicationContext?.off('environment', this.environmentCallbackId);
@@ -913,6 +922,7 @@ export class KRNativeRenderController {
         pageData[KRActivityHeightKey] = px2vp(windowInfo.getWindowRect().height);
       }
       pageData[KRSafeAreaInsets] = this.encodeSafeAreaInsetsString();
+      pageData[KRHingeStatusKey] = this.lastHingeStatusRaw;
     }
 
     let versionName = "1.0.0"
@@ -1069,6 +1079,78 @@ export class KRNativeRenderController {
   private getMonitorTypeMask(): number {
     const mask = this.performanceMonitorTypes().reduce((acc: KRMonitorType, cur: KRMonitorType) => acc | cur, 0);
     return mask;
+  }
+
+  /**
+   * 鸿蒙 display.FoldStatus 映射后再写入 hingeStatus。
+   * 双折轴 API 15+ 的复合状态按华为折叠屏 FAQ 的「展开 / 折叠 / 悬停」口径归类。
+   */
+  private mapFoldStatusToHingeRaw(foldStatus: number): number {
+    switch (foldStatus) {
+      case display.FoldStatus.FOLD_STATUS_FOLDED:
+        return 1; // HingeStatus.CLOSED
+      case display.FoldStatus.FOLD_STATUS_HALF_FOLDED:
+        return 2; // HingeStatus.PARTIALLY_OPEN
+      case display.FoldStatus.FOLD_STATUS_EXPANDED:
+        return 3; // HingeStatus.FULLY_OPEN
+      case display.FoldStatus.FOLD_STATUS_UNKNOWN:
+        return 0;
+      // 双折轴（API 15+）复合态：11 双展开；12 一折二展视为展开；13/21/23 悬停；22 双折半开
+      case 11:
+        return 3;
+      case 12:
+        return 3;
+      case 13:
+      case 21:
+      case 22:
+      case 23:
+        return 2;
+      default:
+        return 0;
+    }
+  }
+
+  private registerFoldStatusListenerIfNeeded(): void {
+    try {
+      if (!display.isFoldable()) {
+        return;
+      }
+      this.lastHingeStatusRaw = this.mapFoldStatusToHingeRaw(display.getFoldStatus());
+    } catch (e) {
+      KRRenderLog.e('Display', `read fold status failed: ${e}`);
+      return;
+    }
+    if (this.foldStatusCallback != null) {
+      return;
+    }
+    this.foldStatusCallback = (status: display.FoldStatus) => {
+      const raw = this.mapFoldStatusToHingeRaw(status);
+      if (raw === this.lastHingeStatusRaw) {
+        return;
+      }
+      this.lastHingeStatusRaw = raw;
+      if (this.didInit) {
+        this.notifySizeChange();
+      }
+    };
+    try {
+      display.on('foldStatusChange', this.foldStatusCallback);
+    } catch (e) {
+      KRRenderLog.e('Display', `register foldStatusChange failed: ${e}`);
+      this.foldStatusCallback = null;
+    }
+  }
+
+  private unregisterFoldStatusListener(): void {
+    if (this.foldStatusCallback == null) {
+      return;
+    }
+    try {
+      display.off('foldStatusChange', this.foldStatusCallback);
+    } catch (e) {
+      KRRenderLog.e('Display', `unregister foldStatusChange failed: ${e}`);
+    }
+    this.foldStatusCallback = null;
   }
 
 }

@@ -80,6 +80,9 @@ void TestBoundaryLengthFloorsToCharacterBoundary() {
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 1), 0);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 3), 0);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc", 2), 2);
+    // Ill-formed tails without a start byte keep the upstream function contract.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80", 1), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80", 5), 5);
 }
 
 // ArkUI copies a long insert into a fixed byte buffer and appends '\0'. Unlike a cut

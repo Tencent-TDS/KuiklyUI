@@ -163,16 +163,34 @@ size_t UTF16Length(const std::string &input) {
 }
 
 size_t UTF8BoundaryLength(const char *input, size_t bytes) {
-    // A UTF-8 sequence is at most 4 bytes, so only the last 3 bytes can hold an incomplete tail.
-    for (size_t back = 1; back <= 3 && back <= bytes; ++back) {
-        const unsigned char lead = static_cast<unsigned char>(input[bytes - back]);
-        if ((lead & 0xC0) == 0x80) {
-            continue;
-        }
-        const size_t sequenceLength = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
-        return bytes - back + sequenceLength > bytes ? bytes - back : bytes;
+    if (bytes == 0) {
+        return 0;
     }
-    return bytes;
+
+    const unsigned char last = static_cast<unsigned char>(input[bytes - 1]);
+    if (last < 0x80) {
+        return bytes;
+    }
+    if ((last & 0xC0) != 0x80) {
+        // A leading byte at the cut leaves an incomplete sequence.
+        return bytes - 1;
+    }
+
+    // Walk back from the final continuation byte. A UTF-8 sequence is at most 4 bytes,
+    // so only the final 3 continuation bytes need to be skipped.
+    const size_t start = bytes > 3 ? bytes - 3 : 0;
+    size_t lead = bytes - 1;
+    while (lead > start && (static_cast<unsigned char>(input[lead]) & 0xC0) == 0x80) {
+        --lead;
+    }
+
+    const unsigned char first = static_cast<unsigned char>(input[lead]);
+    if (first < 0xC0) {
+        // Orphan continuation bytes keep the existing upstream contract.
+        return bytes;
+    }
+    const size_t sequenceLength = first < 0xE0 ? 2 : first < 0xF0 ? 3 : 4;
+    return lead + sequenceLength > bytes ? lead : bytes;
 }
 
 }  // namespace utf

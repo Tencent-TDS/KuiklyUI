@@ -168,6 +168,11 @@ export class KRNativeRenderController {
   private lastNotifiedHeight: number = -1;
   private lastNotifiedDeviceWidth: number = -1;
   private lastNotifiedDeviceHeight: number = -1;
+  /** 上次真正下发的 hingeStatus，纳入判等快照：折叠态（#1863）经 foldStatusChange 回调
+   * 走 notifySizeChange 下送，但该回调可能先于 windowSizeChange 到达——此刻窗口/视图尺寸
+   * 仍是旧值，若判等不含 hinge 会误判「未变化」而 SKIP，折叠状态只能寄望后续窗口变化
+   * 链路兜底送达；纳入后 hinge-only 变化也立即下发，送达不再依赖回调时序 */
+  private lastNotifiedHinge: number = -1;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -568,11 +573,14 @@ export class KRNativeRenderController {
     // 事件级去重：基线是「上次真正下发」的快照，而非 safeAreaRect 缓存。
     // 缓存会被 notify=false 静默更新却不触发下发，用缓存判等会吞掉尚未送达的 insets 更新；
     // 这里只有内容完全一致才跳过，density 变化属独立信息，强制下发且不纳入常规快照。
+    // hingeStatus 同属快照（见 lastNotifiedHinge 注释）：折叠回调先于 windowSizeChange 到达时
+    // 尺寸未变而 hinge 已变，纳入判等保证折叠状态立即送达，不依赖后续窗口变化链路兜底。
     const unchanged = this.lastNotifiedInsets === insets &&
       Math.abs(this.lastNotifiedWidth - width) < 0.01 &&
       Math.abs(this.lastNotifiedHeight - height) < 0.01 &&
       Math.abs(this.lastNotifiedDeviceWidth - deviceWidth) < 0.01 &&
-      Math.abs(this.lastNotifiedDeviceHeight - deviceHeight) < 0.01;
+      Math.abs(this.lastNotifiedDeviceHeight - deviceHeight) < 0.01 &&
+      this.lastNotifiedHinge === this.lastHingeStatusRaw;
     const willSend = densityInfo != null || !unchanged;
     if (willSend) {
       this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
@@ -581,6 +589,7 @@ export class KRNativeRenderController {
       this.lastNotifiedHeight = height;
       this.lastNotifiedDeviceWidth = deviceWidth;
       this.lastNotifiedDeviceHeight = deviceHeight;
+      this.lastNotifiedHinge = this.lastHingeStatusRaw;
     }
 
     this.runKRRenderTask(() => {

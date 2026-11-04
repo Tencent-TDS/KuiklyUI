@@ -155,10 +155,9 @@ export class KRNativeRenderController {
   private lastTrustedInsets: string | null = null;
   /** viewRect 是否已跟随当前窗口重新测量：false = 窗口已变而页面未量完（判据A的拦截条件） */
   private viewSyncedByWindow: boolean = true;
-  /** 窗口尺寸已变化、等待布局回调确认 viewRect 与新窗口同步（判据A 的开门依据） */
+  /** 窗口尺寸已变化、等待布局回调确认 viewRect 与新窗口同步（判据A 的开门依据）：
+   * 只有 onAreaChange/onSizeChange 写入新 viewRect 才会确认并清位，其余路径一律保持拦截 */
   private windowSizeChangedPending: boolean = false;
-  /** windowSizeChange 之后是否已有布局回调（onAreaChange/onSizeChange）写入过 viewRect */
-  private viewRectUpdatedAfterWindowChange: boolean = false;
   /** 上次真正下发到 Kotlin 的 rootViewSizeDidChanged 快照：判等基线必须是「已送达值」，
    * 不能用 safeAreaRect 缓存——后者会被 notify=false 静默更新，导致同值补发被误判为未变化而漏发 */
   private lastNotifiedInsets: string | null = null;
@@ -210,10 +209,9 @@ export class KRNativeRenderController {
     this.windowRect = new KRRect(0, 0, w, h);
     // 窗口已变而页面尚未重新测量，viewRect 旧尺寸作废（判据A拦截条件），等布局回调重新确认
     this.viewSyncedByWindow = false;
-    // 登记待确认：后续布局回调（即便重测变化量 < 0.1dp）或补发通知都要能确认同步，
-    // 否则 viewSyncedByWindow 永远卡在 false，新 insets 被 lastTrustedInsets 钳制无法送达
+    // 登记待确认：窗口变化量不论大小（含分屏/自由窗口的同朝向 resize），
+    // 旧 viewRect 与新 safeAreaRect 相减必产生尺寸差假值，必须等布局回调写入新 viewRect 才能换算
     this.windowSizeChangedPending = true;
-    this.viewRectUpdatedAfterWindowChange = false;
 
     this.notifyWindowSizeChanged(w, h);
     // 同步刷新 safeArea（不走 setTimeout），避免与布局回调竞争产生「旧 viewRect − 新 safeAreaRect」错配
@@ -507,20 +505,10 @@ export class KRNativeRenderController {
     this.safeAreaRect = verified;
     if (this.didInit) {
       if (notify) {
-        // 窗口变化后同步状态尚未确认时，在此补一次开门判定，避免新 insets 被判据A
-        // 钳制为 lastTrustedInsets 旧值而无法送达。布局回调来过自然可信；若布局回调
-        // 完全没来（组件区域未变，onAreaChange 不触发），只要 viewRect 与窗口同朝向
-        // （无旋转轴差）也可安全开门；旋转后 viewRect 仍是旧朝向时保持判据A 保护。
-        if (this.windowSizeChangedPending) {
-          const view = this.viewRect;
-          const win = this.windowRect;
-          const orientationAligned = view != null && win != null &&
-            (view.width > view.height) === (win.width > win.height);
-          if (this.viewRectUpdatedAfterWindowChange || orientationAligned) {
-            this.viewSyncedByWindow = true;
-            this.windowSizeChangedPending = false;
-          }
-        }
+        // 开门只信布局回调（onAreaChange/onSizeChange）：windowSizeChange 之后旧 viewRect
+        // 与新 safeAreaRect 相减必产生尺寸差假值（分屏/自由窗口的同朝向 resize 亦然，
+        // 偏差恰为窗口变化量），此处不做任何提前开门判定；未确认期间由判据A 钳制为
+        // 自洽的旧值下发，待布局回调开门后送达正确值。
         this.notifySizeChange();
       }
     } else {
@@ -611,7 +599,6 @@ export class KRNativeRenderController {
       newValue.globalPosition.y as number,
       newWidth,
       newHeight);
-    this.viewRectUpdatedAfterWindowChange = true;
     // 窗口变化后的首个布局回调：viewRect 已由本回调写入最新值，可确认同步。
     // 纯位置滚动（无 windowSizeChange）且尺寸未变时不开门，保留判据A 对「旧朝向尺寸」的保护；
     // 但窗口确实变过、只是重测量低于 0.1dp 阈值（非全屏/固定尺寸视图形态）时必须开门——
@@ -654,7 +641,6 @@ export class KRNativeRenderController {
       // syncSendEvent=false 时不在此开门，由 onAreaChange 重建 viewRect 后开门并兜底下发
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
-      this.viewRectUpdatedAfterWindowChange = true;
       this.viewSyncedByWindow = true;
       // 提前路径已用新 viewRect 完成同步，消费窗口变化待确认标志
       this.windowSizeChangedPending = false;

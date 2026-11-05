@@ -63,6 +63,7 @@ import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.TouchActivityTracker
+import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import com.tencent.kuikly.core.collection.fastMutableMapOf
@@ -295,6 +296,9 @@ abstract class PagerState internal constructor(
         if (scrollDelta.absoluteValue != 0L) {
             isLastScrollForwardState.value = scrollDelta > 0.0f
             isLastScrollBackwardState.value = scrollDelta < 0.0f
+            // 有滚动：推迟 beyond 组合，滚动停止后再由 scheduleBeyondRestoreOnIdle 恢复。
+            deferBeyondUntilIdle = true
+            scheduleBeyondRestoreOnIdle()
         }
 
         /**
@@ -1340,6 +1344,96 @@ abstract class PagerState internal constructor(
 
     internal val placementScopeInvalidator = ObservableScopeInvalidator()
 
+    /** While true, measure skips beyond pages for this frame (programmatic scroll). */
+    internal var skipBeyondCompose: Boolean = false
+
+    /**
+     * While true, beyond pages are not composed until [scrollIdleDelayMs] after the last scroll
+     * event. Already-composed pages in the window may still be retained (see measure policy).
+     */
+    internal var deferBeyondUntilIdle: Boolean = false
+
+    private var restoreRequested: Boolean = false
+    private var scrollIdleJob: kotlinx.coroutines.Job? = null
+    private var lastScrollNanos: Long = NO_SCROLL_MARK
+    private val scrollIdleDelayMs = 600L
+
+    /** Page indices composed on the previous measure pass (not snapshot state). */
+    private var composedPageIndices = IntArray(4)
+    private var composedPageCount = 0
+
+    internal val isComposedLastMeasure: (Int) -> Boolean = { index ->
+        (0 until composedPageCount).any { composedPageIndices[it] == index }
+    }
+
+    private fun recordComposedPages(pages: List<MeasuredPage>) {
+        if (composedPageIndices.size < pages.size) {
+            composedPageIndices = IntArray(pages.size)
+        }
+        pages.forEachIndexed { i, page -> composedPageIndices[i] = page.index }
+        composedPageCount = pages.size
+    }
+
+    private fun beyondRestoreScope(): CoroutineScope? {
+        kuiklyInfo.scope?.let { return it }
+        val layoutScope = pagerLayoutInfoState.value.coroutineScope
+        if (layoutScope === EmptyLayoutInfo.coroutineScope) return null
+        return layoutScope
+    }
+
+    private fun markScroll() {
+        lastScrollNanos = DateTime.nanoTime()
+    }
+
+    private fun elapsedSinceScrollMs(): Long =
+        (DateTime.nanoTime() - lastScrollNanos) / 1_000_000L
+
+    internal fun scheduleBeyondRestoreOnIdle() {
+        markScroll()
+        restoreRequested = false
+        ensureBeyondRestoreJob()
+    }
+
+    private fun ensureBeyondRestoreJob() {
+        if (scrollIdleJob?.isActive == true) return
+        val scope = beyondRestoreScope() ?: return
+        if (lastScrollNanos == NO_SCROLL_MARK) markScroll()
+        scrollIdleJob = scope.launch {
+            while (deferBeyondUntilIdle) {
+                val remaining = scrollIdleDelayMs - elapsedSinceScrollMs()
+                if (remaining > 0) {
+                    delay(remaining)
+                    continue
+                }
+                lastScrollNanos = NO_SCROLL_MARK
+                restoreRequested = true
+                measurementScopeInvalidator.invalidateScope()
+                return@launch
+            }
+            lastScrollNanos = NO_SCROLL_MARK
+        }
+    }
+
+    private fun hasPendingScroll(): Boolean =
+        lastScrollNanos != NO_SCROLL_MARK && elapsedSinceScrollMs() < scrollIdleDelayMs
+
+    internal fun resolveBeyondCount(requested: Int): Int {
+        if (skipBeyondCompose) return 0
+        if (deferBeyondUntilIdle) {
+            if (restoreRequested && !hasPendingScroll()) {
+                restoreRequested = false
+                deferBeyondUntilIdle = false
+                lastScrollNanos = NO_SCROLL_MARK
+                return requested
+            }
+            restoreRequested = false
+            ensureBeyondRestoreJob()
+            return 0
+        }
+        restoreRequested = false
+        return requested
+    }
+
     /**
      * Scroll (jump immediately) to a given [page].
      *
@@ -1371,7 +1465,14 @@ abstract class PagerState internal constructor(
             clearSnapAnimationState()
             debugLog { "Scroll from page=$currentPage to page=$page" }
             val targetPage = page.coerceInPageRange()
-            snapToItem(targetPage, pageOffsetFraction, forceRemeasure = true)
+            skipBeyondCompose = true
+            try {
+                snapToItem(targetPage, pageOffsetFraction, forceRemeasure = true)
+            } finally {
+                skipBeyondCompose = false
+                deferBeyondUntilIdle = true
+                scheduleBeyondRestoreOnIdle()
+            }
         }
     }
 
@@ -1448,7 +1549,14 @@ abstract class PagerState internal constructor(
                 stopScroll()
             }
         }
-        snapToItem(page.coerceInPageRange(), pageOffsetFraction, forceRemeasure = false)
+        skipBeyondCompose = true
+        try {
+            snapToItem(page.coerceInPageRange(), pageOffsetFraction, forceRemeasure = false)
+        } finally {
+            skipBeyondCompose = false
+            deferBeyondUntilIdle = true
+            scheduleBeyondRestoreOnIdle()
+        }
         if (programmaticScrollMutations == 0 && !nativeDragSessionActive) {
             pagerScrollInProgressState = false
         }
@@ -1481,6 +1589,8 @@ abstract class PagerState internal constructor(
         }
         scrollToPageRequestId++
         awaitScrollDependencies()
+        deferBeyondUntilIdle = true
+        scheduleBeyondRestoreOnIdle()
         // Native setContentOffset snap does not go through [scroll]; capture settled page here.
         captureSettledPageIfIdle()
         val targetPage = page.coerceInPageRange()
@@ -1610,6 +1720,7 @@ abstract class PagerState internal constructor(
             }
         }
         pagerLayoutInfoState.value = result
+        recordComposedPages(result.positionedPages)
         canScrollForward = result.canScrollForward
         canScrollBackward = result.canScrollBackward
         result.firstVisiblePage?.let { firstVisiblePage = it.index }
@@ -1941,6 +2052,8 @@ private fun PagerMeasureResult.calculateNewMinScrollOffset(pageCount: Int): Long
 //        }
 //    }
 //}
+
+private const val NO_SCROLL_MARK = Long.MIN_VALUE
 
 /**
  * Used in place of the standard Job cancellation pathway to avoid reflective

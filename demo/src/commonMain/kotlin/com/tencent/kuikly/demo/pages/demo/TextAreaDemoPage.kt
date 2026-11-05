@@ -129,6 +129,7 @@ internal class TextAreaDemoPage : BasePager() {
                         }
 
                         attr {
+                            overflow(true)
                             margin(20f)
                             // Use the new two-arg overload so textLengthBeyondLimit can
                             // fire with the unified semantics across platforms. CHARACTER

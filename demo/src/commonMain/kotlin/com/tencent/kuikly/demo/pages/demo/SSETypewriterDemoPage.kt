@@ -111,6 +111,7 @@ internal class SSETypewriterDemoPage : BasePager() {
                 }
                 Input {
                     attr {
+                        overflow(true)
                         height(80f)
                         alignSelfStretch()
                         backgroundColor(Color(0xFFF5F5F5L))

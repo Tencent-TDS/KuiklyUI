@@ -115,6 +115,7 @@ internal class ReadAssetFileSyncStressPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             width(80f)
                             height(36f)
                             marginRight(8f)

@@ -436,20 +436,21 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             resultObject['data'] = '';
             resultObject['errorMsg'] = JSON.stringify(err);
             resultObject['success'] = '0';
-            resultObject['statusCode'] = response ? response.responseCode.toString() : '-1000';
+            resultObject['statusCode'] = response?.responseCode?.toString() ?? '-1000';
           } else {
             if (binaryMode) {
-              if (response.result instanceof ArrayBuffer) {
+              if (response?.result instanceof ArrayBuffer) {
                 bytes = new Int8Array(response.result);
-              } else if (typeof response.result == 'string') {
+              } else if (typeof response?.result == 'string') {
                 bytes = new Int8Array(buffer.from(response.result).buffer);
               }
             } else {
-              resultObject['data'] = response.result.toString();
+              // 空 body / 异常响应时 response.result 可能为 undefined，不能直接 toString()
+              resultObject['data'] = response?.result?.toString() ?? '';
             }
             resultObject['errorMsg'] = '';
             resultObject['success'] = '1';
-            resultObject['statusCode'] = response.responseCode.toString();
+            resultObject['statusCode'] = response?.responseCode?.toString() ?? '-1000';
           }
 
           if (binaryMode) {

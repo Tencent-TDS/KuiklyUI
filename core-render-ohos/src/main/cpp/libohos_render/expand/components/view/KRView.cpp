@@ -91,12 +91,17 @@ void KRView::OnInternalScrollViewDidScroll(float offsetX, float offsetY) {
 }
 
 void KRView::StopObservingInternalScrollViews() {
-    for (auto view : GetInternalScrollViews()) {
-        auto scroll_view = std::dynamic_pointer_cast<KRScrollerView>(view);
-        if (scroll_view && scroll_observer_) {
+    if (!scroll_observer_ || observing_scroll_views_.empty()) {
+        // 从未注册过监听（绝大多数 KRView）：直接跳过，不再全树递归收集
+        return;
+    }
+    for (const auto &weak_scroll_view : observing_scroll_views_) {
+        auto scroll_view = weak_scroll_view.lock();
+        if (scroll_view) {
             scroll_view->RemoveScrollObserver(scroll_observer_);
         }
     }
+    observing_scroll_views_.clear();
 }
 
 bool KRView::ReuseEnable() {
@@ -214,6 +219,12 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
         }
     }
 
+    // 注册前清理过期项：复用的 KRView 不走析构，账本中可能残留已销毁 scroller 的 weak_ptr
+    observing_scroll_views_.erase(
+        std::remove_if(observing_scroll_views_.begin(), observing_scroll_views_.end(),
+                       [](const std::weak_ptr<KRScrollerView> &weak) { return weak.expired(); }),
+        observing_scroll_views_.end());
+
     for (auto item : selected_scroll_views) {
         if (!item->IsScrollView()) {
             continue;
@@ -221,6 +232,15 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
         auto scroll_view = std::dynamic_pointer_cast<KRScrollerView>(item);
         if (scroll_view && scroll_observer_) {
             scroll_view->AddScrollObserver(scroll_observer_);
+            // 记账：析构时按此列表精确反注册，避免全树收集
+            auto exists = std::any_of(observing_scroll_views_.begin(), observing_scroll_views_.end(),
+                                      [&scroll_view](const std::weak_ptr<KRScrollerView> &weak) {
+                                          return !weak.owner_before(scroll_view) &&
+                                                 !scroll_view.owner_before(weak);
+                                      });
+            if (!exists) {
+                observing_scroll_views_.push_back(scroll_view);
+            }
         }
     }
 

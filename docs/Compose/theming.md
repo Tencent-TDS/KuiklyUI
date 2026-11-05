@@ -48,7 +48,9 @@ fun ThemedText() {
 }
 ```
 
-传入 `colorScheme` 后，Material3 组件会从 `MaterialTheme.colorScheme` 读取对应的颜色角色。未显式传入的 `typography` 和 `shapes` 会继承当前主题值。
+传入 `colorScheme` 后，直接读取 `MaterialTheme.colorScheme` 的 Material3 组件会使用对应颜色角色。未显式传入的 `typography` 和 `shapes` 会继承当前主题值。
+
+`Text`、`TextField` 的默认样式仍来自 `LocalTextStyle` 和 `LocalContentColor`，不会仅因传入 `colorScheme` 或 `typography` 自动变化。使用这类组件时，请显式传入 `color`/`style`，或通过 `CompositionLocalProvider` 提供相应默认值。
 
 仅需要覆盖形状时，仍可使用兼容重载：
 

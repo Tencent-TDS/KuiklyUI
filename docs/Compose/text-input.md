@@ -3,7 +3,7 @@
 本篇说明 Compose DSL 下的文本渲染与输入组件：`BasicText`、`BasicTextField`、`TextFieldState`、`KeyboardOptions`。
 
 :::tip 与 material3 Text/TextField 的区别
-`BasicText`、`BasicTextField` 属于 foundation 层，**不消费主题样式**；`Text`、`TextField` 属于 material3 层，默认读取 `LocalTextStyle` / `LocalContentColor`，并可通过 `MaterialTheme` 的 `colorScheme` 和 `typography` 参数统一配置。需要主题能力时优先使用后者（见[核心组件](./core-components.md)）。
+`BasicText`、`BasicTextField` 属于 foundation 层，**不消费主题样式**；`Text`、`TextField` 属于 material3 层，默认读取 `LocalTextStyle` / `LocalContentColor`。`MaterialTheme` 的 `colorScheme`/`typography` 参数提供主题值，但不会自动替换这两个 local；需要统一文本默认样式时，请显式传入 `color`/`style` 或通过 `CompositionLocalProvider` 提供默认值。需要主题能力时优先使用 material3 组件（见[核心组件](./core-components.md)）。
 :::
 
 ## BasicText

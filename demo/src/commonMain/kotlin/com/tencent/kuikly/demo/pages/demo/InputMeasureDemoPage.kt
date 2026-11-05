@@ -246,6 +246,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -272,6 +273,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -299,6 +301,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -335,6 +338,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -372,6 +376,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -409,6 +414,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
                 lineHeight(24f)
@@ -440,6 +446,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(12f)
                 lineHeight(24f)
@@ -501,6 +508,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -529,6 +537,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -557,6 +566,7 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
                 fontSize(16f)
@@ -993,6 +1003,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // less than minWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1005,6 +1016,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // between minWidth and maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1017,6 +1029,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // greater than maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1039,6 +1052,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // less than minWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1051,6 +1065,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // between minWidth and maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1063,6 +1078,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // greater than maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1085,6 +1101,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // less than minWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1097,6 +1114,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // between minWidth and maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1109,6 +1127,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // greater than maxWidth
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f);maxWidth(100f)
@@ -1131,6 +1150,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // static width
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 width(100f)
@@ -1142,6 +1162,7 @@ private fun ViewContainer<*, *>.InputLayoutDemo() {
         // dynamic width
         TextArea {
             attr {
+                overflow(true)
                 editable(false)
                 border(Border(1f, BorderStyle.SOLID, Color.BLACK))
                 minWidth(50f)

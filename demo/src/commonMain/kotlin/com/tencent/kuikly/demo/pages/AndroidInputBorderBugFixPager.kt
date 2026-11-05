@@ -81,6 +81,7 @@ internal class AndroidInputBorderBugFixPager : BasePager() {
                             ctx.inputRef = it
                         }
                         attr {
+                            overflow(true)
                             fontSize(20f)
                             fontWeightBold()
                             flex(1f)

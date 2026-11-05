@@ -8,6 +8,10 @@
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
 
+:::tip Android 渲染残留
+部分 Android 设备上，`Input` 会出现渲染残留。在 `attr` 中调用 [`overflow(true)`](basic-attr-event.md#overflow方法) 打开裁剪即可避开。`TextArea` 同样适用。
+:::
+
 ### text方法
 
 作用和``Text``组件的[text属性方法一致](text.md#text方法)
@@ -144,7 +148,7 @@ HarmonyOS API 24+ 上，`Input` 底层会优先使用系统 `ARKUI_NODE_TEXT_EDI
 
 @tab:active 示例
 
-```kotlin{12}
+```kotlin{13}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -155,6 +159,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -190,7 +195,7 @@ internal class TestPage : BasePager() {
 
 @tab:active 示例
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -201,6 +206,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     placeholderColor(Color.BLUE)
@@ -237,7 +243,7 @@ internal class TestPage : BasePager() {
 
 @tab:active 示例
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -248,6 +254,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     tintColor(Color.RED)
@@ -322,7 +329,7 @@ internal class TestPage : BasePager() {
 
 @tab:active 按字符限制（推荐）
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -333,6 +340,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     maxTextLength(20, LengthLimitType.CHARACTER) // 限制最多输入20个字符
@@ -345,7 +353,7 @@ internal class TestPage : BasePager() {
 
 @tab 按字节限制
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -356,6 +364,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     maxTextLength(20, LengthLimitType.BYTE) // 限制最多输入20个字节
@@ -368,7 +377,7 @@ internal class TestPage : BasePager() {
 
 @tab 按视觉宽度限制
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -379,6 +388,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     maxTextLength(20, LengthLimitType.VISUAL_WIDTH) // 限制最多输入视觉宽度为20
@@ -391,7 +401,7 @@ internal class TestPage : BasePager() {
 
 @tab 已废弃的单参数用法 <Badge text="自 2.15.0 起废弃" type="danger"/>
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -402,6 +412,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     @Suppress("DEPRECATION")
@@ -431,7 +442,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -442,6 +453,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     autofocus(true)
@@ -469,7 +481,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{13}
+```kotlin{14}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -480,6 +492,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     editable(false) // 不可编辑
@@ -518,7 +531,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{14}
+```kotlin{15}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -529,6 +542,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入表情短码如 [smile]")
                     textPostProcessor("input")
@@ -561,7 +575,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{14}
+```kotlin{15}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     var inputState by observable(TextInputState(text = ""))
@@ -574,6 +588,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入文字")
                     textInputState(inputState) // 绑定状态
@@ -614,7 +629,7 @@ internal class TestPage : BasePager() {
 
 @tab:active 示例
 
-```kotlin{18}
+```kotlin{19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     var spans by observable(InputSpans())
@@ -631,6 +646,7 @@ internal class TestPage : BasePager() {
                     ctx.ref = it
                 }
                 attr {
+                    overflow(true)
                     size(pagerData.pageViewWidth, 400f)
                     inputSpans(ctx.spans)
                     backgroundColor(Color.GREEN)
@@ -704,7 +720,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -715,6 +731,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -742,9 +759,10 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{14-16}
+```kotlin{15-17}
 Input {
     attr {
+        overflow(true)
         size(200f, 40f)
         placeholder("输入文字")
         textInputState(inputState)
@@ -771,9 +789,10 @@ Input {
 
 **示例**
 
-```kotlin{14-16}
+```kotlin{15-17}
 Input {
     attr {
+        overflow(true)
         size(200f, 40f)
         placeholder("输入文字")
     }
@@ -794,7 +813,7 @@ Input {
 
 **示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -805,6 +824,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -827,7 +847,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -838,6 +858,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -877,7 +898,7 @@ internal class TestPage : BasePager() {
 
 **基础示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -888,6 +909,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -922,6 +944,7 @@ internal class TestPage : BasePager() {
         return {
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                     transform(Translate(0f, -ctx.keyboardHeight))
@@ -958,7 +981,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -969,6 +992,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -991,7 +1015,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{16-18}
+```kotlin{17-19}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -1002,6 +1026,7 @@ internal class TestPage : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -1035,7 +1060,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{26-28}
+```kotlin{27-29}
 @Page("demo_page")
 internal class TestPage : BasePager() {
 
@@ -1054,6 +1079,7 @@ internal class TestPage : BasePager() {
                 }
 
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -1073,7 +1099,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{26-28}
+```kotlin{27-29}
 @Page("demo_page")
 internal class TestPage : BasePager() {
 
@@ -1092,6 +1118,7 @@ internal class TestPage : BasePager() {
                 }
 
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -1111,7 +1138,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{26-28}
+```kotlin{27-29}
 @Page("demo_page")
 internal class TestPage : BasePager() {
 
@@ -1130,6 +1157,7 @@ internal class TestPage : BasePager() {
                 }
 
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -1149,7 +1177,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{26-29}
+```kotlin{27-30}
 @Page("demo_page")
 internal class TestPage : BasePager() {
 
@@ -1168,6 +1196,7 @@ internal class TestPage : BasePager() {
                 }
 
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }
@@ -1286,7 +1315,7 @@ internal class TestPage : BasePager() {
 
 **示例**
 
-```kotlin{26-28}
+```kotlin{27-29}
 @Page("demo_page")
 internal class TestPage : BasePager() {
 
@@ -1305,6 +1334,7 @@ internal class TestPage : BasePager() {
                 }
 
                 attr {
+                    overflow(true)
                     size(200f, 40f)
                     placeholder("输入框提示")
                 }

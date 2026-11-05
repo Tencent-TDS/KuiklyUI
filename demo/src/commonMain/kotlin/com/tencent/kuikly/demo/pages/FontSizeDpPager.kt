@@ -63,6 +63,7 @@ internal class FontSizeDpPager : BasePager() {
 
             Input {
                 attr {
+                    overflow(true)
                     size(200f, 100f)
                     fontSize(20f)
                     useDpFontSizeDim()

@@ -215,6 +215,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                                     ctx.inputRef = it
                                 }
                                 attr {
+                                    overflow(true)
                                     marginLeft(30f)
                                     flex(1f)
                                     placeholder("Type to Search")

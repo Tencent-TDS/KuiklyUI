@@ -115,6 +115,7 @@ internal class DiffUpdateTestPage : BasePager() {
 
                         Input {
                             attr {
+                                overflow(true)
                                 width(100f)
                                 height(40f)
                                 backgroundColor(Color.WHITE)

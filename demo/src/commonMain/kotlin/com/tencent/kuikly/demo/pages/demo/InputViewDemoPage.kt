@@ -105,6 +105,7 @@ internal class InputViewDemoPage : BasePager() {
                         }
 
                         attr {
+                            overflow(true)
                             margin(20f)
                             maxTextLength(20)
                             height(200f)

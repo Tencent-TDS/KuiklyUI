@@ -19,8 +19,6 @@ package com.tencent.kuikly.compose.material3
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
-import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
-import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
 
 /**
  * <a href="https://material.io/design/material-theming/overview.html" class="external" target="_blank">Material Theming</a>.
@@ -49,7 +47,6 @@ import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
  * @param colorScheme A complete definition of the Material Color theme for this hierarchy
  * @param typography A set of text styles to be used as this hierarchy's typography system
  * @param shapes A set of shapes to be used by the components in this hierarchy
- * @param textSelectionColors The colors used for selected text within this hierarchy
  */
 @Composable
 fun MaterialTheme(
@@ -65,7 +62,7 @@ fun MaterialTheme(
 }
 
 /**
- * Provides Material colors, typography, shapes, and text selection colors to the hierarchy.
+ * Provides Material colors, typography, and shapes to the hierarchy.
  *
  * This overload is additive. Existing callers of [MaterialTheme] with only [shapes] continue to
  * compile and retain binary compatibility.
@@ -75,17 +72,12 @@ fun MaterialTheme(
     colorScheme: ColorScheme,
     typography: Typography = MaterialTheme.typography,
     shapes: Shapes = MaterialTheme.shapes,
-    textSelectionColors: TextSelectionColors = TextSelectionColors(
-        colorScheme.primary,
-        colorScheme.primary.copy(alpha = 0.4f),
-    ),
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalColorScheme provides colorScheme,
         LocalTypography provides typography,
         LocalShapes provides shapes,
-        LocalTextSelectionColors provides textSelectionColors,
         content = content,
     )
 }

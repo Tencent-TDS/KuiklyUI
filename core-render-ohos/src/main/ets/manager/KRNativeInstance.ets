@@ -14,6 +14,7 @@
  */
 
 import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
+import { KRJSON } from '../utils/KRJSON';
 import { KuiklyRenderBaseView } from '../components/base/KRBaseViewExport';
 import { IKuiklyRenderModuleExport, KRRenderModuleExportCreator } from '../modules/base/IKRModuleExport';
 import { ComponentContent, NodeContent } from '@kit.ArkUI';
@@ -227,7 +228,8 @@ export class KRNativeInstance {
     let moduleInstance = this.getOrCreateModule(moduleName);
     if (moduleInstance != null) {
       let methodName = arg1 as string;
-      return moduleInstance.call(methodName, arg2, callback);
+      const params = moduleInstance.acceptsKRJSON?.() === true ? arg2 : KRJSON.toLegacy(arg2);
+      return moduleInstance.call(methodName, params, callback);
     }
     return null;
   }

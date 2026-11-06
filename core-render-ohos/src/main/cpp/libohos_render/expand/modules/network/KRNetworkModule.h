@@ -23,7 +23,7 @@ class KRNetworkModule : public KRForwardArkTSModule {
     /**
      * 通过下载(或本地磁盘有缓存)获取文件
      */
-    void FetchFileByDownloadOrCache(std::string &cdn_url, const KRRenderCallback &callback);
+    void FetchFileByDownloadOrCache(std::u16string cdn_url, const KRRenderCallback &callback);
 };
 
 #endif  // CORE_RENDER_OHOS_KRNETWORKMODULE_H

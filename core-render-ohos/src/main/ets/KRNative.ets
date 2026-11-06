@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRRecord } from './utils/KRDataTypes';
+import { KRPageData } from './utils/KRDataTypes';
 import { KRNativeRender } from './KRNativeRender';
 import { KRNativeRenderControllerReadyCallback } from './manager/KRNativeInstance';
 import { KuiklyNativeManager } from './native/KuiklyNativeManager';
@@ -32,7 +32,7 @@ export struct KRNative {
   /**
    * 透传给KR侧的页面数据
    */
-  pageParams: KRRecord = {};
+  pageParams: KRPageData = {};
   /**
    * 执行模式
    */

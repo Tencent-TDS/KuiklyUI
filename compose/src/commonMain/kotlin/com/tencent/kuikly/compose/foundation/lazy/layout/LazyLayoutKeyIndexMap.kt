@@ -16,10 +16,8 @@
 
 package com.tencent.kuikly.compose.foundation.lazy.layout
 
-import androidx.collection.MutableObjectIntMap
-import androidx.collection.ObjectIntMap
-import androidx.collection.emptyObjectIntMap
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.core.collection.fastHashMapOf
 
 /**
  * A key-index mapping used inside the [LazyLayoutItemProvider]. It might not contain all items
@@ -57,7 +55,8 @@ internal class NearestRangeKeyIndexMap(
     nearestRange: IntRange,
     intervalContent: LazyLayoutIntervalContent<*>
 ) : LazyLayoutKeyIndexMap {
-    private val map: ObjectIntMap<Any>
+    // Native Map on JS. ObjectIntMap probes Long metadata, and HashMap allocates an entry per key.
+    private val map: Map<Any, Int>
     private val keys: Array<Any?>
     private val keysStartIndex: Int
 
@@ -69,14 +68,14 @@ internal class NearestRangeKeyIndexMap(
         check(first >= 0) { "negative nearestRange.first" }
         val last = minOf(nearestRange.last, list.size - 1)
         if (last < first) {
-            map = emptyObjectIntMap()
+            map = emptyMap()
             keys = emptyArray()
             keysStartIndex = 0
         } else {
             val size = last - first + 1
             keys = arrayOfNulls<Any?>(size)
             keysStartIndex = first
-            map = MutableObjectIntMap<Any>(size).also { map ->
+            map = fastHashMapOf<Any, Int>().also { map ->
                 list.forEach(
                     fromIndex = first,
                     toIndex = last,
@@ -95,7 +94,7 @@ internal class NearestRangeKeyIndexMap(
         }
     }
 
-    override fun getIndex(key: Any): Int = map.getOrElse(key) { -1 }
+    override fun getIndex(key: Any): Int = map[key] ?: -1
 
     override fun getKey(index: Int) =
         keys.getOrElse(index - keysStartIndex) { null }

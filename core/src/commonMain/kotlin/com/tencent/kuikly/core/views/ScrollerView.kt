@@ -510,6 +510,26 @@ open class ScrollerAttr : ContainerAttr() {
         NESTED_SCROLL with param.toString()
     }
 
+    /**
+     * 是否隐藏滚动区域顶部 scroll edge effect（Kuikly 2.30.0+；iOS 26+ `UIScrollView.topEdgeEffect`）。
+     *
+     * @param hide `true` 隐藏，`false` 恢复显示。
+     * 低于 iOS 26 及其他平台为安全 no-op。
+     */
+    fun hideTopScrollEdgeEffect(hide: Boolean) {
+        HIDE_TOP_SCROLL_EDGE_EFFECT with hide.toInt()
+    }
+
+    /**
+     * 是否隐藏滚动区域底部 scroll edge effect（Kuikly 2.30.0+；iOS 26+ `UIScrollView.bottomEdgeEffect`）。
+     *
+     * @param hide `true` 隐藏，`false` 恢复显示。
+     * 低于 iOS 26 及其他平台为安全 no-op。
+     */
+    fun hideBottomScrollEdgeEffect(hide: Boolean) {
+        HIDE_BOTTOM_SCROLL_EDGE_EFFECT with hide.toInt()
+    }
+
     companion object {
         const val SCROLL_ENABLED = "scrollEnabled"
         const val BOUNCES_ENABLE = "bouncesEnable"
@@ -521,6 +541,10 @@ open class ScrollerAttr : ContainerAttr() {
         const val FLING_SPEED_LIMIT = "flingSpeedLimit"
         const val SCROLL_WITH_PARENT = "scrollWithParent"
         const val NESTED_SCROLL = "nestedScroll"
+
+        const val HIDE_TOP_SCROLL_EDGE_EFFECT = "hideTopScrollEdgeEffect"
+
+        const val HIDE_BOTTOM_SCROLL_EDGE_EFFECT = "hideBottomScrollEdgeEffect"
     }
 
 }

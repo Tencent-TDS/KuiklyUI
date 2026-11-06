@@ -15,6 +15,7 @@
 #ifndef CORE_RENDER_OHOS_KRANYDATAINTERNAL_H
 #define CORE_RENDER_OHOS_KRANYDATAINTERNAL_H
 
+#include "libohos_render/api/include/Kuikly/KRAnyData.h"
 #include "libohos_render/foundation/KRCommon.h"
 
 #ifdef __cplusplus
@@ -23,8 +24,16 @@ extern "C" {
 
 struct KRAnyDataInternal {
     KRAnyValue anyValue;
-    ~KRAnyDataInternal(){
-        anyValue = nullptr;
+    std::vector<std::unique_ptr<KRAnyDataInternal>> borrowedValues;
+    std::string utf8_cache;
+    bool utf8_cache_valid = false;
+
+    KRAnyData Borrow(const KRAnyValue &value) {
+        auto borrowed = std::make_unique<KRAnyDataInternal>();
+        borrowed->anyValue = value;
+        KRAnyData result = borrowed.get();
+        borrowedValues.emplace_back(std::move(borrowed));
+        return result;
     }
 };
 

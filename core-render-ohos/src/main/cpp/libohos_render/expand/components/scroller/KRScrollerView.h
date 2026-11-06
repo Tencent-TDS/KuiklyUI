@@ -89,8 +89,10 @@ class KRScrollerView : public IKRRenderViewExport {
     KRPoint GetContentOffset();
     void DidMoveToParentView() override;
     void WillRemoveFromParentView() override;
+    void SetEventSync(const std::string &event_name, bool sync) override;
     ArkUI_GestureInterruptResult OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) override;
     void TryApplyPendingFireOnScroll();
+    void OnStatusBarClicked() override;
 
     bool IsScrollView() override {
         return true;
@@ -130,14 +132,27 @@ class KRScrollerView : public IKRRenderViewExport {
     bool IsFlingStateToDraggingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToFlingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_state);
-    std::shared_ptr<KRRenderValue> GetCommonScrollParams();
+    KRAnyValue GetCommonScrollParams();
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
+    void EndScrollSession();
     bool SetFlingEnable(bool enable);
     bool SetFlingSpeedLimit(const KRAnyValue &value);
     KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    bool StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
+                                    float velocity_y);
+    void CancelSpringScrollAnimation(bool end_session);
+    void DisposeSpringScrollAnimator();
+    /** 关闭系统内置的"点击状态栏回顶"。节点为空或系统 API < 15 时不设置，保持原有滚动行为。 */
+    void DisableSystemBackToTopIfNeed();
+    /** 框架实现的默认回顶：滚动到顶部 */
+    void ScrollToTopByFramework();
+
+ public:
+    void OnSpringScrollAnimationFrame(uint32_t generation);
+    void OnSpringScrollAnimationEnd(uint32_t generation);
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -145,6 +160,10 @@ class KRScrollerView : public IKRRenderViewExport {
     KRRenderCallback on_drag_end_callback_ = nullptr;
     KRRenderCallback on_scroll_end_callback_ = nullptr;
     KRRenderCallback on_will_drag_end_callback_ = nullptr;
+    KRRenderCallback on_scroll_to_top_callback_ = nullptr;
+    // scroll 是否以同步方式注册，以及这次滚动是否已通知 KRInputFirstGate。
+    bool scroll_sync_ = false;
+    bool scroll_session_active_ = false;
     std::shared_ptr<KRScrollerContentView> content_view_;
     bool bounces_enabled_ = true;
     bool limit_header_bounces_ = false;
@@ -176,6 +195,22 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
     bool direction_row_ = false;
+
+    // setContentOffset spring animation driven frame by frame (aligned with iOS UIView spring animation)
+    ArkUI_AnimatorHandle spring_animator_ = nullptr;
+    ArkUI_AnimatorOption *spring_animator_option_ = nullptr;
+    void *spring_animator_user_data_ = nullptr;
+    bool spring_anim_running_ = false;
+    uint32_t spring_anim_generation_ = 0;
+    int64_t spring_anim_start_us_ = 0;
+    int spring_anim_duration_ms_ = 0;
+    float spring_anim_omega_ = 0;
+    float spring_anim_start_x_ = 0;
+    float spring_anim_start_y_ = 0;
+    float spring_anim_target_x_ = 0;
+    float spring_anim_target_y_ = 0;
+    float spring_anim_velocity_x_ = 0;
+    float spring_anim_velocity_y_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

@@ -30,6 +30,7 @@
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRSystemMaterialUtil.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRStringUtil.h"
@@ -139,6 +140,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
      * 收到来自ArkTS侧的事件回调响应
      */
     virtual void FireViewEventFromArkTS(std::string eventKey, KRAnyValue data) {}
+
+    /**
+     * 用户点击系统状态栏（要求在主线程调用），由滚动容器实现自定义回顶逻辑
+     */
+    virtual void OnStatusBarClicked() {}
 
     /**
      * 自定义设置ViewFrame, 基类不处理SetFrame操作，子类自身通过重写SetRenderViewFrame实现
@@ -465,6 +471,15 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     void SetRootView(std::weak_ptr<IKRRenderView> root_view, std::string instance_id) {
         root_view_ = root_view;
         instance_id_ = instance_id;
+        instance_id_value_ = KRRenderValue();
+        if (auto root = root_view_.lock()) {
+            if (auto ctx = root->GetContext()) {
+                instance_id_value_ = ctx->InstanceIdValue();
+            }
+        }
+        if (!instance_id_value_) {
+            instance_id_value_ = KRRenderValue::Make(kuikly::util::AsciiToUTF16(instance_id_));
+        }
     }
 
     const std::weak_ptr<IKRRenderView> GetRootView() {
@@ -481,6 +496,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
 
     std::string GetInstanceId() {
         return instance_id_;
+    }
+
+    // Cached at SetRootView: delayed destroy paths run after the root view is gone.
+    KRAnyValue GetInstanceIdValue() {
+        return instance_id_value_;
     }
 
     void SetViewTag(int view_tag) {
@@ -590,6 +610,14 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         return nullptr;
     }
 
+ public:
+    /**
+     * 事件注册后调用，告知该事件是否以同步方式注册
+     * @param event_name 事件名
+     * @param sync 是否同步
+     */
+    virtual void SetEventSync(const std::string &event_name, bool sync) {}
+
  private:
     void UnregisterEvent() {
         KREventDispatchCenter::GetInstance().UnregisterEvent(shared_from_this());
@@ -614,6 +642,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
  private:
     std::weak_ptr<IKRRenderView> root_view_;
     std::string instance_id_;
+    KRAnyValue instance_id_value_;
     std::shared_ptr<KRBaseEventHandler> base_event_handler_;
     std::string view_name_;
     int view_tag_ = 0;

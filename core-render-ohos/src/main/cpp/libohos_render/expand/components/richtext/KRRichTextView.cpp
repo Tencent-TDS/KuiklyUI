@@ -16,8 +16,6 @@
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
 #include <algorithm>
-#include <codecvt>
-#include <locale>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_path.h>
@@ -27,6 +25,7 @@
 #include <native_drawing/drawing_rect.h>
 #include <native_drawing/drawing_sampling_options.h>
 #include <native_drawing/drawing_shader_effect.h>
+#include <unicode/ubrk.h>
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
@@ -34,6 +33,7 @@
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,17 +53,6 @@ extern size_t OH_Drawing_GetEndFromRange(OH_Drawing_Range* range) __attribute__(
 #ifdef __cplusplus
 }
 #endif
-
-// UTF-8 to UTF-16
-static std::u16string utf8_to_utf16(const std::string& utf8_string) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.from_bytes(utf8_string);
-}
-// UTF-16 to UTF-8
-static std::string utf16_to_utf8(const std::u16string& utf16_string) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-    return converter.to_bytes(utf16_string);
-}
 
 static const char * kPropNameLineBreakMargin = "lineBreakMargin";
 static const char * kPropNameClick = "click";
@@ -426,14 +415,77 @@ static int GetOffsetInLine(KRLineInfo &info, KRPoint point_in, SelectionStrategy
     return index;
 }
 
-std::pair<int, int> KRParagraphInfo::GetSentenceBoundary(int offset) {
-    (void)utf8_to_utf16(text_content_);
-    return std::make_pair(offset, offset);
+static bool IsLineTerminator(char16_t c) {
+    return c == u'\n' || c == u'\r' || c == u'\u2028' || c == u'\u2029' || c == u'\u0085';
 }
 
+// Returns the ICU break segment [begin, end) containing `offset`. When `words_only` is set,
+// segments that are not words (whitespace / punctuation) are reported as not found.
+static std::pair<int, int> GetBreakIteratorBoundary(UBreakIteratorType type, const std::u16string &text, int offset,
+                                                    bool words_only) {
+    const int length = static_cast<int>(text.size());
+    if (offset < 0 || offset >= length) {
+        return std::make_pair(offset, offset);
+    }
+    UErrorCode status = U_ZERO_ERROR;
+    UBreakIterator *iterator = ubrk_open(type, nullptr, text.data(), length, &status);
+    if (U_FAILURE(status) || iterator == nullptr) {
+        KR_LOG_ERROR << "ubrk_open failed, type:" << type << ", status:" << status;
+        if (iterator) {
+            ubrk_close(iterator);
+        }
+        return std::make_pair(offset, offset);
+    }
+    int end = ubrk_following(iterator, offset);
+    if (end == UBRK_DONE) {
+        end = length;
+    }
+    // Rule status describes the segment that ends at the boundary just returned.
+    int32_t rule_status = ubrk_getRuleStatus(iterator);
+    int begin = ubrk_preceding(iterator, end);
+    if (begin == UBRK_DONE) {
+        begin = 0;
+    }
+    ubrk_close(iterator);
+    if (words_only && rule_status >= UBRK_WORD_NONE && rule_status < UBRK_WORD_NONE_LIMIT) {
+        return std::make_pair(offset, offset);
+    }
+    return std::make_pair(begin, end);
+}
+
+std::pair<int, int> KRParagraphInfo::GetCharacterBoundary(int offset) {
+    auto boundary = GetBreakIteratorBoundary(UBRK_CHARACTER, text_content_, offset, false);
+    if (boundary.first >= boundary.second) {
+        return std::make_pair(offset, offset + 1);
+    }
+    return boundary;
+}
+
+std::pair<int, int> KRParagraphInfo::GetWordBoundary(int offset) {
+    return GetBreakIteratorBoundary(UBRK_WORD, text_content_, offset, true);
+}
+
+// Trailing spaces / line terminators stay inside the sentence, aligned with iOS and Android.
+std::pair<int, int> KRParagraphInfo::GetSentenceBoundary(int offset) {
+    return GetBreakIteratorBoundary(UBRK_SENTENCE, text_content_, offset, false);
+}
+
+// A paragraph is delimited by line terminators, which are not part of the returned range.
+// Touching a terminator selects the paragraph that it ends.
 std::pair<int, int> KRParagraphInfo::GetParagraphBoundary(int offset) {
-    (void)utf8_to_utf16(text_content_);
-    return std::make_pair(offset, offset);
+    const int length = static_cast<int>(text_content_.size());
+    if (offset < 0 || offset >= length) {
+        return std::make_pair(offset, offset);
+    }
+    int begin = offset;
+    while (begin > 0 && !IsLineTerminator(text_content_[begin - 1])) {
+        --begin;
+    }
+    int end = offset;
+    while (end < length && !IsLineTerminator(text_content_[end])) {
+        ++end;
+    }
+    return std::make_pair(begin, end);
 }
 
 // Returns the half-open interval [begin, end) of the span that contains `offset`.
@@ -449,6 +501,31 @@ std::pair<int, int> KRParagraphInfo::GetSpanBoundary(int offset) {
         }
     }
     return std::make_pair(offset, offset);
+}
+
+std::pair<int, int> KRParagraphInfo::GetBoundary(int type, int offset) {
+    std::pair<int, int> boundary(offset, offset);
+    switch (type) {
+        case KRTextSelectionType::WORD:
+            boundary = GetWordBoundary(offset);
+            break;
+        case KRTextSelectionType::SENTENCE:
+            boundary = GetSentenceBoundary(offset);
+            break;
+        case KRTextSelectionType::PARAGRAPH:
+            boundary = GetParagraphBoundary(offset);
+            break;
+        case KRTextSelectionType::SPAN:
+            boundary = GetSpanBoundary(offset);
+            break;
+        default:
+            break;
+    }
+    // Every type falls back to the grapheme cluster under the touch point, aligned with Android / iOS.
+    if (boundary.first >= boundary.second) {
+        boundary = GetCharacterBoundary(offset);
+    }
+    return boundary;
 }
 
 KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRectsAll() {
@@ -540,57 +617,54 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRects2(KRPoint p0, KRPoint
         std::swap(first_line_text_is_last_in_line, last_line_text_is_last_in_line);
     }
 
-    // SPAN type: expand the selection to the whole span that contains the touched offset.
-    // GetSpanBoundary returns a half-open interval [span_start, span_end).
-    if (type == KRTextSelectionType::SPAN && first_line_text_offset >= 0) {
-        auto [span_start, span_end] = GetSpanBoundary(first_line_text_offset);
-        if (span_start < span_end) {
-            first_line_text_offset = span_start;
-            // Keep last_line_text_offset inclusive (it points at the last selected char).
-            // info.end below re-adds +1 to convert it back into the exclusive span_end.
-            last_line_text_offset = span_end - 1;
+    // Expand the touched offset to the range described by `type`. Handle dragging reuses CHARACTER with two
+    // distinct points, so CHARACTER only expands when both points coincide (i.e. createSelection).
+    bool expand_by_type = type == KRTextSelectionType::WORD || type == KRTextSelectionType::SENTENCE ||
+                          type == KRTextSelectionType::PARAGRAPH || type == KRTextSelectionType::SPAN ||
+                          (type == KRTextSelectionType::CHARACTER && p0 == p1);
+    int range_start = -1;
+    int range_end = -1;
+    if (expand_by_type && first_line_text_offset >= 0) {
+        auto [boundary_start, boundary_end] = GetBoundary(type, first_line_text_offset);
+        // Map [boundary_start, boundary_end) onto glyph offsets: start/end may fall inside a cluster
+        // or on glyphs without a rect box (e.g. line terminators). The start line must lock onto the
+        // FIRST matching line so a soft-wrap boundary never pushes it one line too far.
+        int first_line = -1;
+        int first_offset = -1;
+        int last_line = -1;
+        int last_offset = -1;
+        for (size_t i = 0; i < line_info_list_.size(); ++i) {
+            if (first_line < 0) {
+                int offset = line_info_list_[i].FirstIndexInRange(boundary_start, boundary_end);
+                if (offset >= 0) {
+                    first_line = static_cast<int>(i);
+                    first_offset = offset;
+                }
+            }
+            int offset = line_info_list_[i].LastIndexInRange(boundary_start, boundary_end);
+            if (offset >= 0) {
+                last_line = static_cast<int>(i);
+                last_offset = offset;
+            }
+        }
+        if (first_line >= 0 && last_line >= 0) {
+            range_start = boundary_start;
+            range_end = boundary_end;
+            line_numbers[0] = first_line;
+            line_numbers[1] = last_line;
+            // last_line_text_offset stays inclusive (the last selected glyph).
+            first_line_text_offset = first_offset;
+            last_line_text_offset = last_offset;
 
-            // The is_first/is_last/which_part flags were derived from the raw touch points
-            // and no longer describe the span range. Reset them so the rect-building logic
-            // always takes the "has-width" branches: this guarantees a non-zero-width
-            // selection rect and, in turn, info.end == span_end (never off-by-one).
+            // The is_first/is_last/which_part flags were derived from the raw touch points and no longer
+            // describe the expanded range. Reset them so the rect-building logic always takes the
+            // "has-width" branches and yields a non-zero-width selection rect.
             first_line_text_is_first_in_line = false;
             first_line_text_is_last_in_line = false;
             last_line_text_is_first_in_line = false;
             last_line_text_is_last_in_line = false;
             which_part_of_first_line_text = SelectionStrategy::Leading;
             which_part_of_last_line_text = SelectionStrategy::Trailing;
-
-            // Recalculate the line range that covers [span_start, span_end - 1].
-            // The start line must lock onto the FIRST matching line: at a soft-wrap
-            // boundary an offset can satisfy both line i (as BackOffset) and line i+1
-            // (as startIndex), so without this guard the start line would be pushed
-            // one line too far.
-            line_numbers[0] = 0;
-            line_numbers[1] = static_cast<int>(line_info_list_.size()) - 1;
-            bool first_line_found = false;
-            for (size_t i = 0; i < line_info_list_.size(); ++i) {
-                const auto &metrics = line_info_list_[i].line_metrics_;
-                // BackOffset() returns the last character offset of this line
-                // (inclusive), i.e. the line covers [startIndex, BackOffset()].
-                int back_offset = line_info_list_[i].BackOffset();
-                if (!first_line_found && first_line_text_offset >= metrics.startIndex &&
-                    first_line_text_offset <= back_offset) {
-                    line_numbers[0] = static_cast<int>(i);
-                    first_line_found = true;
-                }
-                if (last_line_text_offset >= metrics.startIndex && last_line_text_offset <= back_offset) {
-                    line_numbers[1] = static_cast<int>(i);
-                    break;
-                }
-            }
-            if (line_numbers[0] > line_numbers[1]) {
-                std::swap(line_numbers[0], line_numbers[1]);
-            }
-        } else {
-            // No span contains the touched offset — fall back to character-level
-            // selection (single char), aligned with Android / iOS fallback behaviour.
-            last_line_text_offset = first_line_text_offset;
         }
     }
 
@@ -668,8 +742,13 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRects2(KRPoint p0, KRPoint
     KRParagraphSelectionInfo info;
     info.text_content = text_content_;
     info.span_offsets = span_offsets_;
-    info.start = first_line_text_offset;
-    info.end = rects.empty() || rects.front().width <= 0 ? last_line_text_offset : last_line_text_offset + 1;
+    if (range_start >= 0) {
+        info.start = range_start;
+        info.end = range_end;
+    } else {
+        info.start = first_line_text_offset;
+        info.end = rects.empty() || rects.front().width <= 0 ? last_line_text_offset : last_line_text_offset + 1;
+    }
     info.selection_rects = rects;
     info.first_char_width = first_char_width > 0 ? first_char_width / density : 0;
     info.last_char_width = last_char_width > 0 ? last_char_width / density : 0;
@@ -697,8 +776,7 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
     paragraph_info.width_ = frame.width;
     paragraph_info.height_ = frame.height;
 
-    std::string text_content = textShadow->GetTextContent();
-    paragraph_info.text_content_ = text_content;
+    paragraph_info.text_content_ = textShadow->GetTextContent();
     paragraph_info.span_offsets_ = textShadow->span_offsets_;
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
@@ -774,26 +852,19 @@ int KRParagraphSelectionInfo::TextIndexForTypographyOffset(int offset) const {
     return text_index;
 }
 
-std::string KRRichTextView::GetSelectedContent(std::string &pre, std::string &post) {
-    std::u16string str16 = utf8_to_utf16(selection_rects_.text_content);
-    size_t sel_end = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.end)),
-                              str16.size());
-    size_t sel_begin = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.start)),
-                                sel_end);
-
-    if (sel_begin > 0) {
-        std::u16string pre_u16 = str16.substr(0, sel_begin);
-        pre = utf16_to_utf8(pre_u16);
+std::u16string KRRichTextView::GetSelectedContent(std::u16string &pre, std::u16string &post) {
+    const std::u16string &str16 = selection_rects_.text_content;
+    const size_t n = str16.size();
+    size_t sel_end = std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.end)), n);
+    size_t sel_start =
+        std::min(static_cast<size_t>(selection_rects_.TextIndexForTypographyOffset(selection_rects_.start)), sel_end);
+    if (sel_start > 0) {
+        pre = str16.substr(0, sel_start);
     }
-    std::u16string selected_u16 = str16.substr(sel_begin, sel_end - sel_begin);
-    std::string selected_u8 = utf16_to_utf8(selected_u16);
-
-    if (sel_end < str16.size()) {
-        std::u16string post_u16 = str16.substr(sel_end);
-        post = utf16_to_utf8(post_u16);
+    if (sel_end < n) {
+        post = str16.substr(sel_end);
     }
-
-    return selected_u8;
+    return str16.substr(sel_start, sel_end - sel_start);
 }
 
 bool KRRichTextView::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,

@@ -243,6 +243,7 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
         return attr.enableGlassEffect && PlatformUtils.isLiquidGlassSupported()
 
     }
+
     private fun handlePanGesture(params: PanGestureParams) {
         var progress = if (attr.directionHorizontal) {
             (params.x - attr.paddingLeft) / (flexNode.styleWidth - attr.paddingLeft - attr.paddingRight)

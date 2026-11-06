@@ -67,6 +67,26 @@ API_AVAILABLE(macos(26.0))
 
 #endif // [macOS]
 
+#if !TARGET_OS_OSX && __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000 // [macOS]
+/// 将 css borderRadius（"tl,tr,bl,br"）应用为玻璃视图的 cornerConfiguration（iOS 26+）
+FOUNDATION_EXTERN void KRGlassApplyCornerConfiguration(UIView *view, NSString * _Nullable cssBorderRadius) API_AVAILABLE(ios(26.0));
+#endif // [macOS]
+
+#if TARGET_OS_OSX && __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000 // [macOS]
+/// 将 css borderRadius 应用到 macOS 玻璃视图（NSGlassEffectView 或其子类）：
+/// - macOS 27+：view 需实现 kr_setCornerConfiguration:（见 KRGlassEffectView / KRLiquidGlassView），
+///   通过 cornerConfiguration 表达四角独立半径；
+/// - macOS 26：NSGlassEffectView 只有单一 cornerRadius，统一取左上角（系统限制）。
+FOUNDATION_EXTERN void KRGlassMacApplyCornerRadius(NSGlassEffectView *view, NSString * _Nullable cssBorderRadius) API_AVAILABLE(macos(26.0));
+
+/// 支持 macOS 27 cornerConfiguration 的玻璃视图。
+/// AppKit 中 NSView.cornerConfiguration 是只读属性，需由子类重写 getter 提供配置。
+API_AVAILABLE(macos(26.0))
+@interface KRGlassEffectView : NSGlassEffectView
+- (void)kr_setCornerConfiguration:(nullable id)cornerConfiguration;
+@end
+#endif // [macOS]
+
 #pragma mark - KRView Liquid Glass Category
 
 /**

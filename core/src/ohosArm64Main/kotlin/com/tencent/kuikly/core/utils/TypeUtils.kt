@@ -1,7 +1,7 @@
 /*
  * Tencent is pleased to support the open source community by making KuiklyUI
  * available.
- * Copyright (C) 2025 Tencent. All rights reserved.
+ * Copyright (C) 2026 Tencent. All rights reserved.
  * Licensed under the License of KuiklyUI;
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,141 +15,179 @@
 
 package com.tencent.kuikly.core.utils
 
-import kotlinx.cinterop.CValuesRef
+import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.nvi.serialization.json.retainNativeBitsOrNull
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_ARRAY
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_BOOL
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_BYTES
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_DOUBLE
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_FLOAT
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_INT
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_LONG
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_NULL
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_OBJECT
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_STRING
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_U16STRING
+import com.tencent.kuikly.core.nvi.serialization.json.JSON_KIND_UINT
+import com.tencent.kuikly.core.nvi.serialization.json.JsonNative
+import com.tencent.kuikly.core.nvi.serialization.json.numberFromJson
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.IntVar
-import kotlinx.cinterop.alloc
-import kotlinx.cinterop.cstr
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.value
-import kotlinx.cinterop.*
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.set
+import kotlinx.cinterop.usePinned
+import ohos.KRJSONArrayAppend
+import ohos.KRJSONNewArray
+import ohos.KRJSONNewBool
+import ohos.KRJSONNewBytes
+import ohos.KRJSONNewDouble
+import ohos.KRJSONNewFloat
+import ohos.KRJSONNewInt32
+import ohos.KRJSONNewInt64
+import ohos.KRJSONNewNull
+import ohos.KRJSONGetStringUTF16
+import ohos.KRJSONNewStringUTF16
+import ohos.KRJSONRelease
+import ohos.KRJSONObjectAppendUTF16NoDedup
 import ohos.KRRenderCValue
-import ohos.Type
-import platform.ohos.OH_LOG_Print
-import platform.posix.int32_t
+import platform.posix.size_t
 
 /**
- * Created by kamlin on 2024/4/20.
+ * Converts a Kotlin bridge argument to one owned KRJSON word.
+ * The caller must release it after the native call.
  */
-
 @OptIn(ExperimentalForeignApi::class)
-fun Any?.toKRRenderCValue(memScope: MemScope, renderCValue: KRRenderCValue): KRRenderCValue {
-    // 优化：null 提前返回，避免走 8 次 instanceof 检查
-    if (this == null) {
-        renderCValue.type = Type.NULL_VALUE
-        renderCValue.value.intValue = 0
-        return renderCValue
+fun Any?.toKRRenderCValue(): KRRenderCValue {
+    return when (this) {
+        null -> KRJSONNewNull()
+        is Boolean -> KRJSONNewBool(this)
+        is Int -> KRJSONNewInt32(this)
+        is Long -> KRJSONNewInt64(this)
+        is Float -> KRJSONNewFloat(this)
+        is Double -> KRJSONNewDouble(this)
+        is String -> toUTF16Json()
+        is ByteArray -> usePinned {
+            KRJSONNewBytes(
+                if (isEmpty()) null else it.addressOf(0).reinterpret(),
+                size.convert<size_t>(),
+            )
+        }
+        is Array<*> -> toNativeArray(asList())
+        is List<*> -> toNativeArray(this)
+        is Map<*, *> -> toNativeObject(this)
+        is JSONObject -> {
+            val nativeBits = retainNativeBitsOrNull()
+            if (nativeBits != null) nativeBits.toULong() else toNativeObject(nameValuePairs)
+        }
+        is JSONArray -> toNativeArray(values)
+        else -> KRJSONNewNull()
     }
-    when (this) {
-        is String -> {
-            with(memScope) {
-                renderCValue.type = Type.STRING
-                renderCValue.value.stringValue = this@toKRRenderCValue.cstr.ptr
-            }
-        }
-        is Int -> {
-            renderCValue.type = Type.INT
-            renderCValue.value.intValue = this
-        }
-        is Long -> {
-            renderCValue.type = Type.LONG
-            renderCValue.value.longValue = this
-        }
-        is Float -> {
-            renderCValue.type = Type.FLOAT
-            renderCValue.value.floatValue = this
-        }
-        is Double -> {
-            renderCValue.type = Type.DOUBLE
-            renderCValue.value.doubleValue = this
-        }
-        is Boolean -> {
-            renderCValue.type = Type.BOOL
-            renderCValue.value.boolValue = if (this) 1 else 0
-        }
-        is ByteArray -> {
-            val bytes = this
-            renderCValue.type = Type.BYTES
-            renderCValue.size = bytes.size
-            if (renderCValue.size > 0) {
-                renderCValue.value.bytesValue = this.usePinned { it.addressOf(0) }
-            }
-        }
-        is Array<*> -> {
-            renderCValue.type = Type.ARRAY
-            renderCValue.size = this.size
-            val cArray = memScope.allocArray<KRRenderCValue>(size)
-            for (i in 0 until size) {
-                this@toKRRenderCValue[i]?.toKRRenderCValue(memScope, cArray[i])
-            }
-            renderCValue.value.arrayValue = cArray
-        }
-        else -> {
-            renderCValue.type = Type.NULL_VALUE
-            renderCValue.value.intValue = 0
-        }
-    }
-    return renderCValue
 }
 
 @OptIn(ExperimentalForeignApi::class)
-fun Any?.toKRRenderCValue(memScope: MemScope): CValue<KRRenderCValue> {
-    return cValue<KRRenderCValue> {
-        this@toKRRenderCValue.toKRRenderCValue(memScope, this)
+private fun String.toUTF16Json(): KRRenderCValue {
+    val n = length
+    val owned = KRJSONNewStringUTF16(null, n.convert<size_t>())
+    if (n == 0) {
+        return owned
     }
+    val dst = KRJSONGetStringUTF16(owned, null) ?: return owned
+    for (i in 0 until n) {
+        dst[i] = this[i].code.toUShort()
+    }
+    return owned
 }
 
+@OptIn(ExperimentalForeignApi::class)
+private fun toNativeArray(values: List<*>): KRRenderCValue {
+    val array = KRJSONNewArray()
+    values.forEach { element ->
+        val child = element.toKRRenderCValue()
+        KRJSONArrayAppend(array, child)
+        KRJSONRelease(child)
+    }
+    return array
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun toNativeObject(values: Map<*, *>): KRRenderCValue {
+    val objectValue = ohos.KRJSONNewObjectUTF16()
+    values.forEach { (rawKey, rawValue) ->
+        val key = rawKey as? String ?: return@forEach
+        val child = rawValue.toKRRenderCValue()
+        // Kotlin Map keys are unique. Avoid ObjectPutUTF16's linear overwrite
+        // scan so RouterModule's Kotlin-backed payload build remains O(n).
+        if (key.isEmpty()) {
+            KRJSONObjectAppendUTF16NoDedup(objectValue, null, 0.convert<size_t>(), child)
+        } else {
+            key.toCharArray().usePinned { pinned ->
+                KRJSONObjectAppendUTF16NoDedup(
+                    objectValue,
+                    pinned.addressOf(0).reinterpret(),
+                    key.length.convert<size_t>(),
+                    child,
+                )
+            }
+        }
+        KRJSONRelease(child)
+    }
+    return objectValue
+}
+
+/**
+ * Converts a borrowed bridge word. Container results retain their own native
+ * reference; scalar and binary values are copied immediately.
+ */
 @OptIn(ExperimentalForeignApi::class)
 fun KRRenderCValue.toAny(): Any? {
-    return when (type) {
-        Type.INT -> value.intValue
-        Type.BOOL -> value.boolValue == 1
-        Type.LONG -> value.longValue
-        Type.FLOAT -> value.floatValue
-        Type.DOUBLE -> value.doubleValue
-        Type.STRING -> value.stringValue?.toKString()
-        Type.BYTES -> toByteArray()
-        Type.ARRAY -> value.arrayValue?.arrayToAny(size)
+    val bits = toLong()
+    return when (JsonNative.type(bits)) {
+        JSON_KIND_NULL -> null
+        JSON_KIND_BOOL -> JsonNative.asBool(bits, false)
+        JSON_KIND_INT, JSON_KIND_UINT, JSON_KIND_DOUBLE -> numberFromJson(bits)
+        JSON_KIND_LONG -> JsonNative.asInt(bits)
+        JSON_KIND_FLOAT -> JsonNative.asDouble(bits, 0.0).toFloat()
+        JSON_KIND_STRING, JSON_KIND_U16STRING -> JsonNative.asString(bits)
+        JSON_KIND_BYTES -> JsonNative.asByteArray(bits)
+        JSON_KIND_ARRAY -> if (hasBytesElement(bits)) bytesArrayToAny(bits) else JSONObject.fromJsonOwnerAny(bits)
+        JSON_KIND_OBJECT -> JSONObject.fromJsonOwnerAny(bits)
         else -> null
     }
 }
 
-@OptIn(ExperimentalForeignApi::class)
-private fun CPointer<KRRenderCValue>.arrayToAny(size: Int): Any {
-    val list = mutableListOf<Any?>()
-    for (i in 0 until size) {
-        val value = this[i].toAny()
-        list.add(value)
-    }
-    return list.toTypedArray()
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun KRRenderCValue.toByteArray(): Any {
-    val size = size
-    val byteArray = ByteArray(size)
-    if (size > 0) {
-        byteArray.usePinned { pinned ->
-            platform.posix.memcpy(pinned.addressOf(0), value.bytesValue, size.convert<platform.posix.size_t>())
+/**
+ * Arrays that directly carry binary keep the historical `Array<Any?>` shape
+ * (e.g. `NetworkModule.httpRequestBinary` checks `res is Array<*>`), matching
+ * the Apple bridge's `hasBinaryElement` rule.
+ */
+private fun hasBytesElement(arrayBits: Long): Boolean {
+    val count = JsonNative.size(arrayBits)
+    for (i in 0 until count) {
+        if (JsonNative.type(JsonNative.arrayGet(arrayBits, i)) == JSON_KIND_BYTES) {
+            return true
         }
     }
-    return byteArray
+    return false
 }
 
 @OptIn(ExperimentalForeignApi::class)
-fun CValue<KRRenderCValue>.toAny(): Any? {
-    return useContents {
+private fun bytesArrayToAny(arrayBits: Long): Array<Any?> {
+    return Array(JsonNative.size(arrayBits)) { i ->
+        JsonNative.arrayGet(arrayBits, i).toULong().toAny()
+    }
+}
+
+/** Converts and releases an owned result returned by C++. */
+@OptIn(ExperimentalForeignApi::class)
+fun KRRenderCValue.consumeToAny(): Any? {
+    return try {
         toAny()
+    } finally {
+        KRJSONRelease(this)
     }
 }
 
 @OptIn(ExperimentalForeignApi::class)
-fun CValue<KRRenderCValue>.asString(): String {
-    return useContents { asString() }
-}
-
-@OptIn(ExperimentalForeignApi::class)
-fun KRRenderCValue.asString(): String {
-    return value.stringValue?.toKString() ?: ""
-}
+fun KRRenderCValue.asString(): String = JsonNative.asString(toLong()) ?: ""

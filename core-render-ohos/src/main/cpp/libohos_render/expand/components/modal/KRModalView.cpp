@@ -200,7 +200,7 @@ void KRModalView::OnSystemMaterialChanged() {
 void KRModalView::FireDismissEvent(int32_t reason) {
     if (on_will_dismiss_callback_ != nullptr) {
         KRRenderValueMap map;
-        map["reason"] = NewKRRenderValue(reason);
+        map[u"reason"] = NewKRRenderValue(reason);
         on_will_dismiss_callback_(NewKRRenderValue(map));
     }
 }

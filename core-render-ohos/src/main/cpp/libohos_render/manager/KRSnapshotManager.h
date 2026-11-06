@@ -17,14 +17,17 @@
 #define CORE_RENDER_OHOS_KRSNAPSHOTMANAGER_H
 #include <arkui/drawable_descriptor.h>
 #include <js_native_api.h>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRCommon.h"
 
+using KRSnapshotDrawableDescriptor = std::shared_ptr<ArkUI_DrawableDescriptor>;
+
 struct KRSnapshotItem {
     KRSnapshotItem() : drawableDescriptor(nullptr), env(nullptr), drawableDescriptorRef(nullptr), pixelMapRef(nullptr) {}
-    ArkUI_DrawableDescriptor *drawableDescriptor;
+    KRSnapshotDrawableDescriptor drawableDescriptor;
     napi_env env;
     napi_ref drawableDescriptorRef;
     napi_ref pixelMapRef;
@@ -36,33 +39,29 @@ class KRSnapshotManager {
     ~KRSnapshotManager();
 
     bool SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std::string &key);
-    void TakeSnapshot(const std::string &instance_id, const std::string &method_name, const std::string &nodeId,
+    void TakeSnapshot(const KRAnyValue &instance_id, const std::string &method_name, const std::string &nodeId,
                       const KRAnyValue &params, const KRRenderCallback &cb,
                       std::weak_ptr<IKRRenderViewExport> weak_view);
 
  private:
     struct ResultData {
-        int code;
-        std::string data;
-        std::string message;
+        int code = 0;
+        std::u16string data;
+        std::u16string message;
     };
 
-    struct ResultData ProcessSnapshotResultWithDataType(napi_env env, napi_value pixelMap, const std::string &path,
-                                                        const std::string &pathUri,
-                                                        ArkUI_DrawableDescriptor *drawableDescriptorPtr,
-                                                        std::weak_ptr<IKRRenderViewExport> weak_view);
+    struct ResultData ProcessSnapshotResultWithDataType(napi_env env, napi_value pixelMap);
     struct ResultData ProcessSnapshotResultWithCacheKeyType(napi_env env, napi_value pixelMap,
                                                             napi_value drawableDescriptor, const std::string &path,
                                                             const std::string &pathUri,
-                                                            ArkUI_DrawableDescriptor *drawableDescriptorPtr,
+                                                            const KRSnapshotDrawableDescriptor &descriptor,
                                                             std::weak_ptr<IKRRenderViewExport> weak_view);
     struct ResultData ProcessSnapshotResultWithFileType(napi_env env, napi_value pixelMap, const std::string &path,
-                                                        const std::string &pathUri,
-                                                        ArkUI_DrawableDescriptor *drawableDescriptorPtr,
+                                                        const std::u16string &pathUri,
                                                         std::weak_ptr<IKRRenderViewExport> weak_view);
 
     void CacheSnapshot(napi_env env, napi_value drawableDescriptor, napi_value pixelMap,
-                       ArkUI_DrawableDescriptor *descriptor, const std::string &key);
+                       const KRSnapshotDrawableDescriptor &descriptor, const std::string &key);
     void UpdateSnapshot(const std::string &uri, const std::string &key);
     void UpdateCachedSnapshotUriAfterDelay(int delayMS, const std::string &key, const std::string &path,
                                            const std::string &pathUri, std::weak_ptr<IKRRenderViewExport> weak_view);

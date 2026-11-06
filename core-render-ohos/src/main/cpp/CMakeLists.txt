@@ -1,5 +1,5 @@
 # the minimum version of CMake.
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.18)
 project(myNpmLib)
 
 set(NATIVERENDER_ROOT_PATH .)
@@ -21,6 +21,8 @@ set(SOURCE_SET
         libohos_render/view/KRRenderView.cpp
         libohos_render/scheduler/KRUIScheduler.cpp
         libohos_render/scheduler/KRContextScheduler.cpp
+        libohos_render/scheduler/KRInputFirstGate.cpp
+        libohos_render/scheduler/KRMainThreadTaskPuller.cpp
         libohos_render/context/IKRRenderNativeContextHandler.cpp
         libohos_render/context/KRRenderNativeContextHandlerManager.cpp
         libohos_render/context/DefaultRenderNativeContextHandler.cpp
@@ -39,6 +41,7 @@ set(SOURCE_SET
         libohos_render/utils/KREventUtil.cpp
         libohos_render/layer/KRRenderLayerHandler.cpp
         libohos_render/expand/events/KREventDispatchCenter.cpp
+        libohos_render/expand/events/common_event/KRCommonEventManager.cpp
         libohos_render/expand/events/gesture/KRGestureGroupHandler.cpp
         libohos_render/expand/events/gesture/KRGestureEventHandler.cpp
         libohos_render/expand/events/gesture/KRGestureCaptureRule.cpp
@@ -95,6 +98,13 @@ set(SOURCE_SET
         libohos_render/utils/KRURIHelper.cpp
         libohos_render/utils/KRBase64Util.cpp
         libohos_render/utils/KRJSONObject.cpp
+        libohos_render/utils/json/Allocator.cpp
+        libohos_render/utils/json/Box.cpp
+        libohos_render/utils/json/Reader.cpp
+        libohos_render/utils/json/DomBuilder.cpp
+        libohos_render/api/src/KRJSON.cpp
+        libohos_render/foundation/type/KRRenderValue.cpp
+        libohos_render/foundation/type/KRRenderValueNapi.cpp
         libohos_render/utils/KRStringUtil.cpp
         libohos_render/utils/KRViewUtil.cpp
         libohos_render/utils/KRSystemMaterialUtil.cpp
@@ -102,6 +112,7 @@ set(SOURCE_SET
         libohos_render/utils/KRJsUtil.cpp
         libohos_render/utils/NAPIUtil.cpp
         libohos_render/utils/KRConvertUtil.cpp
+        libohos_render/utils/KRUtfUtil.cpp
         thirdparty/cJSON/cJSON.c
         thirdparty/tinyXml/tinyxml2.cpp
         libohos_render/performance/KRPerformanceManager.cpp
@@ -158,16 +169,36 @@ target_include_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/include)
 target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64-linux-ohos)
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}
                     ${NATIVERENDER_ROOT_PATH}/include)
+
+# RapidJSON (header-only) — SAX JSON parser
+include(FetchContent)
+set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_THIRDPARTY_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+        rapidjson
+        GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+        GIT_TAG 24b5e7a8b27f42fa16b96fc70aade9106cf7102f
+)
+FetchContent_MakeAvailable(rapidjson)
+# RapidJSON's CMake may reset CMAKE_CXX_STANDARD; keep kuikly on C++17.
+set(CMAKE_CXX_STANDARD 17)
+target_include_directories(kuikly PRIVATE ${rapidjson_SOURCE_DIR}/include)
+include("${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/simdutf/simdutf.cmake")
+target_link_libraries(kuikly PRIVATE simdutf::simdutf)
 target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libability_runtime.so
                                     libace_napi.z.so
                                     libace_ndk.z.so
                                     libdeviceinfo_ndk.z.so
+                                    libicu.so
                                     libimage_packer_ndk.z.so
                                     libimage_source.so
                                     libjsvm.so
                                     libnative_drawing.so
                                     libohcrypto.so
+                                    libohcommonevent.so
                                     libohfileuri.so
                                     libohresmgr.so
                                     libpixelmap.so

@@ -52,7 +52,7 @@
 
 在 `TextArea` 或 `Text` 组件上通过 `textPostProcessor()` 属性声明处理器名称：
 
-```kotlin{14,22}
+```kotlin{15,23}
 @Page("emoji_demo")
 internal class EmojiDemoPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -64,6 +64,7 @@ internal class EmojiDemoPage : BasePager() {
             // TextArea with post-processor（多行输入框，支持表情预览）
             TextArea {
                 attr {
+                    overflow(true)
                     size(300f, 100f)
                     placeholder("输入 [smile] 试试")
                     textPostProcessor("input")
@@ -93,7 +94,7 @@ internal class EmojiDemoPage : BasePager() {
 
 自研 DSL 通过 `TextInputState` 管理输入框状态，配合 `replaceSelection()` 扩展函数实现光标位置插入表情：
 
-```kotlin{4-5,12-13,19-22,27-30}
+```kotlin{4-5,12-14,20-23,28-31}
 @Page("EmojiTextInputDemo")
 internal class EmojiTextInputDemo : Pager() {
 
@@ -106,6 +107,7 @@ internal class EmojiTextInputDemo : Pager() {
             // ② TextArea 绑定 textInputState，支持响应式更新
             TextArea {
                 attr {
+                    overflow(true)
                     textPostProcessor("input")
                     textInputState { ctx.inputState }  // lambda 形式，状态变化自动刷新
                 }

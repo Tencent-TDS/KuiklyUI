@@ -27,11 +27,9 @@ void IKRRenderNativeContextHandler::RegisterCallNative(ICallNativeCallback *call
     this->call_native_callback_ = callback;
 }
 
-std::shared_ptr<KRRenderValue>
-IKRRenderNativeContextHandler::OnCallNative(const KuiklyRenderNativeMethod &method, std::shared_ptr<KRRenderValue> &arg0,
-                                            std::shared_ptr<KRRenderValue> &arg1, std::shared_ptr<KRRenderValue> &arg2,
-                                            std::shared_ptr<KRRenderValue> &arg3, std::shared_ptr<KRRenderValue> &arg4,
-                                            std::shared_ptr<KRRenderValue> &arg5) {
+KRAnyValue IKRRenderNativeContextHandler::OnCallNative(const KuiklyRenderNativeMethod &method, KRAnyValue &arg0,
+                                                       KRAnyValue &arg1, KRAnyValue &arg2, KRAnyValue &arg3,
+                                                       KRAnyValue &arg4, KRAnyValue &arg5) {
     return call_native_callback_ ? call_native_callback_->OnCallNative(method, arg0, arg1, arg2, arg3, arg4, arg5)
                               : KRRenderValue::Make();
 }
@@ -59,13 +57,9 @@ void IKRRenderNativeContextHandler::WillDestroy() {
     is_destroying_ = true;
 }
 
-void IKRRenderNativeContextHandler::Call(const KuiklyRenderContextMethod &method,
-                                         const std::shared_ptr<KRRenderValue> &arg0,
-                                         const std::shared_ptr<KRRenderValue> &arg1,
-                                         const std::shared_ptr<KRRenderValue> &arg2,
-                                         const std::shared_ptr<KRRenderValue> &arg3,
-                                         const std::shared_ptr<KRRenderValue> &arg4,
-                                         const std::shared_ptr<KRRenderValue> &arg5) {
+void IKRRenderNativeContextHandler::Call(const KuiklyRenderContextMethod &method, const KRAnyValue &arg0,
+                                         const KRAnyValue &arg1, const KRAnyValue &arg2, const KRAnyValue &arg3,
+                                         const KRAnyValue &arg4, const KRAnyValue &arg5) {
     if (is_destroying_ && (method == KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback ||
                           method == KuiklyRenderContextMethod::KuiklyRenderContextMethodLayoutView)) {
         return;

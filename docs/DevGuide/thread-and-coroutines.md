@@ -312,6 +312,40 @@ override fun created() {
 
 上述列举了3种常用方式和对应的场景示例，实际开发中，还可以组合出更多的异步编程方式，此处不再赘述。
 
+## 可取消的 Job 与 delay <Badge text="2.14.0 及以上支持" type="warn"/>
+
+Kuikly 内建协程的 `Job` 与 `delay` 均支持取消：`launch` / `async` 返回的 `Job` 被取消后，挂起中的 `delay` 会以 `CancellationException` 结束，不再执行后续代码。
+
+```kotlin
+val job = lifecycleScope.launch {
+    KLog.i("Demo", "start")
+    delay(3000)                    // 可取消：job.cancel() 后不会再走到下一行
+    KLog.i("Demo", "after delay")
+}
+
+// 在合适的时机取消
+job.cancel()
+```
+
+`delay` 内部会把当前续体注册到 `Job`，取消时会销毁 Kotlin 侧的定时回调，端侧定时器到期后不会再唤醒协程。
+
+自定义挂起函数时，可使用可取消版本 `suspendCancellableCoroutine`。它是 `CoroutineScope` 的扩展函数，需以 `launch` / `async` 块的接收者（即块内的 `this`）调用，才能关联到对应的 `Job`：
+
+```kotlin
+lifecycleScope.launch {
+    val result: String = suspendCancellableCoroutine { cont, onCancel ->
+        onCancel { cause ->
+            // 协程结束（含取消）时回调，可用于释放资源
+        }
+        // 异步完成后调用 cont.resume(...)
+    }
+}
+```
+
+::::tip 与 LifecycleScope 配合
+`Pager.lifecycleScope` 当前**不会**随页面销毁自动取消（其 context 不含 `Job`）。需要取消时，请持有 `launch` 返回的 `Job`，并在合适时机（如 `pageWillDestroy`）调用 `cancel()`；`GlobalScope` 上的协程同理。
+::::
+
 ## 关于线程安全
 * KMP多线程需要开发者自行考虑线程安全问题，可以借助`kotlinx:atomicfu`库提供的原子操作和同步锁能力；
 * Kuikly UI的相关类（View、Attr、Event、ObservableProperties、GlobalFunctions等）非线程安全，且只能在Kuikly线程访问。

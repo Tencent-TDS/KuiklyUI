@@ -47,6 +47,7 @@ extern NSString *const KuiklyIndexAttributeName;
 @property (nonatomic, assign) NSUInteger spanIndex;
 @property (nonatomic, strong) UIFont *font;
 @property (nonatomic, strong) UIColor *color;
+@property (nonatomic, strong) UIColor *backgroundColor;
 @property (nonatomic, assign) BOOL hasGradient;
 @property (nonatomic, copy) NSString *cssGradient;
 @property (nonatomic, assign) CGFloat letterSpacing;

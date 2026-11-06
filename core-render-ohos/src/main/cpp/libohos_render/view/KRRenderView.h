@@ -19,6 +19,8 @@
 #include <ace/xcomponent/native_interface_xcomponent.h>
 #include <arkui/native_node.h>
 #include <rawfile/raw_file_manager.h>
+#include <string>
+#include <unordered_map>
 #include "libohos_render/context/KRRenderContextParams.h"
 #include "libohos_render/core/KRRenderCore.h"
 #include "libohos_render/foundation/KRCallbackData.h"
@@ -41,6 +43,10 @@ class KRRenderView : public IKRRenderView {
      */
     void SendEvent(std::string event_name, const std::string &json_data) override;
     void SendEvent(std::string event_name, const std::string &json_data, bool sync) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data) override;
+    void SendEvent(std::string event_name, const KRAnyValue &data, bool sync) override;
+    void SendEvent(const KRAnyValue &event, const KRAnyValue &data) override;
+    void SendEvent(const KRAnyValue &event, const KRAnyValue &data, bool sync) override;
     
     /**
      * 是否需要同步发送事件
@@ -48,6 +54,12 @@ class KRRenderView : public IKRRenderView {
      * @return true 为同步，false 为异步
      */
     bool syncSendEvent(const std::string &event_name) override;
+
+    /**
+     * 收到系统公共事件时回调：仅活跃实例处理，并分发给内部的滚动容器
+     * @param name 事件枚举
+     */
+    void OnCommonEvent(kuikly::CommonEventName name) override;
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
@@ -117,13 +129,13 @@ class KRRenderView : public IKRRenderView {
      * 根据Callback生成callback_id
      * @return 该Callback索引ID, 用于GetArgCallback
      */
-    std::string GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
+    std::u16string GenerateArgCallbackId(const KRRenderCallback &callback, bool callback_keep_alive,
                                       bool arg_prefer_raw_napi_value);
 
     /**
      * 根据callbackid获取Callback
      */
-    KRRenderCallback GetArgCallback(std::string callbackId, bool &arg_prefer_raw_napi_value);
+    KRRenderCallback GetArgCallback(const std::u16string &callbackId, bool &arg_prefer_raw_napi_value);
 
     /**
      * 派发页面加载初始化事件
@@ -158,6 +170,9 @@ class KRRenderView : public IKRRenderView {
 
  private:
     void RemoveRootViewFromContentHandle(bool immediate);
+    /** 注册/注销框架关注的系统公共事件（按实例引用计数） */
+    void SubscribeCommonEvents();
+    void UnsubscribeCommonEvents();
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
     ArkUI_NodeHandle root_node_ = nullptr;
     float root_view_width_ = 0.0;
@@ -167,11 +182,13 @@ class KRRenderView : public IKRRenderView {
     NativeResourceManager *native_resources_manager_;
     std::shared_ptr<KRRenderCore> core_;
     // Callback管理索引表
-    std::unordered_map<std::string, std::shared_ptr<KRArkTsCallbackWrapper>> method_arg_callback_map_;
+    std::unordered_map<std::u16string, std::shared_ptr<KRArkTsCallbackWrapper>> method_arg_callback_map_;
     KRSnapshotManager snapshot_manager_;
     std::shared_ptr<KRPerformanceManager> performance_manager_ = nullptr;
     bool is_load_finish = false;  //  是否已经初始化过标记
     bool is_detached_ = false;    //  是否因为 detach from window 而移除了 root view
+    bool is_active_ = false;      //  页面是否可见（由 viewDidAppear/viewDidDisappear 驱动）
+    bool is_common_event_subscribed_ = false;  //  是否已登记公共事件订阅
     void InitRender(float width, float height);
 };
 

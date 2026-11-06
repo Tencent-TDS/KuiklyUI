@@ -24,17 +24,58 @@
 
 namespace {
 
+std::atomic<uint32_t> g_tasksStartedWhileParked{0};
+
 // 一次性 timer 持有的上下文：exec 为“到点后的提交动作”，在 TimerCb 中被调用。
 struct TimerContext {
     std::function<void()> exec;
 };
 
-// DirectRunOnCurThread fast-fail 等待窗口：
-//   * 设计取舍：调用者在该窗口内不停 try_lock + yield 抢 m_taskMutex；
-//     超时后降级为 DispatchAsync，避免 caller 线程被 worker 长跑卡死。
-//   * 之所以是 100ms 而非更短：太短会让 caller 频繁错过 worker 短任务、转 async
-//     带来不必要的 latency 抖动；太长则在主线程上观感卡顿。100ms 是经验阀值。
-constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
+// 外部线程等待 context 任务锁期间的计数。异常路径也会减回去。
+class ExternalWaiterGuard {
+ public:
+    explicit ExternalWaiterGuard(std::atomic<int> &counter) : counter_(counter) {}
+    ~ExternalWaiterGuard() { Leave(); }
+    void Enter() {
+        if (!entered_) {
+            counter_.fetch_add(1, std::memory_order_acq_rel);
+            entered_ = true;
+        }
+    }
+    void Leave() {
+        if (entered_) {
+            counter_.fetch_sub(1, std::memory_order_acq_rel);
+            entered_ = false;
+        }
+    }
+    ExternalWaiterGuard(const ExternalWaiterGuard &) = delete;
+    ExternalWaiterGuard &operator=(const ExternalWaiterGuard &) = delete;
+
+ private:
+    std::atomic<int> &counter_;
+    bool entered_ = false;
+};
+
+// 外部线程持有 context 任务锁期间的标记：m_isExecutingTask 与 m_externalOwner。
+// 必须走 RAII：异常路径下手写的 store(false) 会被跳过，导致标志位残留。
+class ExternalExecutionGuard {
+ public:
+    ExternalExecutionGuard(std::atomic<bool> &executing, std::atomic<std::thread::id> &owner)
+        : executing_(executing), owner_(owner) {
+        executing_.store(true);
+        owner_.store(std::this_thread::get_id());
+    }
+    ~ExternalExecutionGuard() {
+        owner_.store(std::thread::id());
+        executing_.store(false);
+    }
+    ExternalExecutionGuard(const ExternalExecutionGuard &) = delete;
+    ExternalExecutionGuard &operator=(const ExternalExecutionGuard &) = delete;
+
+ private:
+    std::atomic<bool> &executing_;
+    std::atomic<std::thread::id> &owner_;
+};
 
 }  // namespace
 
@@ -173,28 +214,48 @@ void KRThread::OnAsync() {
         StartTimerInLoop(std::move(pt->func), pt->delayMs);
     }
 
-    // 阶段 2：取出当前所有立即任务（包括 timer 到点后重新入队的任务），
-    // 按入队顺序执行，受 m_taskMutex 保护以保留与 DirectRunOnCurThread 互斥语义。
-    std::queue<std::function<void()>> local;
-    {
-        std::lock_guard<std::mutex> lock(m_queueMutex);
-        std::swap(local, m_pending);
-    }
-    if (local.empty()) {
-        return;
-    }
-
-    // 抢执行权：阻塞等待。即使此刻有 DirectRunOnCurThread 持锁，
-    // worker 也只是被挂起到对方 unlock，期间不忙等、不浪费 CPU。
+    // 阶段 2：先拿到 context 任务锁，再取出当前所有立即任务（包括 timer 到点后重新入队的任务），
+    // 按入队顺序执行。必须先拿锁再取这批任务：主线程也从 m_pending 取任务。
+    // 若先取走再等锁，等锁期间主线程会先执行更晚入队的任务，顺序就乱了。
+    // 即使此刻有 DirectRunOnCurThread 持锁，worker 也只是被挂起到对方 unlock，期间不忙等。
     // worker 线程不会自我重入（task 内嵌套提交同步任务走 m_isExecutingTask 快路径），
     // 故对 m_taskMutex 阻塞 lock 不会自死锁。
+    if (m_parked.load(std::memory_order_acquire)) {
+        NotifyParkedIfPending();
+        return;
+    }
     {
-        std::lock_guard<std::mutex> taskLock(m_taskMutex);
+        std::unique_lock<std::mutex> taskLock(m_taskMutex);
+        std::queue<std::function<void()>> local;
+        {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            std::swap(local, m_pending);
+        }
+        if (local.empty()) {
+            return;
+        }
+        // 等锁期间可能已进入暂停：本批原样退回队首，不执行任何任务。
+        if (m_parked.load(std::memory_order_acquire)) {
+            {
+                std::lock_guard<std::mutex> lock(m_queueMutex);
+                while (!m_pending.empty()) {
+                    local.push(std::move(m_pending.front()));
+                    m_pending.pop();
+                }
+                std::swap(local, m_pending);
+            }
+            taskLock.unlock();
+            NotifyParkedIfPending();
+            return;
+        }
         m_isExecutingTask.store(true);
         while (!local.empty()) {
             auto fn = std::move(local.front());
             local.pop();
             if (fn) {
+                if (m_parked.load(std::memory_order_acquire)) {
+                    g_tasksStartedWhileParked.fetch_add(1, std::memory_order_relaxed);
+                }
                 // 任何未捕获异常都会一路冒到 std::thread 入口触发 std::terminate，
                 // 同时让 m_taskMutex / m_isExecutingTask 来不及落回干净状态——
                 // 这里不套 C++ catch，为的是让 K/N unhandled hook 能先于 std::terminate
@@ -202,6 +263,31 @@ void KRThread::OnAsync() {
                 // 从而抑制 hook）。同时靠 std::mutex / std::atomic 的 RAII 保证 unwind
                 // 将 m_taskMutex 释放、m_isExecutingTask 下文恢复。
                 fn();
+            }
+            // 主线程在等锁，或 context 线程要暂停：先把剩余任务按原顺序放回队首，再释放锁。
+            // 不放回的话，接下来拿到锁的线程会先执行更晚入队的任务。
+            const bool parked = m_parked.load(std::memory_order_acquire);
+            if (!local.empty() && (parked || m_externalWaiters.load(std::memory_order_acquire) > 0)) {
+                {
+                    std::lock_guard<std::mutex> lock(m_queueMutex);
+                    while (!m_pending.empty()) {
+                        local.push(std::move(m_pending.front()));
+                        m_pending.pop();
+                    }
+                    std::swap(local, m_pending);
+                }
+                m_isExecutingTask.store(false);
+                taskLock.unlock();
+                if (parked) {
+                    NotifyParkedIfPending();
+                    return;
+                }
+                // std::mutex 不保证谁先拿到。等主线程真正拿到锁后，再回到 loop 重新竞争。
+                while (m_externalWaiters.load(std::memory_order_acquire) > 0) {
+                    std::this_thread::yield();
+                }
+                uv_async_send(&m_async);
+                return;
             }
         }
         m_isExecutingTask.store(false);
@@ -316,52 +402,110 @@ void KRThread::DispatchAsync(std::function<void()> task, int delayMilliseconds) 
 }
 
 void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
+    if (!TryRunOnCurThread(kDirectRunFastFailWindow, task)) {
+        KR_LOG_INFO << "DispatchAsync when run DirectRunOnCurThread";
+        DispatchAsync(task);
+    }
+}
+
+void KRThread::SetParked(bool parked) {
+    m_parked.store(parked, std::memory_order_release);
+    if (!parked) {
+        // 唤醒 context 线程，从 m_pending 继续执行。
+        uv_async_send(&m_async);
+    }
+}
+
+void KRThread::SetParkedTaskNotifier(std::function<void()> notifier) {
+    m_parkedTaskNotifier = std::move(notifier);
+}
+
+void KRThread::NotifyParkedIfPending() {
+    bool hasPending = false;
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        hasPending = !m_pending.empty();
+    }
+    if (hasPending && m_parkedTaskNotifier) {
+        m_parkedTaskNotifier();
+    }
+}
+
+bool KRThread::TryRunNextPendingTaskOnCurThread(const std::function<void(const std::function<void()> &)> &run) {
+    assert(!IsCurrentThreadWorkerThread() && "TryRunNextPendingTaskOnCurThread must be called by external thread");
+    assert(m_externalOwner.load() != std::this_thread::get_id() &&
+           "KRThread::TryRunNextPendingTaskOnCurThread re-entered while holding the task mutex");
+    // 只尝试拿一次锁。拿不到就返回，主线程不在这里空转。
+    std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
+    if (!taskLock.owns_lock()) {
+        return false;
+    }
+    std::function<void()> task;
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        if (m_pending.empty()) {
+            return false;
+        }
+        task = std::move(m_pending.front());
+        m_pending.pop();
+    }
+    // 和 context 线程用同一个队列：只从队首取，取出和执行都在持有 context 任务锁时进行。
+    ExternalExecutionGuard execGuard(m_isExecutingTask, m_externalOwner);
+    run(task);
+    return true;
+}
+
+bool KRThread::IsTaskLockHeldByCurrentThread() const {
+    return m_externalOwner.load() == std::this_thread::get_id();
+}
+
+bool KRThread::TryRunOnCurThread(std::chrono::microseconds window, const std::function<void()> &task) {
     if (!task) {
-        return;
+        return true;
+    }
+    // 本线程已经持有 m_taskMutex（例如主线程持锁执行任务时，UI 操作同步触发了同步事件）。
+    // std::mutex 不能重入，直接返回 false，由调用方改成异步执行。
+    if (m_externalOwner.load() == std::this_thread::get_id()) {
+        return false;
     }
     if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
         // 仅当“当前就在 worker 的执行栈里（task 体内嵌套调用）”才允许直跑，
-        // 避免外部线程在 worker 持锁跑批期间错误地“白嚘”执行权造成数据竞争。
+        // 避免主线程在 context 线程持锁执行任务时绕过这把锁，造成数据竞争。
         //
         // 异常语义：不套 C++ catch，让异常一路冒到 K/N unhandled hook，避免
         // “C++ 已处理”误判拖喽 hook 触发而丢失 Kotlin 侧崩溃信息。
         task();
-        return;
+        return true;
     }
 
     auto start = std::chrono::steady_clock::now();
-    bool didHandleTask = false;
+    ExternalWaiterGuard waiter(m_externalWaiters);
     // 观察 worker 是否正在反向同步等主线程：若已举旗，意味着 m_taskMutex 被 worker
-    // 抻在 cv.wait 期间，本路径继续 yield-spin 等锁毫无意义，直接 fast-fail 降级异步。
+    // 抻在 cv.wait 期间，本路径继续 yield-spin 等锁毫无意义，直接 fast-fail 降级。
     while (!IsWorkerAwaitingMainTask()) {
-        if (std::chrono::steady_clock::now() - start > kDirectRunFastFailWindow) {
-            break;  // 超过 fast-fail 窗口，落到异步派发
-        }
         std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
         if (taskLock.owns_lock()) {
+            waiter.Leave();
             // 借位执行 task。不套 C++ catch，让异常一路冒到 K/N unhandled hook：
             // 任何中间层 catch（即使手动 rethrow）都会让 K/N 观察到 "C++ 已处理"
             // 从而不再触发 hook，导致丢失 Kotlin 侧崩溃栈。unwind 期间会自动展开
-            // 下面的 ExecutingFlagGuard 与 taskLock（unique_lock），保证
+            // 下面的 ExternalExecutionGuard 与 taskLock（unique_lock），保证
             // m_isExecutingTask / m_taskMutex 状态一致，不残留中间态。
-            //
-            // ExecutingFlagGuard 必须走 RAII：因为异常路径下手写的
-            // `m_isExecutingTask.store(false)` 会被跳过，导致标志位残留，
-            // 后续同线程调用会误入 nested 快路径。
-            struct ExecutingFlagGuard {
-                std::atomic<bool> &flag;
-                explicit ExecutingFlagGuard(std::atomic<bool> &f) : flag(f) { flag.store(true); }
-                ~ExecutingFlagGuard() { flag.store(false); }
-            } execFlagGuard(m_isExecutingTask);
+            ExternalExecutionGuard execGuard(m_isExecutingTask, m_externalOwner);
             task();
-            didHandleTask = true;
-            break;
+            return true;
+        }
+        // 第一次没拿到锁后记入等待计数。context 线程据此在当前任务做完后释放锁。
+        waiter.Enter();
+        if (std::chrono::steady_clock::now() - start > window) {
+            break;  // 超过 fast-fail 窗口，交给调用方降级
         }
         // try_lock 失败：让出一下 CPU，避免空转把核打满。
         std::this_thread::yield();
     }
-    if (!didHandleTask) {
-        KR_LOG_INFO << "DispatchAsync when run DirectRunOnCurThread";
-        DispatchAsync(task);
-    }
+    return false;
+}
+
+uint32_t KRThread::ExchangeTasksStartedWhileParked() {
+    return g_tasksStartedWhileParked.exchange(0, std::memory_order_relaxed);
 }

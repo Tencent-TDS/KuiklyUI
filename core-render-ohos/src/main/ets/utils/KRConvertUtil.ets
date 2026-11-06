@@ -17,6 +17,7 @@
 import { KRSize } from '../foundation/KRSize';
 import display from '@ohos.display';
 import { KRAny, KRArray, KRRecord, KRValue } from './KRDataTypes';
+import { KRJSON } from './KRJSON';
 
 
 export class KRConvertUtil {
@@ -28,6 +29,10 @@ export class KRConvertUtil {
   public static anyToCObject(value: KRAny): KRValue | null {
     if (value === null) {
       return null
+    }
+    if (KRJSON.isNative(value)) {
+      // Unwrapped zero-copy by N-API; JSON.stringify would hit the router toJSON hook.
+      return value as KRValue;
     }
     if (Array.isArray(value)) {
       if (KRConvertUtil.hasByteArrayElement(value as KRArray)) {

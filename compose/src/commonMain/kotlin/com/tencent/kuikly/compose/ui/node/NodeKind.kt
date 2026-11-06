@@ -16,8 +16,8 @@
 
 package com.tencent.kuikly.compose.ui.node
 
-import androidx.collection.mutableObjectIntMapOf
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.DrawModifier
 import com.tencent.kuikly.compose.ui.focus.FocusEventModifierNode
@@ -160,7 +160,8 @@ fun classKeyForObject(a: Any): Any {
     return a::class
 }
 
-private val classToKindSetMap = mutableObjectIntMapOf<Any>()
+// Native Map on JS. ObjectIntMap probes Long metadata, and HashMap allocates an entry per class.
+private val classToKindSetMap = fastHashMapOf<Any, Int>()
 @OptIn(ExperimentalComposeUiApi::class)
 internal fun calculateNodeKindSetFrom(node: Modifier.Node): Int {
     // This function does not take delegates into account, as a result, the kindSet will never

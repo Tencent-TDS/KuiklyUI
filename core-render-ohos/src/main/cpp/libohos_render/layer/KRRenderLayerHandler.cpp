@@ -15,6 +15,8 @@
 
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 
+#include <vector>
+
 /**
  * 初始化
  * @param rootView 渲染根容器view
@@ -153,13 +155,13 @@ void KRRenderLayerHandler::SetShadow(int tag, const std::shared_ptr<IKRRenderSha
  * @param constraintHeight 测量高度宽度
  * @return 计算得到的尺寸，"${width}|${height}" 格式封装返回
  */
-std::string KRRenderLayerHandler::CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) {
+std::u16string KRRenderLayerHandler::CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) {
     auto &shadow = shadow_registry_[tag];
     if (shadow != nullptr) {
         auto size = shadow->CalculateRenderViewSize(constraint_width, constraint_height);
         return kuikly::util::ConvertSizeToString(size);
     }
-    return "0|0";
+    return u"0|0";
 }
 
 /**
@@ -299,6 +301,24 @@ std::shared_ptr<IKRRenderViewExport> KRRenderLayerHandler::GetRenderView(ArkUI_N
     return nullptr;
 }
 
+void KRRenderLayerHandler::ForEachRenderView(
+    const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) {
+    if (callback == nullptr) {
+        return;
+    }
+    // 先取快照再遍历，避免回调过程中新增/移除视图导致迭代器失效
+    std::vector<std::shared_ptr<IKRRenderViewExport>> views;
+    views.reserve(view_registry_.size());
+    for (const auto &pair : view_registry_) {
+        if (pair.second != nullptr) {
+            views.push_back(pair.second);
+        }
+    }
+    for (const auto &view : views) {
+        callback(view);
+    }
+}
+
 /**
  * 将要销毁时调用
  */
@@ -309,6 +329,21 @@ void KRRenderLayerHandler::WillDestroy() {}
  */
 void KRRenderLayerHandler::OnDestroy() {
     destroying_ = true;
+    // view 的 ToDestroy 会释放连续同步事件会话，并投出暂存的帧任务。
+    // 先让 KRVsyncModule 反注册并递增 generation，这次投递才会因 generation 不匹配被丢掉。
+    std::vector<std::shared_ptr<IKRRenderModuleExport>> modules;
+    {
+        std::unique_lock lock(module_rw_mutex_);
+        modules.reserve(module_registry_.size());
+        for (const auto &entry : module_registry_) {
+            if (entry.second) {
+                modules.push_back(entry.second);
+            }
+        }
+    }
+    for (const auto &module : modules) {
+        module->WillDestroy();
+    }
     for (const auto &entry : view_registry_) {
         const std::shared_ptr<IKRRenderViewExport> &value = entry.second;
         if (value) {

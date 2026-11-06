@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { KRNativeRenderController, KRRecord, Kuikly } from '@kuikly-open/render';
+import { KRJsonValue, KRNativeRenderController, KRRecord, KRRouterParams, Kuikly } from '@kuikly-open/render';
 import globalNativeManager from '../kuikly/MyNativeManager';
 import { KuiklyViewDelegate } from '../kuikly/KuiklyViewDelegate';
 import pasteboard from '@ohos.pasteboard';
@@ -30,7 +30,7 @@ struct Index {
   private kuiklyViewDelegate = new KuiklyViewDelegate();
   private kuiklyController: KRNativeRenderController | null = null;
   private pageName: string | null = null;
-  private pageData?: KRRecord;
+  private pageData?: KRRecord | KRJsonValue;
   private contextCode: string = '';
   private contextCodeHandler: ContextCodeHandler = new ContextCodeHandler();
   private useDefaultBackPress = false;
@@ -52,7 +52,7 @@ struct Index {
     AppKRRenderManager.getInstance().initIfNeed();
     const params = router.getParams() as Record<string, Object>;
     this.pageName = (params?.pageName as string) || LaunchParams.pageName || null;
-    this.pageData = (params?.pageData as KRRecord | null) ?? {};
+    this.pageData = KRRouterParams.resolvePageData(params);
     if (this.contextCodeHandler.isNeedGetContextCode(params)) {
       this.contextCodeHandler.handleGetContextCode(getContext(), params, (contextCode) => {
         this.contextCode = contextCode;

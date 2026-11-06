@@ -64,7 +64,7 @@ class KRArkTSManager {
      * @param return_node_handle 返回ArkTS侧的ArkUI node节点句柄（默认为null）
      * @param callback_keep_alive callback 是否 keep alive
      */
-    KRAnyValue CallArkTSMethod(const std::string &instanceId, KRNativeCallArkTSMethod methodId, const KRAnyValue &arg0,
+    KRAnyValue CallArkTSMethod(const KRAnyValue &instanceId, KRNativeCallArkTSMethod methodId, const KRAnyValue &arg0,
                                const KRAnyValue &arg1, const KRAnyValue &arg2, const KRAnyValue &arg3,
                                const KRAnyValue &arg4, const KRRenderCallback &callback,
                                bool callback_keep_alive = false, ArkUI_NodeHandle *return_node_handle = nullptr,

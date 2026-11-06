@@ -19,6 +19,7 @@
 #include <arkui/native_node.h>
 #include <functional>
 #include <map>
+#include <string>
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
@@ -83,6 +84,20 @@ class KRLineInfo {
     int BackIndex() {
         return rects_.begin() == rects_.end() ? 0 : rects_.rbegin()->first;
     }
+    // First glyph offset within [begin, end), or -1 if this line has none.
+    int FirstIndexInRange(int begin, int end) const {
+        auto it = rects_.lower_bound(begin);
+        return (it == rects_.end() || it->first >= end) ? -1 : it->first;
+    }
+    // Last glyph offset within [begin, end), or -1 if this line has none.
+    int LastIndexInRange(int begin, int end) const {
+        auto it = rects_.lower_bound(end);
+        if (it == rects_.begin()) {
+            return -1;
+        }
+        --it;
+        return it->first < begin ? -1 : it->first;
+    }
 
  private:
     std::map<int, KRRect> rects_;
@@ -91,7 +106,7 @@ class KRLineInfo {
 class KRParagraphSelectionInfo {
  public:
     std::vector<KRRect> selection_rects;
-    std::string text_content;
+    std::u16string text_content;
     std::vector<std::tuple<int, int, int>> span_offsets;  // (spanIndex, begin, end)
     int start = 0;
     int end = 0;
@@ -114,16 +129,20 @@ class KRParagraphInfo {
     KRParagraphSelectionInfo GetSelectionRectsAll();
 
     std::vector<KRLineInfo> line_info_list_;
-    std::string text_content_;
+    std::u16string text_content_;
     OH_Drawing_Typography *typography_ = nullptr;
     float width_ = 0;
     float height_ = 0;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // (spanIndex, begin, end)
 
  private:
+    // All boundaries are half-open [begin, end) in typography offsets; begin == end means "not found".
+    std::pair<int, int> GetCharacterBoundary(int offset);
+    std::pair<int, int> GetWordBoundary(int offset);
     std::pair<int, int> GetSentenceBoundary(int offset);
     std::pair<int, int> GetParagraphBoundary(int offset);
     std::pair<int, int> GetSpanBoundary(int offset);
+    std::pair<int, int> GetBoundary(int type, int offset);
 };
 
 class KRRichTextView : public IKRRenderViewExport {
@@ -160,10 +179,10 @@ class KRRichTextView : public IKRRenderViewExport {
     KRRect LastSelectionRect() {
         return selection_rects_.selection_rects.empty() ? KRRect() : selection_rects_.selection_rects.back();
     }
-    std::string GetTextContent() {
+    const std::u16string &GetTextContent() {
         return std::dynamic_pointer_cast<KRRichTextShadow>(shadow_)->GetTextContent();
     }
-    std::string GetSelectedContent(std::string &pre, std::string &post);
+    std::u16string GetSelectedContent(std::u16string &pre, std::u16string &post);
     bool IsTextView() override {
         return true;
     }

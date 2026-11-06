@@ -32,8 +32,8 @@ KRAnyValue KRPerformanceModule::CallMethod(bool sync, const std::string &method,
             KRPageCreateTrace trace = KRPageCreateTrace(params->toString());
             performance_manager->OnPageCreateFinish(trace);
         } else if (method == kMethodNameGetPerformanceData) {
-            std::string data = performance_manager->GetPerformanceData();
-            std::shared_ptr<KRRenderValue> callback_param;
+            std::u16string data = performance_manager->GetPerformanceData();
+            KRAnyValue callback_param;
             if (data.empty()) {
                 callback_param = KRRenderValue::Make(nullptr);
             } else {

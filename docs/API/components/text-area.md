@@ -23,6 +23,10 @@ HarmonyOS API 24+ 上，`TextArea` 底层会优先使用系统 `ARKUI_NODE_TEXT_
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
 
+:::tip Android 渲染残留
+与 [`Input`](input.md#属性) 相同，部分 Android 设备上会出现渲染残留。在 `attr` 中调用 [`overflow(true)`](basic-attr-event.md#overflow方法) 打开裁剪即可避开。
+:::
+
 ### lineHeight方法 <Badge text="2.15+" type="info"/>
 
 设置多行文本的行高。
@@ -39,9 +43,10 @@ HarmonyOS API 24+ 上，`TextArea` 底层会优先使用系统 `ARKUI_NODE_TEXT_
 
 **示例**
 
-```kotlin{10}
+```kotlin{5}
 TextArea {
     attr {
+        overflow(true)
         size(200f, 100f)
         lineHeight(24f) // 设置行高为 24px
         fontSize(16f)
@@ -77,6 +82,7 @@ TextArea {
 - `placeholder()` - 设置提示文本
 - `placeholderColor()` - 设置提示文本颜色
 - `tintColor()` - 设置光标颜色
+- `selectionColor()` - 设置文本选中高亮颜色
 - `maxTextLength()` - 设置最大输入长度
 - `keyboardTypePassword()` / `keyboardTypeNumber()` / `keyboardTypeEmail()` - 设置键盘类型
 - `returnKeyTypeSearch()` / `returnKeyTypeSend()` / `returnKeyTypeDone()` 等 - 设置返回键类型
@@ -132,6 +138,7 @@ internal class TextAreaDemo : Pager() {
                 TextArea {
                     ref { ctx.inputRef = it }
                     attr {
+                        overflow(true)
                         flex(1f)
                         placeholder("输入文字或点击表情按钮")
                         fontSize(16f)

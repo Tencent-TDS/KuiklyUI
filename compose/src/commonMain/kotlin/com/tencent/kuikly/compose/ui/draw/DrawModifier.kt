@@ -115,6 +115,12 @@ private data class DrawBehindElement(
     }
 }
 
+/**
+ * One instance for every draw. On JS a function reference allocates a new object
+ * each call, and [SnapshotStateObserver] keeps a map per callback identity.
+ */
+private val onDrawChanged: (DrawModifierNode) -> Unit = { it.invalidateDraw() }
+
 internal class DrawBackgroundModifier(
     var onDraw: DrawScope.() -> Unit
 ) : Modifier.Node(), DrawModifierNode, OwnerScope {
@@ -123,7 +129,7 @@ internal class DrawBackgroundModifier(
         if (view is CanvasView) {
             requireOwner().snapshotObserver.observeReads(
                 this@DrawBackgroundModifier,
-                DrawModifierNode::invalidateDraw
+                onDrawChanged
             ) {
                 onDraw()
             }

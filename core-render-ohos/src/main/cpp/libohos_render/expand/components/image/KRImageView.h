@@ -87,6 +87,7 @@ class KRImageView : public IKRRenderViewExport {
 
  private:
     std::string image_src_;
+    KRRenderValue image_src_value_;
     std::shared_ptr<KRImageLoadOption> image_option_ = nullptr;
     KRRenderCallback load_success_callback_ = nullptr;
     KRRenderCallback load_resolution_callback_ = nullptr;

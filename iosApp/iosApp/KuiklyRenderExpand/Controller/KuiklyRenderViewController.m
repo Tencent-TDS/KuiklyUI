@@ -29,8 +29,6 @@
 static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPage";
 /// 挂起Diff测试页面名称
 static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
-
-
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
 
 
@@ -90,7 +88,6 @@ static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
 @end
 
 
-#define KRWeakSelf __weak typeof(self) weakSelf = self;
 @interface KuiklyRenderViewController()<KuiklyRenderViewControllerBaseDelegatorDelegate>
 
 @property (nonatomic, strong) KuiklyRenderViewControllerBaseDelegator *delegator;
@@ -134,30 +131,29 @@ static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    
-    self.fd_prefersNavigationBarHidden = YES;
     self.view.backgroundColor = [UIColor whiteColor];
+    [self p_updateKuiklyNavigationChromePreference];
     [_delegator viewDidLoadWithView:self.view];
-    [self.navigationController setNavigationBarHidden:YES animated:NO];
-
+    if (![self p_usesKuiklyUIKitNavigationChrome]) {
+        [self.navigationController setToolbarHidden:YES animated:NO];
+    }
 }
 
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self p_updateKuiklyNavigationChromePreference];
+    [self p_clearHostNavigationChrome];
+    [_delegator viewWillAppear];
+}
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     [_delegator viewDidLayoutSubviews];
 }
 
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
-    [_delegator viewWillAppear];
-    [self.navigationController setNavigationBarHidden:YES animated:NO];
-}
-
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [_delegator viewDidAppear];
-    [self.navigationController setNavigationBarHidden:YES animated:NO];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -212,6 +208,51 @@ static NSString * const kTBDeferDiffTestPageName = @"TBDeferDiffTestPage";
 }
 
 #pragma mark - private
+
+/// 当前页是否使用 Kuikly `UINavigationBar` / `UIToolbar`（Demo：`UINavigationBarDemo` 或 pageData 开关）。
+- (BOOL)p_usesKuiklyUIKitNavigationChrome {
+    NSString *pageName = _pageName ?: @"";
+    NSRange query = [pageName rangeOfString:@"?"];
+    if (query.location != NSNotFound) {
+        pageName = [pageName substringToIndex:query.location];
+    }
+    if ([pageName isEqualToString:@"UINavigationBarDemo"]) {
+        return YES;
+    }
+    id flag = _pageData[@"iosUIKitNavigationChrome"];
+    if ([flag isKindOfClass:[NSNumber class]]) {
+        return [(NSNumber *)flag boolValue];
+    }
+    if ([flag isKindOfClass:[NSString class]]) {
+        NSString *s = [(NSString *)flag lowercaseString];
+        return [s isEqualToString:@"1"] || [s isEqualToString:@"true"] || [s isEqualToString:@"yes"];
+    }
+    return NO;
+}
+
+/// FDFullscreenPop 按 VC 的 fd_prefersNavigationBarHidden 控制导航栏显隐；栏内容由 KRUINavigationBar 接管。
+- (void)p_updateKuiklyNavigationChromePreference {
+    BOOL usesUIKitChrome = [self p_usesKuiklyUIKitNavigationChrome];
+    self.fd_prefersNavigationBarHidden = !usesUIKitChrome;
+    self.fd_interactivePopDisabled = NO;
+}
+
+/// 清掉宿主在 UINavigationItem 上的标题/按钮，避免与 Kuikly UINavigationBar 或页内 NavBar 叠出系统「< 返回」。
+- (void)p_clearHostNavigationChrome {
+    self.title = @"";
+    self.navigationItem.title = @"";
+    self.navigationItem.hidesBackButton = YES;
+    self.navigationItem.leftItemsSupplementBackButton = YES;
+    self.navigationItem.leftBarButtonItems = @[];
+    self.navigationItem.rightBarButtonItems = @[];
+    if (@available(iOS 16.0, *)) {
+        self.navigationItem.centerItemGroups = @[];
+        self.navigationItem.pinnedTrailingGroup = nil;
+        self.navigationItem.leadingItemGroups = @[];
+        self.navigationItem.trailingItemGroups = @[];
+    }
+    self.toolbarItems = @[];
+}
 
 - (NSDictionary *)p_mergeExtParamsWithOriditalParam:(NSDictionary *)pageParam {
     NSMutableDictionary *mParam = [(pageParam ?: @{}) mutableCopy];

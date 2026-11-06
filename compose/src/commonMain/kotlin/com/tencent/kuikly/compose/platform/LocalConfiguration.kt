@@ -80,9 +80,14 @@ class Configuration(private val pager: IPager) {
     val navigationBarHeight: Float
         get() = pageData.navigationBarHeight
 
+    // 安全区桥接：pageData.safeAreaInsets 是自研 DSL 的 observable（scope.observable），
+    // 其变化只通知自研响应式系统，Compose 无从感知。此处以 Compose 状态背书，
+    // 由 ComposeContainer 在 rootViewSizeDidChanged 事件中写入，使"同尺寸仅 Insets
+    // 变化"（如沉浸式切换系统栏）也能触发 Compose 重组，而不是停在首次组合的旧值。
+    private var _safeAreaInsets = mutableStateOf(pageData.safeAreaInsets)
+
     /** 安全区域是指不被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 */
-    val safeAreaInsets: EdgeInsets
-        get() = pageData.safeAreaInsets
+    val safeAreaInsets: EdgeInsets by _safeAreaInsets
 
     // 设备的操作系统版本
     val osVersion: String
@@ -117,6 +122,10 @@ class Configuration(private val pager: IPager) {
         _pageViewHeight.value = height.toFloat()
         _activityWidth.value = width.toFloat()
         _activityHeight.value = height.toFloat()
+    }
+
+    fun onSafeAreaInsetsChanged(insets: EdgeInsets) {
+        _safeAreaInsets.value = insets
     }
 
     fun onWindowSizeChanged(width: Double, height: Double) {

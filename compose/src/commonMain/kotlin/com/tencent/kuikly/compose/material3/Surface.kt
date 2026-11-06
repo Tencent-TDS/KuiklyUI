@@ -41,7 +41,6 @@ import com.tencent.kuikly.compose.ui.graphics.RectangleShape
 import com.tencent.kuikly.compose.ui.graphics.Shape
 import com.tencent.kuikly.compose.ui.graphics.graphicsLayer
 import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
-import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.semantics.Role
 import com.tencent.kuikly.compose.ui.semantics.isContainer
 import com.tencent.kuikly.compose.ui.semantics.semantics
@@ -124,7 +123,7 @@ fun Surface(
                         elevation = absoluteElevation
                     ),
                     border = border,
-                    shadowElevation = with(LocalDensity.current) { shadowElevation.toPx() }
+                    shadowElevation = shadowElevation
                 )
                 .semantics(mergeDescendants = false) {
                     @Suppress("DEPRECATION")
@@ -232,7 +231,7 @@ fun Surface(
                         elevation = absoluteElevation
                     ),
                     border = border,
-                    shadowElevation = with(LocalDensity.current) { shadowElevation.toPx() }
+                    shadowElevation = shadowElevation
                 )
                 .clickable(
                     // todo:
@@ -345,7 +344,7 @@ fun Surface(
                         elevation = absoluteElevation
                     ),
                     border = border,
-                    shadowElevation = with(LocalDensity.current) { shadowElevation.toPx() }
+                    shadowElevation = shadowElevation
                 )
                 .selectable(
                     selected = selected,
@@ -458,7 +457,7 @@ fun Surface(
                         elevation = absoluteElevation
                     ),
                     border = border,
-                    shadowElevation = with(LocalDensity.current) { shadowElevation.toPx() }
+                    shadowElevation = shadowElevation
                 )
                 .toggleable(
                     value = checked,
@@ -481,13 +480,13 @@ private fun Modifier.surface(
     shape: Shape,
     backgroundColor: Color,
     border: BorderStroke?,
-    shadowElevation: Float,
+    shadowElevation: Dp,
 ) = this
 //    .graphicsLayer(shadowElevation = shadowElevation, shape = shape, clip = false)
 //    .then(if (border != null) Modifier.border(border, shape) else Modifier)
 //    .background(color = backgroundColor, shape = shape)
 //    .then(if (border != null) Modifier.border(border.width, shape) else Modifier)
-    .shadow(shadowElevation.dp, shape)
+    .shadow(shadowElevation, shape)
     .background(color = backgroundColor, shape = shape)
 
 @Composable

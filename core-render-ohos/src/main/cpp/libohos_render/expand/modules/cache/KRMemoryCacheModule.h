@@ -39,7 +39,7 @@ class KRMemoryCacheModule : public IKRRenderModuleExport {
     std::string GenerateCacheKey(const std::string &src);
     void SetImage(const std::string &cache_key, OH_PixelmapNative *pixelmap);
     KRRenderValueMap GenerateResult(const std::string &cache_key, OH_PixelmapNative *pixelmap);
-    KRRenderValueMap GenerateError(int32_t code, const std::string &message);
+    KRRenderValueMap GenerateError(int32_t code, const char16_t *message);
     OH_PixelmapNative *LoadPixelmapFromLocal(std::string &src);
     void ReleasePixelmap(OH_PixelmapNative *pixelmap);
 

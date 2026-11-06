@@ -19,7 +19,18 @@ import { Context, UIContext } from "@ohos.arkui.UIContext"
 import { ComponentContent } from "@kit.ArkUI"
 import { resourceManager } from "@kit.LocalizationKit"
 
-type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | object
+export interface KRJsonValue {
+  readonly type: number
+  readonly size: number
+  has(key: string): boolean
+  get(key: string): KRValue | KRJsonValue | undefined
+  at(index: number): KRValue | KRJsonValue | undefined
+  toJSONString(): string
+  /** @internal Router serialization hook, not payload JSON serialization. */
+  toJSON(): Record<string, string>
+}
+
+type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | object | KRJsonValue
 type KRArray = Array<KRValue | Record<string, KRValue>>
 type KRRecord = Record<string, KRValue | KRArray | Record<string, KRValue | KRArray | Record<string, KRValue>>>
 type KRAny = KRValue | KRArray | KRRecord | null
@@ -32,7 +43,7 @@ export const onInitRenderView: (
   pageName: string,
   contextCode: string,
   executeMode: number,
-  pageDataJsonStr: string,
+  pageDataJsonStr: string | object,
   renderViewWidth: number,
   renderViewHeight: number,
   configJson: string,
@@ -80,4 +91,12 @@ export const sendEventSync: (
 
 export const createNativeRoot: (content: Object, instanceId: string) => void;
 
-export const isBackPressConsumed: (instanceId: string, sendTime: number) => number;
+export const isBackPressConsumed: (instanceId: string, sendTime: number) => number
+/** @internal Used by KRJSON to identify a native structured value. */
+export const isKRJSON: (value: object) => boolean
+/** @internal Parse JSON text into a KRJsonValue without materializing an ArkTS Record. */
+export const parseKRJson: (json: string) => KRJsonValue | undefined
+/** @internal Consumes a router token emitted by KRJsonValue.toJSON(). */
+export const takeKRJsonRoutePayload: (token: string) => KRJsonValue | undefined
+/** @internal Copy of an object KRJsonValue with `key` set to `entry`; the input is not mutated. */
+export const krJsonWithEntry: (value: object, key: string, entry: string) => object

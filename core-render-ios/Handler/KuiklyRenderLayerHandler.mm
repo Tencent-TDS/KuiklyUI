@@ -251,7 +251,12 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
         _shadowRegistry = [[NSMutableDictionary alloc] init];
     }
     NSAssert(!_shadowRegistry[tag], @"shadow did created");
-    _shadowRegistry[tag] = [KRClassFromString(viewName) hrv_createShadow];
+    id<KuiklyRenderShadowProtocol> shadow = [KRClassFromString(viewName) hrv_createShadow];
+    // 对齐 TurboDisplay 向 shadow 注入 contextParam，供字体动态加载使用；shadow 在 context 线程创建，不走 setContextParamToShadow:（主线程断言）
+    if (_contextParam) {
+        [shadow hrv_setPropWithKey:@"contextParam" propValue:_contextParam];
+    }
+    _shadowRegistry[tag] = shadow;
 }
 
 - (void)p_removeShadowWithTag:(NSNumber*)tag {

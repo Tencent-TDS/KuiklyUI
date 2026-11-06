@@ -1111,7 +1111,7 @@ KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &state) {
     sel_end = FlatUtf16ToRawUtf16(state.image_spans_, sel_end);
 
     KRRenderValueMap map;
-    map[kKeyText] = NewKRRenderValue(text);
+    map[kKeyText] = KRRenderValue::MakeUTF16(text);
     map[kKeySelectionStart] = NewKRRenderValue(static_cast<int>(sel_start));
     map[kKeySelectionEnd] = NewKRRenderValue(static_cast<int>(sel_end));
     map[kKeyCompositionStart] = NewKRRenderValue(static_cast<int>(kNoComposition));
@@ -1131,26 +1131,25 @@ ParsedTextInputState ParseTextInputStateJson(const std::string &json) {
     if (json.empty()) {
         return ret;
     }
-    auto value = NewKRRenderValue(json);
-    auto map = value->toMap();  // KRRenderValue::toMap() 在字符串场景下走 cJSON_Parse
-    auto text_it = map.find(kKeyText);
-    if (text_it != map.end() && text_it->second) {
-        ret.text = text_it->second->toString();
+    auto parsed = KRRenderValue::Parse(json);
+    auto text_v = parsed.opt(u"text");
+    if (text_v) {
+        ret.text = text_v.toString();
     }
     uint32_t max_pos = static_cast<uint32_t>(GetUTF16Length(ret.text));
     bool has_start = false;
-    auto start_it = map.find(kKeySelectionStart);
-    if (start_it != map.end() && start_it->second) {
-        int v = start_it->second->toInt();
+    auto start_v = parsed.opt(u"selectionStart");
+    if (start_v) {
+        int v = start_v.toInt();
         ret.selection_start = v < 0 ? 0 : (static_cast<uint32_t>(v) > max_pos ? max_pos
                                                                               : static_cast<uint32_t>(v));
         has_start = true;
     } else {
         ret.selection_start = max_pos;
     }
-    auto end_it = map.find(kKeySelectionEnd);
-    if (end_it != map.end() && end_it->second) {
-        int v = end_it->second->toInt();
+    auto end_v = parsed.opt(u"selectionEnd");
+    if (end_v) {
+        int v = end_v.toInt();
         ret.selection_end = v < 0 ? 0 : (static_cast<uint32_t>(v) > max_pos ? max_pos
                                                                             : static_cast<uint32_t>(v));
     } else {

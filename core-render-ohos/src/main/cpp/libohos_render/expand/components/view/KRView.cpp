@@ -16,12 +16,15 @@
 #include "libohos_render/expand/components/view/KRView.h"
 
 #include <algorithm>
+#include <vector>
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 #include "libohos_render/foundation/KRBorderRadiuses.h"
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/scheduler/KRInputFirstGate.h"
+#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRJSONObject.h"
 #include "libohos_render/utils/KRViewUtil.h"
 #include "libohos_render/view/KRRenderView.h"
@@ -88,12 +91,17 @@ void KRView::OnInternalScrollViewDidScroll(float offsetX, float offsetY) {
 }
 
 void KRView::StopObservingInternalScrollViews() {
-    for (auto view : GetInternalScrollViews()) {
-        auto scroll_view = std::dynamic_pointer_cast<KRScrollerView>(view);
-        if (scroll_view && scroll_observer_) {
+    if (!scroll_observer_ || observing_scroll_views_.empty()) {
+        // 从未注册过监听（绝大多数 KRView）：直接跳过，不再全树递归收集
+        return;
+    }
+    for (const auto &weak_scroll_view : observing_scroll_views_) {
+        auto scroll_view = weak_scroll_view.lock();
+        if (scroll_view) {
             scroll_view->RemoveScrollObserver(scroll_observer_);
         }
     }
+    observing_scroll_views_.clear();
 }
 
 bool KRView::ReuseEnable() {
@@ -211,6 +219,12 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
         }
     }
 
+    // 注册前清理过期项：复用的 KRView 不走析构，账本中可能残留已销毁 scroller 的 weak_ptr
+    observing_scroll_views_.erase(
+        std::remove_if(observing_scroll_views_.begin(), observing_scroll_views_.end(),
+                       [](const std::weak_ptr<KRScrollerView> &weak) { return weak.expired(); }),
+        observing_scroll_views_.end());
+
     for (auto item : selected_scroll_views) {
         if (!item->IsScrollView()) {
             continue;
@@ -218,6 +232,15 @@ void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
         auto scroll_view = std::dynamic_pointer_cast<KRScrollerView>(item);
         if (scroll_view && scroll_observer_) {
             scroll_view->AddScrollObserver(scroll_observer_);
+            // 记账：析构时按此列表精确反注册，避免全树收集
+            auto exists = std::any_of(observing_scroll_views_.begin(), observing_scroll_views_.end(),
+                                      [&scroll_view](const std::weak_ptr<KRScrollerView> &weak) {
+                                          return !weak.owner_before(scroll_view) &&
+                                                 !scroll_view.owner_before(weak);
+                                      });
+            if (!exists) {
+                observing_scroll_views_.push_back(scroll_view);
+            }
         }
     }
 
@@ -332,24 +355,24 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     bool postContentInserted = false;
 
     if (pre && !pre->GetTextContent().empty()) {
-        preContent.push_back(NewKRRenderValue(pre->GetTextContent()));
+        preContent.push_back(KRRenderValue::Make(pre->GetTextContent()));
     }
 
     if (post && !post->GetTextContent().empty()) {
-        postContent.push_back(NewKRRenderValue(post->GetTextContent()));
+        postContent.push_back(KRRenderValue::Make(post->GetTextContent()));
     }
     for (auto item : selected_text_views) {
-        std::string preText;
-        std::string postText;
-        content.push_back(NewKRRenderValue(item->GetSelectedContent(preText, postText)));
+        std::u16string preText;
+        std::u16string postText;
+        content.push_back(KRRenderValue::Make(item->GetSelectedContent(preText, postText)));
 
         if (!preContentInserted && !preText.empty()) {
-            preContent.push_back(NewKRRenderValue(preText));
+            preContent.push_back(KRRenderValue::Make(preText));
             preContentInserted = true;
         }
 
         if (!postContentInserted && !postText.empty()) {
-            postContent.insert(postContent.begin(), NewKRRenderValue(postText));
+            postContent.insert(postContent.begin(), KRRenderValue::Make(postText));
             postContentInserted = true;
         }
     }
@@ -360,9 +383,9 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
     }
 
     KRRenderValueMap dict;
-    dict["preContent"] = NewKRRenderValue(preContent);
-    dict["content"] = NewKRRenderValue(content);
-    dict["postContent"] = NewKRRenderValue(postContent);
+    dict[u"preContent"] = NewKRRenderValue(preContent);
+    dict[u"content"] = NewKRRenderValue(content);
+    dict[u"postContent"] = NewKRRenderValue(postContent);
     cb(NewKRRenderValue(dict));
 }
 
@@ -412,6 +435,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameTouchMove)) {
         touch_move_callback_ = nullptr;
+        EndTouchSession();
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameTouchUp)) {
         touch_up_callback_ = nullptr;
@@ -454,11 +478,24 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     auto input_event = kuikly::util::GetArkUIInputEvent(event);
     TryFireSuperTouchCancelEvent(input_event);
     auto action = kuikly::util::GetArkUIInputEventAction(input_event);
+    // 按下和抬起的计数在父容器拦截之前更新，保证 DOWN 与 UP / CANCEL 成对。
+    UpdateTouchSession(input_event, action);
     EnsureSuperTouchType();
     if (super_touch_type_ == PARENT) {
         auto parent_super_touch_handler = parent_super_touch_handler_.lock();
         if (parent_super_touch_handler && parent_super_touch_handler->GetStopPropagation(action)) {
             return;
+        }
+    }
+    // 回调可能摘掉中间祖先，之后沿 GetParentView() 走不到回调前的那条链。
+    // 当前 view 自己被摘掉时，WillRemoveFromParentView 会清掉 super_touch_type_，不再停止冒泡。
+    // 仍要停止冒泡时，用回调前记下的祖先给它们减触摸计数。
+    std::vector<std::weak_ptr<KRView>> touch_ancestors;
+    if (action == UI_TOUCH_EVENT_ACTION_UP || action == UI_TOUCH_EVENT_ACTION_CANCEL) {
+        for (auto parent = GetParentView(); parent != nullptr; parent = parent->GetParentView()) {
+            if (auto ancestor = std::dynamic_pointer_cast<KRView>(parent)) {
+                touch_ancestors.push_back(ancestor);
+            }
         }
     }
     bool handled = false;
@@ -479,7 +516,7 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
         }
         // 当前节点处理事件后也可调用 StopPropagation 停止冒泡，而非交给父容器再去停止冒泡，规避父view再次多余触发一次事件
         if (should_stop) {
-            kuikly::util::StopPropagation(event);
+            StopTouchPropagation(event, action, touch_ancestors);
         }
     } else if (handled) {
         // 去掉基于 stop_propagation_ 来决定要不要取消冒泡，而是基于当前的touch 是否被消费来决定要不要冒泡
@@ -489,7 +526,7 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
                 parent_super_touch_handler->SetStopPropagation(action, true);
             }
         } else if (super_touch_type_ == NONE) {
-            kuikly::util::StopPropagation(event);
+            StopTouchPropagation(event, action, touch_ancestors);
         }
     }
 }
@@ -605,6 +642,7 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     }
 
     KRRenderValueArray touches;
+    KRRenderValueMap first_touch;
     for (int i = 0; i < pointer_count; i++) {
         auto point = kuikly::util::GetArkUIInputEventPoint(input_event, i);
         auto window_point = kuikly::util::GetArkUIInputEventWindowPoint(input_event, i);
@@ -613,20 +651,22 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
         float container_relative_y = window_point.y - container_position.y;
 
         KRRenderValueMap touch_map;
-        touch_map["x"] = NewKRRenderValue(point.x);
-        touch_map["y"] = NewKRRenderValue(point.y);
-        touch_map["pageX"] = NewKRRenderValue(container_relative_x);
-        touch_map["pageY"] = NewKRRenderValue(container_relative_y);
-        touch_map["pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
-        touches.push_back(NewKRRenderValue(touch_map));
+        touch_map[u"x"] = NewKRRenderValue(point.x);
+        touch_map[u"y"] = NewKRRenderValue(point.y);
+        touch_map[u"pageX"] = NewKRRenderValue(container_relative_x);
+        touch_map[u"pageY"] = NewKRRenderValue(container_relative_y);
+        touch_map[u"pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
+        if (i == 0) {
+            first_touch = touch_map;
+        }
+        touches.push_back(NewKRRenderValue(std::move(touch_map)));
     }
-    auto first_touch = touches[0]->toMap();
-    first_touch["touches"] = NewKRRenderValue(touches);
-    first_touch["action"] = NewKRRenderValue(action);
+    first_touch[u"touches"] = NewKRRenderValue(touches);
+    first_touch[u"action"] = NewKRRenderValue(action);
     auto event_time_millis = kuikly::util::GetArkUIInputEventTime(input_event) / NS_PER_MS;
-    first_touch["timestamp"] = NewKRRenderValue(event_time_millis);
+    first_touch[u"timestamp"] = NewKRRenderValue(event_time_millis);
     if (super_touch_handler_) {
-        first_touch["consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
+        first_touch[u"consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
     }
     return NewKRRenderValue(first_touch);
 }
@@ -644,8 +684,89 @@ void KRView::UpdateHitTestMode(bool shouldUseTarget) {
 
 void KRView::WillRemoveFromParentView() {
     IKRRenderViewExport::WillRemoveFromParentView();
+    ReleaseInputSessions();
     parent_super_touch_handler_.reset();
     super_touch_type_ = UNKNOWN;
+}
+
+void KRView::OnDestroy() {
+    ReleaseInputSessions();
+    IKRRenderViewExport::OnDestroy();
+}
+
+void KRView::SetEventSync(const std::string &event_name, bool sync) {
+    if (kuikly::util::isEqual(event_name, kPropNameTouchMove)) {
+        touch_move_sync_ = sync;
+        // touchMove 改成异步注册后，这一笔手势不再有同步 touchMove。
+        if (!sync) {
+            EndTouchSession();
+        }
+    }
+}
+
+// 注册了同步 touchMove 时：第一根手指按下时通知 KRInputFirstGate 开始，最后一根手指抬起或取消时通知结束。
+void KRView::UpdateTouchSession(ArkUI_UIInputEvent *input_event, int32_t action) {
+    if (action == UI_TOUCH_EVENT_ACTION_DOWN) {
+        // 第一根手指按下时计数不为 0，说明上一笔手势的 UP / CANCEL 没有送到，先清掉残留计数并结束残留的 touch 会话。
+        if (active_touch_pointers_ > 0 && kuikly::util::GetArkUIInputEventPointerCount(input_event) == 1) {
+            active_touch_pointers_ = 0;
+            EndTouchSession();
+        }
+        if (active_touch_pointers_++ == 0 && touch_move_callback_ && touch_move_sync_) {
+            KRInputFirstGate::GetInstance().BeginSession(this, KRInputFirstGate::SessionType::kTouch);
+            touch_session_active_ = true;
+        }
+    } else if (action == UI_TOUCH_EVENT_ACTION_UP) {
+        if (active_touch_pointers_ > 0 && --active_touch_pointers_ == 0) {
+            EndTouchSession();
+        }
+    } else if (action == UI_TOUCH_EVENT_ACTION_CANCEL) {
+        active_touch_pointers_ = 0;
+        EndTouchSession();
+    }
+}
+
+void KRView::EndTouchSession() {
+    if (!touch_session_active_) {
+        return;
+    }
+    touch_session_active_ = false;
+    KRInputFirstGate::GetInstance().EndSession(this, KRInputFirstGate::SessionType::kTouch);
+}
+
+// UP / CANCEL 被当前 view 消费后不再冒泡。ancestors 是回调前记下的祖先。
+// 祖先在 DOWN 时可能已经开始 touch 会话，这里替它们减计数。
+void KRView::StopTouchPropagation(ArkUI_NodeEvent *event, int32_t action,
+                                  const std::vector<std::weak_ptr<KRView>> &ancestors) {
+    if (action == UI_TOUCH_EVENT_ACTION_UP || action == UI_TOUCH_EVENT_ACTION_CANCEL) {
+        for (const auto &ancestor : ancestors) {
+            if (auto view = ancestor.lock()) {
+                view->ApplyTouchEndFromDescendant(action);
+            }
+        }
+    }
+    kuikly::util::StopPropagation(event);
+}
+
+void KRView::ApplyTouchEndFromDescendant(int32_t action) {
+    if (action == UI_TOUCH_EVENT_ACTION_UP) {
+        if (active_touch_pointers_ > 0 && --active_touch_pointers_ == 0) {
+            EndTouchSession();
+        }
+    } else if (action == UI_TOUCH_EVENT_ACTION_CANCEL) {
+        active_touch_pointers_ = 0;
+        EndTouchSession();
+    }
+}
+
+// view 被移除（包括进入复用队列）或销毁时，在主线程通知 KRInputFirstGate 结束它登记的连续事件，并清空触摸计数。
+// 复用时新手势从零开始。
+void KRView::ReleaseInputSessions() {
+    active_touch_pointers_ = 0;
+    if (touch_session_active_) {
+        touch_session_active_ = false;
+        KRInputFirstGate::GetInstance().ReleaseSessions(this);
+    }
 }
 
 std::vector<std::shared_ptr<KRRichTextView>> KRView::GetSelectedNodes(KRPoint p0, KRPoint p1) {
@@ -861,10 +982,10 @@ void KRView::FireSelectionEvent(SelectionEventKind kind) {
     KRRect rect = GetSelectionFrame();
 
     KRRenderValueMap dict;
-    dict["x"] = NewKRRenderValue(rect.x);
-    dict["y"] = NewKRRenderValue(rect.y);
-    dict["width"] = NewKRRenderValue(rect.width);
-    dict["height"] = NewKRRenderValue(rect.height);
+    dict[u"x"] = NewKRRenderValue(rect.x);
+    dict[u"y"] = NewKRRenderValue(rect.y);
+    dict[u"width"] = NewKRRenderValue(rect.width);
+    dict[u"height"] = NewKRRenderValue(rect.height);
     auto param = NewKRRenderValue(dict);
 
     switch (kind) {

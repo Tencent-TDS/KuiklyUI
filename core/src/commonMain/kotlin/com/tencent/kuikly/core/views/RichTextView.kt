@@ -34,9 +34,7 @@ import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
 import com.tencent.kuikly.core.base.isVirtualView
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.fastHashMapOf
-import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
-import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.MeasureFunction
 import com.tencent.kuikly.core.layout.MeasureOutput
@@ -209,9 +207,7 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         val cWidth = measureWidthToFloat(width)
         shadow?.setValuesProp(buildValuesPropValue())
         var size = shadow?.calculateRenderViewSize(cWidth, cHeight) ?: Size(0f, 0f)
-        if (flexNode.flex != 0f && flexNode.positionType == FlexPositionType.RELATIVE) {
-            size = flexLayoutSize(size ?: Size(0f, 0f), width, height)
-        }
+        size = flexNode.textStretchSize(size, width, height)
         if (!flexNode.styleWidth.isUndefined()) {
             size = Size(flexNode.styleWidth, size.height)
         }
@@ -273,25 +269,6 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
             100000f
         } else {
             width
-        }
-    }
-
-    private fun flexLayoutSize(measureOutputSize: Size, fitWidth: Float, fitHeight: Float): Size {
-        val flexDirection = flexNode.parent?.flexDirection
-        if (flexDirection == FlexDirection.ROW || flexDirection == FlexDirection.ROW_REVERSE) {
-            if (fitWidth.isUndefined()) {
-                return measureOutputSize
-            }
-            var outWidth = measureOutputSize.width
-            if (outWidth < fitWidth) outWidth = fitWidth
-            return Size(outWidth, measureOutputSize.height)
-        } else {
-            if (fitHeight.isUndefined()) {
-                return measureOutputSize
-            }
-            var outHeight = measureOutputSize.height
-            if (outHeight < fitHeight) outHeight = fitHeight
-            return Size(measureOutputSize.width, outHeight)
         }
     }
 

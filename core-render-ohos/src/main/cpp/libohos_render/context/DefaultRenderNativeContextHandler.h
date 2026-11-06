@@ -19,10 +19,9 @@
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 class DefaultRenderNativeContextHandler : public IKRRenderNativeContextHandler {
  public:
-    void CallKotlinMethod(const KuiklyRenderContextMethod &method, const std::shared_ptr<KRRenderValue> &arg0,
-                          const std::shared_ptr<KRRenderValue> &arg1, const std::shared_ptr<KRRenderValue> &arg2,
-                          const std::shared_ptr<KRRenderValue> &arg3, const std::shared_ptr<KRRenderValue> &arg4,
-                          const std::shared_ptr<KRRenderValue> &arg5) override;
+    void CallKotlinMethod(const KuiklyRenderContextMethod &method, const KRAnyValue &arg0, const KRAnyValue &arg1,
+                          const KRAnyValue &arg2, const KRAnyValue &arg3, const KRAnyValue &arg4,
+                          const KRAnyValue &arg5) override;
 };
 
 #endif  // CORE_RENDER_OHOS_DEFAULTRENDERNATIVECONTEXTHANDLER_H

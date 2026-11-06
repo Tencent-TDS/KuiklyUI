@@ -148,7 +148,18 @@ class H5ListView : IListElement {
     override fun setScrollEnable(params: Any): Boolean {
         // Set the switch for whether scrolling is enabled
         scrollEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
-        // Set scrolling
+        // In paging mode, the container itself is only one page wide/tall and relies on
+        // `overflow: visible` + `translate` to move the current page into the viewport
+        // (see [H5ListPagingHelper.setContentOffset] / [initPagingStateIfNeeded]).
+        // Writing `overflow: scroll|hidden` here would clip the off-box current page and
+        // cause a blank screen when the host updates `scrollEnabled` after a page switch.
+        // Gesture/wheel/mouse interception for paging is already guarded by the
+        // `scrollEnabled` flag in [setScrollEvent] and does not depend on `overflow`.
+        // So we leave overflow management entirely to [H5ListPagingHelper] in paging mode.
+        if (pagingEnabled) {
+            return true
+        }
+        // Set scrolling for normal (non-paging) lists
         ele.style.apply {
             if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
                 overflowY = if (scrollEnabled) KRStyleConst.OVERFLOW_SCROLL else KRStyleConst.OVERFLOW_HIDDEN
@@ -212,14 +223,19 @@ class H5ListView : IListElement {
         } else {
             KRListConst.SCROLL_DIRECTION_COLUMN
         }
-        // Set scroll direction
-        ele.style.apply {
-            if (direction == KRListConst.SCROLL_DIRECTION_COLUMN) {
-                overflowX = KRStyleConst.OVERFLOW_HIDDEN
-                overflowY = KRStyleConst.OVERFLOW_SCROLL
-            } else {
-                overflowX = KRStyleConst.OVERFLOW_SCROLL
-                overflowY = KRStyleConst.OVERFLOW_HIDDEN
+        // In paging mode, overflow is managed exclusively by [H5ListPagingHelper]
+        // (requires `visible` so the off-box current page can be rendered after translate).
+        // Writing `scroll|hidden` here would clip the current page and cause a blank screen.
+        if (!pagingEnabled) {
+            // Set scroll direction for normal (non-paging) lists
+            ele.style.apply {
+                if (direction == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                    overflowX = KRStyleConst.OVERFLOW_HIDDEN
+                    overflowY = KRStyleConst.OVERFLOW_SCROLL
+                } else {
+                    overflowX = KRStyleConst.OVERFLOW_SCROLL
+                    overflowY = KRStyleConst.OVERFLOW_HIDDEN
+                }
             }
         }
         scrollDirection = direction

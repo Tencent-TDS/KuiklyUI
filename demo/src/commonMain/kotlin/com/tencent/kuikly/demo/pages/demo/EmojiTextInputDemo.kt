@@ -93,6 +93,7 @@ internal class EmojiTextInputDemo : Pager() {
                             ctx.textAreaRef = it
                         }
                         attr {
+                            overflow(true)
                             flex(1f)
                             placeholder("输入文字或点击下方表情按钮")
                             fontSize(16f)

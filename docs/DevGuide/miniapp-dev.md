@@ -87,6 +87,15 @@ demo里面的src/commonMain/assets下的文件，需要复制到dist/assets目�
 
 - [微信小程序自定义字体使用指引](miniapp-custom-font.md)
 
+## 事件通知使用注意事项
+
+微信小程序平台使用 ``NotifyModule`` 时，有以下与 Native 平台不同的行为，开发时需特别留意：
+
+- **同一 JS 运行时内跨页面共享**：小程序实现基于一个 JS 运行时内的全局事件分发表，当前小程序进程内所有活跃的 Kuikly 页面（含被 keep-alive 缓存但未销毁的页面）都会收到 ``postNotify`` 的事件；
+- **页面销毁时务必解除监听**：由于跨页面共享的特性，若在 ``addNotify`` 之后没有在 ``pageWillDestroy`` 中调用 ``removeNotify``，已销毁页面残留的回调会被其他页面的 ``postNotify`` 继续触发，可能访问已销毁页面的视图/状态引发异常，同时回调闭包会持有 Pager 引用造成内存泄漏。请始终配对使用 ``addNotify`` 与 ``removeNotify``。
+
+更多 ``NotifyModule`` 的使用说明请参考 [发送事件通知](notify.md) 以及 [NotifyModule API](../API/modules/notify.md)。
+
 ## 常见问题
 
 接入或开发过程中如遇到问题，请参考[微信小程序接入常见问题](../QA/miniapp-qa.md)

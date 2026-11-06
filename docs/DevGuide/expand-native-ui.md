@@ -576,6 +576,13 @@ iOS侧的kuikly组件是通过运行时暴露给Kuikly侧，因此无需手动�
 
 ## 鸿蒙侧
 
+鸿蒙侧支持两种自定义View注册方案：
+
+| 注册方法 | 渲染方式 | 适用场景 |
+| --- | --- | --- |
+| `getCustomRenderViewCreatorRegisterMap()` | 在ArkTS视图外增加原生包装节点，由框架处理基础属性和事件 | 一般的原生组件扩展，下面先介绍此方案 |
+| `getCustomRenderViewCreatorRegisterMapV2()` | 直接使用ArkTS视图节点，不增加上述包装节点，由组件在ArkTS侧处理属性和事件 | 对原生视图与DSL视图层级有强一致需求的场景，见下文V2方案 |
+
 鸿蒙侧要完成原生``Image``暴露给``Kuikly``侧，需要完成以下步骤
 1. 新建``HRImageView``并继承``KuiklyRenderBaseView``类
 2. 重写``KuiklyRenderBaseView``中的``setProp``方法
@@ -758,6 +765,126 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
 :::tip 注意
 HRImageView.VIEW_NAME需要与Kuikly侧的组件名相同，为"HRImageView"
 :::
+
+### V2方案：直接使用ArkTS视图节点
+
+当自定义组件需要保持原生视图与DSL定义的层级一致时，可以使用`getCustomRenderViewCreatorRegisterMapV2()`注册。
+此方案不增加普通注册方案中的原生包装节点（接口注释中称为“影子节点”），但组件内部自行创建的`Stack`、`Column`等ArkUI层级仍然保留。
+
+V2仍然继承`KuiklyRenderBaseView`，通过`setProp`接收属性和事件，通过`call`响应方法调用，并通过`createArkUIView`创建视图。
+Kuikly侧的`MyImageView`、`Attr`、`Event`和`viewName()`无需修改，但不能仅替换注册方法：失去包装节点后，组件需要自行处理布局、样式和基础事件。
+
+#### 处理frame并应用到ArkUI视图
+
+V2会将布局结果通过`setProp('frame', propValue)`传给组件。`propValue`为字符串，前四项依次为`x y width height`，第五项为默认零尺寸标记。
+组件需要解析前四项，并将位置和尺寸应用到ArkUI根节点，不能继续只依赖普通方案中的`.width('100%').height('100%')`来填满包装节点。
+
+以下示例继承前文的`HRImageView`，复用其`src`、`loadSuccess`和`test`实现，只补充V2布局处理并替换视图构建方法：
+
+```ts
+import { ComponentContent } from '@kit.ArkUI';
+import { KRAny, KuiklyRenderBaseView, KuiklyRenderCallback } from '@kuikly-open/render';
+import { HRImageView } from './HRImageView';
+
+@Observed
+export class HRImageViewV2 extends HRImageView {
+    static readonly VIEW_NAME = 'HRImageView';
+    x: number = 0;
+    y: number = 0;
+    width: number = 0;
+    height: number = 0;
+
+    setProp(propKey: string, propValue: KRAny | KuiklyRenderCallback): boolean {
+        if (propKey === 'frame') {
+            const frame = (propValue as string).split(' ');
+            this.x = Number(frame[0]);
+            this.y = Number(frame[1]);
+            this.width = Number(frame[2]);
+            this.height = Number(frame[3]);
+            return true;
+        }
+        return super.setProp(propKey, propValue);
+    }
+
+    createArkUIView(): ComponentContent<KuiklyRenderBaseView> {
+        const uiContext = this.getUIContext() as UIContext;
+        return new ComponentContent<KuiklyRenderBaseView>(
+            uiContext, wrapBuilder<[KuiklyRenderBaseView]>(createMyImageViewV2), this
+        );
+    }
+}
+
+@Component
+struct HRImageViewV2Component {
+    @ObjectLink renderView: HRImageViewV2;
+
+    build() {
+        Image(this.renderView.image)
+            .position({ x: this.renderView.x, y: this.renderView.y })
+            .size({ width: this.renderView.width, height: this.renderView.height })
+            .backgroundColor(this.renderView.cssBackgroundColor)
+    }
+}
+
+@Builder
+function createMyImageViewV2(view: KuiklyRenderBaseView) {
+    HRImageViewV2Component({ renderView: view as HRImageViewV2 });
+}
+```
+
+:::tip 属性和事件处理
+- 未识别的属性应继续调用`super.setProp`。基类可以解析背景色等属性，但组件仍需将解析后的值绑定到ArkUI修饰器，示例中的`backgroundColor`即为这种用法。
+- 示例仅覆盖图片属性、图片加载事件、布局和背景色。若业务使用透明度、圆角、变换、点击或触摸等能力，需要在ArkTS侧补充对应属性处理、修饰器或事件绑定，不能假定普通方案的基础处理会自动生效。
+- `call`中未识别的方法也应交给`super.call`，保留基类提供的方法处理。
+:::
+
+#### 使用V2注册方法
+
+在`KuiklyViewDelegate`中，将该组件的creator放入`getCustomRenderViewCreatorRegisterMapV2()`返回的Map：
+
+```ts
+import { IKuiklyViewDelegate, KRRenderViewExportCreator } from '@kuikly-open/render';
+import { HRImageViewV2 } from './HRImageViewV2';
+
+export class KuiklyViewDelegate extends IKuiklyViewDelegate {
+    // 其他委托方法保持原有实现。
+    getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator> {
+        // 普通方案的其他组件仍在这里注册，不再注册HRImageView。
+        return new Map<string, KRRenderViewExportCreator>();
+    }
+
+    getCustomRenderViewCreatorRegisterMapV2(): Map<string, KRRenderViewExportCreator> {
+        const map: Map<string, KRRenderViewExportCreator> = new Map();
+        map.set(HRImageViewV2.VIEW_NAME, () => new HRImageViewV2());
+        return map;
+    }
+}
+```
+
+:::tip 注册注意
+- 注册名仍为Kuikly侧`viewName()`返回的`"HRImageView"`，不要求ArkTS类名与注册名相同。
+- 同一委托中可以分别注册普通方案和V2方案的不同组件，但同一个组件名只应选择一种方案。迁移到V2时，应移除普通Map中的同名注册。
+- V2建议仅在有强一致层级需求时采用，一般组件扩展可以继续使用普通方案。
+:::
+
+#### 容器组件接入子节点
+
+上面的图片组件不承载DSL子节点，因此无需提供插槽。如果V2组件是容器，还需要创建`NodeContent`，重写`getContentSlot()`返回该实例，并在ArkUI视图中通过`ContentSlot`挂载它：
+
+```ts
+import { NodeContent } from '@kit.ArkUI';
+
+// 添加到自定义容器的KuiklyRenderBaseView子类中。
+slot: NodeContent = new NodeContent();
+
+getContentSlot(): NodeContent | null {
+    return this.slot;
+}
+```
+
+在该容器对应的`@Component`中，将`ContentSlot(this.renderView.slot)`放到需要承载DSL子节点的位置。
+框架会将子节点挂载到返回的`NodeContent`中；仅在ArkUI内部创建布局容器并不能代替此插槽。
+完整容器示例可参考源码中的`ohosApp/entry/src/main/ets/kuikly/components/KRMyDemoCustomView.ets`，其V2注册位于`ohosApp/entry/src/main/ets/kuikly/KuiklyViewDelegate.ets`。
 
 ## H5侧
 H5侧要完成原生image标签暴露给Kuikly侧，需要完成以下步骤

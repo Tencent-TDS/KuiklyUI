@@ -95,6 +95,7 @@ internal class ComposeAllSample : ComposeContainer() {
             // 基础组件
             DemoItem("Image", "Image 组件示例", "ComposeImageDemo"),
             DemoItem("Text", "Text 组件示例", "TextDemo"),
+            DemoItem("RichTextSpanBackground", "AnnotatedString 的 span 背景色", "RichTextSpanBackgroundDemo"),
             DemoItem("Canvas", "Canvas 组件示例", "CanvasDemo"),
             DemoItem("Animation", "Compose常见动画API示例", "ComposeAnimateDemo1"),
             DemoItem("Gesture", "pointerInput内各种手势示例", "GestureTestDemo"),
@@ -110,6 +111,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
             DemoItem("PTR Padding Bug", "Issue #1325 HeaderBar+PTR padding", "BugReproPullRefreshPaddingPage"),
+            DemoItem("LazyColumn 背景", "复用 item 背景色残留", "BugReproLazyBgPage"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
             DemoItem("转屏调试", "全屏蒙层+蓝色方块，横竖屏切换", "ComposeOrientationOverlayDemo"),

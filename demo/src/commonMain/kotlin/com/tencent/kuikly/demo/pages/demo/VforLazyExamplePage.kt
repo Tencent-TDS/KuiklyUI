@@ -173,6 +173,7 @@ internal class VforLazyExamplePage : BasePager() {
                             ctx.inputRef = it
                         }
                         attr {
+                            overflow(true)
                             flex(1f)
                             fontSize(15f)
                             color(Color(0xFFAD37FE))

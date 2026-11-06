@@ -46,6 +46,7 @@ internal class InputSpanPager : BasePager() {
                     ctx.ref = it
                 }
                 attr {
+                    overflow(true)
                     size(pagerData.pageViewWidth, 400f)
                     inputSpans(ctx.spans)
                     backgroundColor(Color.GREEN)

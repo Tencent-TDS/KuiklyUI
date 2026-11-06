@@ -14,10 +14,14 @@
  */
 
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/adapter/KRRenderAdapterManager.h"
 #include "libohos_render/foundation/KRConfig.h"
-#include <codecvt>
+#include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/utils/json/Box.h"
+#include "libohos_render/utils/KRUtfUtil.h"
+#include <array>
+#include <cstdio>
 #include <iostream>
-#include <locale>
 #include <sstream>
 
 namespace kuikly {
@@ -48,22 +52,22 @@ ArkUI_EnterKeyType ConvertToEnterKeyType(const std::string &enter_key_type) {
     return ARKUI_ENTER_KEY_TYPE_DONE;
 }
 
-const std::string ConvertEnterKeyTypeToString(ArkUI_EnterKeyType enter_key_type) {
+const std::u16string ConvertEnterKeyTypeToString(ArkUI_EnterKeyType enter_key_type) {
     switch (enter_key_type) {
         case ARKUI_ENTER_KEY_TYPE_SEARCH:
-            return "search";
+            return u"search";
         case ARKUI_ENTER_KEY_TYPE_SEND:
-            return "send";
+            return u"send";
         case ARKUI_ENTER_KEY_TYPE_GO:
-            return "go";
+            return u"go";
         case ARKUI_ENTER_KEY_TYPE_DONE:
-            return "done";
+            return u"done";
         case ARKUI_ENTER_KEY_TYPE_NEXT:
-            return "next";
+            return u"next";
         case ARKUI_ENTER_KEY_TYPE_PREVIOUS:
-            return "previous";
+            return u"previous";
         default:
-            return "";
+            return u"";
     }
 }
 
@@ -81,13 +85,11 @@ ArkUI_TextInputType ConvertToInputType(const std::string &input_type) {
 }
 
 std::u32string ConvertToU32String(const std::string &input) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.from_bytes(input);
+    return utf::ToUTF32(input);
 }
 
 std::string ConvertToNormalString(const std::u32string &input) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.to_bytes(input);
+    return utf::ToUTF8(input);
 }
 
 ArkUI_TextAlignment ConvertToArkUITextAlign(const std::string &textAlign) {
@@ -267,13 +269,44 @@ static_assert(ConvertFontWeightCommon(500, 1) == 4);
 static_assert(ConvertFontWeightCommon(600, 1) == 5);
 static_assert(ConvertFontWeightCommon(600, 1.5) == 8);
 
-std::string ConvertSizeToString(const KRSize &size) {
+std::u16string AsciiToUTF16(const char *s, size_t n) {
+    std::u16string out;
+    if (s == nullptr || n == 0) {
+        return out;
+    }
+    out.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+        out[i] = static_cast<char16_t>(static_cast<unsigned char>(s[i]));
+    }
+    return out;
+}
+
+std::u16string AsciiToUTF16(const std::string &s) {
+    return AsciiToUTF16(s.data(), s.size());
+}
+
+std::u16string UTF8ToUTF16(const char *s, size_t n) {
+    if (s == nullptr || n == 0) {
+        return std::u16string();
+    }
+    return kuikly::util::json::UTF8ToUTF16(s, n);
+}
+
+std::u16string UTF8ToUTF16(const std::string &s) {
+    return kuikly::util::json::UTF8ToUTF16(s.data(), s.size());
+}
+
+std::string UTF16ToUTF8(const std::u16string &s) {
+    return kuikly::util::json::UTF16ToUTF8(reinterpret_cast<const uint16_t *>(s.data()), s.size());
+}
+
+std::u16string ConvertSizeToString(const KRSize &size) {
     std::array<char, 50> buffer;
     // %.2lf 会四舍五入，第三位小数 <5 时会被舍去（如 10.999 -> 10.99），
     // 导致回传尺寸比真实值偏小，可能引发布局截断。这里给宽高各加 0.005 再格式化，
     // 确保回传尺寸不小于真实尺寸（向上截取保留 2 位小数）。
-    std::snprintf(buffer.data(), buffer.size(), "%.2lf|%.2lf", size.width + 0.005, size.height + 0.005);
-    return std::string(buffer.data());
+    const int n = std::snprintf(buffer.data(), buffer.size(), "%.2lf|%.2lf", size.width + 0.005, size.height + 0.005);
+    return AsciiToUTF16(buffer.data(), n > 0 ? static_cast<size_t>(n) : 0);
 }
 
 KRBorderRadiuses ConverToBorderRadiuses(const std::string &borderRadiusString) {

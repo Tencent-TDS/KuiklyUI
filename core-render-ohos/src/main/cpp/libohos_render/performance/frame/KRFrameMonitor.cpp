@@ -69,7 +69,7 @@ void KRFrameMonitor::OnResume() {
 }
 
 void KRFrameMonitor::OnPause() {
-    if (!is_started_ || is_resumed_) {
+    if (!is_started_ || !is_resumed_) {
         KR_LOG_INFO_WITH_TAG(kTag) << "pause, isStarted: " << is_started_ << "isResumed: " << is_resumed_;
         return;   
     }

@@ -102,7 +102,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
 
             if (val) {
                 KRAnyDataInternal* internal = static_cast<KRAnyDataInternal*>(val);
-                std::shared_ptr<KRRenderValue> v = internal->anyValue;
+                KRAnyValue v = internal->anyValue;
                 KRAnyDataDestroy(val);
                 return v;
             }
@@ -122,7 +122,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
             
             if(val.res){
-                auto value = KRRenderValue::Make(val.res);
+                auto value = KRRenderValue::MakeUTF16(val.res);
                 if(val.free){
                     val.free((void*)val.res);
                 }
@@ -138,7 +138,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
         // Note: avoid dangling pointer by look up through a set instead of directly casting context to KRRenderModuleCallbackContextData
         KRRenderModuleCallbackContextData *callbackContextData = FindCallbackContext(context);
         if (callbackContextData && callbackContextData->cb_) {
-            callbackContextData->cb_(NewKRRenderValue(data));
+            callbackContextData->cb_(KRRenderValue::MakeUTF16(data));
             if(!callbackContextData->keepCallbackAlive_){
                 callbackContextData->cb_ = nullptr;
                 RemoveCallbackContext(context);

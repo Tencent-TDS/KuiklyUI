@@ -133,6 +133,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(50f)
                             fontSize(16f)
@@ -168,6 +169,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(50f)
                             fontSize(16f)
@@ -224,6 +226,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(50f)
                             fontSize(16f)
@@ -280,6 +283,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(50f)
                             fontSize(16f)
@@ -346,6 +350,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(100f)
                             fontSize(16f)
@@ -373,6 +378,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(100f)
                             fontSize(16f)
@@ -414,6 +420,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(100f)
                             fontSize(16f)
@@ -455,6 +462,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(100f)
                             fontSize(16f)

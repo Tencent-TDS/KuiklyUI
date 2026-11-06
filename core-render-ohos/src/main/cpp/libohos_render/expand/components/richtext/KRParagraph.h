@@ -21,6 +21,7 @@
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRLinearGradientParser.h"
 
+struct NativeResourceManager;
 
 class KRParagraph final {
   public:
@@ -39,7 +40,7 @@ class KRParagraph final {
     std::tuple<float, float, OH_Drawing_Typography *> Measure(ArkUI_StyledString *, float max_width_pt,
                                                               float max_height_pt);
     OH_Drawing_TypographyStyle *CreateTypographyStyle();
-    void AddSpanToStyledString(const KRRenderValue::Map &spanMap, ArkUI_StyledString *styled_string);
+    void AddSpanToStyledString(const KRRenderValue &span, ArkUI_StyledString *styled_string);
     ArkUI_StyledString *BuildStyledString(float width, float height);
 
   private:

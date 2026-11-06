@@ -19,6 +19,7 @@
 #include <uv.h>
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -47,11 +48,48 @@ class KRThread {
      */
     void DispatchAsync(std::function<void()> task, int delayMilliseconds = 0);
 
+    // DirectRunOnCurThread 的默认等锁窗口。
+    static constexpr std::chrono::microseconds kDirectRunFastFailWindow{100 * 1000};
+
     /**
      * @brief 在当前调用线程上"直跑"任务，与 worker 线程协调互斥；
      *        若长时间拿不到 mutex 则降级为 DispatchAsync。沿用旧语义。
      */
     void DirectRunOnCurThread(const std::function<void()> &task);
+
+    /**
+     * @brief 在 window 内拿到 context 任务锁则在当前线程同步执行 task 并返回 true；
+     *        否则不执行 task，返回 false，由调用方改成异步执行。
+     *        等待期间记入等待计数。context 线程会在当前任务做完后释放锁。
+     *        当前线程已经持有这把锁时不等待，直接返回 false。
+     */
+    bool TryRunOnCurThread(std::chrono::microseconds window, const std::function<void()> &task);
+
+    // 当前线程是否正通过 TryRunOnCurThread / TryRunNextPendingTaskOnCurThread 持有 context 任务锁 m_taskMutex。
+    bool IsTaskLockHeldByCurrentThread() const;
+
+    // 已经暂停后仍开始执行的任务数。会话开始时清零，会话结束时读出。
+    static uint32_t ExchangeTasksStartedWhileParked();
+
+    /**
+     * @brief 拿到 context 任务锁后，取出共享队列中的下一个立即任务，交给 run 执行。供主线程在连续同步事件期间调用。
+     * @param run 持有 context 任务锁时调用，参数为取出的任务，须在返回前执行它。
+     * @return 执行了一个任务返回 true；队列为空或没能立刻拿到锁返回 false。
+     */
+    bool TryRunNextPendingTaskOnCurThread(const std::function<void(const std::function<void()> &)> &run);
+
+    /**
+     * @brief 暂停或恢复 context 线程执行任务。暂停期间它不再执行任务：正在跑一批时，
+     *        当前任务做完后把剩余任务放回队首并停下；有待执行任务时调用通知，由主线程执行。
+     *        恢复时唤醒 context 线程，从同一队列继续执行。
+     */
+    void SetParked(bool parked);
+
+    /**
+     * @brief 设置暂停期间“有待执行任务”的通知。由主线程在首次 SetParked(true) 之前设置一次，之后不再修改；
+     *        通知只在 context 线程调用。
+     */
+    void SetParkedTaskNotifier(std::function<void()> notifier);
 
     /**
      * @brief 当前 worker 线程是否正在反向同步等主线程跑回调（cv.wait 中）。
@@ -98,6 +136,8 @@ class KRThread {
 
     void WorkerLoop(const std::string &name);
     void OnAsync();
+    // 仅在 worker 线程调用。
+    void NotifyParkedIfPending();
     static void AsyncCb(uv_async_t *handle);
     static void TimerCb(uv_timer_t *handle);
     static void TimerCloseCb(uv_handle_t *handle);
@@ -125,10 +165,10 @@ class KRThread {
     std::queue<std::function<void()>> m_pending;
     std::queue<std::unique_ptr<PendingTimer>> m_pendingTimers;
 
-    // ---- 任务执行权 / 同步主任务标志 ----
-    // m_taskMutex："kuikly context 任务执行权"令牌。任意时刻只允许一个线程持有，
-    // 持有者就是当前正在跑 task 体的线程——可能是 worker 线程（OnAsync batch 模式），
-    // 也可能是任意调用线程（DirectRunOnCurThread 借位模式）。
+    // ---- context 任务锁 / 同步主任务标志 ----
+    // m_taskMutex：context 任务锁。任意时刻只允许一个线程持有，
+    // 持有者就是当前正在执行任务的线程。可能是 context 线程（一批任务），
+    // 也可能是主线程（同步事件，或连续同步事件期间代为执行队列任务）。
     // 不可递归——同线程嵌套调用靠 m_isExecutingTask + 线程比对短路规避。
     // 决策记录：为什么不用 std::recursive_mutex，见
     // docs/design/krthread-task-mutex.md §4.1。
@@ -144,6 +184,15 @@ class KRThread {
     // 语义就是一个跨线程可见的 bool 标志位，atomic 即可，无需 mutex 保护。
     std::atomic<bool> m_workerAwaitingMainTask{false};
 
+    // 正在 TryRunOnCurThread 里等待 context 任务锁的线程数。大于 0 时，context 线程在当前任务做完后释放锁。
+    std::atomic<int> m_externalWaiters{0};
+
+    // context 线程是否暂停执行。连续同步事件期间为 true。
+    std::atomic<bool> m_parked{false};
+    std::function<void()> m_parkedTaskNotifier;
+
+    // 当前持有 m_taskMutex 的外部（非 worker）线程，用于检测同线程重入。
+    std::atomic<std::thread::id> m_externalOwner{};
     // 必须放在最后：初始化列表里启动后，WorkerLoop 会立刻使用前面的成员。
     kuikly::CustomStackSizeThread m_workerThread;
 };

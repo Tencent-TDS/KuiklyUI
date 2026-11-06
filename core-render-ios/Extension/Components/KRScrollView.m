@@ -21,6 +21,7 @@
 #import "KRConvertUtil.h"
 #import "KRScrollViewOffsetAnimator.h"
 #import "KRScrollView+NestedScroll.h"
+#import "NestedScrollCoordinator.h"
 #import "NSObject+KR.h"
 #import "KRContentOffsetAnimator.h"
 
@@ -52,6 +53,10 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
 /** attr is flingEnable */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(flingEnable);
+/** attr is hideTopScrollEdgeEffect (iOS 26+) */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(hideTopScrollEdgeEffect);
+/** attr is hideBottomScrollEdgeEffect (iOS 26+) */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(hideBottomScrollEdgeEffect);
 /** attr nestedScroll */
 @property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
@@ -539,6 +544,28 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
+- (void)setCss_hideTopScrollEdgeEffect:(NSNumber *)css_hideTopScrollEdgeEffect {
+    if (self.css_hideTopScrollEdgeEffect != css_hideTopScrollEdgeEffect) {
+        _css_hideTopScrollEdgeEffect = css_hideTopScrollEdgeEffect;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
+        if (@available(iOS 26.0, *)) {
+            self.topEdgeEffect.hidden = css_hideTopScrollEdgeEffect.boolValue;
+        }
+#endif
+    }
+}
+
+- (void)setCss_hideBottomScrollEdgeEffect:(NSNumber *)css_hideBottomScrollEdgeEffect {
+    if (self.css_hideBottomScrollEdgeEffect != css_hideBottomScrollEdgeEffect) {
+        _css_hideBottomScrollEdgeEffect = css_hideBottomScrollEdgeEffect;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
+        if (@available(iOS 26.0, *)) {
+            self.bottomEdgeEffect.hidden = css_hideBottomScrollEdgeEffect.boolValue;
+        }
+#endif
+    }
+}
+
 - (void)setCss_directionRow:(NSNumber *)css_directionRow {
     if (self.css_directionRow != css_directionRow) {
         _css_directionRow = css_directionRow;
@@ -955,6 +982,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     [super setFrame:frame];
     [self syncScrollViewContentSize];
+    if (scrollView && [NestedScrollCoordinator multiLevelNestedScrollFixEnabled]) {
+        scrollView.skipNestScrollLock = NO;
+    }
 }
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];

@@ -27,6 +27,7 @@ import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
+import android.text.style.BackgroundColorSpan
 import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
@@ -194,6 +195,9 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
 
         // 修饰相关
         textSpans.add(ForegroundColorSpan(spanProps.color))
+        if (spanProps.backgroundColor != Color.TRANSPARENT) {
+            textSpans.add(BackgroundColorSpan(spanProps.backgroundColor))
+        }
         if (spanProps.textDecoration.isNotEmpty()) {
             if (spanProps.textDecoration == KRTextProps.TEXT_DECORATION_LINE_THROUGH) {
                 textSpans.add(StrikethroughSpan())
@@ -252,6 +256,7 @@ class TextSpanProps(
     val textDecoration: String
     val lineHeight: Float
     val backgroundImage: String
+    val backgroundColor: Int
     var textShadow: BoxShadow? = null
     var useDpFontSizeDim = false
 
@@ -298,6 +303,11 @@ class TextSpanProps(
             defaultProps.lineHeight
         }
         backgroundImage = spanValue.optString(KRTextProps.PROP_KEY_BACKGROUND_IMAGE, defaultProps.backgroundImage)
+        backgroundColor =
+            spanValue.optString(KRCssConst.BACKGROUND_COLOR)
+                .takeIf { it.isNotEmpty() }
+                ?.toColor()
+                ?: Color.TRANSPARENT
         val textShadowStr = spanValue.optString(KRTextProps.PROP_KEY_TEXT_SHADOW, "")
         textShadow = BoxShadow(textShadowStr, kuiklyContext)
         useDpFontSizeDim = spanValue.optInt(KRTextProps.PROP_KEY_TEXT_USE_DP_FONT_SIZE_DIM) == 1

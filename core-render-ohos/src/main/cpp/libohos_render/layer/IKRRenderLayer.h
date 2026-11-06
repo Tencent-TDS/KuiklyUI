@@ -87,7 +87,7 @@ class IKRRenderLayer {
      * @param constraintHeight 测量高度宽度
      * @return 计算得到的尺寸，"${width}|${height}" 格式封装返回
      */
-    virtual std::string CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) = 0;
+    virtual std::u16string CalculateRenderViewSize(int tag, double constraint_width, double constraint_height) = 0;
 
     /**
      * 调用渲染视图方法
@@ -184,6 +184,12 @@ class IKRRenderLayer {
      * @return 对应 ID 的渲染视图实例，如果不存在则返回 null
      */
     virtual std::shared_ptr<IKRRenderViewExport> GetRenderView(int tag) = 0;
+
+    /**
+     * 只读遍历当前渲染层已注册的全部视图（要求在主线程调用）
+     * @param callback 每个视图的回调
+     */
+    virtual void ForEachRenderView(const std::function<void(const std::shared_ptr<IKRRenderViewExport> &)> &callback) {}
 
     /**
      * 将要销毁时调用

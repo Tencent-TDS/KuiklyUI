@@ -17,11 +17,14 @@
 
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
+#include <algorithm>
 #include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <deviceinfo.h>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
+#include "libohos_render/scheduler/KRInputFirstGate.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
 
@@ -37,9 +40,15 @@ extern void* OH_ArkUI_GestureInterrupter_GetUserData(ArkUI_GestureInterruptInfo*
 constexpr int FLING_SPEED_LIMIT_API_LEVEL = 18;
 constexpr ArkUI_NodeAttributeType kScrollFlingSpeedLimitAttr =
     static_cast<ArkUI_NodeAttributeType>(1002019);
+// 系统内置"点击状态栏回顶"属性（NODE_SCROLL_BACK_TO_TOP）从 API 15 开始支持
+constexpr int SCROLL_BACK_TO_TOP_API_LEVEL = 15;
 
 static bool IsFlingSpeedLimitApiAvailable() {
     return OH_GetSdkApiVersion() >= FLING_SPEED_LIMIT_API_LEVEL;
+}
+
+static bool IsScrollBackToTopApiAvailable() {
+    return OH_GetSdkApiVersion() >= SCROLL_BACK_TO_TOP_API_LEVEL;
 }
 
 constexpr char kPropNameDirectionRow[] = "directionRow";
@@ -61,15 +70,16 @@ constexpr char kEventNameDragBegin[] = "dragBegin";
 constexpr char kEventNameWillDragEnd[] = "willDragEnd";
 constexpr char kEventNameDragEnd[] = "dragEnd";
 constexpr char kEventNameScrollEnd[] = "scrollEnd";
-constexpr char kEventKeyOffsetX[] = "offsetX";
-constexpr char kEventKeyOffsetY[] = "offsetY";
-constexpr char kEventKeyContentWidth[] = "contentWidth";
-constexpr char kEventKeyContentHeight[] = "contentHeight";
-constexpr char kEventKeyViewWidth[] = "viewWidth";
-constexpr char kEventKeyViewHeight[] = "viewHeight";
-constexpr char kEventKeyIsDragging[] = "isDragging";
-constexpr char kEventKeyVelocityX[] = "velocityX";
-constexpr char kEventKeyVelocityY[] = "velocityY";
+constexpr char kEventNameScrollToTop[] = "scrollToTop";
+constexpr char16_t kEventKeyOffsetX[] = u"offsetX";
+constexpr char16_t kEventKeyOffsetY[] = u"offsetY";
+constexpr char16_t kEventKeyContentWidth[] = u"contentWidth";
+constexpr char16_t kEventKeyContentHeight[] = u"contentHeight";
+constexpr char16_t kEventKeyViewWidth[] = u"viewWidth";
+constexpr char16_t kEventKeyViewHeight[] = u"viewHeight";
+constexpr char16_t kEventKeyIsDragging[] = u"isDragging";
+constexpr char16_t kEventKeyVelocityX[] = u"velocityX";
+constexpr char16_t kEventKeyVelocityY[] = u"velocityY";
 
 constexpr char kMethodNameContentOffset[] = "contentOffset";
 constexpr char kMethodNameContentInset[] = "contentInset";
@@ -170,6 +180,8 @@ void KRScrollerView::DidInit() {
     last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
+    // 关闭系统内置回顶，改由框架通过系统公共事件实现（见 openspec change: ohos-custom-back-to-top）
+    DisableSystemBackToTopIfNeed();
     SetBouncesEnable(NewKRRenderValue(bounces_enabled_));
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_FRAME_BEGIN);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_START);
@@ -208,6 +220,10 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = SetFlingEnable(prop_value->toBool());
     } else if (kuikly::util::isEqual(prop_key, kPropNameFlingSpeedLimit)) {
         didHanded = SetFlingSpeedLimit(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kEventNameScrollToTop)) {
+        // 业务监听了"点击状态栏回顶"，后续由该回调决定行为（框架不再自动回顶）
+        on_scroll_to_top_callback_ = event_call_back;
+        didHanded = true;
     }
     return didHanded;
 }
@@ -231,9 +247,47 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
             if (IsFlingSpeedLimitApiAvailable()) {
                 kuikly::util::GetNodeApi()->resetAttribute(GetNode(), kScrollFlingSpeedLimitAttr);
             }
+        } else if (kuikly::util::isEqual(prop_key, kEventNameScrollToTop)) {
+            didHanded = true;
+            on_scroll_to_top_callback_ = nullptr;
         }
     }
     return didHanded;
+}
+
+void KRScrollerView::DisableSystemBackToTopIfNeed() {
+    if (GetNode() == nullptr || !IsScrollBackToTopApiAvailable()) {
+        // 低版本系统没有该属性，保持原有滚动行为
+        return;
+    }
+    ArkUI_NumberValue value[] = {{.i32 = 0}};
+    ArkUI_AttributeItem item = {value, 1};
+    const auto set_result = kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BACK_TO_TOP, &item);
+    KR_LOG_INFO_WITH_TAG("KRBackToTop") << "disable system back-to-top: node=" << GetNode()
+                                        << ", result=" << set_result;
+}
+
+void KRScrollerView::ScrollToTopByFramework() {
+    if (GetNode() == nullptr) {
+        return;
+    }
+    auto content_offset = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    if (std::fabs(content_offset.x) < 0.5f && std::fabs(content_offset.y) < 0.5f) {
+        // 已经在顶部，无需滚动
+        return;
+    }
+    kuikly::util::SetArkUIContentOffset(GetNode(), 0, 0, true, 0, 0, 0);
+}
+
+void KRScrollerView::OnStatusBarClicked() {
+    KREnsureMainThread();
+    if (on_scroll_to_top_callback_ != nullptr) {
+        // 业务已接管：仅回调，不做自动回顶（对齐 iOS scrollViewShouldScrollToTop: 返回 NO）
+        on_scroll_to_top_callback_(KREmptyValue());
+        return;
+    }
+    // 未注册回调：补回被关闭的系统默认行为
+    ScrollToTopByFramework();
 }
 
 void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) {
@@ -284,6 +338,8 @@ void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
 }
 
 void KRScrollerView::FireBeginDragEvent(ArkUI_NodeEvent *event) {
+    // 新的拖拽接上还在跑的弹簧滚动，scroll 会话继续，不在这里结束。
+    CancelSpringScrollAnimation(false);
     if (!on_drag_begin_callback_) {
         return;
     }
@@ -322,6 +378,8 @@ void KRScrollerView::DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewE
 }
 
 void KRScrollerView::OnDestroy() {
+    EndScrollSession();
+    DisposeSpringScrollAnimator();
     if (!content_view_) {
         return;
     }
@@ -434,9 +492,12 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     auto animate = content_offset_splits[2]->toBool();
     auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
     auto damping = content_offset_splits.size() > 4 ? content_offset_splits[4]->toFloat() : 0;
+    auto velocity = content_offset_splits.size() > 5 ? content_offset_splits[5]->toFloat() : 0;
     auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
-
+    const bool start_spring = animate && duration > 0 && damping >= 1.0f && curve == 0;
     if (!is_set_frame_) {
+        // 还没布局，这次不会接着播弹簧滚动，取消就是滚动结束。
+        CancelSpringScrollAnimation(true);
         first_offset_x_ = offset_x;
         first_offset_y_ = offset_y;
         first_animate_ = animate;
@@ -446,7 +507,167 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
         is_need_set_content_offset_ = true;
         return;
     }
+    // 接着播新的弹簧滚动时，上一笔 scroll 会话继续；否则这次取消就是滚动结束。
+    CancelSpringScrollAnimation(!start_spring);
+    if (start_spring) {
+        float velocity_x = direction_row_ ? velocity : 0;
+        float velocity_y = direction_row_ ? 0 : velocity;
+        if (StartSpringScrollAnimation(offset_x, offset_y, duration, velocity_x, velocity_y)) {
+            return;
+        }
+    }
     kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve, damping);
+}
+
+namespace {
+struct SpringScrollAnimatorUserData {
+    std::weak_ptr<KRScrollerView> weak_view;
+    uint32_t generation = 0;
+};
+
+// Critically damped spring settles to ~0.1% of the initial distance at t = duration.
+constexpr float kSpringSettleFactor = 9.5f;
+
+int64_t SpringNowUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// x(t) = target + (x0 + (v0 + w * x0) * t) * e^(-w * t), x0 = start - target
+float CriticallyDampedSpringPosition(float start, float target, float velocity, float omega, float t_sec) {
+    float x0 = start - target;
+    return target + (x0 + (velocity + omega * x0) * t_sec) * expf(-omega * t_sec);
+}
+
+// Moving towards the target faster than w * |x0| overshoots; moving away bounces past the start.
+float ClampSpringVelocity(float start, float target, float velocity, float omega) {
+    float x0 = start - target;
+    if (x0 == 0 || velocity * x0 >= 0) {
+        return 0;
+    }
+    float max_speed = omega * fabsf(x0);
+    return fabsf(velocity) > max_speed ? -omega * x0 : velocity;
+}
+}  // namespace
+
+bool KRScrollerView::StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
+                                                float velocity_y) {
+    auto root_view = GetRootView().lock();
+    auto animate_api = GetAnimateApi();
+    if (!root_view || !animate_api || !animate_api->createAnimator) {
+        return false;
+    }
+    DisposeSpringScrollAnimator();
+
+    auto start = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    float omega = kSpringSettleFactor * 1000.0f / duration_ms;
+    spring_anim_omega_ = omega;
+    spring_anim_duration_ms_ = duration_ms;
+    spring_anim_start_x_ = start.x;
+    spring_anim_start_y_ = start.y;
+    spring_anim_target_x_ = target_x;
+    spring_anim_target_y_ = target_y;
+    spring_anim_velocity_x_ = ClampSpringVelocity(start.x, target_x, velocity_x, omega);
+    spring_anim_velocity_y_ = ClampSpringVelocity(start.y, target_y, velocity_y, omega);
+    spring_anim_generation_++;
+
+    auto user_data = new SpringScrollAnimatorUserData();
+    user_data->weak_view = std::dynamic_pointer_cast<KRScrollerView>(shared_from_this());
+    user_data->generation = spring_anim_generation_;
+    spring_animator_user_data_ = user_data;
+
+    auto option = OH_ArkUI_AnimatorOption_Create(0);
+    OH_ArkUI_AnimatorOption_SetDuration(option, duration_ms);
+    OH_ArkUI_AnimatorOption_SetIterations(option, 1);
+    OH_ArkUI_AnimatorOption_SetBegin(option, 0);
+    OH_ArkUI_AnimatorOption_SetEnd(option, 1);
+    OH_ArkUI_AnimatorOption_RegisterOnFrameCallback(option, user_data, [](ArkUI_AnimatorOnFrameEvent *event) {
+        auto data = static_cast<SpringScrollAnimatorUserData *>(OH_ArkUI_AnimatorOnFrameEvent_GetUserData(event));
+        if (auto view = data ? data->weak_view.lock() : nullptr) {
+            view->OnSpringScrollAnimationFrame(data->generation);
+        }
+    });
+    OH_ArkUI_AnimatorOption_RegisterOnFinishCallback(option, user_data, [](ArkUI_AnimatorEvent *event) {
+        auto data = static_cast<SpringScrollAnimatorUserData *>(OH_ArkUI_AnimatorEvent_GetUserData(event));
+        if (auto view = data ? data->weak_view.lock() : nullptr) {
+            view->OnSpringScrollAnimationEnd(data->generation);
+        }
+    });
+    spring_animator_option_ = option;
+    spring_animator_ = animate_api->createAnimator(root_view->GetUIContextHandle(), option);
+    if (!spring_animator_) {
+        DisposeSpringScrollAnimator();
+        return false;
+    }
+    spring_anim_running_ = true;
+    spring_anim_start_us_ = SpringNowUs();
+    OH_ArkUI_Animator_Play(spring_animator_);
+    // 弹簧滚动的 scrollTo 会让 OnScrollStop 直接返回，同步 scroll 的会话保持到 OnSpringScrollAnimationEnd。
+    OnScrollStart(nullptr);
+    return true;
+}
+
+void KRScrollerView::OnSpringScrollAnimationFrame(uint32_t generation) {
+    if (!spring_anim_running_ || generation != spring_anim_generation_) {
+        return;
+    }
+    auto now_us = SpringNowUs();
+    float t_sec = std::min<int64_t>(now_us - spring_anim_start_us_, spring_anim_duration_ms_ * 1000) / 1e6f;
+    float x = CriticallyDampedSpringPosition(spring_anim_start_x_, spring_anim_target_x_, spring_anim_velocity_x_,
+                                             spring_anim_omega_, t_sec);
+    float y = CriticallyDampedSpringPosition(spring_anim_start_y_, spring_anim_target_y_, spring_anim_velocity_y_,
+                                             spring_anim_omega_, t_sec);
+    kuikly::util::SetArkUIContentOffset(GetNode(), x, y, false, 0, 0, 0);
+}
+
+void KRScrollerView::OnSpringScrollAnimationEnd(uint32_t generation) {
+    if (!spring_anim_running_ || generation != spring_anim_generation_) {
+        return;
+    }
+    spring_anim_running_ = false;
+    kuikly::util::SetArkUIContentOffset(GetNode(), spring_anim_target_x_, spring_anim_target_y_, false, 0, 0, 0);
+    current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
+    EndScrollSession();
+    FireEndScrollEvent(nullptr);
+    if (auto handler = weak_super_touch_handler_.lock()) {
+        handler->ClearNativeTouchConsumer(shared_from_this());
+    }
+}
+
+void KRScrollerView::CancelSpringScrollAnimation(bool end_session) {
+    if (!spring_anim_running_) {
+        return;
+    }
+    spring_anim_running_ = false;
+    spring_anim_generation_++;
+    if (spring_animator_) {
+        OH_ArkUI_Animator_Cancel(spring_animator_);
+    }
+    if (end_session) {
+        EndScrollSession();
+    }
+}
+
+// StartSpringScrollAnimation 会先调用这里换掉上一个 animator，此时滚动还没结束，不能结束 scroll 会话。
+// 会话在 OnSpringScrollAnimationEnd、取消且不再滚动、WillRemoveFromParentView、OnDestroy 结束。
+void KRScrollerView::DisposeSpringScrollAnimator() {
+    spring_anim_running_ = false;
+    spring_anim_generation_++;
+    if (spring_animator_) {
+        OH_ArkUI_Animator_Cancel(spring_animator_);
+        if (auto animate_api = GetAnimateApi()) {
+            animate_api->disposeAnimator(spring_animator_);
+        }
+        spring_animator_ = nullptr;
+    }
+    if (spring_animator_option_) {
+        OH_ArkUI_AnimatorOption_Dispose(spring_animator_option_);
+        spring_animator_option_ = nullptr;
+    }
+    if (spring_animator_user_data_) {
+        delete static_cast<SpringScrollAnimatorUserData *>(spring_animator_user_data_);
+        spring_animator_user_data_ = nullptr;
+    }
 }
 
 void KRScrollerView::SetContentInset(const KRAnyValue &value) {
@@ -579,6 +800,11 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
 }
 
 void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
+    if (spring_anim_running_) {
+        // each frame of the spring animation is a non-animated scrollTo, which may report a stop
+        return;
+    }
+    EndScrollSession();
     current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
     if (is_dragging_) {
         OnWillDragEnd(event);
@@ -595,6 +821,13 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
     auto new_scroll_state = kuikly::util::GetArkUIScrollerState(event, 2);
     if (new_scroll_state == current_scroll_state_) {
         return;
+    }
+    if (spring_anim_running_) {
+        constexpr int32_t kScrollSourceDrag = 0;
+        auto source = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event)->data[3].i32;
+        if (source != kScrollSourceDrag) {
+            return;
+        }
     }
     if (IsIdeaStateToDraggingState(new_scroll_state) || IsFlingStateToDraggingState(new_scroll_state)) {
         is_dragging_ = true;
@@ -622,7 +855,27 @@ void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
     FireEndDragEvent(event);
 }
 
-void KRScrollerView::OnScrollStart(ArkUI_NodeEvent *event) {}
+// 注册了同步 scroll 时，ArkUI 滚动开始就通知 KRInputFirstGate。滚动停止、弹簧滚动结束或取消、
+// view 被移除或销毁时通知结束。
+void KRScrollerView::OnScrollStart(ArkUI_NodeEvent *event) {
+    if (scroll_sync_ && on_scroll_callback_ && !scroll_session_active_) {
+        scroll_session_active_ = true;
+        KRInputFirstGate::GetInstance().BeginSession(this, KRInputFirstGate::SessionType::kScroll);
+    }
+}
+
+void KRScrollerView::SetEventSync(const std::string &event_name, bool sync) {
+    if (kuikly::util::isEqual(event_name, kEventNameScroll)) {
+        scroll_sync_ = sync;
+    }
+}
+
+void KRScrollerView::EndScrollSession() {
+    if (scroll_session_active_) {
+        scroll_session_active_ = false;
+        KRInputFirstGate::GetInstance().EndSession(this, KRInputFirstGate::SessionType::kScroll);
+    }
+}
 
 void KRScrollerView::OnScrollReachStart(ArkUI_NodeEvent *event) {
     if (!limit_header_bounces_) {
@@ -651,7 +904,7 @@ bool KRScrollerView::IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_sta
            new_scroll_state == ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
 }
 
-std::shared_ptr<KRRenderValue> KRScrollerView::GetCommonScrollParams() {
+KRAnyValue KRScrollerView::GetCommonScrollParams() {
     KRRenderValueMap map;
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
     map[kEventKeyOffsetX] = NewKRRenderValue(point.x);
@@ -740,6 +993,8 @@ KRPoint KRScrollerView::GetContentOffset() {
 
 void KRScrollerView::DidMoveToParentView() {
     IKRRenderViewExport::DidMoveToParentView();
+    // 兜底：容器可能在系统事件订阅生效之前就被创建，挂载到视图树时再尝试一次（幂等）
+    DisableSystemBackToTopIfNeed();
     auto parent_view = GetParentView();
     while (parent_view != nullptr) {
         if (auto view = std::dynamic_pointer_cast<KRView>(parent_view)) {
@@ -760,6 +1015,7 @@ void KRScrollerView::DidMoveToParentView() {
 
 void KRScrollerView::WillRemoveFromParentView() {
     IKRRenderViewExport::WillRemoveFromParentView();
+    EndScrollSession();
     weak_super_touch_handler_.reset();
 }
 
@@ -821,6 +1077,13 @@ void KRScrollerView::PrepareForComposeReuse() {
 }
 
 void KRScrollerView::AbortContentOffsetAnimate() {
+    // 手指还在拖时不能结束 scroll 会话。弹簧滚动只在没有拖动时取消并结束会话。
+    CancelSpringScrollAnimation(!is_dragging_);
+    // 正在拖动时 scrollBy(0, 0) 停不住手势，这次滚动还要等 OnScrollStop 结束会话。
+    // 空闲且没有拖动时没有后续的 OnScrollStop，若会话还在就在这里结束。
+    if (!is_dragging_ && current_scroll_state_ == ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE) {
+        EndScrollSession();
+    }
     // 停止 ContentInset 动画（释放动画对象）
     if (content_inset_animate_) {
         content_inset_animate_ = nullptr;

@@ -4,6 +4,25 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/tree/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/TextExamplePage.kt)
 
+::: warning 交叉轴拉伸需显式设置 alignSelfStretch()
+为向前兼容，Text 默认包裹文字内容，不响应父容器的 `alignItemsStretch()`。需要在交叉轴上铺满父容器时，在 Text 自身显式设置 `alignSelfStretch()`：
+
+```kotlin
+View {
+    attr {
+        flexDirectionColumn()
+        alignItemsStretch() // ❌ 对 Text 无效
+    }
+    Text {
+        attr {
+            alignSelfStretch() // ✅ 宽度撑满父容器
+            text("撑满宽度")
+        }
+    }
+}
+```
+:::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
@@ -169,8 +188,8 @@ internal class FontSizePage : BasePager() {
 | `fontWeightMedium()` | `fontWeight500()` | 中等 |
 | `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
 | `fontWeightBold()` | `fontWeight700()` | 粗体 |
-| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
-| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗<Badge text="2.14.0 及以上支持" type="warn"/> |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗<Badge text="2.14.0 及以上支持" type="warn"/> |
 
 </div>
 
@@ -234,7 +253,7 @@ internal class FontSizePage : BasePager() {
 | fontFamily | 字体名称  | String |
 
 :::tip 注意
-如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)，H5端需要判断字体加载完成后[重新测量](../../DevGuide/h5-custom-font.md)。
+如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端除在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)外，也可实现[自定义字体适配器（FontModule，仅iOS）](../../QuickStart/iOS.md#实现自定义字体适配器-fontmodule)支持别名映射与动态加载，H5端需要判断字体加载完成后[重新测量](../../DevGuide/h5-custom-font.md)。
 :::
 示例：
 ```kotlin
@@ -318,6 +337,10 @@ internal class FontWeightPage : BasePager() {
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
 | lineBreakMargin | 最后一行折叠距离text组件frame.right距离 | String |
+
+::::tip 配套事件
+`onLineBreakMargin` 事件用于监听文本是否发生了折叠，H5 自 2.17.0 起支持。
+::::
 
 :::tabs
 
@@ -476,6 +499,10 @@ internal class TestPage : BasePager() {
 </div>
 
 :::
+
+### textOverFlowWordWrapping方法<Badge text="仅 iOS" type="warn"/>
+
+文本超出最大行数时按单词边界换行，不显示"..."
 
 ### textOverFlowClip方法<Badge text="安卓实现中" type="warn"/>
 
@@ -848,6 +875,14 @@ internal class TestPage : BasePager() {
 
 :::
 
+### paragraphSpacing方法 <Badge text="仅 iOS" type="warn"/>
+
+设置段落之间的间距。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| value | 段落间距 | Float |
+
 ### lineSpacing方法
 
 设置文本行间距
@@ -942,6 +977,10 @@ internal class TestPage : BasePager() {
 
 :::
 
+### fontStyleNormal方法
+
+设置字体样式为正常（默认）。
+
 ### fontStyleItalic方法
 
 设置文本为斜体
@@ -980,9 +1019,13 @@ internal class TestPage : BasePager() {
 
 :::
 
-### firstLineHeadIndent方法
+### firstLineHeadIndent方法 <Badge text="鸿蒙 2.17.0 及以上支持" type="warn"/>
 
 文本首行缩进距离
+
+::::tip 版本说明
+该属性在其他端为基线能力，鸿蒙自 2.17.0 起支持。
+::::
 
 :::tabs
 

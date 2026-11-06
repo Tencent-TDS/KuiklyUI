@@ -118,8 +118,8 @@ struct ImmersiveNavigationInner {
   @Prop titleMode: number = 2;
   @Prop hideBackButton: boolean = false;
   @Prop enableScrollEffect: boolean = false;
-  /** 0=COMMON_BLUR 1=GRADIENT_BLUR */
-  @Prop scrollEffectType: number = 1;
+  /** 0=COMMON_BLUR 1=GRADUAL_BLUR 2=GRADIENT_BLUR 3=IMMERSIVE_GRADIENT_BLUR */
+  @Prop scrollEffectType: number = 2;
   @Prop materialEnable: boolean = false;
   @Prop materialStyle: number = 2;
   /** Kuikly 节点的真实尺寸（sizeDidChanged），ArkTS 内容钉在节点尺寸内 */
@@ -164,8 +164,11 @@ struct ImmersiveNavigationInner {
         style: {
           scrollEffectOpts: {
             enableScrollEffect: this.enableScrollEffect,
-            scrollEffectType: this.scrollEffectType === 0 ?
-            ScrollEffectType.COMMON_BLUR : ScrollEffectType.GRADIENT_BLUR
+            // 逐值映射（对齐 HdsScrollEffectType 常量）
+            scrollEffectType: this.scrollEffectType === 0 ? ScrollEffectType.COMMON_BLUR :
+              (this.scrollEffectType === 1 ? ScrollEffectType.GRADUAL_BLUR :
+              (this.scrollEffectType === 2 ? ScrollEffectType.GRADIENT_BLUR :
+              ScrollEffectType.IMMERSIVE_GRADIENT_BLUR))
           },
           systemMaterialEffect: {
             // 实测设备只支持 IMMERSIVE[101]，ADAPTIVE 不在支持列表会静默失效

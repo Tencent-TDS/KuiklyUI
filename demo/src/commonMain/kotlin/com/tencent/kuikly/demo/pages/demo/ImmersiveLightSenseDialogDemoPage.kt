@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.log.KLog
@@ -183,10 +184,10 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
            height(220f)
            borderRadius(24f)
            when (index) {
-               1 -> immersiveMaterial(style = 4, interactive = true)
-               2 -> immersiveMaterial(style = 0, interactive = true)
-               3 -> immersiveMaterial(style = 2, materialColor = Color(0x4DFF3B30))
-               4 -> immersiveMaterial(style = 2, applyShadow = false)
+               1 -> immersiveMaterial(style = ImmersiveStyle.ULTRA_THICK, interactive = true)
+               2 -> immersiveMaterial(style = ImmersiveStyle.ULTRA_THIN, interactive = true)
+               3 -> immersiveMaterial(style = ImmersiveStyle.REGULAR, materialColor = Color(0x4DFF3B30))
+               4 -> immersiveMaterial(style = ImmersiveStyle.REGULAR, applyShadow = false)
                5 -> borderRadius(40f)
                6 -> {
                    width(220f)
@@ -204,10 +205,10 @@ internal class ImmersiveLightSenseDialogDemoPage : BasePager() {
                )
                9 -> opacity(0.6f)
                // 14~18：材质参数矩阵（档位全套 + 点光源 + 赋色透明度 + 降级）
-               14 -> immersiveMaterial(style = 1)
-               15 -> immersiveMaterial(style = 3)
-               16 -> immersiveMaterial(style = 2, lightEffectColor = Color(0x80FFFFFF))
-               17 -> immersiveMaterial(style = 2, materialColor = Color(0x80FF3B30))
+               14 -> immersiveMaterial(style = ImmersiveStyle.THIN)
+               15 -> immersiveMaterial(style = ImmersiveStyle.THICK)
+               16 -> immersiveMaterial(style = ImmersiveStyle.REGULAR, lightEffectColor = Color(0x80FFFFFF))
+               17 -> immersiveMaterial(style = ImmersiveStyle.REGULAR, materialColor = Color(0x80FF3B30))
                18 -> immersiveMaterial(enable = false)
                else -> { /* 10 / 11 用默认配置，验证事件 */ }
            }

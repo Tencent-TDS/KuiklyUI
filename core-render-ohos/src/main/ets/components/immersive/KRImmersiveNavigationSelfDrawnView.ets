@@ -117,10 +117,12 @@ struct ImmersiveNavigationSelfDrawnInner {
         backgroundColor: Color.Transparent,
         // ── 核心验证点 1：标题栏系统材质（示例20 同款）──
         systemMaterial: this.view!.buildTitleBarMaterial(),
-        // ── 核心验证点 2：滚动渐变模糊 ──
+        // ── 核心验证点 2：滚动渐变模糊（逐值映射，对齐 HdsScrollEffectType 常量）──
         scrollEffectOptions: this.enableScrollEffect ? {
-          scrollEffectType: this.scrollEffectType === 0 ?
-          ScrollEffectType.COMMON_BLUR : ScrollEffectType.GRADUAL_BLUR
+          scrollEffectType: this.scrollEffectType === 0 ? ScrollEffectType.COMMON_BLUR :
+            (this.scrollEffectType === 1 ? ScrollEffectType.GRADUAL_BLUR :
+            (this.scrollEffectType === 2 ? ScrollEffectType.GRADIENT_BLUR :
+            ScrollEffectType.GRADUAL_BLUR))
         } : undefined
       })
       .titleMode(this.titleMode === 0 ? NavigationTitleMode.Free :

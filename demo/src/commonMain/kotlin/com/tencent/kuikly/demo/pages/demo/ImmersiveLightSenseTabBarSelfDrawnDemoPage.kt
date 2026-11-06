@@ -2,6 +2,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.log.KLog
@@ -85,7 +86,7 @@ internal class ImmersiveLightSenseTabBarSelfDrawnDemoPage : BasePager() {
                         // prop，ets 侧 materialEnable 永远停在 true，材质关不掉
                         immersiveMaterial(
                             enable = ctx.materialEnable,
-                            style = 2
+                            style = ImmersiveStyle.REGULAR
                         )
                     }
                     event {

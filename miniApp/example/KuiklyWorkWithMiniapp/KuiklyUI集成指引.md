@@ -115,6 +115,12 @@ pages/
 var business = require('../../business/nativevue2.js')
 var render = require('../../lib/miniApp.js')
 
+// 兼容部分旧版小程序基础库缺失 globalThis 的情况
+if (typeof globalThis !== 'undefined') {
+    globalThis.com = business.com;
+    globalThis.callKotlinMethod = business.callKotlinMethod;
+}
+
 global.com = business.com;
 global.callKotlinMethod = business.callKotlinMethod;
 
@@ -125,7 +131,7 @@ render.renderView({
 
 **关键点说明**：
 - `business` 和 `render` 的路径是相对于当前页面的
-- `global.com` 和 `global.callKotlinMethod` 必须设置
+- 必须同时给 `globalThis` 和 `global` 挂载 `com` / `callKotlinMethod`：Kotlin 渲染层内部部分路径走 `globalThis`，而小程序引擎自身的包命名空间解析走 `global`；`globalThis` 一侧需用 `typeof` 守卫以兼容旧基础库
 - `pageName` 需要与你在业务代码（Kotlin）中定义的路由名称一致
 
 #### 📄 `pages/router/index.json`
@@ -468,11 +474,18 @@ your-miniapp-project/
 每个 KuiklyUI 页面的 `index.js` 中必须设置：
 
 ```javascript
+if (typeof globalThis !== 'undefined') {
+    globalThis.com = business.com;
+    globalThis.callKotlinMethod = business.callKotlinMethod;
+}
+
 global.com = business.com;
 global.callKotlinMethod = business.callKotlinMethod;
 ```
 
 这些全局变量用于 KuiklyUI 与业务代码的通信。
+
+> 为什么要同时写 `globalThis` 和 `global`：Kotlin 渲染层产物内部部分代码通过 `globalThis` 访问宿主注入的对象，而小程序引擎自身以及 Kotlin/JS 包命名空间（`com.tencent.kuikly...`）的解析走的是 `global`；另外部分旧版小程序基础库里不存在 `globalThis`，因此需要用 `typeof` 守卫。
 
 ### 4. 页面配置
 
@@ -581,6 +594,11 @@ render.renderView({
 **解决方案**：
 ```javascript
 // 在 render.renderView() 之前添加
+if (typeof globalThis !== 'undefined') {
+    globalThis.com = business.com;
+    globalThis.callKotlinMethod = business.callKotlinMethod;
+}
+
 global.com = business.com;
 global.callKotlinMethod = business.callKotlinMethod;
 ```

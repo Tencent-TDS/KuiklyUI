@@ -79,4 +79,6 @@ dependencies {
     compileOnly(project(":core"))
     implementation("androidx.appcompat:appcompat:1.2.0")
     implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
+    compileOnly("androidx.window:window:1.2.0")
+    compileOnly("androidx.window:window-java:1.2.0")
 }

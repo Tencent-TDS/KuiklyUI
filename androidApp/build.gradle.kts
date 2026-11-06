@@ -50,5 +50,6 @@ dependencies {
     implementation("com.tencent.tav:libpag:4.1.49-noffavc")
     implementation("com.google.android.exoplayer:exoplayer:2.16.1")
     implementation("com.github.penfeizhou.android.animation:apng:2.25.0")
-
+    implementation("androidx.window:window:1.2.0")
+    implementation("androidx.window:window-java:1.2.0")
 }

@@ -20,6 +20,42 @@ import com.tencent.kuikly.core.views.internal.GroupEvent
 import com.tencent.kuikly.core.views.internal.GroupView
 
 /**
+ * HdsNavigation 标题模式，取值与官方 `HdsNavigationTitleMode` 一一对应。
+ * 供 [ImmersiveLightSenseNavigationOhosAttr.titleMode] 使用。
+ */
+object HdsNavigationTitleMode {
+    /** 自由模式：标题随滚动联动缩放 */
+    const val FREE = 0
+
+    /** 全屏模式：大标题 */
+    const val FULL = 1
+
+    /** 迷你模式：常规单行标题（默认） */
+    const val MINI = 2
+
+    /** 模态模式：模态页面标题 */
+    const val MODAL = 3
+}
+
+/**
+ * 标题栏滚动效果类型，取值与官方 `ScrollEffectType` 一一对应。
+ * 供 [ImmersiveLightSenseNavigationOhosAttr.scrollEffectType] 使用。
+ */
+object HdsScrollEffectType {
+    /** 普通模糊：对背景均匀模糊，随透明渐变显隐 */
+    const val COMMON_BLUR = 0
+
+    /** 渐进模糊：均匀模糊且边界清晰，标题栏内容随滚动线性变化 */
+    const val GRADUAL_BLUR = 1
+
+    /** 渐变模糊：渐变模糊样式 */
+    const val GRADIENT_BLUR = 2
+
+    /** 沉浸式渐变模糊：HdsIosTabs 等官方示例采用的效果 */
+    const val IMMERSIVE_GRADIENT_BLUR = 3
+}
+
+/**
  * 官方 HdsNavigation 组件（鸿蒙「沉浸光感」标题栏 + 滚动渐变）。
  *
  * 能力面（官方 SDK 声明 + 官方示例）：
@@ -99,7 +135,7 @@ class ImmersiveLightSenseNavigationOhosAttr : GroupAttr() {
         KEY_MENU_LABELS with labels.joinToString(",")
     }
 
-    /** 标题模式：0=FREE 1=FULL 2=MINI（默认） */
+    /** 标题模式，取值见 [HdsNavigationTitleMode] */
     fun titleMode(mode: Int) {
         KEY_TITLE_MODE with mode
     }
@@ -114,7 +150,7 @@ class ImmersiveLightSenseNavigationOhosAttr : GroupAttr() {
         KEY_ENABLE_SCROLL_EFFECT with enable.toString()
     }
 
-    /** 滚动效果类型：0=COMMON_BLUR（普通模糊）1=GRADIENT_BLUR（渐变模糊，默认） */
+    /** 滚动效果类型，取值见 [HdsScrollEffectType] */
     fun scrollEffectType(type: Int) {
         KEY_SCROLL_EFFECT_TYPE with type
     }

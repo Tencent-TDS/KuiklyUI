@@ -2,10 +2,13 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.ohos.immersive.HdsNavigationTitleMode
+import com.tencent.kuikly.core.views.ohos.immersive.HdsScrollEffectType
 import com.tencent.kuikly.core.views.ohos.immersive.ImmersiveLightSenseNavigationSelfDrawnOhos
 import com.tencent.kuikly.demo.pages.base.BasePager
 
@@ -43,12 +46,12 @@ internal class ImmersiveLightSenseNavigationSelfDrawnDemoPage : BasePager() {
                     title("自制标题栏 演示")
                     titleMode(ctx.titleMode)
                     enableScrollEffect(ctx.scrollEffect >= 0)
-                    scrollEffectType(if (ctx.scrollEffect < 0) 1 else ctx.scrollEffect)
+                    scrollEffectType(if (ctx.scrollEffect < 0) HdsScrollEffectType.GRADIENT_BLUR else if (ctx.scrollEffect == 0) HdsScrollEffectType.COMMON_BLUR else HdsScrollEffectType.GRADIENT_BLUR)
                     hideBackButton(ctx.hideBack)
                     // 原生 Navigation 内容区默认白底：设透明对齐 HdsNavigation 观感
                     contentBackgroundColor(Color.TRANSPARENT)
                     if (ctx.materialEnable) {
-                        immersiveMaterial(style = 2)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR)
                     }
                 }
             }

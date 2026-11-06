@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
@@ -299,7 +300,7 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                     backgroundColor(Color.TRANSPARENT)
                     if (ctx.useImmersive) {
                         // style: 0=ULTRA_THIN 1=THIN 2=REGULAR 3=THICK 4=ULTRA_THICK
-                        immersiveMaterial(style = 2, interactive = true)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                     }
                 }
                 content.invoke(this)
@@ -329,7 +330,7 @@ internal class ImmersiveLightSenseOhosDemoPage : BasePager() {
                         )
                     )
                     // 与标题栏内的胶囊同档，保证对照组只差"是否在生效区域内"这一个变量
-                    immersiveMaterial(style = 2, interactive = true)
+                    immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                 }
                 Text {
                     attr {

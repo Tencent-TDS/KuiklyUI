@@ -698,7 +698,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      */
     fun immersiveMaterial(
         enable: Boolean = true,
-        style: Int = 2,
+        style: Int = ImmersiveStyle.REGULAR,
         interactive: Boolean? = null,
         applyShadow: Boolean? = null,
         lightEffectColor: Color? = null,

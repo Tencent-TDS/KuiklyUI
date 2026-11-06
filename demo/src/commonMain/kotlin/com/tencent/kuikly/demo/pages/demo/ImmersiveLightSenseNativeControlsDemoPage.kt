@@ -2,6 +2,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -109,7 +110,7 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                         thumbColor(Color(0xFFFFFFFF))
                         trackThickness(6f)
                         if (ctx.materialEnable) {
-                            immersiveMaterial(style = 2)
+                            immersiveMaterial(style = ImmersiveStyle.REGULAR)
                         }
                     }
                     event {
@@ -151,7 +152,7 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                         onColor(Color(0xFF007DFF))
                         thumbColor(Color(0xFFFFFFFF))
                         if (ctx.materialEnable) {
-                            immersiveMaterial(style = 2)
+                            immersiveMaterial(style = ImmersiveStyle.REGULAR)
                         }
                     }
                     event {
@@ -194,7 +195,7 @@ internal class ImmersiveLightSenseNativeControlsDemoPage : BasePager() {
                     options(ctx.selectOptions)
                     selectedIndex(ctx.selectIndex)
                     if (ctx.materialEnable) {
-                        immersiveMaterial(style = 2)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR)
                     }
                 }
                 event {

@@ -2,6 +2,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
@@ -65,7 +66,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                     selectedIndex(ctx.selectedIndex)
                     barInsetX(ctx.barInset)
                     barBottomOffset(ctx.barBottom)
-                    immersiveMaterial(style = 2)
+                    immersiveMaterial(style = ImmersiveStyle.REGULAR)
                 }
                 event {
                     tabChanged { index ->
@@ -108,7 +109,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                     flexDirectionRow()
                     alignItemsCenter()
                     backgroundColor(Color.TRANSPARENT)
-                    immersiveMaterial(style = 2, interactive = true)
+                    immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                 }
                 // 返回
                 ctx.pill(36f, 36f) {
@@ -163,7 +164,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                                 trackColor(Color(0x33808080))
                                 thumbColor(Color(0xFFFFFFFF))
                                 trackThickness(6f)
-                                immersiveMaterial(style = 2, interactive = true)
+                                immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                             }
                             event {
                                 valueChanged { v -> ctx.sliderValue = v }
@@ -187,7 +188,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                                 value(70f)
                                 min(0f)
                                 max(100f)
-                                immersiveMaterial(style = 4, materialColor = Color(0x33007DFF))
+                                immersiveMaterial(style = ImmersiveStyle.ULTRA_THICK, materialColor = Color(0x33007DFF))
                             }
                         }
                     }()
@@ -203,7 +204,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                                 isOn(ctx.switchOn)
                                 onColor(Color(0xFF007DFF))
                                 thumbColor(Color(0xFFFFFFFF))
-                                immersiveMaterial(style = 2, interactive = true)
+                                immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                             }
                             event {
                                 switchChanged { on -> ctx.switchOn = on }
@@ -230,7 +231,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                                 height(40f)
                                 options(ctx.selectOptions)
                                 selectedIndex(ctx.selectIndex)
-                                immersiveMaterial(style = 2, lightEffectColor = Color(0x80FFFFFF))
+                                immersiveMaterial(style = ImmersiveStyle.REGULAR, lightEffectColor = Color(0x80FFFFFF))
                             }
                             event {
                                 selectChanged { index, _ -> ctx.selectIndex = index }
@@ -385,7 +386,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                     allCenter()
                     margin(top = 8f)
                     backgroundColor(Color.TRANSPARENT)
-                    immersiveMaterial(style = 2, interactive = true)
+                    immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                 }
                 content.invoke(this)
             }
@@ -417,7 +418,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                         fontSize(16f); color(Color(0xFF333333))
                         textAlignCenter()
                         backgroundColor(Color.TRANSPARENT)
-                        immersiveMaterial(style = 2)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR)
                     }
                     event { click { onChange(-8f) } }
                 }
@@ -438,7 +439,7 @@ internal class ImmersiveLightSenseGalleryPage : BasePager() {
                         fontSize(16f); color(Color(0xFF333333))
                         textAlignCenter()
                         backgroundColor(Color.TRANSPARENT)
-                        immersiveMaterial(style = 2)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR)
                     }
                     event { click { onChange(8f) } }
                 }

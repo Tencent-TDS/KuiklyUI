@@ -2,6 +2,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ImmersiveStyle
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -52,7 +53,7 @@ internal class ImmersiveLightSenseTabBarDemoPage : BasePager() {
                     barInsetX(16f)
                     barBottomOffset(48f)
                     if (ctx.materialEnable) {
-                        immersiveMaterial(style = 2, interactive = true)
+                        immersiveMaterial(style = ImmersiveStyle.REGULAR, interactive = true)
                     }
                 }
                 event {

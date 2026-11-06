@@ -198,32 +198,28 @@ internal class KRScrollAnimationManager(
      * @param targetDistance 目标滚动距离（用于动画结束时修正偏差）
      */
     private fun setupAndStartAnimation(animation: KRScrollAnimation, targetDistance: Float) {
-        var consumed = 0f
+        var consumedInt = 0
 
         animation.onUpdate = { value ->
             if (currentAnimation === animation) {
-                val delta = value - consumed
-                val intDelta = delta.toInt()
-                
+                // 用浮点累计 + 四舍五入：scrollBy 只接受 Int，
+                // 但直接 toInt() 截断会让不足 1px 的位移整帧丢失（弹簧尾段尤其明显），
+                // 表现为"卡顿—跳 1px"。改为按浮点目标取整，误差自然留到下一帧补偿。
+                val targetInt = kotlin.math.round(value).toInt()
+                val intDelta = targetInt - consumedInt
                 if (intDelta != 0) {
                     scrollRecyclerView(intDelta)
-                    consumed += intDelta
+                    consumedInt = targetInt
                 }
             }
         }
 
         animation.onEnd = {
             if (currentAnimation === animation) {
-                // 动画结束时，检查是否还有剩余的小数部分需要滚动
-                // 由于 delta.toInt() 会截断小数部分，可能导致最后有 0.x px 的偏差
-                // 计算剩余距离：目标距离 - 已消费的整数部分
-                val remaining = targetDistance - consumed
-                if (kotlin.math.abs(remaining) >= 0.5f) {
-                    // 如果剩余部分 >= 0.5px，就补上（四舍五入）
-                    val finalDelta = remaining.roundToInt()
-                    if (finalDelta != 0) {
-                        scrollRecyclerView(finalDelta)
-                    }
+                // 动画结束时补上不足 1px 的残留，保证最终精确停靠
+                val finalDelta = kotlin.math.round(targetDistance).toInt() - consumedInt
+                if (finalDelta != 0) {
+                    scrollRecyclerView(finalDelta)
                 }
                 currentAnimation = null
                 onAnimationEnd?.invoke()

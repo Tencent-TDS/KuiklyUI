@@ -104,6 +104,20 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "IL"
+            titleText = "Immersive Light Sense (OHOS)"
+            subtitleText = "鸿蒙沉浸光感容器（自定义内容）"
+            declarativeExampleUrl = generateJumpUrl("ImmersiveLightSenseOhosDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "NB"
+            titleText = "Immersive NavBar (OHOS)"
+            subtitleText = "原 NavBar 加开关即可无感使用"
+            declarativeExampleUrl = generateJumpUrl("ImmersiveLightSenseNavBarDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Te"
             titleText = "Text/RichTextView"
             subtitleText = "支持字体、颜色和字重等常用属性，也支持富文本"

@@ -19,6 +19,12 @@ import { KuiklyRenderBaseView } from './base/KRBaseViewExport';
 import { KRPAGView } from './KRPAGView';
 import { KRVideoView } from './KRVideoView';
 import { KRAudioView } from './KRAudioView';
+import { KRImmersiveLightSenseView } from './immersive/KRImmersiveLightSenseView';
+import { KRImmersiveLightSenseTabBarView } from './immersive/KRImmersiveLightSenseTabBarView';
+import { KRImmersiveSelectView } from './immersive/KRImmersiveSelectView';
+import { KRImmersiveTabBarSelfDrawnView } from './immersive/KRImmersiveTabBarSelfDrawnView';
+import { KRImmersiveNavigationOhosView } from './immersive/KRImmersiveNavigationOhosView';
+import { KRImmersiveNavigationSelfDrawnView } from './immersive/KRImmersiveNavigationSelfDrawnView';
 import { KRBlurView } from './KRBlurView';
 
 /**
@@ -49,6 +55,48 @@ export class ViewsRegisterEntry {
     KRNativeManager.getInstance().registerViewCreator('KRAudioView', (): KuiklyRenderBaseView => {
       return new KRAudioView();
     });
+
+    // 鸿蒙沉浸光感容器：走 V2 转发通道，子节点挂进 ArkTS 组件内部的 ContentSlot，
+    // 从而落入系统规定的沉浸光感生效区域（Navigation 标题栏 scope）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveLightSenseView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveLightSenseView();
+      });
+
+    // 鸿蒙沉浸光感 TabBar 容器：走 V2 转发通道，子节点挂进 Tabs 页签栏的 ContentSlot，
+    // 从而落入系统规定的沉浸光感生效区域（Tabbar scope）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveLightSenseTabBarView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveLightSenseTabBarView();
+      });
+
+    // 鸿蒙沉浸光感 Select：官方白名单控件（可全页面生效），CAPI 无对应节点，
+    // 走 V2 转发（显式尺寸 + JSON 事件回传，规避转发层的两个已知坑）。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveSelectView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveSelectView();
+      });
+
+    // 「自绘 TabBar」实验路线：原生 Tabs(End) 提供生效区域，格子 ArkTS 自绘，
+    // 外形（圆角/高度）业务可控 —— 与 HdsTabs 版并存，验证自绘材质可达性。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveTabBarSelfDrawnView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveTabBarSelfDrawnView();
+      });
+
+    // 官方 HdsNavigation：标题栏（标题模式/菜单/返回键）+ 滚动渐变模糊 +
+    // 标题栏按钮沉浸光感材质。全屏挂载，内容区为组件内置滚动长图。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveNavigationOhosView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveNavigationOhosView();
+      });
+
+    // 「自制标题栏」验证：原生 Navigation（非 Hds）的 NavigationTitleOptions
+    // systemMaterial + scrollEffectOptions（官方示例20 同款路径），与 HdsNavigation 版对照。
+    KRNativeManager.getInstance()
+      .registerViewCreatorV2('KRImmersiveNavigationSelfDrawnView', (): KuiklyRenderBaseView => {
+        return new KRImmersiveNavigationSelfDrawnView();
+      });
   }
 
   /**

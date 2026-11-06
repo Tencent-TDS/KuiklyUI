@@ -131,4 +131,54 @@ object PlatformUtils {
         }
     }
 
+    /**
+     * 判断当前平台是否支持鸿蒙「沉浸光感」（Immersive Light Sense）。
+     *
+     * 与 iOS 的 [isLiquidGlassSupported] 是两个独立赛道：沉浸光感的视觉表现、生效范围
+     * 与 API 都与液态玻璃不同，因此不做跨端统一，鸿蒙单独提供一套能力。
+     *
+     * 取值来源是渲染层上报的 feature 标记（由系统接口判定真实设备能力），
+     * 而不是 OS 版本号——同一版本号的机型也可能因算力档不支持。
+     *
+     * 注意：即使本接口返回 true，材质也只在系统规定的生效区域内渲染
+     * （弹窗类接口、原生 Slider/Toggle/Select，或 Navigation 标题栏 / 底部 TabBar 内）。
+     */
+    fun isImmersiveMaterialSupported(): Boolean {
+        if (!isOhOs()) {
+            return false
+        }
+        return getCurrentPageData()?.hasFeature("immersive_material") ?: false
+    }
+
+    /** 应用级沉浸光感材质状态（MaterialState），由系统/用户设置控制、应用只读。 */
+    object ImmersiveMaterialState {
+        /** 默认：仅 Dialog/Toast/AlphabetIndexer 默认开，其余组件需显式设置 */
+        const val DEFAULT = 0
+
+        /** 开启：Toast/Menu/Dialog 等浮层默认带材质，且材质样式优先于背景/模糊/阴影 */
+        const val ENABLE = 1
+
+        /** 关闭：任何组件的沉浸光感都不生效 */
+        const val DISABLE = 2
+    }
+
+    /**
+     * 读取应用级材质状态（鸿蒙专属）。
+     *
+     * 决定 Toast/Menu 等系统浮层是否**默认带材质**：
+     * - [ImmersiveMaterialState.ENABLE]：浮层默认带 THICK 材质，业务无需逐个设置；
+     * - [ImmersiveMaterialState.DISABLE]：所有材质不生效（业务应回退普通样式）；
+     * - [ImmersiveMaterialState.DEFAULT]：仅 Dialog/Toast 等少数浮层默认开。
+     *
+     * 该状态由系统/用户设置控制（系统设置中的沉浸光感开关），应用只读不可写；
+     * 低版本系统或非鸿蒙平台返回 [ImmersiveMaterialState.DEFAULT]。
+     */
+    fun getImmersiveMaterialState(): Int {
+        if (!isOhOs()) {
+            return ImmersiveMaterialState.DEFAULT
+        }
+        return getCurrentPageData()?.getFeatureInt("immersive_material_state")
+            ?: ImmersiveMaterialState.DEFAULT
+    }
+
 }

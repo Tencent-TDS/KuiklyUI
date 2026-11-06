@@ -20,7 +20,7 @@ import { KRNativeManager } from './manager/KRNativeManager';
 import { KRConvertUtil } from './utils/KRConvertUtil';
 import { common, EnvironmentCallback } from '@kit.AbilityKit';
 import { KRSize } from './foundation/KRSize';
-import { display, window } from '@kit.ArkUI';
+import { display, uiMaterial, window } from '@kit.ArkUI';
 import { KRRect } from './foundation/KRRect';
 import { KRRenderViewExportCreator } from './components/base/KRBaseViewExport';
 import { KRRenderModuleExportCreator } from './modules/base/IKRModuleExport';
@@ -952,9 +952,43 @@ export class KRNativeRenderController {
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRDensity] = this.getWindowActiveDensity();
     pageData[KRFeature] = {
-      "box_shadow_fill" : 1
+      "box_shadow_fill" : 1,
+      // 鸿蒙沉浸光感（Immersive Light Sense）能力标记，由系统接口判定设备是否支持。
+      // 仅在支持时置 1，业务侧通过 PlatformUtils.isImmersiveMaterialSupported() 读取。
+      "immersive_material" : KRNativeRenderController.isImmersiveMaterialSupported() ? 1 : 0,
+      // 应用级材质状态（MaterialState：0=DEFAULT 1=ENABLE 2=DISABLE），由系统/用户设置控制，
+      // 应用只读不可写。决定 Toast/Menu 等浮层是否默认带材质 —— 业务通过
+      // PlatformUtils.getImmersiveMaterialState() 读取（无此 feature 时视为 DEFAULT）。
+      "immersive_material_state" : KRNativeRenderController.getImmersiveMaterialState()
     };
     return pageData;
+  }
+
+  /**
+   * 设备是否支持鸿蒙沉浸光感（API 26+ 的系统材质能力）。
+   * 该接口在低版本系统上不存在，访问会抛异常，故做兜底返回 false。
+   */
+  private static isImmersiveMaterialSupported(): boolean {
+    try {
+      return uiMaterial.isImmersiveMaterialSupported();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * 应用级材质状态（MaterialState）。由系统/用户设置控制，应用只读：
+   * - ENABLE(1)：Toast/Menu/Dialog 等浮层**默认带材质**（业务无需逐个设置）；
+   * - DISABLE(2)：任何组件的材质都不生效；
+   * - DEFAULT(0)：仅 Dialog/Toast/AlphabetIndexer 默认开，其余组件需显式设置。
+   * 低版本系统无此接口，兜底返回 0（DEFAULT）。
+   */
+  private static getImmersiveMaterialState(): number {
+    try {
+      return uiMaterial.getMaterialInfo().state;
+    } catch (e) {
+      return 0;
+    }
   }
 
   private createConfigJson(screenSize: KRSize): string {

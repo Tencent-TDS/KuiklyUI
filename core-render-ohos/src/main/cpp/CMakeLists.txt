@@ -110,6 +110,7 @@ set(SOURCE_SET
         libohos_render/utils/NAPIUtil.cpp
         libohos_render/utils/KRConvertUtil.cpp
         libohos_render/utils/KRUtfUtil.cpp
+        libohos_render/utils/KRSelectionColorUtil.cpp
         thirdparty/cJSON/cJSON.c
         thirdparty/tinyXml/tinyxml2.cpp
         libohos_render/performance/KRPerformanceManager.cpp

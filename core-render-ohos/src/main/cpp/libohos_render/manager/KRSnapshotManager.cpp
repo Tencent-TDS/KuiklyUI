@@ -19,6 +19,7 @@
 #include <arkui/native_interface.h>
 #include <arkui/native_node.h>
 #include <arkui/native_node_napi.h>
+#include <memory>
 #include <multimedia/image_framework/image_packer_mdk.h>
 #include <multimedia/image_framework/image_pixel_map_mdk.h>
 #include <unistd.h>
@@ -37,10 +38,7 @@ constexpr static int MAX_DELAY_DURATION_MS = 1000;
 
 static void ReleaseDrawableItem(struct KRSnapshotItem *item) {
     if (item) {
-        if (item->drawableDescriptor) {
-            OH_ArkUI_DrawableDescriptor_Dispose(item->drawableDescriptor);
-            item->drawableDescriptor = nullptr;
-        }
+        item->drawableDescriptor.reset();
         if (item->env) {
             ArkTS arkTs(item->env);
             if (item->drawableDescriptorRef) {
@@ -65,12 +63,12 @@ static void DisposeItem(struct KRSnapshotItem *item) {
 
 KRSnapshotManager::~KRSnapshotManager() {
     std::for_each(drawableDescriptorCache_.begin(), drawableDescriptorCache_.end(),
-                  [](auto desc) { DisposeItem(&desc.second); });
+                  [](auto &desc) { DisposeItem(&desc.second); });
     drawableDescriptorCache_.clear();
 }
 
 void KRSnapshotManager::CacheSnapshot(napi_env env, napi_value drawableDescriptor, napi_value pixelMap,
-                                      ArkUI_DrawableDescriptor *descriptor, const std::string &key) {
+                                      const KRSnapshotDrawableDescriptor &descriptor, const std::string &key) {
     auto item = drawableDescriptorCache_.find(key);
     if (item != drawableDescriptorCache_.end()) {
         DisposeItem(&item->second);
@@ -104,7 +102,7 @@ bool KRSnapshotManager::SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std
             return true;
         }
         if (item->second.drawableDescriptor) {
-            kuikly::util::SetArkUIImageSrc(node, item->second.drawableDescriptor);
+            kuikly::util::SetArkUIImageSrc(node, item->second.drawableDescriptor.get());
             return true;
         }
     }
@@ -112,8 +110,7 @@ bool KRSnapshotManager::SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std
 }
 
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithDataType(
-    napi_env env, napi_value pixelMap, const std::string &path, const std::string &pathUri,
-    ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
+    napi_env env, napi_value pixelMap) {
     struct ResultData resultData;
     NativePixelMap *nativePixelMap = OH_PixelMap_InitNativePixelMap(env, pixelMap);
     OhosPixelMapInfos info;
@@ -169,16 +166,16 @@ void KRSnapshotManager::UpdateCachedSnapshotUriAfterDelay(int delayMS, const std
 
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithCacheKeyType(
     napi_env env, napi_value pixelMap, napi_value drawableDescriptor, const std::string &path,
-    const std::string &pathUri, ArkUI_DrawableDescriptor *drawableDescriptorPtr,
+    const std::string &pathUri, const KRSnapshotDrawableDescriptor &descriptor,
     std::weak_ptr<IKRRenderViewExport> weak_view) {
     struct ResultData resultData;
     std::stringstream kss;
-    kss << "data:image_Md5_Pixelmap" << drawableDescriptorPtr;
+    kss << "data:image_Md5_Pixelmap" << descriptor.get();
     std::string key = kss.str();
     if (auto strong_view = weak_view.lock()) {
         if (auto strong_root = strong_view->GetRootView().lock()) {
             auto snapshotManager = strong_root->GetSnapshotManager();
-            snapshotManager->CacheSnapshot(env, drawableDescriptor, pixelMap, drawableDescriptorPtr, key);
+            snapshotManager->CacheSnapshot(env, drawableDescriptor, pixelMap, descriptor, key);
             snapshotManager->UpdateCachedSnapshotUriAfterDelay(TIME_TO_UPDATE_SNAPSHOT_URI_MS, key, path, pathUri,
                                                                weak_view);
         }
@@ -191,7 +188,7 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
 
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithFileType(
     napi_env env, napi_value pixelMap, const std::string &path, const std::u16string &pathUri,
-    ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
+    std::weak_ptr<IKRRenderViewExport> weak_view) {
     struct ResultData resultData;
     resultData.code = 0;
     resultData.data = pathUri;
@@ -239,7 +236,7 @@ void KRSnapshotManager::TakeSnapshot(const KRAnyValue &instance_id, const std::s
                         if (auto root = strongView->GetRootView().lock()) {
                             auto snapshotManager = root->GetSnapshotManager();
                             resultData = snapshotManager->ProcessSnapshotResultWithFileType(
-                                env, nullptr, kuikly::util::UTF16ToUTF8(path16), pathURI16, nullptr, weak_view);
+                                env, nullptr, kuikly::util::UTF16ToUTF8(path16), pathURI16, weak_view);
                         }
                     }
                 } else {
@@ -252,13 +249,15 @@ void KRSnapshotManager::TakeSnapshot(const KRAnyValue &instance_id, const std::s
 
                         ArkUI_DrawableDescriptor *drawableDescriptorPtr = nullptr;
                         OH_ArkUI_GetDrawableDescriptorFromNapiValue(env, drawableDescriptor, &drawableDescriptorPtr);
+                        // Share ownership with the cache; uncached results are released on scope exit.
+                        KRSnapshotDrawableDescriptor descriptor(drawableDescriptorPtr,
+                                                                OH_ArkUI_DrawableDescriptor_Dispose);
                         std::string pathStr;
                         std::string pathURI;
                         if (auto root = strongView->GetRootView().lock()) {
                             auto snapshotManager = root->GetSnapshotManager();
                             if (type == "dataUri") {
-                                resultData = snapshotManager->ProcessSnapshotResultWithDataType(
-                                    env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                                resultData = snapshotManager->ProcessSnapshotResultWithDataType(env, pixelMap);
                             } else if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                                 std::u16string path16 = arkTs.GetStringUTF16(path);
@@ -266,7 +265,7 @@ void KRSnapshotManager::TakeSnapshot(const KRAnyValue &instance_id, const std::s
                                 napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
                                 pathURI = kuikly::util::UTF16ToUTF8(arkTs.GetStringUTF16(uri));
                                 resultData = snapshotManager->ProcessSnapshotResultWithCacheKeyType(
-                                    env, pixelMap, drawableDescriptor, pathStr, pathURI, drawableDescriptorPtr,
+                                    env, pixelMap, drawableDescriptor, pathStr, pathURI, descriptor,
                                     weak_view);
                             }
                         }

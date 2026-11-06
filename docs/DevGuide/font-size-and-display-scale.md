@@ -68,6 +68,43 @@ val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
 
 这样无论真机分辨率多少，Kuikly 页面的逻辑宽度都恒为 `393`，与 iOS 按 `393` 实现的界面在尺寸与比例上一一对齐。
 
+#### 不要用 `setTo()` 复制系统 metrics
+
+若想保留系统除 density 以外的字段，容易写成下面这样，**但它在字号上不等价于上例**：
+
+```kotlin
+override fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics {
+    return DisplayMetrics().apply {
+        setTo(Resources.getSystem().displayMetrics) // ❌
+        scaledDensity = density
+    }
+}
+```
+
+`DisplayMetrics.setTo()` 会一并拷贝 `fontScaleConverter` 字段（Android 14 起的非线性字体缩放曲线），而 `TypedValue.applyDimension` 的 SP 分支优先使用它：
+
+```java
+// android.util.TypedValue
+case COMPLEX_UNIT_SP:
+    if (metrics.fontScaleConverter != null) {
+        return applyDimension(COMPLEX_UNIT_DIP,
+                metrics.fontScaleConverter.convertSpToDp(value), metrics);
+    } else {
+        return value * metrics.scaledDensity;
+    }
+```
+
+因此只要 `fontScaleConverter` 非空，覆写 `scaledDensity` 就不起作用，字号仍按系统字体缩放放大。上例采用逐个字段显式赋值，不触碰该字段，才能让 `scaledDensity` 真正生效。
+
+实测（16sp，`font_scale` 均为 1.3）：
+
+| 设备（系统） | density | 系统 metrics | `setTo()` 写法 | 显式赋值写法 |
+|---|---|---|---|---|
+| PFEM10（Android 14） | 3.0 | 60.60 px | **60.60 px** | **48.00 px** |
+| 模拟器（Android 16） | 2.625 | 53.03 px | **53.03 px** | **42.00 px** |
+
+`setTo()` 写法的输出与系统 metrics 完全相同，说明字号未被锁定；显式赋值写法则稳定等于 `16 × density`。
+
 > - 设计基准可按团队设计稿调整（如 `375`），三端务必使用同一个值。
 > - 上例以全屏宽度（`widthPixels`）为基准；若 Kuikly 容器不是全屏，应改用容器实际宽度参与计算。
 > - iOS / HarmonyOS 无 Android 这种由系统「显示大小」改变 density 的机制，按基准设计稿实现即可，无需额外对齐代码。
@@ -125,9 +162,58 @@ fontSizeScaleFollowSystem(): boolean {
 
 ---
 
+## 三、Kuikly Compose 的适用性
+
+上述两套机制作用在 **Pager / Delegate** 这一层，与页面使用哪种 UI 写法无关。Kuikly Compose 页面同样适用，**不需要在 `compose/` 模块侧写任何适配代码**。
+
+### 为什么 Compose 页面会自动生效
+
+Compose 的文本最终交给**共享渲染层**渲染，而不是由 Compose 自己绘制：
+
+| Compose 组件 | 实际渲染节点 |
+|--------------|--------------|
+| `Text` / `BasicText` | `KRRichTextShadow`、`KRRichTextView` |
+| `BasicTextField` / `TextArea` | `KRTextFieldView` |
+
+这些节点取字号时统一走 `spToPxF()` → `getDisplayMetrics(useHostDisplayMetrics)`，也就是 `IKRFontAdapter.getDisplayMetrics` 返回的那份 `DisplayMetrics`。
+
+布局侧同理：`ComposeContainer` 的 `Density` 由 `pagerDensity()`（即 `pageData.density`）构造，而这个值正是 FontAdapter 返回的 `DisplayMetrics.density`，因此「统一设计宽度」对 Compose 的 `dp` 布局同样生效。
+
+> ⚠️ 在 `compose/` 模块里搜不到 `getDisplayMetrics` / `useHostDisplayMetrics` / `IKRFontAdapter` 是正常的：Compose 经由共享渲染层接入，无需自己引用这些符号。
+
+### 实测对照（Android，density 2.625）
+
+字号（16sp → px）：
+
+| 配置 | Compose | DSL |
+|------|---------|-----|
+| 不接 adapter，系统 fontScale = 2.0 | 73.5 | 73.5 |
+| 接入 adapter，系统 fontScale = 2.0 | 42.0 | 42.0 |
+| 接入 adapter，系统 fontScale = 1.0 | 42.0 | 42.0 |
+
+布局（100dp 色块的物理像素，系统 density 用 `adb shell wm density` 切换）：
+
+| 配置 | Compose | DSL |
+|------|---------|-----|
+| 接入 adapter，density = 2.625 | 200 × 200 | 200 × 200 |
+| 接入 adapter，density = 3.5 | 200 × 200 | 200 × 200 |
+| 不接 adapter，density = 3.5 | 350 × 350 | 350 × 350 |
+
+两种场景下 Compose 与 DSL 的数值均完全一致：接入 adapter 后不再跟随系统设置，关闭后同步跟随。
+
+### Compose 页面要做的配置
+
+与 DSL 页面完全相同：
+
+1. **统一设计宽度**：`Delegate.useHostDisplayMetrics()` 返回 `true`，并在 `IKRFontAdapter.getDisplayMetrics` 中返回按设计基准计算的 `DisplayMetrics`
+2. **字号不跟随系统**：`Pager.scaleFontSizeEnable()` 返回 `true`，并在 `IKRFontAdapter.scaleFontSize` 中返回目标字号（不跟随则原样返回）
+
+---
+
 ## 注意事项
 
 - **两条能力独立**：只想统一布局尺寸就只做「统一设计宽度」；只想锁字号就只做「字号不跟随系统」；可同时启用。
 - **务必先接入字体适配器**：Android `getDisplayMetrics` / `scaleFontSize` 都属于 `IKRFontAdapter`，需先注册 `krFontAdapter`；iOS 需 `registerFontHandler:`。详见各端接入文档：[Android 接入](../QuickStart/android.md)、[iOS 接入](../QuickStart/iOS.md)、[HarmonyOS 接入](../QuickStart/harmony.md)。
 - **总开关易遗漏**：Android / iOS 即使实现了 `scaleFontSize` / `scaleFitWithFontSize:`，若 `Pager.scaleFontSizeEnable()` 仍为默认 `false`，缩放算法不会被调用。
 - **`useHostDisplayMetrics` 易遗漏**：FontAdapter 即使返回了自定义 `DisplayMetrics`，若 Delegate 的 `useHostDisplayMetrics()` 未返回 `true`，框架仍使用系统默认 metrics，统一宽度不生效。
+- **`setTo()` 会带走 `fontScaleConverter`**：用 `setTo(Resources.getSystem().displayMetrics)` 构造 metrics 时，覆写 `scaledDensity` 对字号无效，需按字段显式赋值，见「一、统一设计宽度（跨端）」中的对照实测。

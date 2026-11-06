@@ -27,16 +27,24 @@ https://github.com/Tencent-TDS/KuiklyUI/blob/main/miniApp/dist/app.js
 var business = require('./business/nativevue2')
 var render = require('./lib/miniprogramApp.js')
 
+// 兼容部分旧版小程序基础库缺失 globalThis 的情况
+if (typeof globalThis !== 'undefined') {
+    globalThis.com = business.com;
+    globalThis.callKotlinMethod = business.callKotlinMethod;
+}
+
 global.com = business.com;
 global.callKotlinMethod = business.callKotlinMethod;
 
 global.getAssetJson = function(path) {
-var json = require('./assets/' + path.replace('.json','.js'))
-return json
+    var json = require('./assets/' + path.replace('.json','.js'))
+    return json
 }
 
 render.initApp()
 ```
+
+> 为什么同时给 `globalThis` 和 `global` 赋值：Kotlin 渲染层产物内部部分路径（例如 `MiniGlobal.globalThis.getAssetJson`）通过 `globalThis` 访问宿主注入的对象，而小程序引擎自身的包命名空间解析走的是 `global`；此外部分旧版基础库里不存在 `globalThis`，所以需要 `typeof` 守卫兜底。
 
 小程序业务调用JS SDK接口示例：
 https://github.com/Tencent-TDS/KuiklyUI/blob/main/miniApp/src/jsMain/kotlin/module/KRBridgeModule.kt

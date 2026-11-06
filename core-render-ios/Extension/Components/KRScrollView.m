@@ -80,6 +80,12 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
     KuiklyRenderCallback _scrollEventCallback;
     /** 松手时offsetY小于insetTop设置该contentInset for 下拉刷新组件 */
     UIEdgeInsets _contentInsetWhenEndDrag;
+    /**
+     * 业务通过 contentInset / contentInsetWhenEndDrag 属性声明的基础 inset。
+     * contentInset 只由业务显式决定，不随 contentOffset 越界而隐式扩张；
+     * 否则「inset 撑大 → UIScrollView 允许更负 offset → 再撑大」形成正反馈累积。
+     */
+    UIEdgeInsets _baseContentInset;
     /* wrapper self view*/
     __weak KRWrapperView *_wrapperView;
     /* 一对多代理转发 */
@@ -176,6 +182,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         self.autoAdjustContentOffsetDisable = NO;
     }
     _contentInsetWhenEndDrag = UIEdgeInsetsZero;
+    _baseContentInset = UIEdgeInsetsZero;
     // Reset nested scroll transient state.
     [self.nestedScrollCoordinator prepareForComposeReuse];
     self.shouldHaveActiveInner = NO;
@@ -320,7 +327,13 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         && scrollView.contentOffset.y < -_contentInsetWhenEndDrag.top
         ) {
         UIEdgeInsets insets = _contentInsetWhenEndDrag;
-        self.contentInset = insets;
+        // 下拉刷新只改变 top，其余方向保持业务声明的基础值，避免冲掉横向/底部 inset。
+        // 该值是业务声明的「松手后应保持」的新基准，同步更新 base，
+        // 否则后续 contentOffset 回写会把刷新 inset 打回旧基准。
+        UIEdgeInsets newBase = UIEdgeInsetsMake(insets.top, _baseContentInset.left,
+                                                _baseContentInset.bottom, _baseContentInset.right);
+        _baseContentInset = newBase;
+        self.contentInset = newBase;
     }
     
 }
@@ -470,6 +483,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     NSArray<NSString *> *points = [params componentsSeparatedByString:@" "];
     BOOL animated = [points count] > 4 ? [points[4] boolValue] : NO;
     UIEdgeInsets contentInset = UIEdgeInsetsMake([points[0] doubleValue], [points[1] doubleValue], [points[2] doubleValue], [points[3] doubleValue]);
+    // 记录业务声明的基础 inset（必须在 skip unchanged 之前赋值）。
+    // 后续 contentOffset 路径会以该值复位 contentInset，确保 inset 只由业务决定。
+    _baseContentInset = contentInset;
     // Skip if inset unchanged — avoids spurious animated setContentOffset that conflicts
     // with a subsequent inset change (e.g. PullToRefresh REFRESHING→IDLE within same frame)
     if (UIEdgeInsetsEqualToEdgeInsets(self.contentInset, contentInset)) {
@@ -810,16 +826,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
-    if ([_css_directionRow boolValue]) {
-        if (contentOffset.x < -self.contentInset.left) {
-            return UIEdgeInsetsMake(self.contentInset.top, -contentOffset.x, self.contentInset.bottom, self.contentInset.right);
-        }
-    } else {
-        if (contentOffset.y < -self.contentInset.top) {
-            return UIEdgeInsetsMake(-contentOffset.y, self.contentInset.left, self.contentInset.bottom, self.contentInset.right);
-        }
-    }
-    return self.contentInset;
+    // contentInset 只能由业务通过 contentInset / contentInsetWhenEndDrag 属性声明。
+    // 不再因收到负 contentOffset 就自动扩张 inset：contentInset 会放大 UIScrollView 的
+    // 合法越界范围，若随 offset 撑大，则「撑大→允许更负 offset→再撑大」形成正反馈，
+    // 反复左右滑动会让 inset.left/top 无限累积（左侧白色间隙越来越大）。
+    // 越界回弹交由 UIScrollView bounces 原生处理；需负 offset 常驻的刷新/吸顶场景
+    // 由业务显式 setContentInset 声明，不依赖此处的隐式扩张。
+    // 保留 contentOffset 形参以统一所有写入点的调用签名，当前实现不依赖其值。
+    return _baseContentInset;
 }
 
 
@@ -876,7 +890,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
                                   delay:0 options:(UIViewAnimationOptionCurveLinear | UIViewAnimationOptionAllowUserInteraction)
                              animations:^{
                                             if (contentOffset.y < 0 || contentOffset.x < 0) {
-                                               self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                                               // 与主路径共用同一套 inset 计算，避免只修一处漏一处
+                                               self.contentInset = [self maxEdgeInsetsWithContentOffset:contentOffset];
                                             }
                                             [self setContentOffset:contentOffset];
                                         }
@@ -900,7 +915,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
                                 options:(UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction)
                              animations:^{
                     if (contentOffset.y < 0 || contentOffset.x < 0) {
-                       self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                       // 与主路径共用同一套 inset 计算，避免只修一处漏一处
+                       self.contentInset = [self maxEdgeInsetsWithContentOffset:contentOffset];
                     }
                     [self setContentOffset:contentOffset];
             } completion:^(BOOL finished) {

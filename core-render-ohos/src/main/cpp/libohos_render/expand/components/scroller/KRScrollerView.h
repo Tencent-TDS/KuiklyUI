@@ -140,7 +140,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void EndScrollSession();
     bool SetFlingEnable(bool enable);
     bool SetFlingSpeedLimit(const KRAnyValue &value);
-    KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    KRPoint MaxContentOffsetForContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
     bool StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
                                     float velocity_y);
     void CancelSpringScrollAnimation(bool end_session);
@@ -180,6 +180,8 @@ class KRScrollerView : public IKRRenderViewExport {
     ArkUI_ScrollState current_scroll_state_;
 
     std::shared_ptr<KRAnimation> content_inset_animate_;
+    // 已生效的 contentInset：用于跳过重复设置，以及计算 margin/offset 的同步补偿。
+    std::shared_ptr<KRScrollerContentInset> current_content_inset_;
     std::shared_ptr<KRScrollerContentInset> content_inset_when_drag_end_;
     std::unordered_set<IKRScrollObserver *> scroll_observers_;
 

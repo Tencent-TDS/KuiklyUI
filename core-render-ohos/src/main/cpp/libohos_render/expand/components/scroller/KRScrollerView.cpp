@@ -682,29 +682,76 @@ void KRScrollerView::SetContentInsetWhenDragEnd(const KRAnyValue &value) {
     content_inset_when_drag_end_ = std::make_shared<KRScrollerContentInset>(value);
 }
 
+namespace {
+constexpr int kContentInsetAnimationDurationMs = 200;
+
+// inset 四边都没有变化才视为同一次设置（animate 标记不参与比较）。
+bool IsSameContentInset(const KRScrollerContentInset &lhs, const KRScrollerContentInset &rhs) {
+    return lhs.top == rhs.top && lhs.start == rhs.start && lhs.bottom == rhs.bottom &&
+           lhs.end == rhs.end;
+}
+}  // namespace
+
 void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset) {
-    if (!content_view_) {
+    if (!content_view_ || !content_inset) {
         return;
     }
-    auto top = content_inset->top;
-    auto start = content_inset->start;
-    auto bottom = content_inset->bottom;
-    auto end = content_inset->end;
-    auto animate = content_inset->animate;
+    // 对齐 iOS css_contentInsetWithParams（#1582）：inset 未变化时直接返回，避免重复动画。
+    // 下拉刷新松手时原生与 compose 会各设置一次 inset，重复应用会造成二次位移。
+    if (current_content_inset_ && IsSameContentInset(*current_content_inset_, *content_inset)) {
+        return;
+    }
+
+    const float top = content_inset->top;
+    const float start = content_inset->start;
+    const float bottom = content_inset->bottom;
+    const float end = content_inset->end;
+    const float prev_top = current_content_inset_ ? current_content_inset_->top : 0.0f;
+    const float prev_start = current_content_inset_ ? current_content_inset_->start : 0.0f;
+    const auto current_offset = GetContentOffset();
+
+    // 鸿蒙用 content 的 margin 模拟 contentInset，overscroll 则表现为负的 contentOffset：
+    // 视觉位移 = margin - offset。inset 的 top/start 变化会移动 margin，若不同步改 offset，
+    // 「margin 位移」会和「overscroll 回弹」叠加（鸿蒙下拉刷新松手后再滑一段的根因）。
+    // 只在已经处于 overscroll 时补偿，避免影响正常滚动位置下的既有行为。
+    const bool compensate_x = current_offset.x < 0.0f && start != prev_start;
+    const bool compensate_y = current_offset.y < 0.0f && top != prev_top;
+    const auto max_offset = MaxContentOffsetForContentInset(content_inset);
+
+    KRPoint target_offset = current_offset;
+    if (compensate_x) {
+        // 补偿后仍为负说明拉过了新 inset，由下面同一段动画收回到 0。
+        target_offset.x = std::max(0.0f, current_offset.x + (start - prev_start));
+    }
+    if (compensate_y) {
+        target_offset.y = std::max(0.0f, current_offset.y + (top - prev_top));
+    }
+    target_offset.x = std::min(target_offset.x, max_offset.x);
+    target_offset.y = std::min(target_offset.y, max_offset.y);
+
+    // 有 overscroll 时即使调用方要求立即生效也必须走动画：ArkUI 允许 offset 停在 overscroll
+    // 位置（SetArkUIContentOffset 的 value[6]），不留动画会卡在越界位置。
+    const bool animate = content_inset->animate || compensate_x || compensate_y;
+
+    KR_LOG_INFO << "content inset: top=" << top << " start=" << start << " bottom=" << bottom << " end=" << end
+                << " animate=" << animate << " offset=(" << current_offset.x << "," << current_offset.y
+                << ")->(" << target_offset.x << "," << target_offset.y << ")";
+
+    // 先改 offset 再改 margin：两者在同一帧内生效，视觉不跳。
+    if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
+        kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, animate,
+                                            animate ? kContentInsetAnimationDurationMs : 0, 0, 0.0f);
+    }
+
     if (animate) {
-        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先滚回合法位置
-        auto current_offset = GetContentOffset();
-        auto target_offset = MaxContentOffsetInContentInset(content_inset);
-        if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0, 0);
-        }
-        // 再用原有动画逻辑设置 margin
         auto root_view = GetRootView().lock();
         if (!root_view) {
             kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
         } else {
             auto animate_option = std::make_shared<KRAnimateOption>();
-            animate_option->SetDuration(200);
+            animate_option->SetDuration(kContentInsetAnimationDurationMs);
+            // 与 offset 动画保持同一曲线/时长，margin 与 offset 才能同步收口、视觉不抖。
+            animate_option->SetCurve(ARKUI_CURVE_EASE);
             auto weak_this = std::weak_ptr<KRScrollerView>(std::dynamic_pointer_cast<KRScrollerView>(shared_from_this()));
             content_inset_animate_ = std::make_shared<KRAnimation>(
                 root_view->GetUIContextHandle(), animate_option, [weak_this, top, start, bottom, end]() {
@@ -723,52 +770,31 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     } else {
         kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
     }
+    current_content_inset_ = std::make_shared<KRScrollerContentInset>(*content_inset);
 }
 
-// 计算在指定 contentInset 下 offset 的合法位置（对齐 iOS p_maxContentOffsetInContentInset）
-KRPoint KRScrollerView::MaxContentOffsetInContentInset(
+// 计算 margin 模拟 inset 后的最大滚动 offset：
+// 可滚动内容长度 = contentSize + top + bottom（start/end 同理），因此上限是 total - viewport。
+// 注意不要照抄 iOS 的 -inset.top 边界：iOS 的 inset 改的是滚动边界，鸿蒙的 margin 是布局位移。
+KRPoint KRScrollerView::MaxContentOffsetForContentInset(
     const std::shared_ptr<KRScrollerContentInset> &content_inset) {
-    if (!content_view_) {
-        return KRPoint();
+    if (!content_view_ || !content_inset) {
+        return KRPoint{FLT_MAX, FLT_MAX};
     }
 
-    auto frame = GetFrame();
-    auto content_frame = content_view_->GetFrame();
-    auto current_offset = GetContentOffset();
+    const auto frame = GetFrame();
+    const auto content_frame = content_view_->GetFrame();
+    if (frame.width <= 0 || frame.height <= 0 || content_frame.width <= 0 || content_frame.height <= 0) {
+        // 尚未完成布局，不做上限裁剪。
+        return KRPoint{FLT_MAX, FLT_MAX};
+    }
 
     if (direction_row_) {
-        float content_size = content_frame.width;
-        float frame_size = frame.width;
-        if (content_size <= frame_size) {
-            return KRPoint();
-        }
-        // 上/左越界：offset 滚到了 inset 头部之前
-        if (current_offset.x < -content_inset->start) {
-            return KRPoint{-content_inset->start, 0};
-        }
-        // 下/右越界：offset 滚过了内容尾部
-        float max_offset = content_size + content_inset->end - frame_size;
-        if (current_offset.x > max_offset) {
-            return KRPoint{max_offset, 0};
-        }
-    } else {
-        float content_size = content_frame.height;
-        float frame_size = frame.height;
-        if (content_size <= frame_size) {
-            return KRPoint();
-        }
-        // 上越界
-        if (current_offset.y < -content_inset->top) {
-            return KRPoint{0, -content_inset->top};
-        }
-        // 下越界
-        float max_offset = content_size + content_inset->bottom - frame_size;
-        if (current_offset.y > max_offset) {
-            return KRPoint{0, max_offset};
-        }
+        return KRPoint{
+            std::max(0.0f, content_frame.width + content_inset->start + content_inset->end - frame.width), 0.0f};
     }
-
-    return current_offset;
+    return KRPoint{
+        0.0f, std::max(0.0f, content_frame.height + content_inset->top + content_inset->bottom - frame.height)};
 }
 
 void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
@@ -949,7 +975,8 @@ void KRScrollerView::ApplyContentInsetWhenDragEnd() {
     if (!content_inset_when_drag_end_) {
         return;
     }
-    KR_LOG_INFO << "apply content inset: " << content_inset_when_drag_end_->top;
+    KR_LOG_INFO << "apply content inset when drag end: top=" << content_inset_when_drag_end_->top
+                << " offset=" << GetContentOffset().y;
     SetContentInset(content_inset_when_drag_end_);
 }
 

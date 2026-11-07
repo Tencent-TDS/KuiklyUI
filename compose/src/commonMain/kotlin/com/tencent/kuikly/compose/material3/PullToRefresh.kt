@@ -38,9 +38,11 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.layout.layout
+import com.tencent.kuikly.compose.ui.node.LayoutAwareModifierNode
+import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.LayoutNode
-import com.tencent.kuikly.compose.ui.node.MeasureScopeWithLayoutNode
 import com.tencent.kuikly.compose.ui.node.PullToRefreshHitTest
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
@@ -340,6 +342,18 @@ internal fun PullToRefreshItem(
         }
     }
 
+    // Captures the list's LayoutNode (the refresh item lives in a LazyList item slot, so its
+    // parent node is the list) and registers it together with the inset that hit testing has to
+    // compensate for. The holder is intentionally not a snapshot state: hit testing only needs the
+    // reference and the capture must not trigger recomposition.
+    val listNodeHolder = remember { RefreshListNodeHolder() }
+    val listRegistrationModifier = remember {
+        RefreshListRegistrationElement { node -> listNodeHolder.node = node }
+    }
+    DisposableEffect(Unit) {
+        onDispose { listNodeHolder.node?.let { PullToRefreshHitTest.remove(it) } }
+    }
+
     // Handle inset changes based on pull state
     LaunchedEffect(state.pullState) {
         val scrollView = scrollState.kuiklyInfo.scrollView
@@ -349,12 +363,19 @@ internal fun PullToRefreshItem(
                 suppressIdleInsetReset = false
                 pullToRefreshLog { "apply inset REFRESHING top=$refreshThresholdLogical animated=true" }
                 scrollView?.setContentInset(top = refreshThresholdLogical, animated = true)
+                // Keep the hit testing compensation in sync with the condition that applies the
+                // inset: the inset is already effective while onRefresh has not reported the
+                // refreshing state back to the caller yet.
+                listNodeHolder.node?.let {
+                    PullToRefreshHitTest.set(it, refreshThresholdPx.roundToInt())
+                }
             }
             PullState.IDLE -> {
                 // Never apply contentInset while dragging:
                 // - iOS: animated inset also animates contentOffset back to bounds
                 // - Android: non-animated inset calls setFinalTranslation and snaps overscroll to 0
                 scrollView?.setContentInsetWhenEndDrag(top = 0f)
+                listNodeHolder.node?.let { PullToRefreshHitTest.remove(it) }
                 if (suppressIdleInsetReset) {
                     suppressIdleInsetReset = false
                 } else if (!isDragging) {
@@ -396,32 +417,12 @@ internal fun PullToRefreshItem(
         }
     }
 
-    // Register the list node and the current inset so hit testing can compensate for the native
-    // content inset applied by the render layer (see PullToRefreshHitTest). The visual
-    // displacement and the native bounce are left untouched.
-    var listNode by remember { mutableStateOf<LayoutNode?>(null) }
-    LaunchedEffect(state.isRefreshing, listNode) {
-        val node = listNode ?: return@LaunchedEffect
-        PullToRefreshHitTest.set(node, if (state.isRefreshing) refreshThresholdPx.toInt() else 0)
-    }
-    DisposableEffect(Unit) {
-        onDispose { listNode?.let { PullToRefreshHitTest.remove(it) } }
-    }
-    val captureListNodeModifier = Modifier.layout { measurable, constraints ->
-        if (listNode == null) {
-            val self = (this as? MeasureScopeWithLayoutNode)?.layoutNode
-            listNode = self?.parent ?: self
-        }
-        val placeable = measurable.measure(constraints)
-        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-    }
-
     // Refresh indicator UI
     Box(
         modifier = modifier
             .then(if (topInset > 0.dp) Modifier.padding(top = topInset) else Modifier)
             .offsetWithParentAdjustment(y = -refreshThreshold)
-            .then(captureListNodeModifier)
+            .then(listRegistrationModifier)
             .fillMaxWidth()
             .height(refreshThreshold),
         contentAlignment = Alignment.Center
@@ -458,5 +459,52 @@ private fun DefaultRefreshIndicator(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(16.dp)
         )
+    }
+}
+/**
+ * Holds the [LayoutNode] of the list that the refresh item belongs to.
+ *
+ * Deliberately a plain holder instead of a snapshot state: the reference is only consumed by hit
+ * testing and capturing it must not schedule another composition.
+ */
+private class RefreshListNodeHolder {
+    var node: LayoutNode? = null
+}
+
+private class RefreshListRegistrationElement(
+    private val onNode: (LayoutNode?) -> Unit
+) : ModifierNodeElement<RefreshListRegistrationNode>() {
+    override fun create(): RefreshListRegistrationNode = RefreshListRegistrationNode(onNode)
+
+    override fun update(node: RefreshListRegistrationNode) {
+        node.onNode = onNode
+    }
+
+    override fun equals(other: Any?): Boolean = other is RefreshListRegistrationElement
+
+    override fun hashCode(): Int = 0
+}
+
+private class RefreshListRegistrationNode(
+    var onNode: (LayoutNode?) -> Unit
+) : LayoutAwareModifierNode, Modifier.Node() {
+    private var reported = false
+
+    override fun onPlaced(coordinates: LayoutCoordinates) {
+        if (reported) {
+            return
+        }
+        reported = true
+        // The refresh item is placed in a LazyList item slot, which is a virtual node.
+        // LayoutNode.parent skips virtual nodes, so the parent of this node is the real LayoutNode
+        // of the list (an ancestor of every item, and of nothing outside the list). If a real
+        // LayoutNode is ever inserted between the item and the list, the parent still is an
+        // ancestor of all the items, which keeps the lookup below valid.
+        val self = coordinator?.layoutNode
+        onNode(self?.parent ?: self)
+    }
+
+    override fun onDetach() {
+        onNode(null)
     }
 }

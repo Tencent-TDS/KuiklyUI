@@ -46,16 +46,17 @@ internal object PullToRefreshHitTest {
         if (entries.isEmpty() || nodes.isEmpty()) {
             return 0
         }
-        for ((listNode, inset) in entries) {
-            if (inset <= 0) continue
-            for (hit in nodes) {
-                var node: LayoutNode? = hit.coordinator?.layoutNode
-                while (node != null) {
-                    if (node === listNode) {
-                        return inset
-                    }
-                    node = node.parent
+        for (hit in nodes) {
+            // Walk up from the hit node and return the inset of the nearest registered list, so
+            // nested lists resolve deterministically to the innermost one instead of depending on
+            // the map iteration order.
+            var node: LayoutNode? = hit.coordinator?.layoutNode
+            while (node != null) {
+                val inset = entries[node]
+                if (inset != null && inset > 0) {
+                    return inset
                 }
+                node = node.parent
             }
         }
         return 0

@@ -107,37 +107,15 @@ internal class PointerInputEventProcessor(val root: LayoutNode) {
                 val pointerInputChange = internalPointerEvent.changes.valueAt(i)
                 if (isHover || pointerInputChange.changedToDownIgnoreConsumed()) {
                     val isTouchEvent = pointerInputChange.type == PointerType.Touch
-                    if (pointerEvent.rootNode != null) {
-                        val hitNode = pointerEvent.rootNode
-                        hitNode.hitTest(pointerInputChange.position, hitResult, isTouchEvent)
-                        val refreshInset = PullToRefreshHitTest.insetForHit(hitResult)
-                        if (refreshInset > 0) {
-                            hitResult.clear()
-                            hitNode.hitTest(
-                                pointerInputChange.position - Offset(0f, refreshInset.toFloat()),
-                                hitResult,
-                                isTouchEvent,
-                            )
-                        }
-                        if (hitResult.isNotEmpty()) {
-                            hitPathTracker.addHitPath(pointerInputChange.id, hitResult)
-                            hitResult.clear()
-                        }
-                    } else {
-                        root.hitTest(pointerInputChange.position, hitResult, isTouchEvent)
-                        val refreshInset = PullToRefreshHitTest.insetForHit(hitResult)
-                        if (refreshInset > 0) {
-                            hitResult.clear()
-                            root.hitTest(
-                                pointerInputChange.position - Offset(0f, refreshInset.toFloat()),
-                                hitResult,
-                                isTouchEvent,
-                            )
-                        }
-                        if (hitResult.isNotEmpty()) {
-                            hitPathTracker.addHitPath(pointerInputChange.id, hitResult)
-                            hitResult.clear()
-                        }
+                    val hitNode = pointerEvent.rootNode ?: root
+                    hitTestWithRefreshCompensation(
+                        hitNode,
+                        pointerInputChange.position,
+                        isTouchEvent,
+                    )
+                    if (hitResult.isNotEmpty()) {
+                        hitPathTracker.addHitPath(pointerInputChange.id, hitResult)
+                        hitResult.clear()
                     }
                 }
             }
@@ -181,6 +159,28 @@ internal class PointerInputEventProcessor(val root: LayoutNode) {
             return processResult
         } finally {
             isProcessing = false
+        }
+    }
+
+    /**
+     * Compensates for the content inset applied by pull-to-refresh while a list is refreshing.
+     *
+     * The inset is applied by the render layer only (a content-view margin on HarmonyOS,
+     * translationY on Android) and does not take part in Compose layout, so the Compose hit test
+     * would otherwise report the element one inset away from the one that is drawn. When the hit
+     * path belongs to a list that is registered as refreshing, hit testing is repeated at
+     * [position] shifted by the inset. Nodes outside that list are not affected.
+     */
+    private fun hitTestWithRefreshCompensation(
+        node: LayoutNode,
+        position: Offset,
+        isTouchEvent: Boolean,
+    ) {
+        node.hitTest(position, hitResult, isTouchEvent)
+        val refreshInset = PullToRefreshHitTest.insetForHit(hitResult)
+        if (refreshInset > 0) {
+            hitResult.clear()
+            node.hitTest(position - Offset(0f, refreshInset.toFloat()), hitResult, isTouchEvent)
         }
     }
 

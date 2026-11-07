@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -38,6 +39,9 @@ import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.layout.layout
+import com.tencent.kuikly.compose.ui.node.LayoutNode
+import com.tencent.kuikly.compose.ui.node.MeasureScopeWithLayoutNode
+import com.tencent.kuikly.compose.ui.node.PullToRefreshHitTest
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Dp
@@ -392,11 +396,32 @@ internal fun PullToRefreshItem(
         }
     }
 
+    // Register the list node and the current inset so hit testing can compensate for the native
+    // content inset applied by the render layer (see PullToRefreshHitTest). The visual
+    // displacement and the native bounce are left untouched.
+    var listNode by remember { mutableStateOf<LayoutNode?>(null) }
+    LaunchedEffect(state.isRefreshing, listNode) {
+        val node = listNode ?: return@LaunchedEffect
+        PullToRefreshHitTest.set(node, if (state.isRefreshing) refreshThresholdPx.toInt() else 0)
+    }
+    DisposableEffect(Unit) {
+        onDispose { listNode?.let { PullToRefreshHitTest.remove(it) } }
+    }
+    val captureListNodeModifier = Modifier.layout { measurable, constraints ->
+        if (listNode == null) {
+            val self = (this as? MeasureScopeWithLayoutNode)?.layoutNode
+            listNode = self?.parent ?: self
+        }
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
     // Refresh indicator UI
     Box(
         modifier = modifier
             .then(if (topInset > 0.dp) Modifier.padding(top = topInset) else Modifier)
             .offsetWithParentAdjustment(y = -refreshThreshold)
+            .then(captureListNodeModifier)
             .fillMaxWidth()
             .height(refreshThreshold),
         contentAlignment = Alignment.Center

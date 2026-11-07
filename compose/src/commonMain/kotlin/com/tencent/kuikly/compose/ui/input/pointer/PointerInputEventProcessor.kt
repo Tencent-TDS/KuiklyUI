@@ -19,6 +19,7 @@ package com.tencent.kuikly.compose.ui.input.pointer
 import androidx.collection.LongSparseArray
 import androidx.collection.forEach
 import com.tencent.kuikly.compose.ui.node.HitTestResult
+import com.tencent.kuikly.compose.ui.node.PullToRefreshHitTest
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.graphics.Matrix
@@ -107,13 +108,32 @@ internal class PointerInputEventProcessor(val root: LayoutNode) {
                 if (isHover || pointerInputChange.changedToDownIgnoreConsumed()) {
                     val isTouchEvent = pointerInputChange.type == PointerType.Touch
                     if (pointerEvent.rootNode != null) {
-                        pointerEvent.rootNode.hitTest(pointerInputChange.position, hitResult, isTouchEvent)
+                        val hitNode = pointerEvent.rootNode
+                        hitNode.hitTest(pointerInputChange.position, hitResult, isTouchEvent)
+                        val refreshInset = PullToRefreshHitTest.insetForHit(hitResult)
+                        if (refreshInset > 0) {
+                            hitResult.clear()
+                            hitNode.hitTest(
+                                pointerInputChange.position - Offset(0f, refreshInset.toFloat()),
+                                hitResult,
+                                isTouchEvent,
+                            )
+                        }
                         if (hitResult.isNotEmpty()) {
                             hitPathTracker.addHitPath(pointerInputChange.id, hitResult)
                             hitResult.clear()
                         }
                     } else {
                         root.hitTest(pointerInputChange.position, hitResult, isTouchEvent)
+                        val refreshInset = PullToRefreshHitTest.insetForHit(hitResult)
+                        if (refreshInset > 0) {
+                            hitResult.clear()
+                            root.hitTest(
+                                pointerInputChange.position - Offset(0f, refreshInset.toFloat()),
+                                hitResult,
+                                isTouchEvent,
+                            )
+                        }
                         if (hitResult.isNotEmpty()) {
                             hitPathTracker.addHitPath(pointerInputChange.id, hitResult)
                             hitResult.clear()

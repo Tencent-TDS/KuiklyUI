@@ -17,7 +17,6 @@
 package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -345,14 +344,15 @@ internal fun PullToRefreshItem(
     // Captures the list's LayoutNode (the refresh item lives in a LazyList item slot, so its
     // parent node is the list) and registers it together with the inset that hit testing has to
     // compensate for. The holder is intentionally not a snapshot state: hit testing only needs the
-    // reference and the capture must not trigger recomposition.
+    // reference and the capture must not trigger recomposition. Registration lifecycle is owned by
+    // the modifier node below: it (re)registers on placement and removes the entry on detach, so
+    // nothing depends on the relative order of Modifier.Node and DisposableEffect callbacks.
     val listNodeHolder = remember { RefreshListNodeHolder() }
-    val listRegistrationModifier = remember {
-        RefreshListRegistrationElement { node -> listNodeHolder.node = node }
-    }
-    DisposableEffect(Unit) {
-        onDispose { listNodeHolder.node?.let { PullToRefreshHitTest.remove(it) } }
-    }
+    val listRegistrationModifier = RefreshListRegistrationElement(
+        holder = listNodeHolder,
+        state = state,
+        insetPx = refreshThresholdPx,
+    )
 
     // Handle inset changes based on pull state
     LaunchedEffect(state.pullState) {
@@ -472,39 +472,58 @@ private class RefreshListNodeHolder {
 }
 
 private class RefreshListRegistrationElement(
-    private val onNode: (LayoutNode?) -> Unit
+    private val holder: RefreshListNodeHolder,
+    private val state: PullToRefreshState,
+    private val insetPx: Float,
 ) : ModifierNodeElement<RefreshListRegistrationNode>() {
-    override fun create(): RefreshListRegistrationNode = RefreshListRegistrationNode(onNode)
+    override fun create(): RefreshListRegistrationNode =
+        RefreshListRegistrationNode(holder, state, insetPx)
 
     override fun update(node: RefreshListRegistrationNode) {
-        node.onNode = onNode
+        node.holder = holder
+        node.state = state
+        node.insetPx = insetPx
     }
 
-    override fun equals(other: Any?): Boolean = other is RefreshListRegistrationElement
+    override fun equals(other: Any?): Boolean =
+        other is RefreshListRegistrationElement &&
+            other.holder === holder &&
+            other.state === state &&
+            other.insetPx == insetPx
 
-    override fun hashCode(): Int = 0
+    override fun hashCode(): Int = 31 * (31 * holder.hashCode() + state.hashCode()) + insetPx.hashCode()
 }
 
 private class RefreshListRegistrationNode(
-    var onNode: (LayoutNode?) -> Unit
+    var holder: RefreshListNodeHolder,
+    var state: PullToRefreshState,
+    var insetPx: Float,
 ) : LayoutAwareModifierNode, Modifier.Node() {
-    private var reported = false
+    private var capturedNode: LayoutNode? = null
 
     override fun onPlaced(coordinates: LayoutCoordinates) {
-        if (reported) {
-            return
+        if (capturedNode == null) {
+            // The refresh item is placed in a LazyList item slot, which is a virtual node.
+            // LayoutNode.parent skips virtual nodes, so the parent of this node is the real
+            // LayoutNode of the list (an ancestor of every item, and of nothing outside the list).
+            // If a real LayoutNode is ever inserted between the item and the list, the parent still
+            // is an ancestor of all the items, which keeps the lookup in PullToRefreshHitTest valid.
+            val self = coordinator?.layoutNode
+            capturedNode = self?.parent ?: self
+            holder.node = capturedNode
         }
-        reported = true
-        // The refresh item is placed in a LazyList item slot, which is a virtual node.
-        // LayoutNode.parent skips virtual nodes, so the parent of this node is the real LayoutNode
-        // of the list (an ancestor of every item, and of nothing outside the list). If a real
-        // LayoutNode is ever inserted between the item and the list, the parent still is an
-        // ancestor of all the items, which keeps the lookup below valid.
-        val self = coordinator?.layoutNode
-        onNode(self?.parent ?: self)
+        // The state effect may already have run before the node was placed: that happens when the
+        // item enters the composition while the list is already refreshing (e.g. the header was
+        // recycled). Register here as well so the compensation does not silently stop working.
+        val listNode = capturedNode
+        if (listNode != null && state.pullState == PullState.REFRESHING) {
+            PullToRefreshHitTest.set(listNode, insetPx.roundToInt())
+        }
     }
 
     override fun onDetach() {
-        onNode(null)
+        capturedNode?.let { PullToRefreshHitTest.remove(it) }
+        capturedNode = null
+        holder.node = null
     }
 }

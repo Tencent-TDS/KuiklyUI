@@ -30,9 +30,8 @@ std::string ToUTF8(const uint16_t *input, size_t units, bool strict = false);
 std::u32string ToUTF32(const std::string &input);
 std::string ToUTF8(const std::u32string &input);
 
-// Largest prefix length not exceeding bytes that ends on a UTF-8 character boundary. Byte-estimated
-// copy caps use it so a truncated buffer never carries a partial sequence.
-size_t UTF8BoundaryLength(const char *input, size_t bytes);
+// Length of a NUL-terminated UTF-8 string after removing any incomplete trailing sequence.
+size_t UTF8BoundaryLength(const char *input);
 
 // UTF-16 unit count after Unicode maximal-subpart replacement.
 size_t UTF16Length(const std::string &input);

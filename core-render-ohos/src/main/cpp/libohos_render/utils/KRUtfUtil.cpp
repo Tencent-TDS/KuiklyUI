@@ -15,6 +15,7 @@
 
 #include "libohos_render/utils/KRUtfUtil.h"
 
+#include <cstring>
 #include <stdexcept>
 #include "simdutf.h"
 
@@ -162,7 +163,11 @@ size_t UTF16Length(const std::string &input) {
     return simdutf::utf16_length_from_utf8_with_replacement(input.data(), input.size()).count;
 }
 
-size_t UTF8BoundaryLength(const char *input, size_t bytes) {
+size_t UTF8BoundaryLength(const char *input) {
+    if (input == nullptr) {
+        return 0;
+    }
+    const size_t bytes = strlen(input);
     if (bytes == 0) {
         return 0;
     }

@@ -19,7 +19,6 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <string>
 
 #include "libohos_render/utils/KRUtfUtil.h"
@@ -58,10 +57,8 @@ const char *kCjkText = "\xE8\xBF\x99"
 const std::u32string kCjkCodePoints =
     U"\u8FD9\u662F\u4E00\u6BB5\u6D4B\u8BD5\u6587\u672C";
 
-// A paste buffer cut by a byte cap on the middle of a character, which is what
-// KRTextFieldView::OnPasteText produced before the boundary fix
-// (min(24 bytes, maxLength 4 * 4) = 16 bytes = 5 characters + 1 orphan byte).
-void TestByteTruncatedPasteDecodes() {
+// Ill-formed UTF-8 is still decoded by ToUTF32 with replacement semantics.
+void TestIllFormedTailDecodesWithReplacement() {
     const std::string truncated(kCjkText, 16);
     const std::u32string decoded = utf::ToUTF32(truncated);
     EXPECT_EQ_SIZE(decoded.size(), 6);
@@ -69,35 +66,26 @@ void TestByteTruncatedPasteDecodes() {
     EXPECT(decoded[5] == U'\uFFFD');
 }
 
-void TestBoundaryLengthFloorsToCharacterBoundary() {
-    // 16 bytes hold 5 complete 3-byte characters; the sixth is cut after 1 byte.
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 16), 15);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 24), 24);
-    // A cut at a boundary stays put, including after a 4-byte sequence.
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 15), 15);
+void TestBoundaryLength() {
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText), 24);
     const char *kEmoji = "\xF0\x9F\x98\x80";  // U+1F600
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 4), 4);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 1), 0);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 3), 0);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc", 2), 2);
-    // Ill-formed tails without a start byte keep the upstream function contract.
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80", 1), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80", 5), 5);
-    // A 255-byte ArkUI insert buffer cut inside a 4-byte sequence.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji), 4);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc"), 3);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(""), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(nullptr), 0);
+
+    // ArkUI can truncate a fixed-size insert buffer in the middle of a character.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xE4\xB8"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xF0\x9F\x98"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8"), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98"), 0);
     const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
     EXPECT_EQ_SIZE(maxInsert.size(), 255);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(maxInsert.data(), maxInsert.size()), 252);
-}
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(maxInsert.c_str()), 252);
 
-// ArkUI copies a long insert into a fixed byte buffer and appends '\0'. Unlike a cut
-// into a complete source string, the incomplete sequence is already at the tail.
-void TestTruncatedBufferDropsIncompleteTail() {
-    const char *cjkTail = "a\xE4\xB8";
-    const char *emojiTail = "a\xF0\x9F\x98";
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(cjkTail, strlen(cjkTail)), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(emojiTail, strlen(emojiTail)), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8", strlen("\xE4\xB8")), 0);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98", strlen("\xF0\x9F\x98")), 0);
+    // Ill-formed tails without a start byte keep the existing contract.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80"), 5);
 }
 
 void TestValidInputRoundTrips() {
@@ -134,9 +122,8 @@ void TestSupplementaryPlaneRoundTrips() {
 }
 
 int main() {
-    TestByteTruncatedPasteDecodes();
-    TestBoundaryLengthFloorsToCharacterBoundary();
-    TestTruncatedBufferDropsIncompleteTail();
+    TestIllFormedTailDecodesWithReplacement();
+    TestBoundaryLength();
     TestValidInputRoundTrips();
     TestIllFormedUTF8DecodesWithReplacement();
     TestIllFormedUTF32EncodesWithReplacement();

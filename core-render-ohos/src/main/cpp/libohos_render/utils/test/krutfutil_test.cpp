@@ -83,6 +83,10 @@ void TestBoundaryLengthFloorsToCharacterBoundary() {
     // Ill-formed tails without a start byte keep the upstream function contract.
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80", 1), 1);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80", 5), 5);
+    // A 255-byte ArkUI insert buffer cut inside a 4-byte sequence.
+    const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
+    EXPECT_EQ_SIZE(maxInsert.size(), 255);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(maxInsert.data(), maxInsert.size()), 252);
 }
 
 // ArkUI copies a long insert into a fixed byte buffer and appends '\0'. Unlike a cut

@@ -37,6 +37,7 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
+import com.tencent.kuikly.compose.ui.text.input.TextFieldValue
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
@@ -107,7 +108,8 @@ private fun KeyboardTypeField(
     keyboardType: KeyboardType,
     singleLine: Boolean,
 ) {
-    var value by remember(keyboardType, singleLine) { mutableStateOf("") }
+    // 须用 TextFieldValue 受控：String 重载每次重组会包成 TextFieldValue(text) 且 selection=0，光标会钉在开头
+    var value by remember(keyboardType, singleLine) { mutableStateOf(TextFieldValue("")) }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text(text = label, fontSize = 14.sp, color = Color(0xFF666666))
         Spacer(modifier = Modifier.height(4.dp))

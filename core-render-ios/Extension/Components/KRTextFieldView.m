@@ -256,7 +256,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_keyboardType:(NSString *)css_keyboardType {
     self.keyboardType = [KRConvertUtil hr_keyBoardType:css_keyboardType];
-    [self setSecureTextEntry:[css_keyboardType isEqualToString:@"password"]];
+    BOOL secure = [css_keyboardType isEqualToString:@"password"]
+        || [css_keyboardType isEqualToString:@"numberPassword"];
+    [self setSecureTextEntry:secure];
 }
 
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {

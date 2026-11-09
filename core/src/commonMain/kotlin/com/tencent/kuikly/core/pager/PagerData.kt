@@ -184,6 +184,11 @@ class PageData(scope: PagerScope) {
         return feature?.has(key) == true
     }
 
+    /** 读取数值型 feature（如 immersive_material_state）；key 不存在或非数值返回 null */
+    fun getFeatureInt(key: String): Int? {
+        return feature?.optInt(key, -1)?.takeIf { it >= 0 }
+    }
+
     var customFirstScreenTag: String = ""
         private set
 

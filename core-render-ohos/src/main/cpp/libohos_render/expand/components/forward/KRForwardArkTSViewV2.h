@@ -44,9 +44,12 @@ class KRForwardArkTSViewV2 : public IKRRenderViewExport {
         if (node_content_handle_ && child && kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)) {
             sub_render_view->parent_node_content_handle_ = node_content_handle_;
             int32_t err = OH_ArkUI_NodeContent_AddNode(node_content_handle_, child);
+            // 子节点被挂进 NodeContent，才真正进入标题栏的 ContentSlot（即沉浸光感生效区域）。
+            // 只打失败日志：成功是常态，逐个子节点打印属于噪音。
             if(err != ARKUI_ERROR_CODE_NO_ERROR){
-                KR_LOG_ERROR<<"Failed to add node content";
-            }   
+                KR_LOG_ERROR << "ImmLightTest: Failed to add child into NodeContent, err=" << err
+                             << ", viewType=" << sub_render_view->GetViewName();
+            }
         }
     }
     void WillMoveToParentView() override;

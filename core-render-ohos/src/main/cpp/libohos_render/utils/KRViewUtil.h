@@ -107,6 +107,12 @@ ArkUINativeNodeAPI *GetNodeApi();
 
 const ArkUI_NativeDialogAPI_1 *GetDialogNodeApi();
 
+/**
+ * 获取弹窗 API_3（低版本系统取不到，返回 nullptr，调用方需判空）。
+ * setWidth / setHeight / setBorderWidth / setBorderColor / setBorderStyle 都在 API_3。
+ */
+const ArkUI_NativeDialogAPI_3 *GetDialogApi3OrNull();
+
 void UpdateNodeSize(ArkUI_NodeHandle node, float width, float height);
 
 void UpdateNodeFrame(ArkUI_NodeHandle node, const KRRect &frame);

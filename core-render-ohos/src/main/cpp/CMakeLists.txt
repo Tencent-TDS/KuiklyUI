@@ -65,6 +65,8 @@ set(SOURCE_SET
         libohos_render/utils/KRLinearGradientParser.cpp
         libohos_render/expand/components/richtext/gradient_richtext/KRGradientRichTextShadow.cpp
         libohos_render/expand/components/richtext/gradient_richtext/KRGradientRichTextView.cpp
+        libohos_render/expand/components/immersive/KRImmersiveLightSenseDialogView.cpp
+        libohos_render/expand/components/immersive/KROhosNativeControlViews.cpp
         libohos_render/utils/KRTransformParser.cpp
         libohos_render/expand/components/input/KRTextFieldView.cpp
         libohos_render/expand/components/input/KRTextAreaView.cpp
@@ -105,6 +107,7 @@ set(SOURCE_SET
         libohos_render/foundation/type/KRRenderValueNapi.cpp
         libohos_render/utils/KRStringUtil.cpp
         libohos_render/utils/KRViewUtil.cpp
+        libohos_render/utils/KRSystemMaterialUtil.cpp
         libohos_render/utils/KRThreadChecker.cpp
         libohos_render/utils/KRJsUtil.cpp
         libohos_render/utils/NAPIUtil.cpp

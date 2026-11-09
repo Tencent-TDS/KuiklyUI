@@ -153,8 +153,9 @@ void KROhosSliderView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType
     KR_LOG_INFO << "ImmLightTest: [slider] onChange callback=" << (value_changed_callback_ != nullptr);
     if (value_changed_callback_) {
         // 必须以 map 回传：框架按 JSON 解析，传裸字符串会抛 JSONException 并 abort 进程
+        // key 用 u16 前缀：KRRenderValueMap 的 key 是 u16string（main 合并后的类型）
         KRRenderValueMap map;
-        map["value"] = NewKRRenderValue(std::to_string(current_value_));
+        map[u"value"] = NewKRRenderValue(std::to_string(current_value_));
         // KRRenderValue 构造函数是 protected，必须用工厂函数 NewKRRenderValue 包 map
         value_changed_callback_(NewKRRenderValue(map));
     }
@@ -224,9 +225,9 @@ void KROhosSwitchView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType
     KR_LOG_INFO << "ImmLightTest: [switch] onChange isOn=" << (is_on ? 1 : 0)
                 << ", callback=" << (switch_changed_callback_ != nullptr);
     if (switch_changed_callback_) {
-        // 同 Slider：必须以 map 回传
+        // 同 Slider：必须以 map 回传（key 用 u16 前缀，见 Slider 注释）
         KRRenderValueMap map;
-        map["isOn"] = NewKRRenderValue(is_on ? "1" : "0");
+        map[u"isOn"] = NewKRRenderValue(is_on ? "1" : "0");
         // 同 Slider：构造函数 protected，用工厂函数
         switch_changed_callback_(NewKRRenderValue(map));
     }

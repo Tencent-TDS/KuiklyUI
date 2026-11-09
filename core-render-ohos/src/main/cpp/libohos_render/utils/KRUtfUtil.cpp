@@ -167,12 +167,13 @@ size_t UTF8BoundaryLength(const char *input) {
     if (input == nullptr) {
         return 0;
     }
-    const size_t bytes = strlen(input);
+    const char *end = input + strlen(input);
+    const size_t bytes = static_cast<size_t>(end - input);
     if (bytes == 0) {
         return 0;
     }
 
-    const unsigned char last = static_cast<unsigned char>(input[bytes - 1]);
+    const unsigned char last = static_cast<unsigned char>(end[-1]);
     if (last < 0x80) {
         return bytes;
     }
@@ -180,22 +181,28 @@ size_t UTF8BoundaryLength(const char *input) {
         // A leading byte at the cut leaves an incomplete sequence.
         return bytes - 1;
     }
-
-    // Walk back from the final continuation byte. A UTF-8 sequence is at most 4 bytes,
-    // so only the final 3 continuation bytes need to be skipped.
-    const size_t start = bytes > 3 ? bytes - 3 : 0;
-    size_t lead = bytes - 1;
-    while (lead > start && (static_cast<unsigned char>(input[lead]) & 0xC0) == 0x80) {
-        --lead;
-    }
-
-    const unsigned char first = static_cast<unsigned char>(input[lead]);
-    if (first < 0xC0) {
-        // Orphan continuation bytes keep the existing upstream contract.
+    if (bytes == 1) {
+        // Orphan continuation byte keeps the existing contract.
         return bytes;
     }
-    const size_t sequenceLength = first < 0xE0 ? 2 : first < 0xF0 ? 3 : 4;
-    return lead + sequenceLength > bytes ? lead : bytes;
+
+    // The last byte is a continuation. Only the preceding two bytes decide whether
+    // its lead byte is complete; no loop or scan of the full string is needed.
+    const unsigned char prev = static_cast<unsigned char>(end[-2]);
+    if (prev < 0x80) {
+        return bytes;
+    }
+    if ((prev & 0xC0) == 0x80) {
+        if (bytes == 2) {
+            return bytes;
+        }
+        const unsigned char third = static_cast<unsigned char>(end[-3]);
+        return third >= 0xF0 ? bytes - 3 : bytes;
+    }
+    if (prev < 0xE0) {
+        return bytes;
+    }
+    return bytes - 2;
 }
 
 }  // namespace utf

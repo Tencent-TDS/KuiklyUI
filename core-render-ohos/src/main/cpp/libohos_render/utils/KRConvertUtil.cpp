@@ -72,14 +72,23 @@ const std::u16string ConvertEnterKeyTypeToString(ArkUI_EnterKeyType enter_key_ty
 }
 
 ArkUI_TextInputType ConvertToInputType(const std::string &input_type) {
-    if (input_type == "password") {
-        return ARKUI_TEXTINPUT_TYPE_PASSWORD;
-    }
     if (input_type == "number") {
         return ARKUI_TEXTINPUT_TYPE_NUMBER;
     }
+    if (input_type == "phone") {
+        return ARKUI_TEXTINPUT_TYPE_PHONE_NUMBER;
+    }
     if (input_type == "email") {
         return ARKUI_TEXTINPUT_TYPE_EMAIL;
+    }
+    if (input_type == "password") {
+        return ARKUI_TEXTINPUT_TYPE_PASSWORD;
+    }
+    if (input_type == "numberPassword") {
+        return ARKUI_TEXTINPUT_TYPE_NUMBER_PASSWORD;
+    }
+    if (input_type == "decimal") {
+        return ARKUI_TEXTINPUT_TYPE_NUMBER_DECIMAL;
     }
     return ARKUI_TEXTINPUT_TYPE_NORMAL;
 }

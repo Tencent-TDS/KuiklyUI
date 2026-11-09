@@ -63,10 +63,13 @@ void KRTextAreaView::UpdateInputNodeSelectionColor(const std::string &propValue)
 }
 
 void KRTextAreaView::UpdateInputNodeKeyboardType(const std::string &propValue) {
+    // TextArea 只有 NORMAL / NUMBER / PHONE_NUMBER / EMAIL，没有密码、小数、网址、ASCII。
     ArkUI_TextAreaType type = ARKUI_TEXTAREA_TYPE_NORMAL;
     if (propValue == "number") {
         type = ARKUI_TEXTAREA_TYPE_NUMBER;
-    }else if (propValue == "email") {
+    } else if (propValue == "phone") {
+        type = ARKUI_TEXTAREA_TYPE_PHONE_NUMBER;
+    } else if (propValue == "email") {
         type = ARKUI_TEXTAREA_TYPE_EMAIL;
     }
 

@@ -677,9 +677,14 @@ private fun updateKeyboardOptions(
 ) {
     // 处理键盘类型
     when (options.keyboardType) {
+        KeyboardType.Ascii -> attr.keyboardTypeAscii()
         KeyboardType.Number -> attr.keyboardTypeNumber()
+        KeyboardType.Phone -> attr.keyboardTypePhone()
+        KeyboardType.Uri -> attr.keyboardTypeUri()
         KeyboardType.Email -> attr.keyboardTypeEmail()
         KeyboardType.Password -> attr.keyboardTypePassword()
+        KeyboardType.NumberPassword -> attr.keyboardTypeNumberPassword()
+        KeyboardType.Decimal -> attr.keyboardTypeDecimal()
         else -> {} // 默认键盘类型不需要特殊处理
     }
 

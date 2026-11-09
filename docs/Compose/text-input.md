@@ -110,6 +110,22 @@ val state = rememberTextFieldState(initialText = "", initialSelection = TextRang
 KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
 ```
 
+:::info 版本说明（2.32.0 及以上）
+自 **2.32.0** 起，`KeyboardType.Ascii`、`Phone`、`Uri`、`NumberPassword`、`Decimal` 会映射到 Kuikly `InputAttr` / `TextAreaAttr` 的同名 `keyboardType*()`（此前 Compose 侧仅完整映射 `Number` / `Email` / `Password`）。平台差异见 [Input#键盘类型](../API/components/input.md#键盘类型keyboardtype)。
+:::
+
+| `KeyboardType` | 映射到 DSL | 版本 |
+| -- | -- | -- |
+| `Text` / `Unspecified` | 默认 | — |
+| `Ascii` | `keyboardTypeAscii()` | 2.32.0+ |
+| `Number` | `keyboardTypeNumber()` | 既有 |
+| `Phone` | `keyboardTypePhone()` | 2.32.0+ |
+| `Uri` | `keyboardTypeUri()` | 2.32.0+ |
+| `Email` | `keyboardTypeEmail()` | 既有 |
+| `Password` | `keyboardTypePassword()` | 既有 |
+| `NumberPassword` | `keyboardTypeNumberPassword()` | 2.32.0+ |
+| `Decimal` | `keyboardTypeDecimal()` | 2.32.0+ |
+
 ::::warning 废弃构造
 不带 `autoCorrectEnabled` 参数的旧构造已标记废弃，请使用新构造。
 ::::

@@ -167,6 +167,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Kb"
+            titleText = "KeyboardType"
+            subtitleText = "Input / TextArea 的文本、数字、电话、邮箱、密码、小数键盘"
+            declarativeExampleUrl = generateJumpUrl("KeyboardTypeDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "In"
             titleText = "Input setText-after-ready"
             subtitleText = "验证新 ARKUI_NODE_TEXT_EDITOR 在 ready 后 setText 能否触发 textDidChange"

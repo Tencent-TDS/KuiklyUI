@@ -478,8 +478,23 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             "number" -> {
                 InputType.TYPE_CLASS_NUMBER
             }
+            "numberPassword" -> {
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            }
+            "decimal" -> {
+                InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            }
+            "phone" -> {
+                InputType.TYPE_CLASS_PHONE
+            }
             "email" -> {
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+            "uri" -> {
+                InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            }
+            "ascii" -> {
+                InputType.TYPE_CLASS_TEXT
             }
             else -> {
                 InputType.TYPE_CLASS_TEXT

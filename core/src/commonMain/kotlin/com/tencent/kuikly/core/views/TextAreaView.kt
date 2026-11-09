@@ -432,6 +432,26 @@ open class TextAreaAttr : Attr() {
         KEYBOARD_TYPE with "email"
     }
 
+    fun keyboardTypeAscii() {
+        KEYBOARD_TYPE with "ascii"
+    }
+
+    fun keyboardTypePhone() {
+        KEYBOARD_TYPE with "phone"
+    }
+
+    fun keyboardTypeUri() {
+        KEYBOARD_TYPE with "uri"
+    }
+
+    fun keyboardTypeNumberPassword() {
+        KEYBOARD_TYPE with "numberPassword"
+    }
+
+    fun keyboardTypeDecimal() {
+        KEYBOARD_TYPE with "decimal"
+    }
+
     fun returnKeyTypeNone() {
         RETURN_KEY_TYPE with "none"
     }

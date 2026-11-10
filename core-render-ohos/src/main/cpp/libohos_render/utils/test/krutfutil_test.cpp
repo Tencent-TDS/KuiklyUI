@@ -27,6 +27,20 @@ namespace utf = kuikly::util::utf;
 
 static int g_failures = 0;
 
+namespace kuikly {
+namespace util {
+namespace utf {
+
+// Keeps the original byte-cap test cases intact while the production API takes
+// only a NUL-terminated string.
+static size_t UTF8BoundaryLength(const char *input, size_t bytes) {
+    return UTF8BoundaryLength(std::string(input, bytes).c_str());
+}
+
+}  // namespace utf
+}  // namespace util
+}  // namespace kuikly
+
 #define EXPECT(cond)                                                                    \
     do {                                                                                \
         if (!(cond)) {                                                                  \
@@ -114,6 +128,34 @@ void TestSupplementaryPlaneRoundTrips() {
     EXPECT(utf::ToUTF32(utf::ToUTF8(emoji)) == emoji);
 }
 
+void TestNulTerminatedBoundaryLength() {
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText), 24);
+    const char *kEmoji = "\xF0\x9F\x98\x80";  // U+1F600
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji), 4);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc"), 3);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(""), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(nullptr), 0);
+
+    // ArkUI can truncate a fixed-size insert buffer in the middle of a character.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xE4\xB8"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xF0\x9F\x98"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8"), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98"), 0);
+
+    const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
+    const auto maxInsertInfo = utf::ScanUTF8Boundary(maxInsert.c_str());
+    EXPECT_EQ_SIZE(maxInsertInfo.length, 255);
+    EXPECT_EQ_SIZE(maxInsertInfo.boundary, 252);
+
+    // Ill-formed tails without a start byte keep the existing contract.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80"), 5);
+
+    const auto info = utf::ScanUTF8Boundary(kCjkText);
+    EXPECT_EQ_SIZE(info.length, 24);
+    EXPECT_EQ_SIZE(info.boundary, 24);
+}
+
 int main() {
     TestByteTruncatedPasteDecodes();
     TestBoundaryLengthFloorsToCharacterBoundary();
@@ -121,6 +163,7 @@ int main() {
     TestIllFormedUTF8DecodesWithReplacement();
     TestIllFormedUTF32EncodesWithReplacement();
     TestSupplementaryPlaneRoundTrips();
+    TestNulTerminatedBoundaryLength();
     if (g_failures != 0) {
         std::fprintf(stderr, "%d failure(s)\n", g_failures);
         return 1;

@@ -162,17 +162,41 @@ size_t UTF16Length(const std::string &input) {
     return simdutf::utf16_length_from_utf8_with_replacement(input.data(), input.size()).count;
 }
 
-size_t UTF8BoundaryLength(const char *input, size_t bytes) {
-    // A UTF-8 sequence is at most 4 bytes, so only the last 3 bytes can hold an incomplete tail.
-    for (size_t back = 1; back <= 3 && back <= bytes; ++back) {
-        const unsigned char lead = static_cast<unsigned char>(input[bytes - back]);
-        if ((lead & 0xC0) == 0x80) {
-            continue;
-        }
-        const size_t sequenceLength = lead < 0x80 ? 1 : lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
-        return bytes - back + sequenceLength > bytes ? bytes - back : bytes;
+UTF8BoundaryInfo ScanUTF8Boundary(const char *input) {
+    if (input == nullptr) {
+        return {0, 0};
     }
-    return bytes;
+
+    // fast scans each byte once; slow stays on the last byte that starts a sequence.
+    const char *slow = nullptr;
+    const char *fast = input;
+    size_t leadLength = 0;
+    size_t trailingContinuations = 0;
+    while (*fast != '\0') {
+        const unsigned char byte = static_cast<unsigned char>(*fast);
+        if ((byte & 0xC0) == 0x80) {
+            ++trailingContinuations;
+        } else {
+            slow = fast;
+            leadLength = byte < 0x80 ? 1 : byte < 0xE0 ? 2 : byte < 0xF0 ? 3 : 4;
+            trailingContinuations = 0;
+        }
+        ++fast;
+    }
+
+    const size_t length = static_cast<size_t>(fast - input);
+    if (slow == nullptr) {
+        // A string made only of continuation bytes keeps the existing contract.
+        return {length, length};
+    }
+    const size_t leadOffset = static_cast<size_t>(slow - input);
+    const size_t boundary =
+        trailingContinuations + 1 < leadLength ? leadOffset : length;
+    return {length, boundary};
+}
+
+size_t UTF8BoundaryLength(const char *input) {
+    return ScanUTF8Boundary(input).boundary;
 }
 
 }  // namespace utf

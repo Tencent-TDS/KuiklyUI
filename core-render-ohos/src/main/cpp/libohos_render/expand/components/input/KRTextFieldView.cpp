@@ -22,6 +22,7 @@
 #include <arkui/drag_and_drop.h>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <deviceinfo.h>
 #include <regex>
 
@@ -795,11 +796,19 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         int32_t size = MAX_INSERT_LENGTH;
         char *pBuffer = buffer;
         OH_ArkUI_NodeEvent_GetStringValue(event, 0, &pBuffer, &size);
+        // ArkUI copies at most MAX_INSERT_LENGTH - 1 bytes, which can leave an incomplete UTF-8
+        // tail. Drop that tail before filter -> CalculateTextLength decodes the buffer.
+        buffer[MAX_INSERT_LENGTH - 1] = '\0';
+        const auto boundary = kuikly::util::utf::ScanUTF8Boundary(buffer);
+        // Trimming the incomplete tail can make the buffer shorter than the cap.
+        // Preserve the full-buffer state so the temporary max-length path still runs.
+        const bool insertBufferTruncated = boundary.length >= MAX_INSERT_LENGTH - 1;
+        buffer[boundary.boundary] = '\0';
         // KR_LOG_DEBUG << "OnWillInsertText: to insert text: " << buffer;
         auto destText = GetContentText();
         auto range = GetInputNodeTextSelectionRange();
         bool filtered = filter(buffer, destText, range.first, range.second);
-        if (filtered || strlen(buffer) >= MAX_INSERT_LENGTH - 1) {
+        if (filtered || insertBufferTruncated) {
             if (filtered) {
                 KR_LOG_DEBUG << "OnWillInsertText beyond limit";
                 // 超过最大输入长度限制
@@ -829,25 +838,22 @@ void KRTextFieldView::OnPasteText(ArkUI_NodeEvent *event) {
         if (!stringAsyncEvent || !stringAsyncEvent->pStr) {
             return;
         }
-        size_t size = std::min(strlen(stringAsyncEvent->pStr), static_cast<size_t>(max_length_) * 4);
-        // 这里只是避免拷贝超大剪贴板的粗估上限，不是语义截断（语义截断由 filter 完成）。
-        // 必须回退到字符边界：buffer 随后进入 filter → CalculateTextLength，CHARACTER /
-        // VISUAL_WIDTH 分支会对它调 ConvertToU32String，残缺序列会让长度计算与截断都失真。
-        size = kuikly::util::utf::UTF8BoundaryLength(stringAsyncEvent->pStr, size);
-        char *buffer = new char[size + 1];
-        strncpy(buffer, stringAsyncEvent->pStr, size);
-        buffer[size] = '\0';
+        // Semantic truncation happens in filter; process the full paste buffer here.
+        std::string pasteText(stringAsyncEvent->pStr);
         auto destText = GetContentText();
         auto range = GetInputNodeTextSelectionRange();
-        if (filter(buffer, destText, range.first, range.second)) {
+        const bool filtered = filter(pasteText.data(), destText, range.first, range.second);
+        if (filtered) {
+            // filter writes a NUL into the writable C++17 string buffer.
+            pasteText.resize(strlen(pasteText.data()));
             KR_LOG_DEBUG << "OnPasteText beyond limit";
             // 超过最大输入长度限制
             NotifyTextLengthBeyondLimit();
-            uint32_t realMaxLength = GetUTF16Length(destText) - (range.second - range.first) + GetUTF16Length(buffer);
+            uint32_t realMaxLength = GetUTF16Length(destText) - (range.second - range.first) +
+                                     GetUTF16Length(pasteText);
             UpdateInputNodeMaxLength(realMaxLength);
             DelayResetMaxLength();
         }
-        delete[] buffer;
     }
 }
 

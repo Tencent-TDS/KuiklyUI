@@ -27,6 +27,20 @@ namespace utf = kuikly::util::utf;
 
 static int g_failures = 0;
 
+namespace kuikly {
+namespace util {
+namespace utf {
+
+// Keeps the original byte-cap test cases intact while the production API takes
+// only a NUL-terminated string.
+static size_t UTF8BoundaryLength(const char *input, size_t bytes) {
+    return UTF8BoundaryLength(std::string(input, bytes).c_str());
+}
+
+}  // namespace utf
+}  // namespace util
+}  // namespace kuikly
+
 #define EXPECT(cond)                                                                    \
     do {                                                                                \
         if (!(cond)) {                                                                  \
@@ -57,8 +71,10 @@ const char *kCjkText = "\xE8\xBF\x99"
 const std::u32string kCjkCodePoints =
     U"\u8FD9\u662F\u4E00\u6BB5\u6D4B\u8BD5\u6587\u672C";
 
-// Ill-formed UTF-8 is still decoded by ToUTF32 with replacement semantics.
-void TestIllFormedTailDecodesWithReplacement() {
+// A paste buffer cut by a byte cap on the middle of a character, which is what
+// KRTextFieldView::OnPasteText produced before the boundary fix
+// (min(24 bytes, maxLength 4 * 4) = 16 bytes = 5 characters + 1 orphan byte).
+void TestByteTruncatedPasteDecodes() {
     const std::string truncated(kCjkText, 16);
     const std::u32string decoded = utf::ToUTF32(truncated);
     EXPECT_EQ_SIZE(decoded.size(), 6);
@@ -66,32 +82,17 @@ void TestIllFormedTailDecodesWithReplacement() {
     EXPECT(decoded[5] == U'\uFFFD');
 }
 
-void TestBoundaryLength() {
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText), 24);
+void TestBoundaryLengthFloorsToCharacterBoundary() {
+    // 16 bytes hold 5 complete 3-byte characters; the sixth is cut after 1 byte.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 16), 15);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 24), 24);
+    // A cut at a boundary stays put, including after a 4-byte sequence.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText, 15), 15);
     const char *kEmoji = "\xF0\x9F\x98\x80";  // U+1F600
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji), 4);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc"), 3);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(""), 0);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(nullptr), 0);
-    const auto info = utf::ScanUTF8Boundary(kCjkText);
-    EXPECT_EQ_SIZE(info.length, 24);
-    EXPECT_EQ_SIZE(info.boundary, 24);
-
-    // ArkUI can truncate a fixed-size insert buffer in the middle of a character.
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xE4\xB8"), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xF0\x9F\x98"), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8"), 0);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98"), 0);
-    const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
-    EXPECT_EQ_SIZE(maxInsert.size(), 255);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(maxInsert.c_str()), 252);
-    const auto truncatedInfo = utf::ScanUTF8Boundary(maxInsert.c_str());
-    EXPECT_EQ_SIZE(truncatedInfo.length, 255);
-    EXPECT_EQ_SIZE(truncatedInfo.boundary, 252);
-
-    // Ill-formed tails without a start byte keep the existing contract.
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80"), 1);
-    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80"), 5);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 4), 4);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 1), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji, 3), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc", 2), 2);
 }
 
 void TestValidInputRoundTrips() {
@@ -127,13 +128,42 @@ void TestSupplementaryPlaneRoundTrips() {
     EXPECT(utf::ToUTF32(utf::ToUTF8(emoji)) == emoji);
 }
 
+void TestNulTerminatedBoundaryLength() {
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kCjkText), 24);
+    const char *kEmoji = "\xF0\x9F\x98\x80";  // U+1F600
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(kEmoji), 4);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc"), 3);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(""), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(nullptr), 0);
+
+    // ArkUI can truncate a fixed-size insert buffer in the middle of a character.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xE4\xB8"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xF0\x9F\x98"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xE4\xB8"), 0);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\xF0\x9F\x98"), 0);
+
+    const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
+    const auto maxInsertInfo = utf::ScanUTF8Boundary(maxInsert.c_str());
+    EXPECT_EQ_SIZE(maxInsertInfo.length, 255);
+    EXPECT_EQ_SIZE(maxInsertInfo.boundary, 252);
+
+    // Ill-formed tails without a start byte keep the existing contract.
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80"), 1);
+    EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\x80\x80\x80\x80"), 5);
+
+    const auto info = utf::ScanUTF8Boundary(kCjkText);
+    EXPECT_EQ_SIZE(info.length, 24);
+    EXPECT_EQ_SIZE(info.boundary, 24);
+}
+
 int main() {
-    TestIllFormedTailDecodesWithReplacement();
-    TestBoundaryLength();
+    TestByteTruncatedPasteDecodes();
+    TestBoundaryLengthFloorsToCharacterBoundary();
     TestValidInputRoundTrips();
     TestIllFormedUTF8DecodesWithReplacement();
     TestIllFormedUTF32EncodesWithReplacement();
     TestSupplementaryPlaneRoundTrips();
+    TestNulTerminatedBoundaryLength();
     if (g_failures != 0) {
         std::fprintf(stderr, "%d failure(s)\n", g_failures);
         return 1;

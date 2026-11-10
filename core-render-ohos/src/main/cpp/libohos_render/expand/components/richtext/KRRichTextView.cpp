@@ -148,7 +148,6 @@ void KRRichTextView::DidRemoveFromParentView() {
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
     paragraph_ = nullptr;
-    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -186,27 +185,13 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         return;
     }
     double drawOffsetY = richTextShadow->DrawOffsetY();
-    OH_Drawing_TextAlign textAlign = richTextShadow->TextAlign();
-    auto textTypoSize = richTextShadow->MainMeasureSize();
     // 在容器前景上绘制额外图形，实现图形显示在子组件之上。
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    bool needReLayout = false;
-    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
-        needReLayout = true;
-    }
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
-        needReLayout = true;
-    }
-    if (needReLayout) {
-        auto dpi = KRConfig::GetDpi();
-        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        last_draw_frame_width_ = frameWidth;
-        if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();
-        }
-    }
+    // Do not lay out an already formatted Typography again while drawing.
+    // TypographyLayout is not idempotent on HarmonyOS 6 and may corrupt
+    // multiline Chinese glyphs.
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

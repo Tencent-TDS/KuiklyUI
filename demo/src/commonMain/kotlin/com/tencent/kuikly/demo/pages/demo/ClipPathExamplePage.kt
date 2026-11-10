@@ -131,6 +131,7 @@ internal class ClipPathExamplePage : BasePager() {
                         }
                         Input {
                             attr {
+                                overflow(true)
                                 height(24f)
                                 placeholder("示例输入框")
                             }
@@ -628,6 +629,7 @@ internal class ClipPathExamplePage : BasePager() {
                     }) { _, _, _ -> }
                     TextArea {
                         attr {
+                            overflow(true)
                             width(100f)
                             height(100f)
                             margin(5f)

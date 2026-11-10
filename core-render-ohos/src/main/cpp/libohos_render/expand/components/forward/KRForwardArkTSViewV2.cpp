@@ -17,6 +17,7 @@
 
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRNapiHandleScope.h"
 
 std::shared_ptr<KRBaseEventHandler>  KRForwardArkTSViewV2::CreateBaseEventHandler(std::shared_ptr<IKRRenderView> rootView) {
     if(rootView){
@@ -116,9 +117,8 @@ ArkUI_NodeHandle KRForwardArkTSViewV2::CreateNode(){
         this->GetInstanceIdValue(), KRNativeCallArkTSMethod::CreateView, KRRenderValue::Make(this->GetViewTag()),
         KRRenderValue::Make(kuikly::util::AsciiToUTF16(this->GetViewName())), nullptr, nullptr, nullptr, nullptr);
 
-        napi_handle_scope scope;
         napi_env g_env = KRArkTSManager::GetInstance().GetEnv();
-        napi_open_handle_scope(g_env, &scope);
+        KRNapiHandleScope handle_scope(g_env);
         ArkUI_NodeHandle node = nullptr;
         
         KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceIdValue(), KRNativeCallArkTSMethod::CreateArkUINode,

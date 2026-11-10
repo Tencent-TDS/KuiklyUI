@@ -913,6 +913,7 @@ private fun ViewContainer<*, *>.demoNavigationTitleSearch(ctx: UINavigationBarDe
         }
         Input {
             attr {
+                overflow(true)
                 flex(1f)
                 height(32f)
                 fontSize(15f)

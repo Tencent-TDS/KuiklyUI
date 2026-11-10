@@ -131,9 +131,7 @@ bool DomBuilder::OnKeyUTF16(const uint16_t *data, size_t units) {
 bool DomBuilder::OnEndObject(size_t /*member_count*/) {
     // Members were appended without dedup for O(n) build; collapse any duplicate
     // keys once here (last value wins) before the object is placed in its parent.
-    if (!stack_.empty()) {
-        ObjectDedupLast(stack_.back().container);
-    }
+    // 解析现有 JSON 文件时 key 不重复，这里不做 ObjectDedupLast。
     return CloseContainer();
 }
 

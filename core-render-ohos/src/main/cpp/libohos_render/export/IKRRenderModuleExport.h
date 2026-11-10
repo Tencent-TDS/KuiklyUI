@@ -64,6 +64,11 @@ class IKRRenderModuleExport : public std::enable_shared_from_this<IKRRenderModul
     virtual void OnDestroy() {}
 
     /**
+     * 页面将要销毁时调用，此时页面的 view 还没有销毁。随后才调用 OnDestroy
+     */
+    virtual void WillDestroy() {}
+
+    /**
      * 异步调用ArkTS侧Module方法
      * @param method 方法名
      * @param params 方法传参

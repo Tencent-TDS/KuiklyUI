@@ -93,6 +93,7 @@ internal class InputSetTextAfterReadyDemoPage : BasePager() {
                 Input {
                     ref { ctx.initialInputRef = it }
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -132,6 +133,7 @@ internal class InputSetTextAfterReadyDemoPage : BasePager() {
                 Input {
                     ref { ctx.emptyInputRef = it }
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -170,6 +172,7 @@ internal class InputSetTextAfterReadyDemoPage : BasePager() {
                 TextArea {
                     ref { ctx.areaRef = it }
                     attr {
+                        overflow(true)
                         height(88f)
                         marginTop(6f)
                         fontSize(16f)

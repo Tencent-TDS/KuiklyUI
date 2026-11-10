@@ -55,7 +55,8 @@ struct VsyncRequestContext {
  * - OH_NativeVSync_RequestFrame 为一次性请求，每帧回调后需重新 arm；
  * - 在途回调通过 weak_ptr + generation 双重保护，模块销毁/反注册后自动失效，
  *   不存在 UAF；
- * - 背压：上一 tick 尚未在 context 线程消化时，新 tick 直接丢弃，防止慢帧堆积。
+ * - 上一帧任务还在 context 线程排队或执行时，新的一帧直接丢弃，避免慢帧堆积。
+ *   若上一帧是因为输入还没处理完而暂存的，并且整帧没有输入，则用新的一帧合并后投递。
  */
 class KRVsyncModule : public IKRRenderModuleExport {
  public:
@@ -66,6 +67,7 @@ class KRVsyncModule : public IKRRenderModuleExport {
 
     KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,
                           const KRRenderCallback &callback) override;
+    void WillDestroy() override;
     void OnDestroy() override;
 
  private:
@@ -84,7 +86,7 @@ class KRVsyncModule : public IKRRenderModuleExport {
     bool running_ = false;
     // 注册代数：反注册/重新注册时递增，使在途回调按代数比对后安全丢弃
     uint64_t generation_ = 0;
-    // 背压标志：true 表示上一 tick 已投递 context 线程但尚未消化完毕
+    // true 表示上一帧已经投到 context 线程，但还没执行完
     std::atomic<bool> tick_pending_{false};
     // 相邻 vsync 时间戳，用于计算帧间隔
     long long last_timestamp_nanos_ = 0;

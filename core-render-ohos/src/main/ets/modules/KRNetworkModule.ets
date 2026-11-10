@@ -436,16 +436,25 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             resultObject['data'] = '';
             resultObject['errorMsg'] = JSON.stringify(err);
             resultObject['success'] = '0';
-            resultObject['statusCode'] = response ? response.responseCode.toString() : '-1000';
+            resultObject['statusCode'] = response?.responseCode?.toString() ?? '-1000';
+          } else if (response == null || response.responseCode == null) {
+            // 没有有效 HTTP 响应 / 状态码时不能伪装成功：success 与 statusCode 必须一致。
+            resultObject['data'] = '';
+            resultObject['errorMsg'] = 'empty response';
+            resultObject['success'] = '0';
+            resultObject['statusCode'] = '-1000';
           } else {
+            // 先窄化 response.result，binary 分支体不要直接读 response.result，避免依赖 ?. 的类型收窄
+            const result = response.result;
             if (binaryMode) {
-              if (response.result instanceof ArrayBuffer) {
-                bytes = new Int8Array(response.result);
-              } else if (typeof response.result == 'string') {
-                bytes = new Int8Array(buffer.from(response.result).buffer);
+              if (result instanceof ArrayBuffer) {
+                bytes = new Int8Array(result);
+              } else if (typeof result == 'string') {
+                bytes = new Int8Array(buffer.from(result).buffer);
               }
             } else {
-              resultObject['data'] = response.result.toString();
+              // 空 body / 异常响应时 result 可能为 undefined，不能直接 toString()
+              resultObject['data'] = result?.toString() ?? '';
             }
             resultObject['errorMsg'] = '';
             resultObject['success'] = '1';

@@ -301,6 +301,12 @@ internal class LazyJsonMap private constructor(
         return value
     }
 
+    /** 只取子节点的原生位型，不做类型转换；无效返回 0。 */
+    internal fun childBits(name: String): Long {
+        val bits = JsonNative.objectGet(native, name)
+        return if (JsonNative.isInvalid(bits)) 0L else bits
+    }
+
     internal fun nativePrintCompactOrNull(): String? {
         if (materialized != null || containerCache != null || native == 0L) {
             return null

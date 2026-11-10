@@ -146,13 +146,10 @@ class NetworkModule : Module() {
             params.toString(),
             callback = { res ->
                 res?.also {
-                    val dataString = it.optString("data","")
-                    val dataJSON = try {
-                        JSONObject(dataString)
-                    } catch (e : Throwable) {
-                        JSONObject().apply {
-                            put("data", dataString)
-                        }
+                    // optParsedChild 已经尝试过解析；返回 null 表示无法解析成对象，
+                    // 这里按原语义包成 {data: 原文}，不再重复解析一次。
+                    val dataJSON = it.optParsedChild("data") ?: JSONObject().apply {
+                        put("data", it.optString("data", ""))
                     }
                     val headers = it.optString("headers", "{}").toJSONObjectSafely()
                     val success = it.optInt("success").toBoolean()

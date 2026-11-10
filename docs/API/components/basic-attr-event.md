@@ -652,11 +652,15 @@ internal class ZIndexPage : BasePager() {
 ### overflow方法
 
 当组件的孩子超出组件的大小时，是否要对子组件超出的区域进行裁剪。在Kuikly中默认子组件大小超出父组件时, 父组件默认不会裁剪,
-子组件超出父组件部分能让能够显示
+子组件超出父组件部分能让能够显示。
 
 :::tip 注意
 overflow的默认表现在iOS开发者看来是很正常的，因为iOS默认对子View超出父View的区域是不会裁剪的，
 但是对于Android开发者来说会有不同，因为Android系统默认会不显示子View超出父View的区域。
+:::
+
+:::tip Input 与 TextArea
+部分 Android 设备上，[`Input`](input.md#属性) 和 [`TextArea`](text-area.md#基础属性) 会出现渲染残留。在 `attr` 中调用 `overflow(true)` 打开裁剪即可避开。
 :::
 
 :::tabs

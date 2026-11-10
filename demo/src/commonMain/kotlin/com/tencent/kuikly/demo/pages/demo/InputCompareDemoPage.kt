@@ -191,6 +191,7 @@ internal class InputCompareDemoPage : BasePager() {
                 Input {
                     ref { ctx.basicRef = it }
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -280,6 +281,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(40f)
                             marginRight(6f)
@@ -299,6 +301,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(40f)
                             marginRight(6f)
@@ -318,6 +321,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     Input {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(40f)
                             fontSize(14f)
@@ -341,6 +345,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("③ keyboardType=password")
                 Input {
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -363,6 +368,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("④ keyboardType=number（仅数字）")
                 Input {
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -385,6 +391,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑤ maxTextLength=6（CHARACTER）+ textLengthBeyondLimit")
                 Input {
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -414,6 +421,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑥ returnKeyType=search + inputReturn 回调")
                 Input {
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -443,6 +451,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑦ editable=false（不可编辑，仅展示）")
                 Input {
                     attr {
+                        overflow(true)
                         height(44f)
                         marginTop(6f)
                         fontSize(16f)
@@ -465,6 +474,7 @@ internal class InputCompareDemoPage : BasePager() {
                 TextArea {
                     ref { ctx.areaBasicRef = it }
                     attr {
+                        overflow(true)
                         height(100f)
                         marginTop(6f)
                         fontSize(16f)
@@ -541,6 +551,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(70f)
                             marginRight(6f)
@@ -561,6 +572,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(70f)
                             marginRight(6f)
@@ -581,6 +593,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             flex(1f)
                             height(70f)
                             fontSize(14f)
@@ -605,6 +618,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑩ keyboardType=number（多行 + 数字键盘）")
                 TextArea {
                     attr {
+                        overflow(true)
                         height(70f)
                         marginTop(6f)
                         fontSize(16f)
@@ -627,6 +641,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑪ returnKeyType=send + inputReturn（多行回车语义）")
                 TextArea {
                     attr {
+                        overflow(true)
                         height(80f)
                         marginTop(6f)
                         fontSize(16f)
@@ -659,6 +674,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑫ maxTextLength=10（VISUAL_WIDTH）+ textLengthBeyondLimit")
                 TextArea {
                     attr {
+                        overflow(true)
                         height(80f)
                         marginTop(6f)
                         fontSize(16f)
@@ -688,6 +704,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑬ editable=false（多行只读）")
                 TextArea {
                     attr {
+                        overflow(true)
                         height(70f)
                         marginTop(6f)
                         fontSize(16f)
@@ -704,6 +721,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑭ lines=4 + lineHeight=26（TextArea 独有样式）")
                 TextArea {
                     attr {
+                        overflow(true)
                         marginTop(6f)
                         fontSize(16f)
                         color(Color.BLACK)
@@ -720,6 +738,7 @@ internal class InputCompareDemoPage : BasePager() {
                 SectionTitle("⑮ inputSpans 富文本（初始混排，新控件若不支持会暴露问题）")
                 TextArea {
                     attr {
+                        overflow(true)
                         height(90f)
                         marginTop(6f)
                         fontSize(16f)
@@ -790,6 +809,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             marginTop(4f)
                             minHeight(40f)
                             fontSize(16f)
@@ -825,6 +845,7 @@ internal class InputCompareDemoPage : BasePager() {
                     }
                     TextArea {
                         attr {
+                            overflow(true)
                             marginTop(4f)
                             height(60f)
                             fontSize(16f)

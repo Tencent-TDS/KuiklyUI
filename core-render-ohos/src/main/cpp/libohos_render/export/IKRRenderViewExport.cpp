@@ -18,9 +18,12 @@
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/foundation/KRConfig.h"
+#include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
+#include <cerrno>
+#include <cstdlib>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,15 +34,56 @@ extern int32_t OH_ArkUI_NodeUtils_GetLayoutSize(ArkUI_NodeHandle node, ArkUI_Int
 
 static KRRenderViewOnSetProp gExternalPropHandlerOnSet = nullptr;
 static KRRenderViewOnResetProp gExternalPropHandlerOnReset = nullptr;
+static KRRenderViewOnSetPropV2 gExternalPropHandlerOnSetV2 = nullptr;
+static KRRenderViewOnResetPropV2 gExternalPropHandlerOnResetV2 = nullptr;
 
-void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewOnResetProp reset) {
+KUIKLY_EXPORT void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewOnResetProp reset) {
     gExternalPropHandlerOnSet = set;
     gExternalPropHandlerOnReset = reset;
+    gExternalPropHandlerOnSetV2 = nullptr;
+    gExternalPropHandlerOnResetV2 = nullptr;
+}
+
+KUIKLY_EXPORT void KRRenderViewSetExternalPropHandlerV2(KRRenderViewOnSetPropV2 set, KRRenderViewOnResetPropV2 reset) {
+    gExternalPropHandlerOnSetV2 = set;
+    gExternalPropHandlerOnResetV2 = reset;
+    gExternalPropHandlerOnSet = nullptr;
+    gExternalPropHandlerOnReset = nullptr;
+}
+
+KUIKLY_EXPORT ArkUI_NodeHandle KRRenderViewGetNodeHandle(uint64_t instanceId, int tag) {
+    KREnsureMainThread();
+    auto renderView = KRRenderManager::GetInstance().GetRenderView(std::to_string(instanceId));
+    if (!renderView) {
+        return nullptr;
+    }
+    auto view = renderView->GetView(tag);
+    return view ? view->GetNode() : nullptr;
 }
 
 #ifdef __cplusplus
 }
 #endif
+
+namespace {
+uint64_t InstanceIdToUInt64(const std::string &instanceId) {
+    if (instanceId.empty()) {
+        return 0;
+    }
+    for (const char ch : instanceId) {
+        if (ch < '0' || ch > '9') {
+            return 0;
+        }
+    }
+    char *end = nullptr;
+    errno = 0;
+    const auto value = std::strtoull(instanceId.c_str(), &end, 10);
+    if (errno == ERANGE || end != instanceId.c_str() + instanceId.size()) {
+        return 0;
+    }
+    return static_cast<uint64_t>(value);
+}
+}  // namespace
 
 std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::string &view_name) {
     KREnsureMainThread();
@@ -216,7 +260,12 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
     if (!didHanded) {
         if (!SetProp(prop_key, prop_value, event_call_back)) {
             // prop not handled, pass it forward to extern handler
-            if (gExternalPropHandlerOnSet) {
+            if (gExternalPropHandlerOnSetV2) {
+                struct KRAnyDataInternal anyDataInternal;
+                anyDataInternal.anyValue = prop_value;
+                gExternalPropHandlerOnSetV2(InstanceIdToUInt64(GetInstanceId()), GetNode(), prop_key.c_str(),
+                                            &anyDataInternal);
+            } else if (gExternalPropHandlerOnSet) {
                 struct KRAnyDataInternal anyDataInternal;
                 anyDataInternal.anyValue = prop_value;
                 gExternalPropHandlerOnSet(GetNode(), prop_key.c_str(), &anyDataInternal);
@@ -227,6 +276,9 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
 }
 
 bool IKRRenderViewExport::ResetProp(const std::string &prop_key) {
+    if (gExternalPropHandlerOnResetV2) {
+        return gExternalPropHandlerOnResetV2(InstanceIdToUInt64(GetInstanceId()), GetNode(), prop_key.c_str());
+    }
     return gExternalPropHandlerOnReset ? gExternalPropHandlerOnReset(GetNode(), prop_key.c_str()) : false;
 }
 

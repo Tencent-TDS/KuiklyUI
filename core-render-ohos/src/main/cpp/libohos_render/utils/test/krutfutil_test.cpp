@@ -73,6 +73,9 @@ void TestBoundaryLength() {
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("abc"), 3);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(""), 0);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(nullptr), 0);
+    const auto info = utf::ScanUTF8Boundary(kCjkText);
+    EXPECT_EQ_SIZE(info.length, 24);
+    EXPECT_EQ_SIZE(info.boundary, 24);
 
     // ArkUI can truncate a fixed-size insert buffer in the middle of a character.
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("a\xE4\xB8"), 1);
@@ -82,6 +85,9 @@ void TestBoundaryLength() {
     const std::string maxInsert = std::string(252, 'a') + "\xF0\x9F\x98";
     EXPECT_EQ_SIZE(maxInsert.size(), 255);
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength(maxInsert.c_str()), 252);
+    const auto truncatedInfo = utf::ScanUTF8Boundary(maxInsert.c_str());
+    EXPECT_EQ_SIZE(truncatedInfo.length, 255);
+    EXPECT_EQ_SIZE(truncatedInfo.boundary, 252);
 
     // Ill-formed tails without a start byte keep the existing contract.
     EXPECT_EQ_SIZE(utf::UTF8BoundaryLength("\x80"), 1);

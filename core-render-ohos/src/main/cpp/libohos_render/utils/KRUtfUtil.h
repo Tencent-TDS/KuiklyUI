@@ -30,6 +30,14 @@ std::string ToUTF8(const uint16_t *input, size_t units, bool strict = false);
 std::u32string ToUTF32(const std::string &input);
 std::string ToUTF8(const std::u32string &input);
 
+// Result of one NUL-terminated UTF-8 scan: bytes before NUL and the longest safe prefix.
+struct UTF8BoundaryInfo {
+    size_t length;
+    size_t boundary;
+};
+
+UTF8BoundaryInfo ScanUTF8Boundary(const char *input);
+
 // Length of a NUL-terminated UTF-8 string after removing any incomplete trailing sequence.
 size_t UTF8BoundaryLength(const char *input);
 

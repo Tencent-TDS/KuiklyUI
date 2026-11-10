@@ -799,12 +799,11 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         // ArkUI copies at most MAX_INSERT_LENGTH - 1 bytes, which can leave an incomplete UTF-8
         // tail. Drop that tail before filter -> CalculateTextLength decodes the buffer.
         buffer[MAX_INSERT_LENGTH - 1] = '\0';
-        const size_t copiedLength = strlen(buffer);
-        const size_t boundaryLength = kuikly::util::utf::UTF8BoundaryLength(buffer);
-        // Trimming the incomplete tail can make strlen(buffer) shorter than the cap.
+        const auto boundary = kuikly::util::utf::ScanUTF8Boundary(buffer);
+        // Trimming the incomplete tail can make the buffer shorter than the cap.
         // Preserve the full-buffer state so the temporary max-length path still runs.
-        const bool insertBufferTruncated = copiedLength >= MAX_INSERT_LENGTH - 1;
-        buffer[boundaryLength] = '\0';
+        const bool insertBufferTruncated = boundary.length >= MAX_INSERT_LENGTH - 1;
+        buffer[boundary.boundary] = '\0';
         // KR_LOG_DEBUG << "OnWillInsertText: to insert text: " << buffer;
         auto destText = GetContentText();
         auto range = GetInputNodeTextSelectionRange();

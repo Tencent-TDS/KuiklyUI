@@ -15,7 +15,6 @@
 
 #include "libohos_render/utils/KRUtfUtil.h"
 
-#include <cstring>
 #include <stdexcept>
 #include "simdutf.h"
 
@@ -163,46 +162,41 @@ size_t UTF16Length(const std::string &input) {
     return simdutf::utf16_length_from_utf8_with_replacement(input.data(), input.size()).count;
 }
 
-size_t UTF8BoundaryLength(const char *input) {
+UTF8BoundaryInfo ScanUTF8Boundary(const char *input) {
     if (input == nullptr) {
-        return 0;
-    }
-    const char *end = input + strlen(input);
-    const size_t bytes = static_cast<size_t>(end - input);
-    if (bytes == 0) {
-        return 0;
+        return {0, 0};
     }
 
-    const unsigned char last = static_cast<unsigned char>(end[-1]);
-    if (last < 0x80) {
-        return bytes;
-    }
-    if ((last & 0xC0) != 0x80) {
-        // A leading byte at the cut leaves an incomplete sequence.
-        return bytes - 1;
-    }
-    if (bytes == 1) {
-        // Orphan continuation byte keeps the existing contract.
-        return bytes;
-    }
-
-    // The last byte is a continuation. Only the preceding two bytes decide whether
-    // its lead byte is complete; no loop or scan of the full string is needed.
-    const unsigned char prev = static_cast<unsigned char>(end[-2]);
-    if (prev < 0x80) {
-        return bytes;
-    }
-    if ((prev & 0xC0) == 0x80) {
-        if (bytes == 2) {
-            return bytes;
+    // fast scans each byte once; slow stays on the last byte that starts a sequence.
+    const char *slow = nullptr;
+    const char *fast = input;
+    size_t leadLength = 0;
+    size_t trailingContinuations = 0;
+    while (*fast != '\0') {
+        const unsigned char byte = static_cast<unsigned char>(*fast);
+        if ((byte & 0xC0) == 0x80) {
+            ++trailingContinuations;
+        } else {
+            slow = fast;
+            leadLength = byte < 0x80 ? 1 : byte < 0xE0 ? 2 : byte < 0xF0 ? 3 : 4;
+            trailingContinuations = 0;
         }
-        const unsigned char third = static_cast<unsigned char>(end[-3]);
-        return third >= 0xF0 ? bytes - 3 : bytes;
+        ++fast;
     }
-    if (prev < 0xE0) {
-        return bytes;
+
+    const size_t length = static_cast<size_t>(fast - input);
+    if (slow == nullptr) {
+        // A string made only of continuation bytes keeps the existing contract.
+        return {length, length};
     }
-    return bytes - 2;
+    const size_t leadOffset = static_cast<size_t>(slow - input);
+    const size_t boundary =
+        trailingContinuations + 1 < leadLength ? leadOffset : length;
+    return {length, boundary};
+}
+
+size_t UTF8BoundaryLength(const char *input) {
+    return ScanUTF8Boundary(input).boundary;
 }
 
 }  // namespace utf

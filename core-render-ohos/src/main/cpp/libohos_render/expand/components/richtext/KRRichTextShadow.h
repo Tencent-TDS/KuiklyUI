@@ -175,19 +175,22 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     const float DrawOffsetX() const {
         return main_thread_drawOffsetX_;
     }
+    const OH_Drawing_TextAlign TextAlign() const {
+        return main_thread_text_align_;
+    }
+    void ResetTextAlign() {
+        main_thread_text_align_ = TEXT_ALIGN_LEFT;
+    }
 
     const std::u16string &GetTextContent() const {
         return text_content_;
     }
-    const std::u16string &MainThreadTextContent() const {
-        return main_thread_text_content_;
-    }
-    bool MainThreadStyledStringEnabled() const {
-        return main_thread_styled_string_enabled_;
+    KRSize MainMeasureSize() {
+        return main_measure_size_;
     }
     
     bool DidExceedMaxLines(){
-        return main_thread_did_exceed_max_lines_;
+        return did_exceed_max_lines_;
     }
     
     OH_Drawing_Array *GetTextLines();
@@ -225,7 +228,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     // 把每个 ImageSpan 的 (placeholder_index, src_uri, w_vp, h_vp) 记录到 image_draw_records_
     // 中。view 层在 OnForegroundDraw 中：
     //   1) 调 OH_Drawing_TypographyPaint 画文字；
-    //   2) 遍历随 Typography 一起发布的 image records，按 placeholder_index 查 GetRectsForPlaceholders 得到
+    //   2) 遍历 image_draw_records_，按 placeholder_index 查 GetRectsForPlaceholders 得到
     //      实际矩形，从 pixmap_cache_ 取已解码的 OH_PixelmapNative，调用
     //      OH_Drawing_CanvasDrawPixelMapRect 将图片画到对应矩形上。
     //
@@ -238,7 +241,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         float height_vp = 0.0f;
     };
     const std::vector<KRImageDrawRecord> &GetImageDrawRecords() const {
-        return main_thread_image_draw_records_;
+        return image_draw_records_;
     }
 
     // ===== Phase 3↔4 桥接：image span 解码完成通知 view markDirty =====
@@ -260,7 +263,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 
  private:
     void DestroyCachedTextLines();
-    KRAnyValue LayoutAtWidth(float width);
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
     // ===== Phase 3: 委托 KRCustomEmojiPixmapCache 异步预加载 =====
@@ -270,17 +272,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     void TriggerImagePrefetchIfNeed();
  private:
     std::u16string text_content_;
-    std::u16string main_thread_text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
     bool did_exceed_max_lines_ = false;
-    bool main_thread_did_exceed_max_lines_ = false;
-    bool main_thread_styled_string_enabled_ = false;
-    // Whether layoutAtWidth has resolved the current context-thread paragraph width.
-    bool context_width_resolved_ = false;
-    float context_layout_width_ = -1.0f;
-    double context_constraint_height_ = -1.0;
     // 持有 typography 的两个槽位：
     //  - main_thread_typography_:    主线程使用（Paint/SpanIndex 等）；
     //  - context_thread_typography_: context 线程使用（Layout/SpanRect 计算）。
@@ -294,20 +289,21 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     float main_thread_drawOffsetX_ = 0;
     float main_thread_drawOffsetY_ = 0;
     OH_Drawing_TextAlign context_thread_text_align_ = TEXT_ALIGN_LEFT;
+    OH_Drawing_TextAlign main_thread_text_align_ = TEXT_ALIGN_LEFT;
 
     KRSize context_measure_size_;
+    KRSize main_measure_size_;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
-    std::vector<std::tuple<int, int, int>> main_thread_span_offsets_;
     std::shared_ptr<KRParagraph> paragraph_;
     KRSpinLock paragraph_lock_;
     std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
 
     // ===== Phase 4: image span 绘制相关 =====
-    // Build on the context thread and publish the records together with their typography.
+    // image_draw_records_ 仅由 BuildTextTypography 在 context 线程构造，主线程读取（OnForegroundDraw）。
+    // 重建（SetProp("values") -> Measure -> BuildTextTypography）时整体覆盖，无并发改写问题。
     // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例 + LRU 128）。
     std::vector<KRImageDrawRecord> image_draw_records_;
-    std::vector<KRImageDrawRecord> main_thread_image_draw_records_;
     std::mutex image_loaded_callback_mutex_;
     ImageLoadedCallback image_loaded_callback_;
 

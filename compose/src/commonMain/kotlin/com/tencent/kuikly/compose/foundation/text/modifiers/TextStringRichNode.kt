@@ -295,10 +295,16 @@ internal class TextStringRichNode(
             maxWidth.toFloat() / density,
             maxHeight.toFloat() / density
         )
-        // OHOS intrinsic queries must not publish a paragraph laid out at an intrinsic
-        // width. Publish only after the actual measure resolves its constrained width.
-        if (textView?.getPager()?.pageData?.isOhOs != true) {
-            publishTextLayout(textView)
+        textView?.updateShadow()
+
+        // Compose layout runs outside Kuikly's Flex layout loop,
+        // so we need to manually fire the line break margin event.
+        if (textView?.getViewAttr()?.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
+            val isLineBreakMargin =
+                textView.shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+            if (isLineBreakMargin) {
+                textView.onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+            }
         }
 
         var intSize = IntSize(1000, 1000)
@@ -311,18 +317,6 @@ internal class TextStringRichNode(
         return intSize
     }
 
-    private fun publishTextLayout(textView: RichTextView?) {
-        textView?.updateShadow()
-        // Compose layout runs outside Kuikly's Flex layout loop.
-        if (textView?.getViewAttr()?.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
-            val isLineBreakMargin =
-                textView.shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
-            if (isLineBreakMargin) {
-                textView.onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
-            }
-        }
-    }
-
     /**
      * Text layout happens here
      */
@@ -332,19 +326,9 @@ internal class TextStringRichNode(
     ): MeasureResult {
 
         val intSize = measureTextView(constraints.maxWidth, constraints.maxHeight)
-        var layoutSize = constraints.constrain(
+        val layoutSize = constraints.constrain(
             intSize
         )
-        val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
-        if (textView?.getPager()?.pageData?.isOhOs == true) {
-            val pageDensity = textView.getPager().pagerDensity()
-            textView.shadow?.layoutAtWidth(layoutSize.width.toFloat() / pageDensity)?.let { textLayout ->
-                layoutSize = constraints.constrain(
-                    IntSize(layoutSize.width, ceil(textLayout.height * pageDensity).toInt())
-                )
-            }
-            publishTextLayout(textView)
-        }
 
         val result = genTextLayoutResult(layoutSize)
 

@@ -160,6 +160,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Tr"
+            titleText = "OHOS textAlignRight + flex"
+            subtitleText = "回归多行中文二次 Layout 后的错字与漏字"
+            declarativeExampleUrl = generateJumpUrl("OhosTextAlignRightFlexRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Tc"
             titleText = "Compose text layout"
             subtitleText = "Constraints 之后排版：右对齐、固定宽度、intrinsic 和限行省略"

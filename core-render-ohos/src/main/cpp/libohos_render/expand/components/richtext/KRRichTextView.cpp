@@ -191,16 +191,9 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    // New core bundles finish layout before publishing the shadow. Keep width fitting
-    // only for older bundles, which cannot call layoutAtWidth during measure.
-    // Even for those bundles, alignment and longestLine are not reasons to repeat Layout.
-    if (!richTextShadow->MainThreadWidthResolved() &&
-        static_cast<float>(OH_Drawing_TypographyGetMaxWidth(textTypo) / KRConfig::GetDpi()) != frameWidth) {
-        auto dpi = KRConfig::GetDpi();
-        OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
-        richTextShadow->DestroyCachedTextLines();
-        richTextShadow->main_thread_did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(textTypo);
-    }
+    // Do not call TypographyLayout on an already formatted object here. It is not
+    // idempotent on HarmonyOS 6 and corrupts multiline Chinese glyphs. New core
+    // bundles rebuild a fresh Typography at the resolved width during measure.
 
     if (!selection_rects_.selection_rects.empty()) {
         double density = KRConfig::GetDpi();

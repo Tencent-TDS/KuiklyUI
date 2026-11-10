@@ -175,12 +175,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     const float DrawOffsetX() const {
         return main_thread_drawOffsetX_;
     }
-    const OH_Drawing_TextAlign TextAlign() const {
-        return main_thread_text_align_;
-    }
-    void ResetTextAlign() {
-        main_thread_text_align_ = TEXT_ALIGN_LEFT;
-    }
 
     const std::u16string &GetTextContent() const {
         return text_content_;
@@ -188,14 +182,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     const std::u16string &MainThreadTextContent() const {
         return main_thread_text_content_;
     }
-    bool MainThreadWidthResolved() const {
-        return main_thread_width_resolved_;
-    }
     bool MainThreadStyledStringEnabled() const {
         return main_thread_styled_string_enabled_;
-    }
-    KRSize MainMeasureSize() {
-        return main_measure_size_;
     }
     
     bool DidExceedMaxLines(){
@@ -289,9 +277,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     bool did_exceed_max_lines_ = false;
     bool main_thread_did_exceed_max_lines_ = false;
     bool main_thread_styled_string_enabled_ = false;
-    // Resolved during measure by newer core bundles; older bundles retain draw-time fitting.
+    // Whether layoutAtWidth has resolved the current context-thread paragraph width.
     bool context_width_resolved_ = false;
-    bool main_thread_width_resolved_ = false;
     float context_layout_width_ = -1.0f;
     double context_constraint_height_ = -1.0;
     // 持有 typography 的两个槽位：
@@ -307,10 +294,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     float main_thread_drawOffsetX_ = 0;
     float main_thread_drawOffsetY_ = 0;
     OH_Drawing_TextAlign context_thread_text_align_ = TEXT_ALIGN_LEFT;
-    OH_Drawing_TextAlign main_thread_text_align_ = TEXT_ALIGN_LEFT;
 
     KRSize context_measure_size_;
-    KRSize main_measure_size_;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
     std::vector<std::tuple<int, int, int>> main_thread_span_offsets_;

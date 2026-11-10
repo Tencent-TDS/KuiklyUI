@@ -225,28 +225,22 @@ KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto typography = context_thread_typography_;
     auto offsetY = context_thread_drawOffsetY_;
     auto offsetX = context_thread_drawOffsetX_;
-    auto measure_size = context_measure_size_;
-    auto text_align = context_thread_text_align_;
     auto text_content = text_content_;
     auto span_offsets = span_offsets_;
     auto image_records = image_draw_records_;
     auto exceeded = did_exceed_max_lines_;
     auto styled_string = StyledStringEnabled();
-    auto width_resolved = context_width_resolved_;
-    return [self, typography, offsetY, offsetX, measure_size, text_align,
-            text_content, span_offsets, image_records, exceeded, styled_string, width_resolved] {
+    return [self, typography, offsetY, offsetX, text_content, span_offsets,
+            image_records, exceeded, styled_string] {
         KRRichTextShadow *shadow = reinterpret_cast<KRRichTextShadow *>(self.get());
         shadow->SetMainThreadTypography(typography);
         shadow->main_thread_drawOffsetY_ = offsetY;
         shadow->main_thread_drawOffsetX_ = offsetX;
-        shadow->main_thread_text_align_ = text_align;
-        shadow->main_measure_size_ = measure_size;
         shadow->main_thread_text_content_ = text_content;
         shadow->main_thread_span_offsets_ = span_offsets;
         shadow->main_thread_image_draw_records_ = image_records;
         shadow->main_thread_did_exceed_max_lines_ = exceeded;
         shadow->main_thread_styled_string_enabled_ = styled_string;
-        shadow->main_thread_width_resolved_ = width_resolved;
     };
 }
 

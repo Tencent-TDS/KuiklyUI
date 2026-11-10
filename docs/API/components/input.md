@@ -44,6 +44,65 @@
 
 作用和``Text``组件的[textAlignRight属性方法一致](text.md#textAlignRight方法)
 
+### 键盘类型（keyboardType）
+
+在 `attr` 中调用 `keyboardType*()`，映射各端系统软键盘。
+
+| 方法 | 含义 | 版本 |
+|:--|:--|:--|
+| （默认） | 普通文本 | — |
+| `keyboardTypeAscii()` | 普通文本 | 2.32.0+ |
+| `keyboardTypeNumber()` | 数字 | 既有 |
+| `keyboardTypePhone()` | 电话 | 2.32.0+ |
+| `keyboardTypeUri()` | 网址 | 2.32.0+ |
+| `keyboardTypeEmail()` | 邮箱 | 既有 |
+| `keyboardTypePassword()` | 密码 | 既有 |
+| `keyboardTypeNumberPassword()` | 数字密码 | 2.32.0+ |
+| `keyboardTypeDecimal()` | 小数数字 | 2.32.0+ |
+
+**示例**
+
+```kotlin
+Input {
+    attr {
+        overflow(true)
+        size(200f, 40f)
+        placeholder("手机号")
+        keyboardTypePhone()
+    }
+}
+```
+
+<div class="table-01">
+
+**单行 Input 平台支持**
+
+| keyboardType | Android | iOS | 鸿蒙（TEXT_INPUT） | H5 |
+|:--|:--|:--|:--|:--|
+| 默认 | 支持 | 支持 | 支持 | `text` |
+| Ascii | 普通文本 | ASCIICapable | 普通（无专用枚举） | 降级 `text` |
+| Number | 支持 | 支持 | 支持 | `number` |
+| Phone | 支持 | 支持 | 支持 | 降级 `text` |
+| Uri | 支持 | URL | 普通（无专用枚举） | 降级 `text` |
+| Email | 支持 | 支持 | 支持 | `email` |
+| Password | 支持 | 支持 + 安全输入 | 支持 | `password` |
+| NumberPassword | 支持 | 数字键盘 + 安全输入 | 支持 | 降级 `text` |
+| Decimal | 支持 | DecimalPad | 支持 | 降级 `text` |
+
+</div>
+
+:::tip H5 / 小程序 Web 渲染
+单行 `Input` 仅将 `password` / `number` / `email` 映射为 HTML `input` 的 `type`，其余 `keyboardType` 均为 `text`（与改版前一致）。`TextArea` 不处理 `keyboardType`。
+:::
+
+:::tip 多行 TextArea
+默认与单行一致；多行仅需关注平台特殊情况，见 [TextArea#键盘类型](text-area.md#键盘类型keyboardtype)。
+:::
+
+:::warning 鸿蒙 API 24+（TEXT_EDITOR 路径）
+当业务开启新输入控件 `ARKUI_NODE_TEXT_EDITOR` 时，**单行 `Input` 与多行 `TextArea` 均无法映射 `keyboardType`**，设置后降级为系统默认键盘。老控件 `ARKUI_NODE_TEXT_INPUT` / `TEXT_AREA` 路径仍按上表生效。
+:::
+
 ### keyboardTypePassword方法
 
 设置输入框的内容类型为密码类型
@@ -55,6 +114,26 @@
 ### keyboardTypeEmail方法
 
 设置输入框的内容类型为邮件类型
+
+### keyboardTypeAscii方法 <Badge text="2.32.0 及以上支持" type="warn"/>
+
+设置输入框为 ASCII / 普通文本键盘（平台无专用类型时与默认一致）
+
+### keyboardTypePhone方法 <Badge text="2.32.0 及以上支持" type="warn"/>
+
+设置输入框的内容类型为电话类型
+
+### keyboardTypeUri方法 <Badge text="2.32.0 及以上支持" type="warn"/>
+
+设置输入框的内容类型为网址类型
+
+### keyboardTypeNumberPassword方法 <Badge text="2.32.0 及以上支持" type="warn"/>
+
+设置输入框为数字密码（掩码显示，数字键盘）
+
+### keyboardTypeDecimal方法 <Badge text="2.32.0 及以上支持" type="warn"/>
+
+设置输入框为带小数点的数字键盘
 
 ### returnKeyTypeSearch方法
 

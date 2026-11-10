@@ -109,6 +109,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
+            DemoItem("KeyboardType", "键盘类型示例（Text/Number/Phone/Uri/Email/Password/Decimal...）", "KeyboardTypeDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
             DemoItem("PTR Padding Bug", "Issue #1325 HeaderBar+PTR padding", "BugReproPullRefreshPaddingPage"),
             DemoItem("LazyColumn 背景", "复用 item 背景色残留", "BugReproLazyBgPage"),

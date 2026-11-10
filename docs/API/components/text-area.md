@@ -71,6 +71,12 @@ TextArea {
 >
 > **推荐搭配**：做 emoji 短码插入时，结合 `textInputState`、`textInputStateChange` 与 `selectionChange` 一起使用，以 raw text 选区为准更新插入位置。`TextInputState.text` 始终是业务 raw text，不是图片占位后的展示文本。
 
+### 键盘类型（keyboardType）
+
+`keyboardType*()` 与 [Input#键盘类型](input.md#键盘类型keyboardtype) 相同；**其余与单行一致**。
+
+多行例外：H5 无效；鸿蒙老控件仅 number/email/phone（phone 自 2.32.0），TEXT_EDITOR 不映射；iOS 密码不掩码；Android 数字/电话键盘可能与折行并存。
+
 ### 其他属性
 
 `TextArea` 支持除 `imeNoFullscreen`、`enablesReturnKeyAutomatically` 以外 [Input 组件的所有属性](input.md#属性)。
@@ -84,7 +90,7 @@ TextArea {
 - `tintColor()` - 设置光标颜色
 - `selectionColor()` - 设置文本选中高亮颜色
 - `maxTextLength()` - 设置最大输入长度
-- `keyboardTypePassword()` / `keyboardTypeNumber()` / `keyboardTypeEmail()` - 设置键盘类型
+- `keyboardTypeAscii()` / `keyboardTypeNumber()` / `keyboardTypePhone()` / `keyboardTypeUri()` / `keyboardTypeEmail()` / `keyboardTypePassword()` / `keyboardTypeNumberPassword()` / `keyboardTypeDecimal()` - 设置键盘类型，见上文 [键盘类型](#键盘类型keyboardtype)
 - `returnKeyTypeSearch()` / `returnKeyTypeSend()` / `returnKeyTypeDone()` 等 - 设置返回键类型
 - `autofocus()` - 设置自动获取焦点
 - `editable()` - 设置是否可编辑

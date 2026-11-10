@@ -575,8 +575,23 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     if ([keyboardType isEqualToString:@"number"]) {
         return UIKeyboardTypeNumberPad;
     }
+    if ([keyboardType isEqualToString:@"numberPassword"]) {
+        return UIKeyboardTypeNumberPad;
+    }
+    if ([keyboardType isEqualToString:@"decimal"]) {
+        return UIKeyboardTypeDecimalPad;
+    }
+    if ([keyboardType isEqualToString:@"phone"]) {
+        return UIKeyboardTypePhonePad;
+    }
     if ([keyboardType isEqualToString:@"email"]) {
         return UIKeyboardTypeEmailAddress;
+    }
+    if ([keyboardType isEqualToString:@"uri"]) {
+        return UIKeyboardTypeURL;
+    }
+    if ([keyboardType isEqualToString:@"ascii"]) {
+        return UIKeyboardTypeASCIICapable;
     }
     return UIKeyboardTypeDefault;
     #endif // [macOS]

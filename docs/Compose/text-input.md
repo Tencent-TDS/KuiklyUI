@@ -110,6 +110,28 @@ val state = rememberTextFieldState(initialText = "", initialSelection = TextRang
 KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
 ```
 
+:::info 版本说明（2.32.0 及以上）
+自 **2.32.0** 起，`KeyboardType.Ascii`、`Phone`、`Uri`、`NumberPassword`、`Decimal` 会映射到 Kuikly `InputAttr` / `TextAreaAttr` 的同名 `keyboardType*()`（此前 Compose 侧仅完整映射 `Number` / `Email` / `Password`）。平台差异见 [Input#键盘类型](../API/components/input.md#键盘类型keyboardtype)。
+:::
+
+| `KeyboardType` | 映射到 DSL | 版本 |
+| -- | -- | -- |
+| `Text` / `Unspecified` | 默认 | — |
+| `Ascii` | `keyboardTypeAscii()` | 2.32.0+ |
+| `Number` | `keyboardTypeNumber()` | 既有 |
+| `Phone` | `keyboardTypePhone()` | 2.32.0+ |
+| `Uri` | `keyboardTypeUri()` | 2.32.0+ |
+| `Email` | `keyboardTypeEmail()` | 既有 |
+| `Password` | `keyboardTypePassword()` | 既有 |
+| `NumberPassword` | `keyboardTypeNumberPassword()` | 2.32.0+ |
+| `Decimal` | `keyboardTypeDecimal()` | 2.32.0+ |
+
+:::tip 密码掩码（与上游 Compose 差异）
+上游 Android Compose 常把 **掩码**（`TextObfuscationMode` / `PasswordVisualTransformation` / `SecureTextField`）和 **键盘形态**（`KeyboardOptions.keyboardType`）拆开；`KeyboardType.Password` 文档描述为「掩码键盘」，但普通 `TextField` 仍建议配 `visualTransformation` 或专用 `SecureTextField`。
+
+Kuikly Compose 走原生输入：仅 `KeyboardType` → DSL `keyboardType*()`，**不单独暴露 secure 字段**。Android 由 `InputType` 掩码；iOS 仅在单行 `KRTextFieldView` 上对 `password` / `numberPassword` 开 `secureTextEntry`。CoreTextField 在 **`KeyboardType.Password` / `NumberPassword`** 且 `singleLine=false` 时强制单行（与 DSL 掩码能力及 Android `lines` 设置顺序一致）。`VisualTransformation` 只影响 Material 装饰层。多行 iOS 掩码见 [TextArea#键盘类型](../API/components/text-area.md#键盘类型keyboardtype)。
+:::
+
 ::::warning 废弃构造
 不带 `autoCorrectEnabled` 参数的旧构造已标记废弃，请使用新构造。
 ::::

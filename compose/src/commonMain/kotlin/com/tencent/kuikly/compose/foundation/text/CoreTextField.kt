@@ -193,6 +193,10 @@ private fun TextInputState.hasActiveComposition(): Boolean {
             compositionEnd != TextInputState.NO_COMPOSITION
 }
 
+/** 密码类键盘：走单行 Input，与 DSL 掩码能力一致；并避开 Android 上 keyboardType 与 `lines` 的设置顺序问题。 */
+private fun KeyboardType?.isPasswordKeyboardType(): Boolean =
+    this == KeyboardType.Password || this == KeyboardType.NumberPassword
+
 @Composable
 internal fun CoreTextField(
     value: TextFieldValue = TextFieldValue(""),
@@ -227,7 +231,7 @@ internal fun CoreTextField(
 
     var singleLineNew = singleLine
     if (!singleLineNew) {
-        singleLineNew = keyboardOptions?.keyboardType == KeyboardType.Password
+        singleLineNew = keyboardOptions?.keyboardType.isPasswordKeyboardType()
     }
 
     val autoHeightTextAreaView by remember { mutableStateOf(AutoHeightTextAreaView(singleLineNew)) }
@@ -486,7 +490,7 @@ internal fun CoreTextField(
                         }
                     }
 
-                    if (keyboardOptions?.keyboardType != KeyboardType.Password) {
+                    if (!keyboardOptions?.keyboardType.isPasswordKeyboardType()) {
                         // line要晚于KeyboardType设置 否则安卓平台上会出现Number输入时候不支持换行的情况
                         set(maxLines) {
                             withTextAreaView {
@@ -677,9 +681,14 @@ private fun updateKeyboardOptions(
 ) {
     // 处理键盘类型
     when (options.keyboardType) {
+        KeyboardType.Ascii -> attr.keyboardTypeAscii()
         KeyboardType.Number -> attr.keyboardTypeNumber()
+        KeyboardType.Phone -> attr.keyboardTypePhone()
+        KeyboardType.Uri -> attr.keyboardTypeUri()
         KeyboardType.Email -> attr.keyboardTypeEmail()
         KeyboardType.Password -> attr.keyboardTypePassword()
+        KeyboardType.NumberPassword -> attr.keyboardTypeNumberPassword()
+        KeyboardType.Decimal -> attr.keyboardTypeDecimal()
         else -> {} // 默认键盘类型不需要特殊处理
     }
 

@@ -123,6 +123,17 @@ persistentRealTree — 控制是否持续跟踪业务首屏节点状态
 - turboDisplayAutoUpdateEnable 属性会控制「首屏-完全渲染」期间的属性变更，关闭后本次写入的缓存首屏与所读取的一致。
   :::
 
+**Compose DSL 用法**：通过 `Modifier.turboDisplayAutoUpdateEnable(enable)` 设置，参数语义与默认值和上述自研 DSL 属性一致。
+
+```kotlin
+Text(
+    text = "1280",
+    modifier = Modifier.turboDisplayAutoUpdateEnable(false)
+)
+```
+
+该 Modifier 收录于 [Kuikly 扩展 Modifier](../Compose/kuikly-modifiers.md)。
+
 ---
 
 ### 控制首屏接管时机：挂起 Diff（可选）

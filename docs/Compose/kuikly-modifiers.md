@@ -133,6 +133,23 @@ Box(
 }
 ```
 
+## TurboDisplay 缓存采集
+
+### Modifier.turboDisplayAutoUpdateEnable <Badge text="仅 iOS" type="warn"/>
+
+控制指定节点及其子树是否参与 TurboDisplay 首屏缓存的属性采集，对应自研 DSL 的 `attr { turboDisplayAutoUpdateEnable(enable) }`。默认 `true`；设置为 `false` 后，该节点及其子树的属性变化不会被采集进缓存快照，缓存中保留首次采集时的形态，真实数据仍可正常上屏。
+
+典型用途：敏感/时效性字段（如积分数字）在缓存首屏中保持占位形态，真实数据待首屏接管后再上屏。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| enable | 是否允许该节点及其子树参与缓存属性采集，默认 `true` | Boolean |
+
+:::tip 说明
+- 只影响「缓存采集」，不影响真实树渲染与首屏差异更新；节点仍保留在缓存树中，无需通过条件渲染移除节点。
+- 机制与平台适用范围详见 [TurboDisplay 首屏加速机制](../DevGuide/turboDisplay.md) 的「View 粒度采集控制」章节。
+:::
+
 ## 已废弃
 
 | Modifier | 状态 | 替代方案 |

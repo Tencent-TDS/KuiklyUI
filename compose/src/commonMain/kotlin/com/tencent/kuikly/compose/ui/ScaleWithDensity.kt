@@ -29,7 +29,9 @@ fun Touch.scaleWithDensity(density: Float): Touch {
         pageX = pageX * density,
         pageY = pageY * density,
         hash = hash,
-        pointerId = pointerId
+        pointerId = pointerId,
+        // 若不传递该状态，缩放后的触点将改为根据事件类型推断按下状态。
+        pressed = pressed
     )
 }
 

@@ -382,9 +382,8 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         krRootView.getLocationInWindow(rootViewRect)
         val currentViewRect = IntArray(2)
         getLocationInWindow(currentViewRect)
-        val x = motionEvent.x
-        val y = motionEvent.y
         val touches = arrayListOf<Map<String, Any>>()
+        val pressedStates = resolvePressedStates(motionEvent, eventName)
         // 遍历所有触摸点
         for (i in 0 until motionEvent.pointerCount) {
             // 获取触摸点的ID和坐标
@@ -397,7 +396,8 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
                 KRViewConst.Y to kuiklyRenderContext.toDpF(y),
                 PAGE_X to kuiklyRenderContext.toDpF((currentViewRect[0] - rootViewRect[0] + x)),
                 PAGE_Y to kuiklyRenderContext.toDpF(currentViewRect[1] - rootViewRect[1] + y),
-                POINTER_ID to pointerId
+                POINTER_ID to pointerId,
+                POINTER_PRESSED to pressedStates[i]
             ))
         }
         return (touches.first() ?: mapOf()).toMutableMap().apply {
@@ -411,6 +411,22 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
                     0
                 })
             }
+        }
+    }
+
+    /**
+     * `ACTION_POINTER_UP` 会在 MotionEvent 中保留刚抬起的手指，并由 `actionIndex` 指明对应触点。
+     * 若不单独识别该触点，会把本次事件中的所有触点都标记为已抬起；取消事件则将全部触点标记为未按下。
+     */
+    private fun resolvePressedStates(motionEvent: MotionEvent, eventName: String): BooleanArray {
+        val pointerCount = motionEvent.pointerCount
+        if (eventName == EVENT_TOUCH_CANCEL) {
+            return BooleanArray(pointerCount)
+        }
+        return when (motionEvent.actionMasked) {
+            MotionEvent.ACTION_POINTER_UP -> BooleanArray(pointerCount) { it != motionEvent.actionIndex }
+            MotionEvent.ACTION_UP -> BooleanArray(pointerCount)
+            else -> BooleanArray(pointerCount) { true }
         }
     }
 
@@ -518,6 +534,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         private const val PAGE_Y = "pageY"
         private const val TOUCHES = "touches"
         private const val POINTER_ID = "pointerId"
+        private const val POINTER_PRESSED = "pressed"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
         private const val TIMESTAMP = "timestamp"
         private const val CONSUMED = "consumed"

@@ -617,7 +617,9 @@ open class KRView : IKuiklyRenderViewExport {
                 KRParamConst.PAGE_X to params[KRParamConst.PAGE_X],
                 KRParamConst.PAGE_Y to params[KRParamConst.PAGE_Y],
                 KRParamConst.POINTER_ID to 0,
-                KRParamConst.HASH to params[KRParamConst.X]
+                KRParamConst.HASH to params[KRParamConst.X],
+                KRParamConst.PRESSED to (action != KRActionConst.TOUCH_UP &&
+                    action != KRActionConst.TOUCH_CANCEL)
             )
             val touches = arrayListOf<Map<String, Any?>>()
             touches.add(touch)

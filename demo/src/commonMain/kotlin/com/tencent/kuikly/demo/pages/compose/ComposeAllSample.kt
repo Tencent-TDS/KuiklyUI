@@ -182,6 +182,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),
             DemoItem("iOS键盘InputTextField", "业务侧 InputTextField iOS 键盘复现", "IosKeyboardInputTextFieldDemo"),
             DemoItem("TextArea对齐Bug", "iOS BasicTextField 右/居中对齐点击输入后失效复现", "TextAreaTextAlignBugDemo"),
+            DemoItem("多指按压状态诊断", "多指触摸按压状态诊断（抬起一指时其余触点应保持按下）", "MultiTouchPointerStateDemo"),
         )
 
     @Composable

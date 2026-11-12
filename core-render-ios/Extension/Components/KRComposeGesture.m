@@ -274,12 +274,15 @@
 // 从触摸事件生成参数
 - (NSDictionary *)generateParamsWithTouches:(NSSet<UITouch *> *)touches event:(UIEvent *)event eventName:(NSString *)eventName {
     NSMutableArray *touchesParam = [NSMutableArray new];
+    // 取消事件按事件名称将全部触点标记为未按下，不依赖各触点的 phase。
+    BOOL isCancel = [eventName isEqualToString:@"touchCancel"];
     
 #if !TARGET_OS_OSX // [macOS]
     // 处理所有触摸点
     for (UITouch *touch in touches) {
         CGPoint locationInSelf = [touch locationInView:self.containerView];
         CGPoint locationInRootView = [touch locationInView:(UIView *)[self.containerView hr_rootView]];
+        BOOL pressed = !isCancel && touch.phase != UITouchPhaseEnded && touch.phase != UITouchPhaseCancelled;
                         
         [touchesParam addObject:@{
             @"x" : @(locationInSelf.x),
@@ -288,6 +291,7 @@
             @"pageY" : @(locationInRootView.y),
             @"hash" : @(touch.hash),
             @"pointerId" : @(touch.hash),  // 使用 touch.hash 作为唯一的 pointerId
+            @"pressed" : @(pressed),
         }];
     }
 #else // [macOS
@@ -305,6 +309,7 @@
             // manually flipped the y-coordinate if rootView does not flip coordinate system.
             locationInRootView.y = rootView.bounds.size.height - locationInRootView.y;
         }
+        BOOL pressed = !isCancel && ![eventName isEqualToString:@"touchUp"];
         
         [touchesParam addObject:@{
             @"x" : @(locationInSelf.x),
@@ -313,6 +318,7 @@
             @"pageY" : @(locationInRootView.y),
             @"hash" : @(kMacMousePointerId),
             @"pointerId" : @(kMacMousePointerId),
+            @"pressed" : @(pressed),
         }];
     }
 #endif // macOS]

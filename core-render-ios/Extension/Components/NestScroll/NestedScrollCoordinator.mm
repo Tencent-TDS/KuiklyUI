@@ -18,6 +18,7 @@
 #import "ScrollableProtocol.h"
 #import "KRScrollView.h"
 #import "KRScrollView+NestedScroll.h"
+#import "UIScrollView+KuiklyCoordinator.h"
 
 // 修改NSLogTrace宏定义
 //#define NSLogTrace(...) NSLog(@"nested " __VA_ARGS__)
@@ -66,6 +67,7 @@ static CGFloat const kNestedScrollFloatThreshold = 0.1;
 
 - (void)setOuterScrollView:(UIScrollView<NestedScrollProtocol> *)outerScrollView {
     _outerScrollView = outerScrollView;
+    _outerScrollView.coordinator = self;
 }
 
 
@@ -253,7 +255,7 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
     // 2. Lock inner scrollview if necessary
     if ([self isDirection:direction hasPriority:NestedScrollPriorityParent]) {
         if (isOuter || (isInner && !self.shouldUnlockInnerScrollView)) {
-            if (hasScrollToTheDirectionEdge(outerScrollView, direction)) {
+            if (hasScrollToTheDirectionEdge(outerScrollView, direction) && ![outerScrollView isParentLocked]) {
                 // Outer has slipped to the edge,
                 // need to further determine whether the Inner can still slide
                 if (hasScrollToTheDirectionEdge(innerScrollView, direction)) {

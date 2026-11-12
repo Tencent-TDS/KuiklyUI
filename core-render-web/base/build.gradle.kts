@@ -37,11 +37,13 @@ publishing {
 
 kotlin {
     js(IR) {
-        moduleName = "KuiklyCore-render-web-base"
+        // Kotlin 2.3 起 moduleName: String 已移除，改用 outputModuleName(Provider API)
+        outputModuleName.set("KuiklyCore-render-web-base")
         // Output build products that support browser execution
         browser {
             webpackTask {
-                outputFileName = "${moduleName}.js" // Final output name
+                // Kotlin 2.3 起 outputFileName 更名为 mainOutputFileName
+                mainOutputFileName.set("KuiklyCore-render-web-base.js") // Final output name
             }
 
             commonWebpackConfig {

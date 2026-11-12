@@ -6,7 +6,7 @@
 //  Copyright © 2025 Tencent. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 
 NS_ASSUME_NONNULL_BEGIN
 @class NestedScrollCoordinator;

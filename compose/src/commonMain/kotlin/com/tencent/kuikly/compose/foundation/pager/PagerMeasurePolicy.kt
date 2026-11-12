@@ -172,6 +172,9 @@ internal fun rememberPagerMeasurePolicy(
             beyondBoundsInfo = state.beyondBoundsInfo
         )
 
+        val effectiveBeyondCount = state.resolveBeyondCount(beyondViewportPageCount)
+        val beyondDeferred = effectiveBeyondCount < beyondViewportPageCount
+
         // todo: wrap with snapshot when b/341782245 is resolved
         val measureResult =
             measurePager(
@@ -183,7 +186,7 @@ internal fun rememberPagerMeasurePolicy(
                 mainAxisAvailableSize = mainAxisAvailableSize,
                 visualPageOffset = visualItemOffset,
                 pageAvailableSize = pageAvailableSize,
-                beyondViewportPageCount = beyondViewportPageCount,
+                beyondViewportPageCount = effectiveBeyondCount,
                 orientation = orientation,
                 currentPage = currentPage,
                 currentPageOffset = currentPageOffset,
@@ -195,6 +198,8 @@ internal fun rememberPagerMeasurePolicy(
                 snapPosition = snapPosition,
                 placementScopeInvalidator = state.placementScopeInvalidator,
                 coroutineScope = coroutineScope,
+                retainedPageWindow = if (beyondDeferred) beyondViewportPageCount else 0,
+                isRetainedPage = if (beyondDeferred) state.isComposedLastMeasure else null,
                 layout = { width, height, placement ->
                     layout(
                         containerConstraints.constrainWidth(width + totalHorizontalPadding),

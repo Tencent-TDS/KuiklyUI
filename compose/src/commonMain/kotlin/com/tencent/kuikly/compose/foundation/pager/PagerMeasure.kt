@@ -60,6 +60,9 @@ internal fun LazyLayoutMeasureScope.measurePager(
     snapPosition: SnapPosition,
     placementScopeInvalidator: ObservableScopeInvalidator,
     coroutineScope: CoroutineScope,
+    /** When beyond count is reduced, still compose retained pages within this window. */
+    retainedPageWindow: Int = 0,
+    isRetainedPage: ((Int) -> Boolean)? = null,
     layout: (Int, Int, Placeable.PlacementScope.() -> Unit) -> MeasureResult
 ): PagerMeasureResult {
     require(beforeContentPadding >= 0) { "negative beforeContentPadding" }
@@ -316,7 +319,9 @@ internal fun LazyLayoutMeasureScope.measurePager(
         val extraPagesBefore = createPagesBeforeList(
             currentFirstPage = currentFirstPage,
             beyondViewportPageCount = beyondViewportPageCount,
-            pinnedPages = pinnedPages
+            pinnedPages = pinnedPages,
+            retainedPageWindow = retainedPageWindow,
+            isRetainedPage = isRetainedPage
         ) {
             getAndMeasure(
                 index = it,
@@ -342,7 +347,9 @@ internal fun LazyLayoutMeasureScope.measurePager(
             currentLastPage = visiblePages.last().index,
             pagesCount = pageCount,
             beyondViewportPageCount = beyondViewportPageCount,
-            pinnedPages = pinnedPages
+            pinnedPages = pinnedPages,
+            retainedPageWindow = retainedPageWindow,
+            isRetainedPage = isRetainedPage
         ) {
             getAndMeasure(
                 index = it,
@@ -487,6 +494,8 @@ private fun createPagesAfterList(
     pagesCount: Int,
     beyondViewportPageCount: Int,
     pinnedPages: List<Int>,
+    retainedPageWindow: Int,
+    isRetainedPage: ((Int) -> Boolean)?,
     getAndMeasure: (Int) -> MeasuredPage
 ): List<MeasuredPage> {
     var list: MutableList<MeasuredPage>? = null
@@ -498,8 +507,19 @@ private fun createPagesAfterList(
         list.add(getAndMeasure(i))
     }
 
+    // Retained pages must stay contiguous for offset layout.
+    var retainedEnd = end
+    if (isRetainedPage != null) {
+        val windowEnd = minOf(currentLastPage + retainedPageWindow, pagesCount - 1)
+        while (retainedEnd < windowEnd && isRetainedPage(retainedEnd + 1)) {
+            retainedEnd++
+            if (list == null) list = mutableListOf()
+            list.add(getAndMeasure(retainedEnd))
+        }
+    }
+
     pinnedPages.fastForEach { pageIndex ->
-        if (pageIndex in (end + 1) until pagesCount) {
+        if (pageIndex in (retainedEnd + 1) until pagesCount) {
             if (list == null) list = mutableListOf()
             list?.add(getAndMeasure(pageIndex))
         }
@@ -512,6 +532,8 @@ private fun createPagesBeforeList(
     currentFirstPage: Int,
     beyondViewportPageCount: Int,
     pinnedPages: List<Int>,
+    retainedPageWindow: Int,
+    isRetainedPage: ((Int) -> Boolean)?,
     getAndMeasure: (Int) -> MeasuredPage
 ): List<MeasuredPage> {
     var list: MutableList<MeasuredPage>? = null
@@ -523,8 +545,18 @@ private fun createPagesBeforeList(
         list.add(getAndMeasure(i))
     }
 
+    var retainedStart = start
+    if (isRetainedPage != null) {
+        val windowStart = maxOf(0, currentFirstPage - retainedPageWindow)
+        while (retainedStart > windowStart && isRetainedPage(retainedStart - 1)) {
+            retainedStart--
+            if (list == null) list = mutableListOf()
+            list.add(getAndMeasure(retainedStart))
+        }
+    }
+
     pinnedPages.fastForEach { pageIndex ->
-        if (pageIndex < start) {
+        if (pageIndex < retainedStart) {
             if (list == null) list = mutableListOf()
             list?.add(getAndMeasure(pageIndex))
         }

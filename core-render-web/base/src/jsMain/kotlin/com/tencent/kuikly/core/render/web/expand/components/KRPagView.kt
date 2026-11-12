@@ -173,7 +173,9 @@ class KRPagView : IKuiklyRenderViewExport {
         // Remove event callbacks
         removeAllEventListener()
         // Remove instance
-        pagView?.destroy()
+        kuiklyWindow.setTimeout({
+            pagView?.destroy()
+        })
     }
 
 
@@ -254,8 +256,9 @@ class KRPagView : IKuiklyRenderViewExport {
                         loadFailureCallback?.invoke(null)
                         return@then
                     }
+                    pagInitPromise = pagInitPromise ?: libpag.PAGInit()
                     // Get pag instance
-                    libpag.PAGInit().then { instance ->
+                    pagInitPromise.then { instance ->
                         if (instance !== undefined) {
                             // Save the pag instance globally for other PagViews on the current page
                             kuiklyWindow.asDynamic().PAGInstance = instance
@@ -314,5 +317,8 @@ class KRPagView : IKuiklyRenderViewExport {
         // Assets image resource prefix, identifies assets resource images
         private const val ASSETS_IMAGE_PREFIX = "assets://"
         private const val FILE_IMAGE_PREFIX = "file://"
+
+        // Track libpag initialization promise to avoid duplicate init
+        private var pagInitPromise: dynamic = null
     }
 }

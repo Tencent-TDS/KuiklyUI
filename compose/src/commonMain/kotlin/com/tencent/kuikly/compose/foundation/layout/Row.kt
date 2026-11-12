@@ -388,6 +388,7 @@ interface RowScope {
     fun Modifier.alignBy(alignmentLineBlock: (Measured) -> Int): Modifier
 }
 
+@PublishedApi
 internal object RowScopeInstance : RowScope {
     @Stable
     override fun Modifier.weight(weight: Float, fill: Boolean): Modifier {

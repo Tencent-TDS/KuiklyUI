@@ -271,6 +271,7 @@ interface BoxScope {
     fun Modifier.matchParentSize(): Modifier
 }
 
+@PublishedApi
 internal object BoxScopeInstance : BoxScope {
     @Stable
     override fun Modifier.align(alignment: Alignment) = this.then(

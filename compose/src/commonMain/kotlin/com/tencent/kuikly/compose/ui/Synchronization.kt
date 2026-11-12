@@ -22,6 +22,7 @@ If you need to make changes to the content, then find duplicates on this comment
 
 package com.tencent.kuikly.compose.ui
 
+@PublishedApi
 internal class SynchronizedObject : kotlinx.atomicfu.locks.SynchronizedObject()
 
 @Suppress("CONFLICTING_OVERLOADS")

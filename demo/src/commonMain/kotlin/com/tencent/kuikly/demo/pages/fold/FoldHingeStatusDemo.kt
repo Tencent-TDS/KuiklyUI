@@ -29,9 +29,10 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
 
 /**
- * 真机验证 `pageData.hingeStatus`：
+ * 真机验证 `pageData.hingeStatus`（**KuiklyUI 2.30.0+** 起 Android 同步支持）：
  * - iOS 27.1+ 折叠机：UIKit `UIHingeInteraction`
- * - HarmonyOS 可折叠设备：`display.foldStatusChange` 映射后下发（见 core-render-ohos）
+ * - HarmonyOS 可折叠设备：`display.foldStatusChange` 映射后下发
+ * - Android 折叠机：Jetpack `WindowLayoutInfo` / `FoldingFeature`（宿主需依赖 `androidx.window`）
  *
  * 折叠/展开/悬停设备上切换物理姿态，观察状态卡片与推荐布局是否同步更新。
  */
@@ -83,11 +84,14 @@ internal class FoldHingeStatusDemo : BasePager() {
     private fun sourceHint(): String {
         return when {
             pageData.isOhOs ->
-                "HarmonyOS：Native 监听 display.foldStatusChange，映射为 hingeStatus 后随 rootViewSizeDidChanged 更新。"
+                "HarmonyOS（2.31.0+）：Native 监听 display.foldStatusChange，映射 hingeStatus 后随 rootViewSizeDidChanged 更新。"
             pageData.isIOS ->
-                "iOS：UIKit UIHingeInteraction；仅 27.1+ 折叠设备有非 UNKNOWN 数据。"
+                "iOS（2.29.0+）：UIKit UIHingeInteraction；27.1+ 折叠设备才有非 UNKNOWN 数据。"
+            pageData.isAndroid ->
+                "Android（2.30.0+）：Window HALF_OPENED→2、FLAT→3；无折痕时折叠屏→1，否则→0。" +
+                    "宿主需 implementation androidx.window:window 与 window-java。"
             else ->
-                "非折叠平台或普通手机通常保持 UNKNOWN(0)；仍可用宽度断点做响应式布局。"
+                "当前平台无 hingeStatus Native 下发，保持 UNKNOWN(0)；可用宽度断点做响应式布局。"
         }
     }
 }

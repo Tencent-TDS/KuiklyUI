@@ -16,6 +16,9 @@
 #import "UIView+CSS.h"
 #import "UIView+CSSDebug.h"
 #import <objc/runtime.h>
+#if !TARGET_OS_OSX
+#import <UIKit/UIGestureRecognizerSubclass.h>
+#endif
 #import "KRConvertUtil.h"
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
@@ -63,6 +66,20 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @end
 
+#if !TARGET_OS_OSX
+/**
+ * 自定义点击手势识别器（TouchUpInside 语义）
+ * 在非滚动状态下，只要手指在视图 bounds（含容差外扩）内抬起即可触发点击。
+ * 与 ScrollView 的关系对齐系统 UITapGestureRecognizer：滚动手势可以阻止点击，二者不同时识别。
+ */
+@interface KRTapGestureRecognizer : UIGestureRecognizer
+
+/// 视图边界向外扩展的点击有效容差（默认 10pt）
+@property (nonatomic, assign) CGFloat allowableBoundsInset;
+
+@end
+#endif
+
 @interface CSSTransform : NSObject
 
 
@@ -94,7 +111,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, strong) CSSLazyAnimationImp *css_lazyAnimationImp;
 @property (nonatomic, strong) CSSGradientLayer *css_gradientLayer;
 @property (nonatomic, strong) CSSBorderLayer *css_borderLayer;
-@property (nonatomic, strong) UITapGestureRecognizer *css_tapGR;
+@property (nonatomic, strong) UIGestureRecognizer *css_tapGR;
 @property (nonatomic, strong) UITapGestureRecognizer *css_doubleTapGR;
 @property (nonatomic, strong) UILongPressGestureRecognizer *css_longPressGR;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
@@ -889,11 +906,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 
-- (UITapGestureRecognizer *)css_tapGR {
+- (UIGestureRecognizer *)css_tapGR {
     return objc_getAssociatedObject(self, @selector(css_tapGR));
 }
 
-- (void)setCss_tapGR:(UITapGestureRecognizer *)css_tapGR {
+- (void)setCss_tapGR:(UIGestureRecognizer *)css_tapGR {
     objc_setAssociatedObject(self, @selector(css_tapGR), css_tapGR, OBJC_ASSOCIATION_RETAIN);
 }
 
@@ -933,11 +950,13 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
             self.css_tapGR = nil;
         }
         if (css_click != nil) {
+            #if TARGET_OS_OSX // [macOS]
             self.css_tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onClickTapWithSender:)];
             [self addGestureRecognizer:self.css_tapGR];
-            #if TARGET_OS_OSX // [macOS]
             // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法，使用 delegate 方式处理手势依赖
             #else
+            self.css_tapGR = [[KRTapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onClickTapWithSender:)];
+            [self addGestureRecognizer:self.css_tapGR];
             if (self.css_doubleTapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
             }
@@ -2429,3 +2448,103 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 }
 
 @end
+
+#if !TARGET_OS_OSX
+@implementation KRTapGestureRecognizer {
+    UITouch *_trackedTouch;
+}
+
+- (instancetype)initWithTarget:(id)target action:(SEL)action {
+    self = [super initWithTarget:target action:action];
+    if (self) {
+        _allowableBoundsInset = 10.0;
+    }
+    return self;
+}
+
+- (BOOL)isTouchInsideView:(UITouch *)touch {
+    if (!self.view) {
+        return NO;
+    }
+    CGPoint loc = [touch locationInView:self.view];
+    CGRect hitBounds = CGRectInset(self.view.bounds, -self.allowableBoundsInset, -self.allowableBoundsInset);
+    return CGRectContainsPoint(hitBounds, loc);
+}
+
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesBegan:touches withEvent:event];
+    NSSet<UITouch *> *allTouches = [event touchesForGestureRecognizer:self];
+    if (touches.count > 1 || allTouches.count > 1 || (_trackedTouch && ![touches containsObject:_trackedTouch])) {
+        self.state = UIGestureRecognizerStateFailed;
+        return;
+    }
+    UITouch *touch = [touches anyObject];
+    if (!touch || !self.view) {
+        self.state = UIGestureRecognizerStateFailed;
+        return;
+    }
+    _trackedTouch = touch;
+    if (![self isTouchInsideView:touch]) {
+        self.state = UIGestureRecognizerStateFailed;
+    }
+}
+
+- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesMoved:touches withEvent:event];
+    if (self.state != UIGestureRecognizerStatePossible) {
+        return;
+    }
+    if (!_trackedTouch || ![touches containsObject:_trackedTouch]) {
+        return;
+    }
+    if (![self isTouchInsideView:_trackedTouch]) {
+        self.state = UIGestureRecognizerStateFailed;
+    }
+}
+
+- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesEnded:touches withEvent:event];
+    if (self.state != UIGestureRecognizerStatePossible) {
+        return;
+    }
+    if (!_trackedTouch || ![touches containsObject:_trackedTouch]) {
+        self.state = UIGestureRecognizerStateFailed;
+        return;
+    }
+    if (![self isTouchInsideView:_trackedTouch]) {
+        self.state = UIGestureRecognizerStateFailed;
+        return;
+    }
+    self.state = UIGestureRecognizerStateEnded;
+}
+
+- (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesCancelled:touches withEvent:event];
+    self.state = UIGestureRecognizerStateCancelled;
+}
+
+- (void)reset {
+    [super reset];
+    _trackedTouch = nil;
+}
+
+- (CGPoint)locationInView:(nullable UIView *)view {
+    if (_trackedTouch) {
+        return [_trackedTouch locationInView:view];
+    }
+    return [super locationInView:view];
+}
+
+- (BOOL)shouldBeRequiredToFailByGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    if ([otherGestureRecognizer isKindOfClass:[KRTapGestureRecognizer class]]) {
+        if (self.view && otherGestureRecognizer.view &&
+            [self.view isDescendantOfView:otherGestureRecognizer.view] &&
+            self.view != otherGestureRecognizer.view) {
+            return YES;
+        }
+    }
+    return [super shouldBeRequiredToFailByGestureRecognizer:otherGestureRecognizer];
+}
+
+@end
+#endif

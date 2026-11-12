@@ -143,3 +143,13 @@ internal class TestPage : BasePager() {
 - 开始播放动画方法：`startAnimating` --> `startAPNGAnimating`
 - 结束播放动画方法：`stopAnimating` --> `stopAPNGAnimating`
 
+## 零第三方依赖参考实现
+
+Demo 工程中的适配器（Android 基于 APNG4Android、iOS 基于 SDWebImage）均依赖第三方解码库。如果业务不希望引入这类依赖，可使用仓库内置的零依赖参考实现：手工解析 APNG 块结构（`IHDR`/`acTL`/`fcTL`/`IDAT`/`fdAT`），逐帧重建标准 PNG 交系统解码器（`BitmapFactory`/`UIImage`），按帧延时调度播放：
+
+- **Android**：[KRAPNGViewAdapterLite.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/adapter/KRAPNGViewAdapterLite.kt)，注册方式 `KuiklyRenderAdapterManager.krAPNGViewAdapter = KRAPNGViewAdapterLite()`
+- **iOS**：[KRAPNGViewHandlerLite.h](https://github.com/Tencent-TDS/KuiklyUI/blob/main/iosApp/iosApp/KuiklyRenderExpand/Handlers/KRAPNGViewHandlerLite.h)，业务启动时调用 `[KRAPNGViewHandlerLite registerToKuikly]` 注册
+
+> 适用边界：仅支持「全帧」APNG（每帧尺寸 = 画布尺寸、offset = 0、blend/dispose = 0，常见导出工具默认产出全帧），覆盖图标/加载动效等大多数场景；解析失败或不含动画帧时降级为静态图显示。若需支持局部帧/帧合成（blend/dispose）的复杂 APNG，请使用第三方解码库适配器。
+
+

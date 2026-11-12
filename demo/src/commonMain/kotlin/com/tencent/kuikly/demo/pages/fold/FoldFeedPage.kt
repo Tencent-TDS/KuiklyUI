@@ -18,7 +18,6 @@ package com.tencent.kuikly.demo.pages.fold
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
-import com.tencent.kuikly.core.directives.vbind
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.pager.ReservedRegionKind
@@ -30,6 +29,7 @@ import com.tencent.kuikly.core.views.ios.UIBarButtonItemPlacement
 import com.tencent.kuikly.core.views.ios.UILargeTitleDisplayMode
 import com.tencent.kuikly.core.views.ios.UINavigationBar
 import com.tencent.kuikly.demo.pages.base.BasePager
+import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
 
 private class FeedCard(
@@ -78,61 +78,60 @@ internal class FoldFeedPage : BasePager() {
             attr {
                 backgroundColor(FoldPalette.bg)
             }
-            vbind({
-                val insets = ctx.pageData.safeAreaInsets
-                val rightInset = feedRightInset(ctx.pageData)
-                val available = ctx.pageData.pageViewWidth - insets.left - rightInset - 32f
-                "${feedColumnCount(available)}|${available.toInt()}|${rightInset.toInt()}"
-            }) {
-                WaterfallList {
-                    attr {
-                        flex(1f)
-                        val insets = ctx.pageData.safeAreaInsets
-                        val rightInset = feedRightInset(ctx.pageData)
-                        val width = ctx.pageData.pageViewWidth
-                        val available = (width - insets.left - rightInset - 32f).coerceAtLeast(0f)
-                        listWidth(width)
-                        contentPadding(
-                            top = ctx.pageData.statusBarHeight + 44f + 24f,
-                            left = insets.left + 16f,
-                            bottom = insets.bottom + 16f,
-                            right = rightInset + 16f,
-                        )
-                        columnCount(feedColumnCount(available))
-                        itemSpacing(10f)
-                        lineSpacing(10f)
-                    }
-                    feedCards.forEachIndexed { index, card ->
+
+            NavBar {
+                attr {
+                    title = "瀑布流"
+                }
+            }
+            WaterfallList {
+                attr {
+                    flex(1f)
+                    val insets = ctx.pageData.safeAreaInsets
+                    val rightInset = feedRightInset(ctx.pageData)
+                    val width = ctx.pageData.pageViewWidth
+                    val available = (width - insets.left - rightInset - 32f).coerceAtLeast(0f)
+                    listWidth(width)
+                    contentPadding(
+                        16f,
+                        left = insets.left + 16f,
+                        bottom = insets.bottom + 16f,
+                        right = rightInset + 16f,
+                    )
+                    columnCount(feedColumnCount(available))
+                    itemSpacing(10f)
+                    lineSpacing(10f)
+                }
+                feedCards.forEachIndexed { index, card ->
+                    View {
+                        attr {
+                            borderRadius(12f)
+                            backgroundColor(FoldPalette.card)
+                            padding(10f)
+                        }
                         View {
                             attr {
-                                borderRadius(12f)
-                                backgroundColor(FoldPalette.card)
-                                padding(10f)
+                                height(card.imageHeight)
+                                borderRadius(8f)
+                                backgroundColor(foldSwatch(index))
                             }
-                            View {
-                                attr {
-                                    height(card.imageHeight)
-                                    borderRadius(8f)
-                                    backgroundColor(foldSwatch(index))
-                                }
+                        }
+                        Text {
+                            attr {
+                                marginTop(8f)
+                                text(card.title)
+                                fontSize(15f)
+                                fontWeightSemiBold()
+                                color(FoldPalette.ink)
                             }
-                            Text {
-                                attr {
-                                    marginTop(8f)
-                                    text(card.title)
-                                    fontSize(15f)
-                                    fontWeightSemiBold()
-                                    color(FoldPalette.ink)
-                                }
-                            }
-                            Text {
-                                attr {
-                                    marginTop(4f)
-                                    text(card.detail)
-                                    fontSize(13f)
-                                    lineHeight(18f)
-                                    color(FoldPalette.secondary)
-                                }
+                        }
+                        Text {
+                            attr {
+                                marginTop(4f)
+                                text(card.detail)
+                                fontSize(13f)
+                                lineHeight(18f)
+                                color(FoldPalette.secondary)
                             }
                         }
                     }

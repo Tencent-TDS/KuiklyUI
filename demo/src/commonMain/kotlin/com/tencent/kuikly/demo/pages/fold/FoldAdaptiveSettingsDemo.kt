@@ -1015,6 +1015,9 @@ private fun ViewContainer<*, *>.foldSettingsPrimaryNavBar(
             top(0f)
             height(FOLD_SETTINGS_NAV_HEIGHT)
             // 顶栏铺满整屏，靠左内边距把标题挤到详情窗口的居中位置。
+            controller.systemChromeLayoutKey
+            controller.requestedMasterWidth
+            controller.masterCollapsed
             paddingLeft(controller.contentInsetLeft())
             flexDirectionRow()
             alignItemsCenter()
@@ -1042,12 +1045,12 @@ private fun ViewContainer<*, *>.foldSettingsPrimaryNavBar(
                 backgroundColor(Color(0xC7C7CC, page.detailTitleProgress()))
             }
         }
-        vif({ controller.usesDrawnBack() }) {
+        vif({
+            controller.usesDrawnBack()
+        }) {
             foldSettingsCircleBack(
-                left = max(
-                    FoldAdaptiveSettingsDemo.COMPACT_PAD,
-                    page.pageData.safeAreaInsets.left,
-                ),
+                page,
+                controller,
                 top = (FOLD_SETTINGS_NAV_HEIGHT - FOLD_SETTINGS_CIRCLE_BACK) / 2f,
             ) {
                 controller.backToMaster()
@@ -1218,14 +1221,8 @@ private fun ViewContainer<*, *>.foldSettingsNavigationBar(
         }
         vif({ controller.usesDrawnBack() }) {
             foldSettingsCircleBack(
-                left = if (controller.isCompact()) {
-                    max(
-                        FoldAdaptiveSettingsDemo.COMPACT_PAD,
-                        page.pageData.safeAreaInsets.left,
-                    )
-                } else {
-                    controller.contentInsetLeft() + 14f
-                },
+                page,
+                controller,
                 top = (FOLD_SETTINGS_NAV_HEIGHT - FOLD_SETTINGS_CIRCLE_BACK) / 2f,
             ) {
                 controller.close()
@@ -1234,8 +1231,24 @@ private fun ViewContainer<*, *>.foldSettingsNavigationBar(
     }
 }
 
+/**
+ * 自绘返回在满宽顶栏上的 screen-left。
+ * 用 [FoldSplitStackController.contentInsetLeft] 分叉，不用 [isCompact]：
+ * 折叠瞬间 inset 已归零而 isCompact 可能仍 false，会错用大屏 left 把按钮甩到右侧。
+ */
+private fun foldSettingsDrawnBackScreenLeft(
+    controller: FoldSplitStackController,
+    safeAreaLeft: Float,
+): Float =
+    if (controller.contentInsetLeft() <= 0.5f) {
+        max(FoldAdaptiveSettingsDemo.COMPACT_PAD, safeAreaLeft)
+    } else {
+        controller.contentInsetLeft() + 14f
+    }
+
 private fun ViewContainer<*, *>.foldSettingsCircleBack(
-    left: Float,
+    page: FoldAdaptiveSettingsDemo,
+    controller: FoldSplitStackController,
     top: Float,
     onClick: () -> Unit,
 ) {
@@ -1243,7 +1256,7 @@ private fun ViewContainer<*, *>.foldSettingsCircleBack(
     View {
         attr {
             positionAbsolute()
-            left(left)
+            left(foldSettingsDrawnBackScreenLeft(controller, page.pageData.safeAreaInsets.left))
             top(top)
             size(FOLD_SETTINGS_CIRCLE_BACK, FOLD_SETTINGS_CIRCLE_BACK)
             borderRadius(radius)

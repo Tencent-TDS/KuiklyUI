@@ -79,9 +79,43 @@ internal class FoldFeedPage : BasePager() {
                 backgroundColor(FoldPalette.bg)
             }
 
-            NavBar {
-                attr {
-                    title = "瀑布流"
+            if (!ctx.pageData.isIOS) {
+                NavBar {
+                    attr {
+                        title = "瀑布流"
+                    }
+                }
+            } else {
+                UINavigationBar {
+                    attr {
+                        tintColor(Color.BLACK)
+                    }
+                    title {
+                        text {
+                            attr {
+                                title("城里走走")
+                                largeTitle(UILargeTitleDisplayMode.Never)
+                            }
+                        }
+                    }
+                    items {
+                        navbarItems {
+                            navbarItem {
+                                attr {
+                                    symbol("chevron.backward")
+                                    placement(UIBarButtonItemPlacement.Leading)
+                                    index(0)
+                                    axis(UIBarAxis.VerticalPreferred)
+                                }
+                                event {
+                                    click {
+                                        ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
+                                            .closePage()
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             WaterfallList {
@@ -137,37 +171,7 @@ internal class FoldFeedPage : BasePager() {
                     }
                 }
             }
-            UINavigationBar {
-                attr {
-                    tintColor(Color.BLACK)
-                }
-                title {
-                    text {
-                        attr {
-                            title("城里走走")
-                            largeTitle(UILargeTitleDisplayMode.Never)
-                        }
-                    }
-                }
-                items {
-                    navbarItems {
-                        navbarItem {
-                            attr {
-                                symbol("chevron.backward")
-                                placement(UIBarButtonItemPlacement.Leading)
-                                index(0)
-                                axis(UIBarAxis.VerticalPreferred)
-                            }
-                            event {
-                                click {
-                                    ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
-                                        .closePage()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+
         }
     }
 }

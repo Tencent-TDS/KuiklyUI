@@ -20,6 +20,69 @@ repositories {
     mavenLocal()
 }
 
+/**
+ * LLVM PGO / Machine Outliner 开关，由环境变量 LLVM_PGO_TYPE 控制：
+ * - LLVMPGO: 插装编译，运行时生成 .profraw
+ * - MachineOutliner: 使用 demo/llvmProfile/real_ios.profdata 做 PGO + outlining
+ * - 未设置 / 其他: 普通编译
+ *
+ * 详见 docs/DevGuide/machine-outliner-pgo-guide.md
+ */
+val llvmPgoType = System.getenv("LLVM_PGO_TYPE").orEmpty()
+val enableLlvmPgoInstrument = llvmPgoType == "LLVMPGO"
+val enableMachineOutliner = llvmPgoType == "MachineOutliner"
+val iosProfdataFile = project.file("llvmProfile/real_ios.profdata")
+
+fun buildAppleClangOverrideProperties(): String? {
+    val optFlags = when {
+        enableLlvmPgoInstrument -> {
+            // 插装必须跑 LLVM passes；不能沿用 Debug 默认的 -disable-llvm-passes。
+            // 关闭 value profiling（LLVM16 正确开关是 -disable-vp；
+            // -enable-value-profiling=false 是空操作会被忽略）。否则 __llvm_prf_data
+            // 里会残留 NumValueSites>0，而运行时 dump 不写 VP 段，导致 profraw 自相矛盾、
+            // llvm-profdata merge 报 "truncated profile data"。
+            "-Os -ffunction-sections " +
+                "-fprofile-instrument=llvm " +
+                "-fprofile-instrument-path=/fake/default_ios.profraw " +
+                "-mllvm -disable-vp"
+        }
+        enableMachineOutliner -> {
+            // 开源 KN/LLVM16 仅稳定支持 enable-machine-outliner；
+            // 参考文档中的 *-threshold 等为内部 LLVM 扩展，此处不默认启用。
+            val outliner =
+                "-Os -ffunction-sections -mllvm -enable-machine-outliner=always"
+            if (iosProfdataFile.exists()) {
+                logger.lifecycle("[LLVM_PGO] 使用 profdata: ${iosProfdataFile.absolutePath}")
+                "$outliner -fprofile-instrument-use-path=${iosProfdataFile.absolutePath}"
+            } else {
+                logger.warn(
+                    "[LLVM_PGO] MachineOutliner 已开启，但未找到 ${iosProfdataFile.path}；" +
+                        "仍启用 outlining（无 PGO use）。完整 PGO 请见 docs/DevGuide/machine-outliner-pgo-guide.md"
+                )
+                outliner
+            }
+        }
+        else -> return null
+    }
+    // Debug 构建走 clangDebugFlags，Release 走 clangOptFlags。
+    // PGO 插装时还需覆盖 clangFlags，去掉 -disable-llvm-passes，否则插装 pass 不会执行。
+    val appleSuffixes = listOf("ios_arm64", "ios_x64", "ios_simulator_arm64")
+    val props = mutableListOf<String>()
+    for (suffix in appleSuffixes) {
+        props += "clangOptFlags.$suffix=$optFlags"
+        props += "clangDebugFlags.$suffix=$optFlags"
+        if (enableLlvmPgoInstrument || enableMachineOutliner) {
+            props += "clangFlags.$suffix=-cc1 -emit-obj -x ir"
+        }
+    }
+    return props.joinToString(";")
+}
+
+val appleClangOverrideProperties = buildAppleClangOverrideProperties()
+if (appleClangOverrideProperties != null) {
+    logger.lifecycle("[LLVM_PGO] LLVM_PGO_TYPE=$llvmPgoType，已启用 Kotlin/Native clang 优化参数覆盖")
+}
+
 kotlin {
 
     // target
@@ -141,9 +204,29 @@ kotlin {
         framework {
             isStatic = true
             baseName = "shared"
+            if (appleClangOverrideProperties != null) {
+                freeCompilerArgs += "-Xoverride-konan-properties=$appleClangOverrideProperties"
+            }
         }
         license = "MIT"
         extraSpecAttributes["resources"] = "['src/commonMain/assets/**']"
+    }
+}
+
+// cocoapods framework 二进制创建之后，再给所有 Apple Native binary 挂上 PGO 参数（含非 pod 产物）。
+if (appleClangOverrideProperties != null) {
+    kotlin.targets.withType<KotlinNativeTarget>().configureEach {
+        if (!konanTarget.family.isAppleFamily) return@configureEach
+        compilations.configureEach {
+            compilerOptions.configure {
+                freeCompilerArgs.add("-Xoverride-konan-properties=$appleClangOverrideProperties")
+            }
+        }
+        binaries.configureEach {
+            if ("-Xoverride-konan-properties=$appleClangOverrideProperties" !in freeCompilerArgs) {
+                freeCompilerArgs += "-Xoverride-konan-properties=$appleClangOverrideProperties"
+            }
+        }
     }
 }
 

@@ -113,7 +113,7 @@ target_link_options(kuikly PRIVATE
 
 经验证以下选项对于 Kotlin Native 产物的减少也有较明显帮助（如在鸿蒙上 Kuikly Demo 产物大小下降 40%，有的业务下降 50%），但**这些选项更容易对性能产生影响**，使用前请做好专项验证：
 1. 使用 `-Os`（`-Oz` 效果更佳，但对性能影响通常更大）
-2. 启用 `-mllvm -enable-machine-outliner=always` 提取重复指令
+2. 启用 `-mllvm -enable-machine-outliner=always` 提取重复指令。**更推荐先用 LLVM PGO 采集运行时频次，再在 Machine Outliner 中按热度 outlining**，可显著降低对热路径的误伤；完整流程与本仓库 `demo`/`iosApp` 落地见 [iOS Machine Outliner + PGO 指引](./machine-outliner-pgo-guide.md)。
 
 示例：
 

@@ -423,7 +423,10 @@ fun BasicTextField(
     CoreTextField(
         value = value,
         onValueChange = {
-            if (value != it) {
+            // 只比较编辑态（text/selection/composition），忽略 annotatedString 差异。
+            // route-F 注入 displayText 后 annotatedString 恒不等，会导致原生 selectionChange
+            // 等空回调也被透传，把第一次退格的 isDel=true 真信号淹掉（两段式删除失效）。
+            if (value.text != it.text || value.selection != it.selection || value.composition != it.composition) {
                 onValueChange(it)
             }
         },

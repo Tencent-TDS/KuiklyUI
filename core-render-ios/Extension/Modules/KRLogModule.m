@@ -173,6 +173,15 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
     }
 }
 
+// 页面销毁前丢弃未消费的日志任务，及时释放待输出的 message 字符串（任务 block 仅捕获 logTime/message，不持有本 Module）
+// logTasks 在 context 线程读写，清理需投递回同一线程，避免并发访问数组
+- (void)hr_pageWillDestroy {
+    __weak typeof(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        [weakSelf.logTasks removeAllObjects];
+    }];
+}
+
 - (NSString *)logTimeDate {
     NSDate *date = [NSDate date];
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];

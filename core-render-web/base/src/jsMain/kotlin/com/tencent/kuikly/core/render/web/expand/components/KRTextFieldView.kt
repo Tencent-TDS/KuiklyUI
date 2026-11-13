@@ -16,6 +16,7 @@ import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.scheduler.KuiklyRenderCoreContextScheduler
+import com.tencent.kuikly.core.render.web.utils.Log
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.events.InputEvent
@@ -558,12 +559,22 @@ class KRTextFieldView : IKuiklyRenderViewExport {
      * on both H5 and mini-program.
      */
     private fun dispatchKeyboardHeightChangeEvent(height: Float, duration: Float, curve: Int) {
-        val detail: dynamic = js("({})")
-        detail.height = height
-        detail.duration = duration
-        detail.curve = curve
-        val event = js("new CustomEvent('keyboardheightchange', { detail: detail })")
-        ele.asDynamic().dispatchEvent(event)
+        // Mini program logic layer has no DOM `CustomEvent` constructor; its native
+        // MiniInputElement already forwards keyboardheightchange natively, so skip
+        // silently here to avoid ReferenceError on `new CustomEvent(...)`.
+        if (jsTypeOf(js("CustomEvent")) != "function") {
+            return
+        }
+        try {
+            val detail: dynamic = js("({})")
+            detail.height = height
+            detail.duration = duration
+            detail.curve = curve
+            val event = js("new CustomEvent('keyboardheightchange', { detail: detail })")
+            ele.asDynamic().dispatchEvent(event)
+        } catch (t: Throwable) {
+            Log.error("dispatch keyboardheightchange(input) failed: ${t.message}")
+        }
     }
 
     private fun unbindSelectionTrackingIfNeeded() {

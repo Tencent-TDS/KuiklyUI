@@ -17,7 +17,27 @@
 package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+
+/**
+ * Provides [shapes] while inheriting the current color scheme and typography.
+ *
+ * @param shapes A set of shapes to be used by the components in this hierarchy.
+ * @param content The content within this theme scope.
+ */
+@Composable
+fun MaterialTheme(
+    shapes: Shapes = MaterialTheme.shapes,
+    content: @Composable () -> Unit
+) {
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme,
+        typography = MaterialTheme.typography,
+        shapes = shapes,
+        content = content,
+    )
+}
 
 /**
  * <a href="https://material.io/design/material-theming/overview.html" class="external" target="_blank">Material Theming</a>.
@@ -28,59 +48,33 @@ import androidx.compose.runtime.ReadOnlyComposable
  * Material components such as [Button] and [Checkbox] use values provided here when retrieving
  * default values.
  *
- * It defines colors as specified in the [Material Color theme creation spec](https://material.io/design/color/the-color-system.html#color-theme-creation),
- * typography defined in the [Material Type Scale spec](https://material.io/design/typography/the-type-system.html#type-scale),
- * and shapes defined in the [Shape scheme](https://material.io/design/shape/applying-shape-to-ui.html#shape-scheme).
- *
- * All values may be set by providing this component with the [colors][Colors],
- * [typography][Typography], and [shapes][Shapes] attributes. Use this to configure the overall
- * theme of elements within this MaterialTheme.
- *
  * Any values that are not set will inherit the current value from the theme, falling back to the
  * defaults if there is no parent MaterialTheme. This allows using a MaterialTheme at the top
  * of your application, and then separate MaterialTheme(s) for different screens / parts of your
  * UI, overriding only the parts of the theme definition that need to change.
  *
- * @sample androidx.compose.material.samples.MaterialThemeSample
+ * This overload is additive. Existing callers of [MaterialTheme] with only [shapes] continue to
+ * compile and retain binary compatibility.
  *
- * @param colors A complete definition of the Material Color theme for this hierarchy
- * @param typography A set of text styles to be used as this hierarchy's typography system
- * @param shapes A set of shapes to be used by the components in this hierarchy
+ * @param colorScheme A complete definition of the Material Color theme for this hierarchy.
+ * @param typography A set of text styles to be used as this hierarchy's typography system.
+ * @param shapes A set of shapes to be used by the components in this hierarchy.
+ * @param content The content within this theme scope.
  */
 @Composable
 fun MaterialTheme(
-//    colors: Colors = MaterialTheme.colors,
-//    typography: Typography = MaterialTheme.typography,
+    colorScheme: ColorScheme,
+    typography: Typography = MaterialTheme.typography,
     shapes: Shapes = MaterialTheme.shapes,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-//    val rememberedColors = remember {
-//        // Explicitly creating a new object here so we don't mutate the initial [colors]
-//        // provided, and overwrite the values set in it.
-//        colors.copy()
-//    }.apply { updateColorsFrom(colors) }
-//    val rippleIndication = rippleOrFallbackImplementation()
-//    val selectionColors = rememberTextSelectionColors(rememberedColors)
-//    @Suppress("DEPRECATION_ERROR")
-//    CompositionLocalProvider(
-//        LocalColors provides rememberedColors,
-//        LocalContentAlpha provides ContentAlpha.high,
-//        LocalIndication provides rippleIndication,
-//        // TODO: b/304985887 - remove after one stable release
-//        androidx.compose.material.ripple.LocalRippleTheme provides CompatRippleTheme,
-//        LocalShapes provides shapes,
-//        LocalTextSelectionColors provides selectionColors,
-//        LocalTypography provides typography
-//    ) {
-        content()
-//        ProvideTextStyle(value = typography.body1) {
-//            PlatformMaterialTheme(content)
-//        }
-//    }
+    CompositionLocalProvider(
+        LocalColorScheme provides colorScheme,
+        LocalTypography provides typography,
+        LocalShapes provides shapes,
+        content = content,
+    )
 }
-
-//@Composable
-//internal expect fun PlatformMaterialTheme(content: @Composable () -> Unit)
 
 /**
  * Contains functions to access the current theme values provided at the call site's position in

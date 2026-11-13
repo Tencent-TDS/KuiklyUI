@@ -84,6 +84,28 @@ Canvas(modifier = Modifier.size(200.dp)) {
 | `drawPoints` | 绘制点集 |
 | `drawOutline` | 按 `Outline` 绘制 |
 
-:::: warning 当前支持范围
-Kuikly 的 `DrawScope` 绘制方法当前**未开放** `pathEffect`、`colorFilter`、`blendMode` 参数（源码中对应参数处于注释状态）。依赖描边特效、颜色滤镜或混合模式的绘制逻辑需要改用其他方式实现。
+:::: warning 与标准 Compose 的差异
+- `pathEffect` 仅支持 `PathEffect.dashPathEffect(intervals, phase)`，`cornerPathEffect`、`chainPathEffect`、`stampedPathEffect` 无对应实现。
+- `phase` 传入后被忽略，不报错。CMP 中常见的"蚂蚁线"写法在 Kuikly 上编译通过，但虚线静止，也没有等价的替代写法：
+
+```kotlin
+// CMP 里常见的蚂蚁线写法，在 Kuikly 上 phase 不生效，虚线不会动
+val phase by rememberInfiniteTransition().animateFloat(
+    initialValue = 0f,
+    targetValue = 20f,
+    animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing))
+)
+Canvas(Modifier.fillMaxWidth().height(2.dp)) {
+    drawLine(
+        color = Color.Gray,
+        start = Offset.Zero,
+        end = Offset(size.width, 0f),
+        strokeWidth = 2.dp.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), phase)
+    )
+}
+```
+
+- `intervals` 必须是偶数个（≥ 2）非负数，且不全为 0，否则抛 `IllegalArgumentException`。
+- `colorFilter`、`blendMode` 仍未开放，依赖它们的绘制逻辑需改用其他方式实现。
 ::::

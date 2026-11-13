@@ -560,6 +560,9 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
                                                                      int type);
     virtual bool UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,
                                  KRPoint ancestor_point2, int type);
+    /// 把容器配置的选区高亮色下发给需要绘制的子视图。基类只向子视图递归，
+    /// 需要该色值的视图覆写本方法并保存。
+    virtual void SetSelectionColor(uint32_t color);
     std::tuple<std::vector<std::shared_ptr<IKRRenderViewExport>>, std::vector<std::shared_ptr<IKRRenderViewExport>>>
     GetSelectedTextAndScrollViews();
     void GetSelectedTextAndScrollViews(std::vector<std::shared_ptr<IKRRenderViewExport>> &text_views,

@@ -27,6 +27,7 @@
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/foundation/KRRect.h"
+#include "libohos_render/utils/KRSelectionColorUtil.h"
 #include "libohos_render/view/IKRRenderView.h"
 
 #include <native_drawing/drawing_text_line.h>
@@ -189,11 +190,16 @@ class KRRichTextView : public IKRRenderViewExport {
     bool UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,
                          KRPoint ancestor_point2, int type) override;
 
+    /// 保存容器下发的选区高亮色，绘制选区时使用
+    void SetSelectionColor(uint32_t color) override;
+
  private:
     std::shared_ptr<KRParagraph> paragraph_;
     std::shared_ptr<IKRRenderShadowExport> shadow_;
     float line_break_margin_ = 0;
     KRParagraphSelectionInfo selection_rects_;
+    /// 选区高亮色，未配置时为 kDefaultSelectionColor
+    uint32_t selection_color_ = kuikly::util::kDefaultSelectionColor;
     void OnForegroundDraw(ArkUI_NodeCustomEvent *event);
 };
 

@@ -261,36 +261,41 @@ internal fun TextAttr.applyTextDecoration(decoration: TextDecoration?) {
     setProp(TextConst.TEXT_DECORATION, value)
 }
 
+/**
+ * `softWrap` 只决定文本是否允许按词换行，不改写显式设置的溢出模式。
+ *
+ * 该属性与 [applyOverflow] 共用 `lineBreakMode`，调用方先应用 overflow 再应用 softWrap，
+ * 因此这里不能无条件覆盖：显式设置的 `tail` / `clip` 必须保留。
+ *
+ * `TEXT_OVERFLOW` 为空时的兜底是防御性的：`TextStringRichNode.updateLayoutProperties`
+ * 总是先调用 [applyOverflow]，溢出模式在到达这里之前就已写入，生产路径不会进入该分支；
+ * 仅当调用方未先应用溢出模式而直接调用本函数时才会生效。
+ */
 internal fun TextAttr.applySoftWrap(softWrap: Boolean) {
-    val target = if (softWrap) "wordWrapping" else "clip"
-
-    val current = getProp(TextConst.TEXT_OVERFLOW) as? String
-    if (softWrap && (current == null || current == target) && getProp(TextConst.LINES) == null) {
+    if (softWrap) {
+        // 允许换行：不干预已设置的溢出模式，未设置时保持不设置，交由渲染层默认处理。
         return
     }
 
-    if (!softWrap) {
-        if (current != target) {
-            setProp(TextConst.TEXT_OVERFLOW, target)
-        }
-        if ((getProp(TextConst.LINES) as? Int) != 1) {
-            setProp(TextConst.LINES, 1)
-        }
-    } else {
-        if (current != null && current != target) {
-            setProp(TextConst.TEXT_OVERFLOW, target)
-        }
+    if (getProp(TextConst.TEXT_OVERFLOW) == null) {
+        setProp(TextConst.TEXT_OVERFLOW, "clip")
+    }
+    if ((getProp(TextConst.LINES) as? Int) != 1) {
+        setProp(TextConst.LINES, 1)
     }
 }
 
+/**
+ * 写入显式溢出模式；`clip` 也必须写入，不能因属性为空而跳过。
+ *
+ * iOS 的 `KRConvertUtil.NSLineBreakMode` 与 OHOS 的 `ConvertToTextBreakMode` 都把「未设置」
+ * 兜底为 `tail`，跳过写入会让 `TextOverflow.Clip` 在这两个平台上静默变成省略号。
+ */
 internal fun TextAttr.applyOverflow(overflow: TextOverflow) {
     val mode = when (overflow) {
         TextOverflow.Clip -> "clip"
         TextOverflow.Ellipsis -> "tail"
         else -> "clip"
-    }
-    if (mode == "clip" && getProp(TextConst.TEXT_OVERFLOW) == null) {
-        return
     }
     val current = getProp(TextConst.TEXT_OVERFLOW) as? String
     if (current == mode) return

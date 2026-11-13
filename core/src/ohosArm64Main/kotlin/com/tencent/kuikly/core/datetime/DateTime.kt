@@ -27,7 +27,10 @@ actual object DateTime {
         return com_tencent_kuikly_CurrentTimestamp()
     }
 
+    // TimeSource.Monotonic does not expose the Long nanosecond value required by this API.
+    // The native getTimeNanos symbol remains available in Kotlin 2.4.
     @OptIn(ExperimentalForeignApi::class)
+    @Suppress("DEPRECATION_ERROR")
     actual fun nanoTime(): Long {
         return getTimeNanos()
     }

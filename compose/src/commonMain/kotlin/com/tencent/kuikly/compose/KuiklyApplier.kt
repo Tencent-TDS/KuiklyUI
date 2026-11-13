@@ -19,6 +19,7 @@ import androidx.compose.runtime.AbstractApplier
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 
+@PublishedApi
 internal class KuiklyApplier(
     val node: KNode<DeclarativeBaseView<*, *>>,
     private val onEndChanges: () -> Unit = {},

@@ -40,7 +40,11 @@ val scaled = acquireModule<FontModule>(FontModule.MODULE_NAME).scaleFontSize(16f
 | scaleFontSizeEnable <Badge text="非必需" type="warn"/> | 是否启用换算，不传时取页面的 `scaleFontSizeEnable()` 配置 | Boolean |
 
 ::::warning 降级说明
-当页面未启用字体缩放（`scaleFontSizeEnable` 为 false）或端侧版本较低（`nativeBuild < 3`）时，该方法直接返回原始字号，不做换算。
+以下情况该方法直接返回原始字号，不做换算：
+
+- 页面未启用字体缩放（`scaleFontSizeEnable` 为 false）
+- 端侧版本较低（`nativeBuild < 3`）
+- 没有当前页面上下文（例如不经由 Pager 的纯逻辑计算与单元测试）
 ::::
 
 **示例**

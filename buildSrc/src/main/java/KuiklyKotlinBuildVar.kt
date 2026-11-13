@@ -152,7 +152,7 @@ object Version {
     private const val KEY_AGP_VERSION = "KUIKLY_AGP_VERSION"
     private const val KEY_CI_BUILD_NUM = "KUIKLY_CI_BUILD_NUM"
     private const val KEY_RENDER_SUFFIX = "KUIKLY_RENDER_SUFFIX"
-    private val OHOS_KOTLIN_SUFFIX = Regex("""KBA-\d{3}(?!\d)""") // 外网 kotlin 版本形如 2.4.21-KBA-001、2.0.21-KBA-003，这个regex match KBA后缀，用于统一替换为ohos
+    private val OHOS_KOTLIN_SUFFIX = Regex("""KBA-\d{3}(?!\d)""") // 版本号如 2.4.21-KBA-001、2.0.21-KBA-003，这个regex match KBA后缀，用于统一替换为ohos
     private const val KUIKLY_OHOS_KOTLIN_SUFFIX = "ohos"
 
     /**

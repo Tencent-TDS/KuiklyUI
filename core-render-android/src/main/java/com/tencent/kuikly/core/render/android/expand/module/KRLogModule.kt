@@ -32,8 +32,9 @@ import java.util.Date
 
 class KRLogModule : KuiklyRenderBaseModule() {
 
-    // KLog is a synchronous module call, so it runs on whichever thread logs: the context thread or any
-    // business thread. logLock guards logTasks and needSyncQueue against those callers and the flush.
+    // KLog is a synchronous module call, so it runs on whichever thread logs: the context thread
+    // or any business thread. logLock guards logTasks and needSyncQueue against those callers and
+    // the flush.
     private val logLock = Any()
     private var logTasks = arrayListOf<KRSubThreadTask>()
     private var needSyncQueue = false
@@ -71,13 +72,13 @@ class KRLogModule : KuiklyRenderBaseModule() {
             // batch log on next run loop
             KuiklyRenderCoreContextScheduler.scheduleTask(1) {
                 flushLogTasks()
-            }
+            } // end task
         }
     }
 
     private fun flushLogTasks() {
-        // Take the whole batch and clear the flag in one step, so a task added from now on schedules
-        // the next flush instead of landing in a list that has already been handed off.
+        // Take the whole batch and clear the flag in one step, so a task added from now on
+        // schedules the next flush instead of landing in a list that has already been handed off.
         val tasks = synchronized(logLock) {
             needSyncQueue = false
             val pendingTasks = logTasks
@@ -140,7 +141,8 @@ class KRLogModule : KuiklyRenderBaseModule() {
             SimpleDateFormat("HH:mm.ss.SSS")
         }
 
-        // SimpleDateFormat is not thread-safe, and log tasks may run concurrently on the host thread pool.
+        // SimpleDateFormat is not thread-safe, and log tasks may run concurrently on the host
+        // thread pool.
         private fun formatLogTime(timeMillis: Long): String {
             return synchronized(formatter) {
                 formatter.format(Date(timeMillis))

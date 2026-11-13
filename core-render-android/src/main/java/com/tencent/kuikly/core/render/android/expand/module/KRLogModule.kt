@@ -32,6 +32,10 @@ import java.util.Date
 
 class KRLogModule : KuiklyRenderBaseModule() {
 
+    // KLog is a synchronous module call, so it runs on whichever thread logs: the context thread
+    // or any business thread. logLock guards logTasks and needSyncQueue against those callers and
+    // the flush.
+    private val logLock = Any()
     private var logTasks = arrayListOf<KRSubThreadTask>()
     private var needSyncQueue = false
 
@@ -55,33 +59,45 @@ class KRLogModule : KuiklyRenderBaseModule() {
     }
 
     private fun addLogTask(task: KRSubThreadTask) {
-        logTasks.add(task)
-        setNeedSyncQueue()
+        val needSchedule = synchronized(logLock) {
+            logTasks.add(task)
+            if (needSyncQueue) {
+                false
+            } else {
+                needSyncQueue = true
+                true
+            }
+        }
+        if (needSchedule) {
+            // batch log on next run loop
+            KuiklyRenderCoreContextScheduler.scheduleTask(1) {
+                flushLogTasks()
+            } // end task
+        }
     }
 
-    // batch log on next run loop
-    private fun setNeedSyncQueue() {
-        if (!needSyncQueue) {
-            needSyncQueue = true
-            KuiklyRenderCoreContextScheduler.scheduleTask(1) {
-                needSyncQueue = false
-                val tasks = logTasks.toList()
-                logTasks = arrayListOf()
-                KRSubThreadScheduler.scheduleTask(0) {
-                    tasks.forEach {
-                        it()
-                    }
-                }
-            } // end task
+    private fun flushLogTasks() {
+        // Take the whole batch and clear the flag in one step, so a task added from now on
+        // schedules the next flush instead of landing in a list that has already been handed off.
+        val tasks = synchronized(logLock) {
+            needSyncQueue = false
+            val pendingTasks = logTasks
+            logTasks = arrayListOf()
+            pendingTasks
+        }
+        KRSubThreadScheduler.scheduleTask(0) {
+            tasks.forEach {
+                it()
+            }
         }
     }
 
     private fun logInfo(params: String?) {
         if (asyncLogEnable) {
-            val logTime = logDateTime()
+            val logTime = System.currentTimeMillis()
             addLogTask {
                 val msg = params ?: ""
-                KuiklyRenderLog.i(tag(msg), "|${logTime}|${msg}")
+                KuiklyRenderLog.i(tag(msg), "|${formatLogTime(logTime)}|${msg}")
             }
         } else {
             val msg = params ?: ""
@@ -91,10 +107,10 @@ class KRLogModule : KuiklyRenderBaseModule() {
 
     private fun logDebug(params: String?) {
         if (asyncLogEnable) {
-            val logTime = logDateTime()
+            val logTime = System.currentTimeMillis()
             addLogTask {
                 val msg = params ?: ""
-                KuiklyRenderLog.d(tag(msg), "|${logTime}|${msg}")
+                KuiklyRenderLog.d(tag(msg), "|${formatLogTime(logTime)}|${msg}")
             }
         } else {
             val msg = params ?: ""
@@ -104,21 +120,15 @@ class KRLogModule : KuiklyRenderBaseModule() {
 
     private fun logError(params: String?) {
         if (asyncLogEnable) {
-            val logTime = logDateTime()
+            val logTime = System.currentTimeMillis()
             addLogTask {
                 val msg = params ?: ""
-                KuiklyRenderLog.e(tag(msg), "|${logTime}|${msg}")
+                KuiklyRenderLog.e(tag(msg), "|${formatLogTime(logTime)}|${msg}")
             }
         } else {
             val msg = params ?: ""
             KuiklyRenderLog.e(tag(msg), msg)
         }
-    }
-
-    @SuppressLint("SimpleDateFormat")
-    private fun logDateTime(): String {
-        val date = Date(System.currentTimeMillis())
-        return formatter.format(date)
     }
 
     @SuppressLint("SimpleDateFormat")
@@ -129,6 +139,14 @@ class KRLogModule : KuiklyRenderBaseModule() {
         private const val METHOD_LOG_ERROR = "logError"
         val formatter by lazy {
             SimpleDateFormat("HH:mm.ss.SSS")
+        }
+
+        // SimpleDateFormat is not thread-safe, and log tasks may run concurrently on the host
+        // thread pool.
+        private fun formatLogTime(timeMillis: Long): String {
+            return synchronized(formatter) {
+                formatter.format(Date(timeMillis))
+            }
         }
 
         fun tag(msg: String): String {

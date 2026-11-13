@@ -142,6 +142,14 @@ View {
 | pageX | 触摸点在根视图Page下的坐标X  | Float |
 | pageY | 触摸点在根视图Page下的坐标Y  | Float |
 | pointerId | 触摸点对应的ID  | int |
+| pressed | 触点当前是否处于按下状态。2.32.0 起支持；渲染层版本低于 2.32.0 或无法确定该状态时为 null  | Boolean? |
+
+:::tip 关于 pressed（2.32.0 起）
+* **版本边界**：2.32.0 之前 `Touch` 没有 `pressed` 字段，渲染层也不会上报该状态。若 core 模块已升级到 2.32.0 而渲染层版本仍较低，`Touch.pressed` 为 `null`。接收端只能依据事件类型为本次事件中的所有触点推断相同状态，可能把已抬起和仍按下的触点判断错误。
+* `pressed` 分别表示每个触点的按下状态，不能仅依据整个事件的类型（`action`）推断：多指操作中一根手指抬起时，其他手指仍可能处于按下状态。
+* **平台差异**：鸿蒙无法唯一定位本次抬起的触点时（例如多个触点坐标重合），该次抬起事件不上报 `pressed`，值为 `null`。Web 端仅在 superTouch（Compose）模式上报 `pressed`，且只上报单个触点，不支持多指；非 superTouch 模式下该字段为 `null`。
+* **2.32.0 起** `Touch` 不再是 data class。旧的六参数构造方法、`copy` 和解构方法（`componentN`）为兼容旧代码保留并标记为 `@Deprecated`，旧代码仍可编译（会产生弃用警告），其中旧构造方法创建的 `Touch.pressed` 为 `null`。新代码请使用包含 `pressed` 参数的构造方法，或直接访问属性。
+:::
 
 </div>
 

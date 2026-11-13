@@ -16,6 +16,8 @@
 #include "libohos_render/expand/components/view/KRView.h"
 
 #include <algorithm>
+#include <cmath>
+#include <deviceinfo.h>
 #include <vector>
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
@@ -30,6 +32,13 @@
 #include "libohos_render/view/KRRenderView.h"
 
 #define NS_PER_MS 1000000
+
+// OH_ArkUI_PointerEvent_GetChangedPointerId 自 API 15 引入，而 compatibleSdkVersion 为 12。
+// 编译期 SDK 已由 KREventUtil.cpp 的 static_assert 保证 >= 18，无需编译期门控；
+// 以弱符号重声明，避免低版本系统加载 .so 时因符号缺失失败（与 KRTextEditorCommon.h 的做法一致）。
+extern "C" int32_t OH_ArkUI_PointerEvent_GetChangedPointerId(const ArkUI_UIInputEvent *event,
+                                                             uint32_t *pointerIndex) __attribute__((weak));
+static constexpr int kChangedPointerIdApiLevel = 15;
 
 static const char *KRTextSelectionMethodCreateSelection = "createSelection";
 static const char *KRTextSelectionMethodGetSelection = "getSelection";
@@ -625,6 +634,73 @@ bool KRView::TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
     return canceled;
 }
 
+/**
+ * 定位触发本次事件的触点下标，无法确定时返回 -1。
+ * 不带索引的 `OH_ArkUI_PointerEvent_GetX/GetY` 返回触发触点的坐标，作为最终校验依据。
+ * API 15 及以上优先使用 `GetChangedPointerId`：SDK 头对出参描述存在歧义（参数名写 pointerIndex，
+ * 函数说明写手指 id），因此两种解释都尝试，能被坐标校验命中的那个才采用。
+ */
+static int FindChangedPointerIndex(ArkUI_UIInputEvent *input_event, int pointer_count) {
+    if (pointer_count == 1) {
+        return 0;
+    }
+    const float changed_x = OH_ArkUI_PointerEvent_GetX(input_event);
+    const float changed_y = OH_ArkUI_PointerEvent_GetY(input_event);
+    auto is_changed_point = [&](int index) {
+        const auto point = kuikly::util::GetArkUIInputEventPoint(input_event, index);
+        return std::fabs(point.x - changed_x) <= 0.5f && std::fabs(point.y - changed_y) <= 0.5f;
+    };
+
+    static const bool changed_pointer_api_available = OH_GetSdkApiVersion() >= kChangedPointerIdApiLevel &&
+                                                      &OH_ArkUI_PointerEvent_GetChangedPointerId != nullptr;
+    uint32_t changed_pointer_value = 0;
+    if (changed_pointer_api_available &&
+        OH_ArkUI_PointerEvent_GetChangedPointerId(input_event, &changed_pointer_value) == ARKUI_ERROR_CODE_NO_ERROR) {
+        const int as_index = static_cast<int>(changed_pointer_value);
+        if (as_index >= 0 && as_index < pointer_count && is_changed_point(as_index)) {
+            return as_index;
+        }
+        for (int i = 0; i < pointer_count; i++) {
+            if (OH_ArkUI_PointerEvent_GetPointerId(input_event, i) == static_cast<int32_t>(changed_pointer_value) &&
+                is_changed_point(i)) {
+                return i;
+            }
+        }
+    }
+
+    int matched_index = -1;
+    for (int i = 0; i < pointer_count; i++) {
+        if (is_changed_point(i)) {
+            if (matched_index >= 0) {
+                return -1;
+            }
+            matched_index = i;
+        }
+    }
+    return matched_index;
+}
+
+/**
+ * 返回各触点的按下状态；返回空数组表示无法确定，此时不上报 pressed，由接收端按事件类型推断。
+ * ArkUI 的 UP 事件列表仍包含本次抬起的触点，需由 changed_index 定位；定位失败时不能猜测下标，
+ * 否则会把仍按下的触点误标为抬起。
+ */
+static std::vector<bool> ResolvePressedStates(bool is_cancel, int32_t action_type, int pointer_count,
+                                              int changed_index) {
+    const auto count = static_cast<size_t>(pointer_count);
+    if (is_cancel) {
+        return std::vector<bool>(count, false);
+    }
+    std::vector<bool> pressed_states(count, true);
+    if (action_type == UI_TOUCH_EVENT_ACTION_UP) {
+        if (changed_index < 0) {
+            return {};
+        }
+        pressed_states[static_cast<size_t>(changed_index)] = false;
+    }
+    return pressed_states;
+}
+
 KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, const std::string &action) {
     if (!input_event) {
         return KREmptyValue();
@@ -634,6 +710,12 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     if (pointer_count <= 0) {
         return KREmptyValue();
     }
+
+    auto action_type = kuikly::util::GetArkUIInputEventAction(input_event);
+    const bool is_cancel = action == kPropNameTouchCancel || action_type == UI_TOUCH_EVENT_ACTION_CANCEL;
+    const int changed_index =
+        (!is_cancel && action_type == UI_TOUCH_EVENT_ACTION_UP) ? FindChangedPointerIndex(input_event, pointer_count) : -1;
+    const auto pressed_states = ResolvePressedStates(is_cancel, action_type, pointer_count, changed_index);
 
     KRPoint container_position{0.0f, 0.0f};
 
@@ -656,6 +738,9 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
         touch_map[u"pageX"] = NewKRRenderValue(container_relative_x);
         touch_map[u"pageY"] = NewKRRenderValue(container_relative_y);
         touch_map[u"pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
+        if (!pressed_states.empty()) {
+            touch_map[u"pressed"] = NewKRRenderValue(static_cast<bool>(pressed_states[i]));
+        }
         if (i == 0) {
             first_touch = touch_map;
         }

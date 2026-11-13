@@ -122,6 +122,7 @@ object KRParamConst {
     // State keys
     const val STATE = "state"
     const val POINTER_ID = "pointerId"
+    const val PRESSED = "pressed"
     const val HASH = "hash"
     const val TIMESTAMP = "timestamp"
     const val ACTION = "action"

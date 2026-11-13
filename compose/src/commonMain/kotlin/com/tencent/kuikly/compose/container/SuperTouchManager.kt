@@ -72,10 +72,12 @@ class SuperTouchManager {
     internal fun DivEvent.setTouchUp(isSync: Boolean) {
         touchUp(isSync) {
             touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, it.consumed)
-            TouchActivityTracker.onTouchEnd(container.getPager().pageData, touchActivityOwner)
-            if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
-                container.getViewAttr().preventTouch(false)
-                container.getViewEvent().setTouchMove(true)
+            if (!it.touches.hasPressedPointers()) {
+                TouchActivityTracker.onTouchEnd(container.getPager().pageData, touchActivityOwner)
+                if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
+                    container.getViewAttr().preventTouch(false)
+                    container.getViewEvent().setTouchMove(true)
+                }
             }
         }
     }
@@ -165,15 +167,7 @@ class SuperTouchManager {
                 val pageDensity = container.getPager().pagerDensity()
                 return scene.sendPointerEvent(
                     eventType = type,
-                    pointers = touches.map { touch ->
-                        val position = Offset(touch.x * pageDensity, touch.y * pageDensity)
-                        ComposeScenePointer(
-                            id = PointerId(touch.pointerId),
-                            position = position,
-                            pressed = (type != PointerEventType.Release),
-                            type = PointerType.Touch,
-                        )
-                    },
+                    pointers = touches.toComposeScenePointers(pageDensity, type),
                     timeMillis = timestamp,
                     nativeEvent = if (isConsumeByNative) {
                         "cancel"
@@ -185,5 +179,26 @@ class SuperTouchManager {
             }
         }
     }
+}
 
+/**
+ * 优先使用渲染层为每个触点上报的 [Touch.pressed] 状态。多指操作中某个触点抬起时，其他触点仍保持按下；
+ * 这与 androidx `MotionEventAdapter` 根据 `actionIndex` 确定本次抬起触点的规则一致。
+ *
+ * `null` 表示渲染层版本低于 2.32.0 或渲染层无法确定该状态。此时根据事件类型推断本次事件中所有触点的状态，
+ * 无法准确处理多指操作。
+ */
+internal fun List<Touch>.hasPressedPointers(): Boolean = any { it.pressed == true }
+
+@OptIn(ExperimentalComposeUiApi::class)
+internal fun List<Touch>.toComposeScenePointers(
+    pageDensity: Float,
+    eventType: PointerEventType,
+): List<ComposeScenePointer> = map { touch ->
+    ComposeScenePointer(
+        id = PointerId(touch.pointerId),
+        position = Offset(touch.x * pageDensity, touch.y * pageDensity),
+        pressed = touch.pressed ?: (eventType != PointerEventType.Release),
+        type = PointerType.Touch,
+    )
 }

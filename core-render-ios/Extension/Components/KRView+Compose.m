@@ -26,6 +26,16 @@
 
 @end
 
+/// 参数中是否仍有按下的触点，与 Kotlin 侧依据每个触点 pressed 判断的逻辑一致。
+static BOOL KRHasPressedTouch(NSDictionary *params) {
+    for (NSDictionary *touch in params[@"touches"]) {
+        if ([touch[@"pressed"] boolValue]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 @implementation KRView (Compose)
 
 - (KRComposeGestureRecognizer *)composeGesture {
@@ -89,19 +99,19 @@
                         }
                         break;
                     case TouchesEventKindEnd:
+                    case TouchesEventKindCancel: {
+                        NSString *eventName = phase == TouchesEventKindEnd ? @"touchUp" : @"touchCancel";
+                        NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:eventName];
                         if (weakSelf.css_touchUp) {
-                            NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchUp"];
                             weakSelf.css_touchUp(params);
                         }
-                        weakSelf.composeGesHandler.enableNativeGesture = YES;
-                        break;
-                    case TouchesEventKindCancel:
-                        if (weakSelf.css_touchUp) {
-                            NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchCancel"];
-                            weakSelf.css_touchUp(params);
+                        // 仍有触点按下时保持原生手势禁用，与 Kotlin 侧"最后一根手指抬起才结束触摸"保持一致，
+                        // 避免一边拦截触摸、一边被原生滚动接管。
+                        if (!KRHasPressedTouch(params)) {
+                            weakSelf.composeGesHandler.enableNativeGesture = YES;
                         }
-                        weakSelf.composeGesHandler.enableNativeGesture = YES;
                         break;
+                    }
                     default:
                         break;
                 }

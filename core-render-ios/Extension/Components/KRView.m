@@ -302,13 +302,20 @@
 #if !TARGET_OS_OSX // [macOS]
     NSSet<UITouch *> *touches = [event allTouches];
     NSMutableArray *touchesParam = [NSMutableArray new];
+    // 取消事件按事件名称将全部触点标记为未按下，不依赖各触点的 phase。
+    BOOL isCancel = [eventName isEqualToString:@"touchCancel"];
     [touches enumerateObjectsUsingBlock:^(UITouch * _Nonnull touchObj, BOOL * _Nonnull stop) {
-        [touchesParam addObject:[self p_generateTouchParamWithTouch:touchObj]];
+        NSMutableDictionary *touchParam = [[self p_generateTouchParamWithTouch:touchObj] mutableCopy];
+        BOOL pressed = !isCancel && touchObj.phase != UITouchPhaseEnded && touchObj.phase != UITouchPhaseCancelled;
+        touchParam[@"pressed"] = @(pressed);
+        [touchesParam addObject:touchParam];
     }];
     __block NSMutableDictionary *result = [([touchesParam firstObject] ?: @{}) mutableCopy];
 #else // [macOS
     // macOS uses NSEvent (single mouse event) instead of multi-touch UITouch
-    NSDictionary *touchParam = [self p_generateTouchParamWithTouch:event];
+    NSMutableDictionary *touchParam = [[self p_generateTouchParamWithTouch:event] mutableCopy];
+    BOOL pressed = !([eventName isEqualToString:@"touchUp"] || [eventName isEqualToString:@"touchCancel"]);
+    touchParam[@"pressed"] = @(pressed);
     NSArray *touchesParam = @[touchParam];
     NSMutableDictionary *result = [touchParam mutableCopy];
 #endif // macOS]

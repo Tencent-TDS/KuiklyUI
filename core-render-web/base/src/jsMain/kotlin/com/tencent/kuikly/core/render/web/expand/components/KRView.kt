@@ -960,7 +960,14 @@ open class KRView : IKuiklyRenderViewExport {
         })
 
         // Add global mouse event listeners to handle mouse release outside of element
-        // Save reference for cleanup in onDestroy
+        // Save reference for cleanup in onDestroy.
+        // `kuiklyWindow.addEventListener` is absent on mini program runtime (MiniGlobal
+        // only polyfills timers / fetch / storage etc.). This branch is normally
+        // unreachable in mini program because setTouchEvent() routes MINIPROGRAM
+        // to bindTouchEvents(), but we still guard it defensively.
+        if (jsTypeOf(kuiklyWindow.asDynamic().addEventListener) != "function") {
+            return
+        }
         windowMouseUpListener = { event: Event ->
             if (isMouseDown) {
                 isMouseDown = false
@@ -1061,9 +1068,13 @@ open class KRView : IKuiklyRenderViewExport {
     override fun onDestroy() {
         super.onDestroy()
         
-        // Remove global window event listener (must be removed to prevent memory leak)
+        // Remove global window event listener (must be removed to prevent memory leak).
+        // Mini program runtime has no `removeEventListener` on MiniGlobal; the listener
+        // would never be installed there (see bindMouseEvents guard), so skip gracefully.
         windowMouseUpListener?.let {
-            kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
+            if (jsTypeOf(kuiklyWindow.asDynamic().removeEventListener) == "function") {
+                kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
+            }
         }
         windowMouseUpListener = null
         

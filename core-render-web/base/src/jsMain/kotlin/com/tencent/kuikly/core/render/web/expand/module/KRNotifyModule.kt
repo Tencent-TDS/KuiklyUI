@@ -2,8 +2,9 @@ package com.tencent.kuikly.core.render.web.expand.module
 
 import com.tencent.kuikly.core.render.web.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
-import kotlinx.browser.window
+import com.tencent.kuikly.core.render.web.utils.Log
 import org.w3c.dom.events.Event
 
 /**
@@ -112,12 +113,25 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
     /**
      * Dispatch event to Web host using CustomEvent
      * Web host can listen via: window.addEventListener('kuikly_notify', (e) => { ... })
+     *
+     * Only hosts that expose DOM `CustomEvent` constructor and `dispatchEvent`
+     * (i.e. browser / H5) can receive the broadcast. Mini program logic layer
+     * has neither, so we silently skip; `postNotify` still reaches all Kuikly
+     * pages via `dispatchGlobalEventData` above.
      */
     private fun dispatchToHost(eventName: String, data: String) {
-        val detail = js("{ eventName: eventName, data: data }")
-        val eventInit = js("{ detail: detail, bubbles: true, cancelable: true }")
-        val customEvent = js("new CustomEvent('kuikly_notify', eventInit)")
-        window.dispatchEvent(customEvent.unsafeCast<Event>())
+        if (jsTypeOf(js("CustomEvent")) != "function" ||
+            jsTypeOf(kuiklyWindow.asDynamic().dispatchEvent) != "function") {
+            return
+        }
+        try {
+            val detail = js("{ eventName: eventName, data: data }")
+            val eventInit = js("{ detail: detail, bubbles: true, cancelable: true }")
+            val customEvent = js("new CustomEvent('kuikly_notify', eventInit)")
+            kuiklyWindow.dispatchEvent(customEvent.unsafeCast<Event>())
+        } catch (t: Throwable) {
+            Log.error("dispatchToHost(kuikly_notify) failed: ${t.message}")
+        }
     }
 
     /**

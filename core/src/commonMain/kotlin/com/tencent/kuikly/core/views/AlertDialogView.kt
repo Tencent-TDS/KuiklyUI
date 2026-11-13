@@ -25,6 +25,7 @@ import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.compose.Button
+
 /*
  * 提示对话框组件，UI风格对齐iOS UIAlertController风格, 并支持自定义弹窗UI
  * 用法示例:
@@ -44,20 +45,29 @@ import com.tencent.kuikly.core.views.compose.Button
                 }
             }
  */
-fun ViewContainer<*, *>.AlertDialog(init : AlertDialogView.() -> Unit) {
+fun ViewContainer<*, *>.AlertDialog(init: AlertDialogView.() -> Unit) {
     addChild(AlertDialogView(), init)
 }
 
 typealias ActionButtonTitleAttr = TextAttr.() -> Unit
+typealias TextAttrBuilder = TextAttr.() -> Unit
+typealias DialogAttr = Attr.() -> Unit
 
 class AlertDialogAttr : ContainerAttr() {
     internal var showAlert by observable(false)
     internal var contentViewCreator: ViewBuilder? = null
+    internal var msgViewCreator: ViewBuilder? = null
     internal var backgroundViewCreator: ViewBuilder? = null
     internal var title by observable("")
     internal var message by observable("")
+
+    internal var dialogAttr: DialogAttr? by observable(null)
+    internal var titleAttr: TextAttrBuilder? by observable(null)
+    internal var messageAttr: TextAttrBuilder? by observable(null)
+
     internal var actionButtonsAttrs by observableList<ActionButtonTitleAttr>()
     internal var inWindow = false
+
     /*
      * 控制Alert是否显示，不显示时不占用布局(必须设置该属性)
      * 注:如果要关闭Alert，可以监听Event中的clickActionButton事件进行控制showAlert绑定变量
@@ -65,18 +75,49 @@ class AlertDialogAttr : ContainerAttr() {
     fun showAlert(showAlert: Boolean) {
         this.showAlert = showAlert
     }
+
     /*
      *  Alert标题(当message不为空时可选设置title)
      */
     fun title(title: String) {
         this.title = title
     }
+
+    /**
+     * title简单自定义样式支持
+     */
+    fun titleCustomAttr(titleAttr: TextAttrBuilder) {
+        this.titleAttr = titleAttr
+    }
+
+    /**
+     * msg简单自定义样式支持
+     */
+    fun msgCustomAttr(messageAttr: TextAttrBuilder) {
+        this.messageAttr = messageAttr
+    }
+
+    /**
+     * 默认内容区域自定义样式支持，如果设置了customContentView，则该属性无效
+     */
+    fun dialogAttr(dialogAttr: DialogAttr) {
+        this.dialogAttr = dialogAttr
+    }
+
+    /**
+     * msg部分自定义UI
+     */
+    fun customMsgView(viewCreator: ViewBuilder) {
+        msgViewCreator = viewCreator
+    }
+
     /*
      *  Alert内容(当标题不为空时为可选设置message)
      */
     fun message(message: String) {
         this.message = message
     }
+
     /*
      * Alert点击的按钮，如取消，确定(必须设置)
      */
@@ -88,6 +129,7 @@ class AlertDialogAttr : ContainerAttr() {
             }
         }
     }
+
     /*
      * Alert点击按钮的自定义按钮文字样式，如取消(红色或加粗)，确定(默认蓝色，加粗)(可选设置)
      * 用法例子:actionButtonsCustomAttr( {text("Cancel").color(Color.RED)}, {text("Confirm")})
@@ -98,6 +140,7 @@ class AlertDialogAttr : ContainerAttr() {
             actionButtonsAttrs.add(attr)
         }
     }
+
     /*
      * 自定义整个前景View UI(代替自带的即整个白色块区域，该自定义前景内容UI会被居中显示)
      */
@@ -111,6 +154,7 @@ class AlertDialogAttr : ContainerAttr() {
     fun customBackgroundView(viewCreator: ViewBuilder) {
         backgroundViewCreator = viewCreator
     }
+
     /**
      * 全屏显示该Alert(默认为false)
      */
@@ -125,6 +169,8 @@ class AlertDialogEvent : Event() {
     internal var willDismissHandlerFn: DismissEventHandlerFn? = null
     internal var didClickActionButtonHandlerFn: AlertButtonClickCallback? = null
     internal var clickBackgroundMaskHandlerFn: ((ClickParams) -> Unit)? = null
+    internal var clickMsgHandlerFn: ((ClickParams) -> Unit)? = null
+    internal var clickTitleHandlerFn: ((ClickParams) -> Unit)? = null
     internal var alertDidExitHandlerFn: (() -> Unit)? = null
 
     /*
@@ -133,18 +179,29 @@ class AlertDialogEvent : Event() {
     fun willDismiss(handler: DismissEventHandlerFn) {
         willDismissHandlerFn = handler
     }
+
     /*
      * 按钮被点击事件，回参对应被点击的button index(index值和actionButtons传入button的下标一致)
      */
     fun clickActionButton(handler: AlertButtonClickCallback) {
         didClickActionButtonHandlerFn = handler
     }
+
     /*
      * 背景蒙层点击事件，用于在自定义前景UI场景下，可能会点击背景蒙层关闭弹窗
      */
     fun clickBackgroundMask(handler: (ClickParams) -> Unit) {
         clickBackgroundMaskHandlerFn = handler
     }
+
+    fun clickTitle(handler: (ClickParams) -> Unit) {
+        clickTitleHandlerFn = handler
+    }
+
+    fun clickMsg(handler: (ClickParams) -> Unit) {
+        clickMsgHandlerFn = handler
+    }
+
     /*
      * alert弹窗完全退出(不显示&动画结束)回调，业务此时可以关闭页面(若有需要)
      */
@@ -179,16 +236,8 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                 attr {
                     borderRadius(14f)
                     width(270f)
-                    val colorHex: Long
-                    val alpha: Float
-                    if (getPager().isNightMode()) {
-                        colorHex = 0x000000
-                        alpha = if (ctx.useBlur) 0.85f else 1f
-                    } else {
-                        colorHex = 0xFFFFFF
-                        alpha = if (ctx.useBlur) 0.75f else 0.9f
-                    }
-                    backgroundColor(Color(colorHex, alpha))
+                    backgroundColor(if (getPager().isNightMode()) Color.BLACK.opacity(if (ctx.useBlur) 0.85f else 1f) else Color.WHITE.opacity(if (ctx.useBlur) 0.75f else 0.9f))
+                    ctx.attr.dialogAttr?.invoke(this)
                 }
                 if (ctx.useBlur) {
                     Blur {
@@ -202,31 +251,46 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                         margin(top = 20f, left = 16f, right = 16f, bottom = 20f)
                         allCenter()
                     }
-                    vif({ctx.attr.title.isNotEmpty()}) {
+                    vif({ ctx.attr.title.isNotEmpty() || ctx.attr.titleAttr != null }) {
                         Text {
                             attr {
                                 fontSize(17f)
                                 lineHeight(22f)
                                 text(ctx.attr.title)
-                                if (getPager().isNightMode()) { color(Color.WHITE) } else { color(Color.BLACK) }
+                                color(if (getPager().isNightMode()) Color.WHITE else Color.BLACK)
                                 textAlignCenter()
                                 fontWeightSemiBold()
+                                ctx.attr.titleAttr?.invoke(this)
+                            }
+                            event {
+                                click {
+                                    ctx.event.clickTitleHandlerFn?.invoke(it)
+                                }
                             }
                         }
                     }
-                    vif({ctx.attr.message.isNotEmpty()}) {
+                    vif({ ctx.attr.message.isNotEmpty() || ctx.attr.messageAttr != null }) {
                         Text {
                             attr {
                                 fontSize(13f)
                                 lineHeight(18f)
                                 text(ctx.attr.message)
-                                if (getPager().isNightMode()) { color(Color.WHITE) } else { color(Color.BLACK) }
+                                color(if (getPager().isNightMode()) Color.WHITE else Color.BLACK)
                                 textAlignCenter()
+                                ctx.attr.messageAttr?.invoke(this)
+                            }
+                            event {
+                                click {
+                                    ctx.event.clickMsgHandlerFn?.invoke(it)
+                                }
                             }
                         }
                     }
+                    vif({ ctx.attr.msgViewCreator != null }) {
+                        ctx.attr.msgViewCreator?.invoke(this)
+                    }
                 }
-                vif({ctx.attr.actionButtonsAttrs.size == 2}) {
+                vif({ ctx.attr.actionButtonsAttrs.size == 2 }) {
                     // line
                     ctx.createLineView(false).invoke(this)
                     View {
@@ -241,7 +305,7 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                     }
                 }
                 velse {
-                    vfor({ctx.attr.actionButtonsAttrs}) { buttonTitleAttr ->
+                    vfor({ ctx.attr.actionButtonsAttrs }) { buttonTitleAttr ->
                         View {
                             // line
                             ctx.createLineView(false).invoke(this)
@@ -251,7 +315,6 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                     }
                 }
             }
-
         }
     }
 
@@ -263,7 +326,7 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
             View {
                 attr {
                     absolutePositionAllZero()
-                    backgroundColor(Color(red255 = 0, green255 = 0, blue255 = 0, alpha01 = 0.2f))
+                    backgroundColor(Color.BLACK.opacity(0.2f))
                 }
             }
         }
@@ -272,10 +335,10 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
     private fun body(): ViewBuilder {
         val ctx = this
         return {
-            vif({ctx.showAlerting || ctx.attr.showAlert}) {
+            vif({ ctx.showAlerting || ctx.attr.showAlert }) {
                 Modal(ctx.attr.inWindow) {
                     attr {
-                        allCenter() // center all content
+                        allCenter()
                     }
                     event {
                         if (ctx.event.willDismissHandlerFn != null) {
@@ -323,18 +386,18 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                         }
                         View {
                             event {
-                                click {  }
+                                click { }
                             }
                             ctx.attr.contentViewCreator?.invoke(this)
                         }
 
                     }
-
                 }
             }
         }
     }
-    private fun createActionButton(buttonTitleAttr: ActionButtonTitleAttr, index: Int) : ViewBuilder {
+
+    private fun createActionButton(buttonTitleAttr: ActionButtonTitleAttr, index: Int): ViewBuilder {
         val ctx = this
         return {
             Button {
@@ -348,7 +411,7 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                         color(0xFF007AFF)
                         buttonTitleAttr.invoke(this)
                     }
-                    highlightBackgroundColor(Color(red255 = 0, green255 = 0, blue255 = 0, alpha01 = 0.1f))
+                    highlightBackgroundColor(Color.BLACK.opacity(0.1f))
                 }
                 event {
                     click {
@@ -359,17 +422,12 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
         }
     }
 
-    private fun createLineView(isVertical : Boolean) : ViewBuilder {
-        val ctx = this
+    private fun createLineView(isVertical: Boolean): ViewBuilder {
         return {
             View {
                 attr {
                     if (isVertical) width(0.5f) else height(0.5f)
-                    if (getPager().isNightMode()) {
-                        backgroundColor(Color(red255 = 255, green255 = 255, blue255 = 255, alpha01 = 0.24f))
-                    } else {
-                        backgroundColor(Color(red255 = 0, green255 = 0, blue255 = 0, alpha01 = 0.24f))
-                    }
+                    backgroundColor(if (getPager().isNightMode()) Color.WHITE.opacity(0.24f) else Color.BLACK.opacity(0.24f))
                 }
             }
         }

@@ -58,6 +58,11 @@ class KRHoverView : IKuiklyRenderViewExport {
      * Find nearest scrollable ancestor to avoid relying on rigid parent/grandparent hierarchy.
      */
     private fun findNearestScrollContainer(start: HTMLElement?): HTMLElement? {
+        // Mini program logic layer has no `getComputedStyle`; hover positioning
+        // relies on it, so bail out and leave the view in its default layout.
+        if (jsTypeOf(kuiklyWindow.asDynamic().getComputedStyle) != "function") {
+            return null
+        }
         var node = start
         while (node != null) {
             val style = kuiklyWindow.getComputedStyle(node)
@@ -78,10 +83,11 @@ class KRHoverView : IKuiklyRenderViewExport {
      * Include offset-parent borders because CSS top is relative to the padding edge.
      */
     private fun getLayoutTop(element: HTMLElement): Float {
+        val hasComputedStyle = jsTypeOf(kuiklyWindow.asDynamic().getComputedStyle) == "function"
         var top = 0f
         var node: HTMLElement? = element
         while (node != null) {
-            val style = kuiklyWindow.getComputedStyle(node)
+            val style = if (hasComputedStyle) kuiklyWindow.getComputedStyle(node) else null
             // offsetTop rounds to integers; Kuikly's absolute frames can contain subpixels.
             top += if (style?.position == "absolute" && style.top.endsWith("px")) {
                 style.top.pxToFloat() + style.marginTop.pxToFloat()
@@ -98,6 +104,9 @@ class KRHoverView : IKuiklyRenderViewExport {
     }
 
     private fun hasTransformedAncestor(): Boolean {
+        if (jsTypeOf(kuiklyWindow.asDynamic().getComputedStyle) != "function") {
+            return false
+        }
         var node = ele.parentElement.unsafeCast<HTMLElement?>()
         while (node != null) {
             val transform = kuiklyWindow.getComputedStyle(node)?.transform ?: "none"

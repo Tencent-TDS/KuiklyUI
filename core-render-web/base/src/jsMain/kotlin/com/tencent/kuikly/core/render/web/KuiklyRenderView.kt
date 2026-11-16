@@ -154,7 +154,19 @@ class KuiklyRenderView(
     }
 
     override fun pause() {
-        kuiklyWindow.dispatchEvent(Event(VIEW_PAUSE_RESET_POINTER_EVENT))
+        // Only hosts with DOM Event (Web/H5) need to broadcast this event.
+        // Mini program logic layer (WeChat, etc.) has no global `Event`
+        // constructor nor `dispatchEvent` on `kuiklyWindow` (which is
+        // `MiniGlobal`), so we skip to avoid interrupting the subsequent
+        // `viewDidDisappear` / STATE_PAUSE notifications.
+        if (jsTypeOf(js("Event")) == "function" &&
+            jsTypeOf(kuiklyWindow.asDynamic().dispatchEvent) == "function") {
+            try {
+                kuiklyWindow.dispatchEvent(Event(VIEW_PAUSE_RESET_POINTER_EVENT))
+            } catch (t: Throwable) {
+                Log.error("dispatchEvent($VIEW_PAUSE_RESET_POINTER_EVENT) failed: ${t.message}")
+            }
+        }
         sendEvent(VIEW_DID_DISAPPEAR, mapOf(VIEW_DID_DISAPPEAR to VIEW_DID_DISAPPEAR_VALUE))
         dispatchLifecycleStateChanged(STATE_PAUSE)
     }

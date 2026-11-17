@@ -37,7 +37,12 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.layout.layout
+import com.tencent.kuikly.compose.ui.node.LayoutAwareModifierNode
+import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
+import com.tencent.kuikly.compose.ui.node.LayoutNode
+import com.tencent.kuikly.compose.ui.node.PullToRefreshHitTest
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Dp
@@ -336,6 +341,19 @@ internal fun PullToRefreshItem(
         }
     }
 
+    // Captures the list's LayoutNode (the refresh item lives in a LazyList item slot, so its
+    // parent node is the list) and registers it together with the inset that hit testing has to
+    // compensate for. The holder is intentionally not a snapshot state: hit testing only needs the
+    // reference and the capture must not trigger recomposition. Registration lifecycle is owned by
+    // the modifier node below: it (re)registers on placement and removes the entry on detach, so
+    // nothing depends on the relative order of Modifier.Node and DisposableEffect callbacks.
+    val listNodeHolder = remember { RefreshListNodeHolder() }
+    val listRegistrationModifier = RefreshListRegistrationElement(
+        holder = listNodeHolder,
+        state = state,
+        insetPx = refreshThresholdPx,
+    )
+
     // Handle inset changes based on pull state
     LaunchedEffect(state.pullState) {
         val scrollView = scrollState.kuiklyInfo.scrollView
@@ -345,12 +363,19 @@ internal fun PullToRefreshItem(
                 suppressIdleInsetReset = false
                 pullToRefreshLog { "apply inset REFRESHING top=$refreshThresholdLogical animated=true" }
                 scrollView?.setContentInset(top = refreshThresholdLogical, animated = true)
+                // Keep the hit testing compensation in sync with the condition that applies the
+                // inset: the inset is already effective while onRefresh has not reported the
+                // refreshing state back to the caller yet.
+                listNodeHolder.node?.let {
+                    PullToRefreshHitTest.set(it, refreshThresholdPx.roundToInt())
+                }
             }
             PullState.IDLE -> {
                 // Never apply contentInset while dragging:
                 // - iOS: animated inset also animates contentOffset back to bounds
                 // - Android: non-animated inset calls setFinalTranslation and snaps overscroll to 0
                 scrollView?.setContentInsetWhenEndDrag(top = 0f)
+                listNodeHolder.node?.let { PullToRefreshHitTest.remove(it) }
                 if (suppressIdleInsetReset) {
                     suppressIdleInsetReset = false
                 } else if (!isDragging) {
@@ -397,6 +422,7 @@ internal fun PullToRefreshItem(
         modifier = modifier
             .then(if (topInset > 0.dp) Modifier.padding(top = topInset) else Modifier)
             .offsetWithParentAdjustment(y = -refreshThreshold)
+            .then(listRegistrationModifier)
             .fillMaxWidth()
             .height(refreshThreshold),
         contentAlignment = Alignment.Center
@@ -433,5 +459,71 @@ private fun DefaultRefreshIndicator(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(16.dp)
         )
+    }
+}
+/**
+ * Holds the [LayoutNode] of the list that the refresh item belongs to.
+ *
+ * Deliberately a plain holder instead of a snapshot state: the reference is only consumed by hit
+ * testing and capturing it must not schedule another composition.
+ */
+private class RefreshListNodeHolder {
+    var node: LayoutNode? = null
+}
+
+private class RefreshListRegistrationElement(
+    private val holder: RefreshListNodeHolder,
+    private val state: PullToRefreshState,
+    private val insetPx: Float,
+) : ModifierNodeElement<RefreshListRegistrationNode>() {
+    override fun create(): RefreshListRegistrationNode =
+        RefreshListRegistrationNode(holder, state, insetPx)
+
+    override fun update(node: RefreshListRegistrationNode) {
+        node.holder = holder
+        node.state = state
+        node.insetPx = insetPx
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is RefreshListRegistrationElement &&
+            other.holder === holder &&
+            other.state === state &&
+            other.insetPx == insetPx
+
+    override fun hashCode(): Int = 31 * (31 * holder.hashCode() + state.hashCode()) + insetPx.hashCode()
+}
+
+private class RefreshListRegistrationNode(
+    var holder: RefreshListNodeHolder,
+    var state: PullToRefreshState,
+    var insetPx: Float,
+) : LayoutAwareModifierNode, Modifier.Node() {
+    private var capturedNode: LayoutNode? = null
+
+    override fun onPlaced(coordinates: LayoutCoordinates) {
+        if (capturedNode == null) {
+            // The refresh item is placed in a LazyList item slot, which is a virtual node.
+            // LayoutNode.parent skips virtual nodes, so the parent of this node is the real
+            // LayoutNode of the list (an ancestor of every item, and of nothing outside the list).
+            // If a real LayoutNode is ever inserted between the item and the list, the parent still
+            // is an ancestor of all the items, which keeps the lookup in PullToRefreshHitTest valid.
+            val self = coordinator?.layoutNode
+            capturedNode = self?.parent ?: self
+            holder.node = capturedNode
+        }
+        // The state effect may already have run before the node was placed: that happens when the
+        // item enters the composition while the list is already refreshing (e.g. the header was
+        // recycled). Register here as well so the compensation does not silently stop working.
+        val listNode = capturedNode
+        if (listNode != null && state.pullState == PullState.REFRESHING) {
+            PullToRefreshHitTest.set(listNode, insetPx.roundToInt())
+        }
+    }
+
+    override fun onDetach() {
+        capturedNode?.let { PullToRefreshHitTest.remove(it) }
+        capturedNode = null
+        holder.node = null
     }
 }

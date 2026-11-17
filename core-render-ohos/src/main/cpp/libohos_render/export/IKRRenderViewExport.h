@@ -439,13 +439,9 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DidInsertSubRenderView(sub_render_view, index);
     }
 
-    // KRView 会扣掉选区手柄，插入下标不能把手柄当成业务子节点。
-    virtual int32_t GetChildCount() {
-        if (node_ == nullptr) {
-            return 0;
-        }
-        return kuikly::util::GetNodeApi()->getTotalChildCount(node_) - touch_interrupt_node_attached_;
-    }
+    // 直接子节点数。API 15 起用 NOT_EXPAND；更低版本退回 getTotalChildCount。
+    // KRView 再扣掉选区手柄，插入下标不能把手柄当成业务子节点。
+    virtual int32_t GetChildCount();
 
     // 是否含有手势事件监听
     bool HasBaseEvent() {

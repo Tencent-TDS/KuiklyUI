@@ -87,20 +87,9 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     }
 
     if (fontFamily.length) {
-        // 情形 2: 静态注册（info.plist）
-        UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
-        if (font) {
-            return font;
-        }
-        // 情形 3: 动态注册字体后再按 fontFamily 获取
-        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            font = [UIFont fontWithName:fontFamily size:fontSize];
-            if (font) {
-                return font;
-            }
-        }
-        
-        // 情形 4: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）
+        // 情形 2: componentExpandHandler 自定义字体创建（weight/italic 作为参数传出，返回值原样使用）
+        // 须先于按字体名查找，否则系统内置字体名（如 avenir）会被提前取回固定字重，业务按 weight 映射的多字重失效
+        UIFont *font = nil;
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:isItalic:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight isItalic:isItalic];
         }
@@ -112,6 +101,19 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
         if (font) {
             return font;
+        }
+        
+        // 情形 3: 静态注册（info.plist）
+        font = [UIFont fontWithName:fontFamily size:fontSize];
+        if (font) {
+            return font;
+        }
+        // 情形 4: 动态注册字体后再按 fontFamily 获取
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
         }
     }
 

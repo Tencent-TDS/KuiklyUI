@@ -31,6 +31,9 @@ extern "C" {
 // Weak extern for OH_ArkUI_NodeUtils_GetPositionToParent - API compatibility
 extern int32_t OH_ArkUI_NodeUtils_GetPositionToParent(ArkUI_NodeHandle node, ArkUI_IntOffset *offset) __attribute__((weak));
 extern int32_t OH_ArkUI_NodeUtils_GetLayoutSize(ArkUI_NodeHandle node, ArkUI_IntSize *size) __attribute__((weak));
+extern int32_t OH_ArkUI_NodeUtils_GetChildWithExpandMode(ArkUI_NodeHandle node, int32_t position,
+                                                        ArkUI_NodeHandle *subnode, uint32_t expandMode)
+    __attribute__((weak));
 
 static KRRenderViewOnSetProp gExternalPropHandlerOnSet = nullptr;
 static KRRenderViewOnResetProp gExternalPropHandlerOnReset = nullptr;
@@ -154,6 +157,24 @@ void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue
             forwarded_params, nullptr, nullptr, callback);
         return;
     }
+}
+
+int32_t IKRRenderViewExport::GetChildCount() {
+    if (node_ == nullptr) {
+        return 0;
+    }
+    int32_t count = 0;
+    if (OH_ArkUI_NodeUtils_GetChildWithExpandMode != nullptr) {
+        ArkUI_NodeHandle child = nullptr;
+        while (OH_ArkUI_NodeUtils_GetChildWithExpandMode(node_, count, &child, ARKUI_NOT_EXPAND) == 0 &&
+               child != nullptr) {
+            count++;
+            child = nullptr;
+        }
+    } else {
+        count = static_cast<int32_t>(kuikly::util::GetNodeApi()->getTotalChildCount(node_));
+    }
+    return count - touch_interrupt_node_attached_;
 }
 
 /**

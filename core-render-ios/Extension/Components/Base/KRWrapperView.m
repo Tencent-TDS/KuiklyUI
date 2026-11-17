@@ -48,7 +48,10 @@
 
 - (void)setFrame:(CGRect)frame {
     [super setFrame:frame];
-    _hostView.frame = self.bounds;
+    BOOL hostIsChild = (_hostView.superview == self);
+    if (hostIsChild) {
+        _hostView.frame = self.bounds;
+    }
     [self.layer.mask setFrame:self.bounds];
 }
 

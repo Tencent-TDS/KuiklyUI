@@ -32,6 +32,7 @@ import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.drawscope.Stroke
+import com.tencent.kuikly.compose.ui.platform.LocalActivity
 import com.tencent.kuikly.compose.ui.text.ExperimentalTextApi
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.drawText
@@ -47,7 +48,11 @@ class CanvasTextDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            Column(Modifier.fillMaxSize().background(Color.White).padding(20.dp)) {
+            Column(
+                Modifier.fillMaxSize().background(Color.White)
+                    .padding(top = LocalActivity.current.pageData.statusBarHeight.dp)
+                    .padding(20.dp)
+            ) {
                 Text("Canvas text", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Text("Left: topLeft     Right: baseline", fontSize = 16.sp)
                 Text("Blue: line box     Red: baseline", fontSize = 14.sp)

@@ -73,7 +73,11 @@ Canvas(Modifier.fillMaxSize()) {
 | 对齐 | 顶点定位使用紧包单行的文本框。基线接口的 Center、End/Right 可指定水平锚点，Start/End 按从左到右解释。 |
 | 排版与绘制 | 不支持 RTL 段落布局、overflow、maxLines、brush 或 blendMode。描边支持 width 和 cap。 |
 
-示例页 `CanvasTextDemo` 在同一条红色基线上并排绘制两份文字：左边使用文本框左上角，右边直接使用基线。蓝框标出测量的行框。
+示例页 `CanvasTextDemo` 左侧按文本框左上角绘制，右侧直接按基线绘制。蓝框标出测量的行框，红线标出指定的基线。下图从各端运行同一示例页的画面截取，保留原始像素。
+
+| Android | iOS | H5 |
+| --- | --- | --- |
+| ![Android 模拟器上的三组基线对照](./img/canvas-text-android.png) | ![iOS 模拟器上的三组基线对照](./img/canvas-text-ios.png) | ![Chromium 中的三组基线对照](./img/canvas-text-h5.png) |
 
 ## 绘制 Modifier
 

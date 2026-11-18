@@ -138,6 +138,13 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 true
             }
 
+            LINE_HEIGHT -> {
+                // textarea 的提示文字继承元素自身的 line-height；
+                // 设置在元素上，提示文字与输入文字就会保持在同一垂直位置。
+                ele.style.lineHeight = propValue.toNumberFloat().toPxF()
+                true
+            }
+
             MAX_TEXT_LENGTH -> {
                 val maxTextLength = propValue.unsafeCast<Int>()
                 if (maxTextLength <= 0) {
@@ -604,6 +611,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         private const val TEXT_ALIGN = "textAlign"
         private const val FONT_SIZE = "fontSize"
         private const val FONT_WEIGHT = "fontWeight"
+        private const val LINE_HEIGHT = "lineHeight"
         private const val TINT_COLOR = "tintColor"
         private const val SELECTION_COLOR = "selectionColor"
         private const val MAX_TEXT_LENGTH = "maxTextLength"

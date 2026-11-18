@@ -516,7 +516,23 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private fun setPlaceHolder(propValue: Any): Boolean {
         hint = propValue as String
+        applyPlaceHolderLineHeight()
         return true
+    }
+
+    /**
+     * TextView 为 hint 和输入文字分别排版，text 上的行高样式不会作用于 hint。
+     * 这里给 hint 设置相同行高，让未输入时的提示文字与输入文字保持在同一垂直位置。
+     */
+    private fun applyPlaceHolderLineHeight() {
+        val span = lineHeightSpan ?: return
+        val raw = hint?.toString().orEmpty()
+        if (raw.isEmpty()) {
+            return
+        }
+        hint = SpannableString(raw).apply {
+            setSpan(span, 0, raw.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+        }
     }
 
     private fun setPlaceHolderColor(propValue: Any): Boolean {
@@ -1061,6 +1077,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         }
         lineHeightSpan = HRLineHeightSpan(pxLineHeight)
         ensureLineHeightSpan(text)
+        applyPlaceHolderLineHeight()
         observeTextWatcher()
         return true
     }

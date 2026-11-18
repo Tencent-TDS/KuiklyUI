@@ -31,6 +31,50 @@ Canvas(modifier = Modifier.size(200.dp)) {
 }
 ```
 
+## Canvas 文本绘制
+
+`drawText` 的 `topLeft` 是单行文本框的左上角，坐标单位为 px。传 `Offset.Zero` 即从画布左上角绘制。需要以字母基线定位坐标轴刻度时，使用实验接口 `drawTextAtBaseline` 并标注 `@OptIn(ExperimentalTextApi::class)`。
+
+从 Compose Multiplatform 迁移单行标签时，保留下面的调用方式，把 `androidx.compose.ui.text` 下的 `drawText`、`rememberTextMeasurer` 和 `TextStyle` 换为 `com.tencent.kuikly.compose.ui.text` 下的同名导入。
+
+```kotlin
+@Composable
+fun ChartLabels(labels: List<String>, style: TextStyle) {
+    val tm = rememberTextMeasurer()
+    val layouts = remember(tm, labels, style) { labels.map { tm.measure(it, style) } }
+    Canvas(Modifier.fillMaxWidth().height(48.dp)) {
+        layouts.forEachIndexed { i, layout ->
+            val centerX = (i + 0.5f) * size.width / layouts.size
+            drawText(layout, topLeft = Offset(centerX - layout.size.width / 2f, 0f))
+        }
+    }
+}
+```
+
+`measure` 可在第一次绘制前调用。缓存未命中时，它同步创建原生文本 shadow、测量并释放。上例在标签或样式变化时测量，动画每帧只更新位置。少量标签也可直接调用 `drawText(tm, label, topLeft = position, style = style)`。同一个 measurer 默认保留最近使用的 8 个 `(text, style)` 结果，可通过 `rememberTextMeasurer(cacheSize = …)` 调整。
+
+避免把整批标签的测量放进逐帧绘制回调。如果标签多于缓存容量，下面的循环会反复触发同步测量：
+
+```kotlin
+Canvas(Modifier.fillMaxSize()) {
+    labels.forEachIndexed { i, label ->
+        val layout = tm.measure(label, style)
+        drawText(layout, topLeft = Offset(i * 40.dp.toPx(), 0f))
+    }
+}
+```
+
+| 与 CMP 的差异 | Kuikly 的行为 |
+| --- | --- |
+| 文本和换行 | 仅支持单行 `String`。含 `\n` 或 `\r` 的输入会抛出异常，请先拆行并分别定位。 |
+| 测量结果 | `CanvasTextLayoutResult.size` 给出包住该行的整数像素尺寸。`firstBaseline` 是按字号与行高估算的基线距离，系统字体和后备字体会影响实际字形边界。 |
+| 样式 | 支持 color、fontSize、fontFamily、fontStyle、fontWeight、textAlign。字重与 Text 组件使用相同分档，例如 W100 为 300，W800/W900 为 700。 |
+| 字号 | 默认 15dp，显式 sp 按 Compose 的 density 换算，不再乘 Compose 的 fontScale。OHOS 原生渲染仍使用宿主配置的字号比例。 |
+| 对齐 | 顶点定位使用紧包单行的文本框。基线接口的 Center、End/Right 可指定水平锚点，Start/End 按从左到右解释。 |
+| 排版与绘制 | 不支持 RTL 段落布局、overflow、maxLines、brush 或 blendMode。描边支持 width 和 cap。 |
+
+示例页 `CanvasTextDemo` 在同一条红色基线上并排绘制两份文字：左边使用文本框左上角，右边直接使用基线。蓝框标出测量的行框。
+
 ## 绘制 Modifier
 
 :::: warning 生效范围
@@ -83,6 +127,7 @@ Canvas(modifier = Modifier.size(200.dp)) {
 | `drawPath` | 按 `Path` 绘制 |
 | `drawPoints` | 绘制点集 |
 | `drawOutline` | 按 `Outline` 绘制 |
+| `drawText` | 按文本框左上角绘制单行文本 |
 
 :::: warning 与标准 Compose 的差异
 - `pathEffect` 仅支持 `PathEffect.dashPathEffect(intervals, phase)`，`cornerPathEffect`、`chainPathEffect`、`stampedPathEffect` 无对应实现。

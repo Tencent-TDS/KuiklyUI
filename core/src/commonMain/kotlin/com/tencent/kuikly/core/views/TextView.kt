@@ -599,7 +599,9 @@ enum class FontWeight(val value: String) {
     SEMIBOLD("600"),
     BOLD("700"),
     EXTRABOLD("800"),
-    BLACK("900")
+    BLACK("900"),
+    EXTRA_LIGHT("200"),
+    LIGHT("300")
 }
 
 fun ViewContainer<*, *>.Text(init: TextView.() -> Unit) {

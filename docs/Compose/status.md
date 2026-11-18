@@ -91,7 +91,7 @@
       <td>其他</td>
       <td>大部分支持</td>
       <td>
-        <strong>绘制</strong>：<code>Canvas</code> 自定义绘制<br>
+        <strong>绘制</strong>：<code>Canvas</code> 自定义绘制、<a href="./canvas-drawing.html#canvas-文本绘制">单行文本测量与绘制</a><br>
         <strong>修饰符</strong>：常用 <code>Modifier</code><br>
         <strong>架构</strong>：<code>viewModel()</code> 与生命周期感知副作用/状态管理（与官方 Runtime 对齐）
       </td>

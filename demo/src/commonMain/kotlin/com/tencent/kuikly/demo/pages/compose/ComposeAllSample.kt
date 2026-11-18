@@ -97,6 +97,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("Text", "Text 组件示例", "TextDemo"),
             DemoItem("RichTextSpanBackground", "AnnotatedString 的 span 背景色", "RichTextSpanBackgroundDemo"),
             DemoItem("Canvas", "Canvas 组件示例", "CanvasDemo"),
+            DemoItem("Canvas Text", "文本框与基线定位对照", "CanvasTextDemo"),
             DemoItem("Animation", "Compose常见动画API示例", "ComposeAnimateDemo1"),
             DemoItem("Gesture", "pointerInput内各种手势示例", "GestureTestDemo"),
             DemoItem("LazyColumn", "LazyColumn各种状态信息示例", "LazyColumnDemo3"),

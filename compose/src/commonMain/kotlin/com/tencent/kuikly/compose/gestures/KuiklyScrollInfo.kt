@@ -135,6 +135,11 @@ class KuiklyScrollInfo {
     var stickyItemKey: Any? = null
 
     /**
+     * Keys of sticky headers currently placed in pinned (sticking) state after the last measure.
+     */
+    var stickyPinnedItemKeys: Set<Any> = emptySet()
+
+    /**
      * Flag indicating whether the current list uses PullToRefresh
      * When PullToRefresh is used, the isAtTop judgment logic needs to be adjusted
      */
@@ -215,6 +220,8 @@ class KuiklyScrollInfo {
         // Clear list items and pagination caches
         itemMainSpaceCache.clear()
         stickyItemKey = null
+        stickyPinnedItemKeys = emptySet()
+        stickyHeaderCacheManager.clear()
         cachedTotalItems = 0
         pullToRefreshTopInsetPx = 0
     }

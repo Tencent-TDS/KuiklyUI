@@ -301,7 +301,7 @@ class ImageView : DeclarativeBaseView<ImageAttr, ImageEvent>() {
         // 仅当节点下发过占位图属性时才清空：Compose 链路的网络图不调用 placeholderSrc，
         // 属性表中无 placeholder，无条件清空会在加载成功后凭空新增该属性，使节点属性集合
         // 随加载状态漂移，TurboDisplay 接管 Diff 因属性数量不一致判定节点不可复用。
-        if (attr.getProp(ImageConst.PLACEHOLDER) == null) return
+        if (getViewAttr().getProp(ImageConst.PLACEHOLDER) == null) return
         didSetProp(ImageConst.PLACEHOLDER, "")
     }
 

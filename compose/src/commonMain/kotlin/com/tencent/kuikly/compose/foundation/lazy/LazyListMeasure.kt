@@ -397,6 +397,7 @@ internal fun measureLazyList(
             measuredItemProvider.getAndMeasure(it)
         }
         val headerItem = stickingItems.lastOrNull()
+        val stickingItemKeys = stickingItems.mapTo(hashSetOf()) { it.key }
 
         return LazyListMeasureResult(
             firstVisibleItem = firstItem,
@@ -404,6 +405,7 @@ internal fun measureLazyList(
             canScrollForward = index < itemsCount || currentMainAxisOffset > maxOffset,
             consumedScroll = consumedScroll,
             stickyItem = headerItem,
+            stickingItemKeys = stickingItemKeys,
             measureResult = layout(layoutWidth, layoutHeight) {
                 positionedItems.fastForEach {
                     if (it.key != headerItem?.key) {

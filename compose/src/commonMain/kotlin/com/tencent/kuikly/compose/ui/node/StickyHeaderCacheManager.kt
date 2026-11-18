@@ -36,16 +36,22 @@ class StickyHeaderCacheManager {
      */
     private val stickyHeaderCacheMap = mutableMapOf<Any, StickyHeaderCache>()
 
-    /**
-     * Get cached position for sticky header
-     * Cache position when sticky header first appears, reuse cached position subsequently
-     * Supports multiple sticky headers, distinguished by lazyItemKey
-     */
-    fun getCachedStickyPosition(itemKey: Any, currentPos: Offset): Offset {
-        val cachedData = stickyHeaderCacheMap[itemKey]
+    fun clear() {
+        stickyHeaderCacheMap.clear()
+    }
 
+    /**
+     * Get cached position for sticky header.
+     * When not pinned, [currentPos] is always written so layout drift above the header is absorbed.
+     * When pinned, reuse the first cached document-flow anchor (#481).
+     */
+    fun getCachedStickyPosition(itemKey: Any, currentPos: Offset, isPinnedSticky: Boolean): Offset {
+        if (!isPinnedSticky) {
+            stickyHeaderCacheMap[itemKey] = StickyHeaderCache(currentPos)
+            return currentPos
+        }
+        val cachedData = stickyHeaderCacheMap[itemKey]
         return if (cachedData == null) {
-            // Cache current position when first appears and is in sticky state
             stickyHeaderCacheMap[itemKey] = StickyHeaderCache(currentPos)
             currentPos
         } else {

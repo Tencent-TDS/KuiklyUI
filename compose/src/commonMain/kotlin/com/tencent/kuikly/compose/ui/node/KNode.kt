@@ -87,10 +87,12 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     private fun getCachedStickyPosition(currentPos: Offset): Offset {
         val currentItemKey = (foldedParent as? KNode<*>)?.lazyItemKey ?: return currentPos
 
-        // Get bound cache manager
-        val cacheManager = getCacheManager()
-
-        return cacheManager?.getCachedStickyPosition(currentItemKey, currentPos) ?: currentPos
+        val cacheManager = getCacheManager() ?: return currentPos
+        val scrollNode = parent as? KNode<*>
+        val kuiklyInfo = (scrollNode?.view?.renderProperties as? RenderProperties)?.kuiklyScrollInfo
+            ?: return currentPos
+        val isPinnedSticky = currentItemKey in kuiklyInfo.stickyPinnedItemKeys
+        return cacheManager.getCachedStickyPosition(currentItemKey, currentPos, isPinnedSticky)
     }
 
     /**
@@ -103,7 +105,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
         return kuiklyInfo?.stickyHeaderCacheManager
     }
-
 
     /**
      * The key of the Lazy item that this KNode represents
@@ -728,4 +729,5 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             )
         }
     }
+
 }

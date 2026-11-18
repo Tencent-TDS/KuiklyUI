@@ -50,6 +50,8 @@ internal class LazyListMeasureResult(
     /** Constraints used to measure children. */
     val childConstraints: Constraints,
     val stickyItem: LazyListItemInfo? = null,
+    /** Keys of all sticky items in pinned placement for this measure pass. */
+    val stickingItemKeys: Set<Any> = emptySet(),
     // properties representing the info needed for LazyListLayoutInfo:
     /** see [LazyListLayoutInfo.visibleItemsInfo] */
     val positionedItems: List<LazyListMeasuredItem>,

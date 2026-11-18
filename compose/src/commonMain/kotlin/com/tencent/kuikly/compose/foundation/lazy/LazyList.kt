@@ -413,7 +413,8 @@ private fun rememberLazyListMeasurePolicy(
 
         // Update sticky item key to kuiklyInfo
         state.kuiklyInfo.stickyItemKey = measureResult.stickyItem?.key
-        
+        state.kuiklyInfo.stickyPinnedItemKeys = measureResult.stickingItemKeys
+
         state.applyMeasureResult(measureResult, isLookingAhead)
         measureResult
     }

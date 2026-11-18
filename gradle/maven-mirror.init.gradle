@@ -1,0 +1,27 @@
+def GRADLE_PLUGINS = "https://mirrors.tencent.com/nexus/repository/gradle-plugins/"
+def MAVEN_PUBLIC = "https://mirrors.tencent.com/nexus/repository/maven-public/"
+
+def rewrite = { repo ->
+    if (!(repo instanceof MavenArtifactRepository)) {
+        return
+    }
+    def url = repo.url.toString()
+    if (url.startsWith("https://plugins.gradle.org/m2")) {
+        repo.setUrl(GRADLE_PLUGINS)
+    } else if (url.startsWith("https://repo.maven.apache.org/maven2")
+            || url.startsWith("https://repo1.maven.org/maven2")) {
+        repo.setUrl(MAVEN_PUBLIC)
+    }
+}
+
+settingsEvaluated { settings ->
+    settings.pluginManagement.repositories.each { rewrite(it) }
+    settings.dependencyResolutionManagement.repositories.each { rewrite(it) }
+}
+
+gradle.beforeProject { project ->
+    // all() rewrites repositories already added by the root allprojects block,
+    // which runs before a subproject's beforeProject callback.
+    project.buildscript.repositories.all { rewrite(it) }
+    project.repositories.all { rewrite(it) }
+}

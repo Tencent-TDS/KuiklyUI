@@ -10,11 +10,20 @@ Kuikly Compose 提供了 Material3 主题体系：`MaterialTheme` 作为主题�
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
+| colorScheme | 主题配色；必填，以区分现有仅设置 `shapes` 的重载 | ColorScheme |
+| typography | 字体排印；默认继承当前主题 | Typography |
+| shapes | 形状体系；默认继承当前主题 | Shapes |
 | content <Badge text="必需" type="warn"/> | 主题作用域内的内容 | @Composable () -> Unit |
 
 ```kotlin
 setContent {
-    MaterialTheme {
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Color(0xFF07C160),
+        ),
+        typography = Typography(),
+        shapes = Shapes(),
+    ) {
         DemoScreen()
     }
 }
@@ -39,11 +48,17 @@ fun ThemedText() {
 }
 ```
 
-:::: warning 当前支持范围
-`colorScheme`、`typography`、`shapes` 当前均使用框架默认值，**不支持**通过 `MaterialTheme()` 自定义。
+传入 `colorScheme` 后，直接读取 `MaterialTheme.colorScheme` 的 Material3 组件会使用对应颜色角色。未显式传入的 `typography` 和 `shapes` 会继承当前主题值。
 
-如需自定义颜色或文本样式，请在组件上直接传参，例如 `Text(color = ...)`、`Text(style = ...)`、`Modifier.background(color = ...)`。
-::::
+`Text`、`TextField` 的默认样式仍来自 `LocalTextStyle` 和 `LocalContentColor`，不会仅因传入 `colorScheme` 或 `typography` 自动变化。使用这类组件时，请显式传入 `color`/`style`，或通过 `CompositionLocalProvider` 提供相应默认值。
+
+仅需要覆盖形状时，仍可使用兼容重载：
+
+```kotlin
+MaterialTheme(shapes = customShapes) {
+    DemoScreen()
+}
+```
 
 ## ColorScheme
 
@@ -83,4 +98,4 @@ fun ThemedText() {
 
 ## Shapes
 
-`Shapes` 描述形状体系，通过 `MaterialTheme.shapes` 读取，当前为默认的 `Shapes()`。
+`Shapes` 描述形状体系，通过 `MaterialTheme.shapes` 读取。可以在 `MaterialTheme` 中传入自定义 `Shapes`，也可以只在局部作用域覆盖。

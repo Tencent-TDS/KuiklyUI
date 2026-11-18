@@ -75,9 +75,13 @@ Canvas(Modifier.fillMaxSize()) {
 
 示例页 `CanvasTextDemo` 左侧按文本框左上角绘制，右侧直接按基线绘制。蓝框标出测量的行框，红线标出指定的基线。下图从各端运行同一示例页的画面截取，保留原始像素。
 
-| Android | iOS | H5 |
-| --- | --- | --- |
-| ![Android 模拟器上的三组基线对照](./img/canvas-text-android.png) | ![iOS 模拟器上的三组基线对照](./img/canvas-text-ios.png) | ![Chromium 中的三组基线对照](./img/canvas-text-h5.png) |
+| Android | iOS |
+| --- | --- |
+| ![Android 模拟器上的三组基线对照](./img/canvas-text-android.png) | ![iOS 模拟器上的三组基线对照](./img/canvas-text-ios.png) |
+
+| HarmonyOS | H5 |
+| --- | --- |
+| ![HarmonyOS API 24 模拟器上的三组基线对照](./img/canvas-text-ohos.png) | ![Chromium 中的三组基线对照](./img/canvas-text-h5.png) |
 
 ## 绘制 Modifier
 

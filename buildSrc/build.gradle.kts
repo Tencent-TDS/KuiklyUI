@@ -9,5 +9,8 @@ dependencies {
 }
 
 repositories {
+    maven {
+        url = uri("https://mirrors.tencent.com/nexus/repository/maven-public")
+    }
     mavenCentral()
 }

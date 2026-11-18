@@ -525,7 +525,7 @@ static NSString *KRNormalizedFontWeight(NSString *weight) {
           largeTitleAttributes:(NSDictionary *)largeTitleAttributes
             subtitleAttributes:(NSDictionary *)subtitleAttributes
         largeSubtitleAttributes:(NSDictionary *)largeSubtitleAttributes
-                        offset:(UIOffset)offset {
+                        offset:(UIOffset)offset API_AVAILABLE(ios(13.0)) {
     if ([style isEqualToString:@"default"]) {
         [appearance configureWithDefaultBackground];
     } else if ([style isEqualToString:@"opaque"]) {

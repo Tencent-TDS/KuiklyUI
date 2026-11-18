@@ -172,6 +172,9 @@ if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
     esac
 fi
 
+# Resolve Maven Central and the Plugin Portal through Tencent mirrors.
+set -- -I "$APP_HOME/gradle/maven-mirror.init.gradle" "$@"
+
 # Escape application args
 save () {
     for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done

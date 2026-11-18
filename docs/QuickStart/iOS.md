@@ -839,7 +839,7 @@ class TestPage : Pager(){
 
 1. 静态注册（info.plist 的 `UIAppFonts`）或系统字体：Kotlin 侧直接使用字体真实名称，无需实现任何方法。
 2. 字体文件需要运行时动态下发/加载：实现 `hr_loadCustomFont:contextParams:`，按 `fontFamily` 注册对应的字体文件。
-3. 未注册或查找失败时，框架依次尝试 `componentExpandHandler` 的 `hr_fontWithFontFamily:...` 系列方法（`fontWeight`/`italic` 作为参数传出，返回的 UIFont 原样使用），最终回落系统字体并保留 `fontWeight`/`fontStyle`。
+3. 业务自定义"字体名 → 字体"映射（如同一字体名按 `fontWeight` 映射多个字面）：实现 `hr_fontWithFontFamily:...`。该回调**优先于**静态/动态注册的字体名查找执行（`fontWeight`/`italic` 作为参数传出，返回的 UIFont 原样使用）；返回 `nil` 则继续按字体名查找，最终回落系统字体并保留 `fontWeight`/`fontStyle`。回调返回非 nil 即生效，同名的注册字体不再参与；仅做别名替换的接入，对未匹配的 `fontFamily` 返回 `nil` 即可回落注册字体。
 
 ::: tip generic family 说明
 Compose `FontFamily` 的 4 个类别名由框架内置处理，无需业务介入：

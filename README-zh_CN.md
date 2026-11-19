@@ -12,7 +12,7 @@
 
 </p>
 
-[English](./README.md) | 简体中文 | [官网](https://framework.tds.qq.com/)
+[English](./README.md) | 简体中文 | [官网](https://kuikly.tds.qq.com/home)
 
 ## 项目介绍
 
@@ -81,6 +81,7 @@
 - [快速体验](https://kuikly.tds.qq.com/QuickStart/hello-world.html)
 - [接入指引](https://kuikly.tds.qq.com/QuickStart/overview.html)
 - [组件特性](https://kuikly.tds.qq.com/API/components/override.html)
+- [组件市场](https://kuikly.tds.qq.com/home/components)
 
 ## 源码构建
 
@@ -192,6 +193,15 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
 ## 贡献指南
 欢迎各位开发者为 `Kuikly` 提出问题或发起 PR，建议你在为 `Kuikly` 贡献代码先阅读 [贡献指引](CONTRIBUTING.md)。
+
+## 组件市场上架
+欢迎将可复用的组件、工具库贡献到 [Kuikly 组件市场](https://kuikly.tds.qq.com/home/components)，方便社区发现和使用。
+
+1. **开发并开源组件**：将组件托管到 GitHub，建议附带使用说明和各端 Demo。若是可独立发布的扩展 View / Module，可参考 [Kuikly 扩展库创建指引](https://kuikly.tds.qq.com/Community/kuikly_extension_lib_guide.html)。
+2. **登记上架信息**：Fork [KuiklyUI-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)，在 `KuiklyUI-Libraries.json` 末尾按仓库 README 中的描述模板追加条目（组件名称、描述、类型、开发者、仓库地址、示例链接、支持平台等）。
+3. **提交 PR**：PR 合并后，组件会展示在组件市场。后续更新同一条目后再次提交 PR 即可。
+
+字段说明与 JSON 模板见 [KuiklyUI-third-party 上架指引](https://github.com/Tencent-TDS/KuiklyUI-third-party/blob/main/README-zh_CN.md)。组件需求与维护讨论可到 [社区生态 Discussion](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81)。
 
 ## 行为准则
 请注意，本项目的所有参与者都应遵守我们的[行为准则](CODE_OF_CONDUCT.md)。参与即表示您同意遵守其条款。

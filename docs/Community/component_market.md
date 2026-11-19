@@ -13,11 +13,17 @@
 
 ## 组件市场
 
-**社区组件市场网址**：https://kuikly.tds.qq.com/third-party?tab=component
+**社区组件市场网址**：https://kuikly.tds.qq.com/home/components
 
 ## 贡献组件
 
-社区提供了中心化收集``Kuikly``组件的方式，共享组件按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引，上架到组件市场。
+社区提供了中心化收集``Kuikly``组件的方式。共享组件按以下步骤上架到组件市场：
+
+1. **开发并开源组件**：将组件托管到 GitHub，建议附带使用说明和各端 Demo。若是可独立发布的扩展 View / Module，可参考[Kuikly扩展库创建指引](./kuikly_extension_lib_guide.md)。
+2. **登记上架信息**：Fork [KuiklyUI-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)，在 `KuiklyUI-Libraries.json` 末尾按仓库 README 中的描述模板追加条目（组件名称、描述、类型、开发者、仓库地址、示例链接、支持平台等）。
+3. **提交 PR**：PR 合并后，组件会展示在组件市场。后续更新同一条目后再次提交 PR 即可。
+
+字段说明与 JSON 模板见 [KuiklyUI-third-party 上架指引](https://github.com/Tencent-TDS/KuiklyUI-third-party/blob/main/README-zh_CN.md)。
 
 ## 组件需求收集
 

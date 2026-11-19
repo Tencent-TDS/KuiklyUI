@@ -54,6 +54,8 @@ TextArea {
 }
 ```
 
+> **提示**：2.33.0 之前，`TextArea` 的 placeholder 位置偏上；自 2.33.0 起已修复，与输入文字对齐。
+
 ### textInputState方法 <Badge text="2.15+" type="info"/>
 
 原子化设置输入框的 raw text、selection、composition 状态。具体说明请参考 [Input#textInputState](input.md#textinputstate方法)。

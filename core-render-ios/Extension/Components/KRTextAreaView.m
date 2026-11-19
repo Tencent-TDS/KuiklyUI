@@ -198,6 +198,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (_css_lineHeight != css_lineHeight) {
         _css_lineHeight = css_lineHeight;
         [self updateLineHeightIfApplicable];
+        [self p_applyLineHeightToPlaceholder];
     }
 }
 
@@ -346,7 +347,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)setCss_placeholder:(NSString *)css_placeholder {
     _css_placeholder = css_placeholder;
-    self.placeholderTextView.text = css_placeholder;
+    [self p_applyLineHeightToPlaceholder];
     [self p_updatePlaceholder];
 }
 
@@ -988,6 +989,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)setFont:(UIFont *)font {
     [super setFont:font];
     _placeholderTextView.font = font;
+    if (_placeholderTextView) {
+        [self p_applyLineHeightToPlaceholder];
+    }
 }
 
 - (void)setTextAlignment:(NSTextAlignment)textAlignment {
@@ -1032,6 +1036,32 @@ NSString *const KRFontWeightKey = @"fontWeight";
     // macOS doesn't have software keyboard, so no notification needed
     _didAddKeyboardNotification = YES;
 #endif // macOS]
+}
+
+/// 提示文字显示在单独的 UITextView 上，不会继承主视图的段落样式和基线偏移。
+/// 这里同步相同的行高，让提示文字与输入文字保持在同一垂直位置。
+- (void)p_applyLineHeightToPlaceholder {
+    NSString *text = _css_placeholder ?: @"";
+    if (text.length == 0) {
+        if (_placeholderTextView) {
+            self.placeholderTextView.text = @"";
+        }
+        return;
+    }
+    UITextView *placeholderTextView = self.placeholderTextView;
+    if (_css_lineHeight.floatValue <= FLT_EPSILON) {
+        placeholderTextView.text = text;
+        return;
+    }
+    UIFont *font = self.font ?: [UIFont systemFontOfSize:16];
+    NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithString:text];
+    NSRange range = NSMakeRange(0, attrStr.length);
+    CGFloat baselineOffset = ([_css_lineHeight floatValue] - font.pointSize) / 2;
+    [attrStr addAttribute:NSFontAttributeName value:font range:range];
+    [attrStr addAttribute:NSParagraphStyleAttributeName value:[self p_buildCurrentParagraphStyle] range:range];
+    [attrStr addAttribute:NSBaselineOffsetAttributeName value:@(baselineOffset) range:range];
+    placeholderTextView.attributedText = attrStr;
+    placeholderTextView.font = font;
 }
 
 - (void)p_updatePlaceholder {

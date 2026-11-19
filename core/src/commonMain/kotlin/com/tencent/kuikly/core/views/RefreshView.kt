@@ -69,7 +69,11 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
     fun beginRefresh(animated: Boolean = true) {
         performTaskWhenRenderViewDidLoad {
             if (refreshState != RefreshViewState.REFRESHING) {
-                scrollerView?.setContentOffset(0f, -flexNode.layoutFrame.height, animated = animated)
+                val height = flexNode.layoutFrame.height
+                // 手动刷新需先声明 contentInset，负 offset 才能合法停住；
+                // 与 IDLE 时 contentInsetTop = 0f 对称，刷新结束后 offset 才能收回
+                scrollerView?.setContentInset(top = height, animated = false)
+                scrollerView?.setContentOffset(0f, -height, animated = animated)
                 refreshState = RefreshViewState.REFRESHING
             }
         }

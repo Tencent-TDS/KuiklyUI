@@ -33,7 +33,7 @@ publishing {
 
 // core-wx: Kuikly WeChat MiniProgram bindings (views + modules).
 //
-// Target matrix aligned with :core — publishes android/iOS/macOS/js(IR)/ohosArm64.
+// Target matrix aligned with :core — publishes android/iOS/js(IR)/ohosArm64.
 // Rationale: business apps may share cross-platform pages in commonMain and
 // conditionally use WXButton / registerWXModules() only on MiniProgram runtime.
 // The wrappers themselves are pure Kotlin (no js() macros / no wx.* access —
@@ -60,9 +60,6 @@ kotlin {
     iosSimulatorArm64()
     iosX64()
     iosArm64()
-
-    macosX64()
-    macosArm64()
 
     js(IR) {
         moduleName = "KuiklyCore-core-wx"

@@ -15,6 +15,7 @@
 
 package com.tencent.kuikly.core.views
 
+import com.tencent.kuikly.core.base.AbstractBaseView
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.BaseObject
 import com.tencent.kuikly.core.base.Color
@@ -121,6 +122,52 @@ interface PathApi {
         pointX: Float,
         pointY: Float
     )
+}
+
+/**
+ * Measures one canvas label in renderer units (dp), on the Kuikly thread of [pagerId].
+ * The temporary rich-text shadow has its own ref and needs no mounted canvas or render view.
+ */
+fun measureCanvasText(
+    pagerId: String,
+    text: String,
+    fontSize: Float,
+    fontStyle: FontStyle = FontStyle.NORMAL,
+    fontWeight: FontWeight = FontWeight.NORMAL,
+    fontFamily: String = ""
+): TextMetrics = measureCanvasText(
+    pagerId, AbstractBaseView.allocateNativeRef(), text, fontSize, fontStyle, fontWeight, fontFamily, TextAlign.LEFT
+)
+
+private fun measureCanvasText(
+    pagerId: String,
+    ref: Int,
+    text: String,
+    fontSize: Float,
+    fontStyle: FontStyle,
+    fontWeight: FontWeight,
+    fontFamily: String,
+    textAlign: TextAlign
+): TextMetrics {
+    val shadow = TextShadow(pagerId, ref, ViewConst.TYPE_RICH_TEXT)
+    val size = try {
+        shadow.setProp("text", text)
+        shadow.setProp(TextConst.FONT_STYLE, fontStyle.value)
+        shadow.setProp(TextConst.FONT_WEIGHT, fontWeight.value)
+        shadow.setProp(TextConst.FONT_SIZE, fontSize)
+        shadow.setProp(TextConst.TEXT_USE_DP_FONT_SIZE_DIM, 1)
+        if (fontFamily.isNotEmpty()) shadow.setProp(TextConst.FONT_FAMILY, fontFamily)
+        shadow.calculateRenderViewSize(100000f, 100000f)
+    } finally {
+        shadow.removeFromParentComponent()
+    }
+    val left = when (textAlign) {
+        TextAlign.CENTER -> size.width / 2
+        TextAlign.RIGHT -> size.width
+        else -> 0f
+    }
+    val descent = (size.height - fontSize) / 2
+    return TextMetrics(size.width, left, size.width - left, size.height - descent, descent)
 }
 
 // api 对齐 h5 canvas 标准
@@ -562,34 +609,8 @@ open class CanvasContext(private val renderView: RenderView, private val pagerId
     /**
      * 测量文本
      */
-    override fun measureText(value: String): TextMetrics {
-        val shadow: TextShadow = TextShadow(pagerId, nativeRef, ViewConst.TYPE_RICH_TEXT)
-        shadow.setProp("text", value)
-        shadow.setProp(TextConst.FONT_STYLE, fontStyle.value)
-        shadow.setProp(TextConst.FONT_WEIGHT, fontWeight.value)
-        shadow.setProp(TextConst.FONT_SIZE, fontSize)
-        shadow.setProp(TextConst.TEXT_USE_DP_FONT_SIZE_DIM, 1)
-        if (fontFamily.isNotEmpty()) {
-            shadow.setProp(TextConst.FONT_FAMILY, fontFamily)
-        }
-        val size = shadow.calculateRenderViewSize(100000f, 100000f)
-        shadow.removeFromParentComponent()
-        var left: Float
-        var right: Float
-        if (textAlign == TextAlign.CENTER) {
-            left = size.width / 2
-            right = size.width - left
-        } else if (textAlign == TextAlign.RIGHT) {
-            left = size.width
-            right = 0f
-        } else {
-            left = 0f
-            right = size.width
-        }
-        val descent = (size.height - fontSize) / 2
-        val ascent = size.height - descent
-        return TextMetrics(size.width, left, right, ascent, descent)
-    }
+    override fun measureText(value: String): TextMetrics =
+        measureCanvasText(pagerId, nativeRef, value, fontSize, fontStyle, fontWeight, fontFamily, textAlign)
 
     override fun fillText(text: String, x: Float, y: Float) {
         val params = JSONObject()

@@ -69,4 +69,9 @@
     _backPressCompletion = completion;
 }
 
+// 页面销毁前断开对业务 completion 的强引用，避免 completion 反向持有容器形成环
+- (void)hr_pageWillDestroy {
+    _backPressCompletion = nil;
+}
+
 @end

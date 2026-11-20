@@ -24,6 +24,12 @@ void KRForwardArkTSView::DidInit() {
         KRRenderValue::Make(kuikly::util::AsciiToUTF16(GetViewName())), nullptr, nullptr, nullptr, nullptr);
     // 设置 ARKUI_HIT_TEST_MODE_TRANSPARENT, ForwardArkTSView 不会遮挡同层级事件
     kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
+
+    if (auto node = GetNode()) {
+        std::string nodeId = GetNodeId();
+        ArkUI_AttributeItem item = {nullptr, 0, nodeId.c_str(), nullptr};
+        kuikly::util::GetNodeApi()->setAttribute(node, NODE_ID, &item);
+    }
 }
 
 void KRForwardArkTSView::OnDestroy() {

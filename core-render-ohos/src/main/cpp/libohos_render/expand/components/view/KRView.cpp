@@ -776,6 +776,8 @@ void KRView::WillRemoveFromParentView() {
 
 void KRView::OnDestroy() {
     ReleaseInputSessions();
+    StopObservingInternalScrollViews();
+    CleanupHandleNodes();
     IKRRenderViewExport::OnDestroy();
 }
 

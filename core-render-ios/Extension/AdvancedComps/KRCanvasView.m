@@ -255,21 +255,22 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
         [shadow hrv_setPropWithKey:@"color" propValue:self.fillStyle];
     }
     
-    CGSize sz = [shadow hrv_calculateRenderViewSizeWithConstraintSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-    if ([self.textAlign isEqualToString:@"center"]) {
-        x -= sz.width / 2;
-    } else if ([self.textAlign isEqualToString:@"right"]) {
-        x -= sz.width;
+    CGFloat anchorWidth = 0;
+    BOOL centered = [self.textAlign isEqualToString:@"center"];
+    if (centered || [self.textAlign isEqualToString:@"right"]) {
+        anchorWidth = [shadow hrv_calculateRenderViewSizeWithConstraintSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)].width;
+        x -= centered ? anchorWidth / 2 : anchorWidth;
     }
 
-    const int extraSpace = 1;
-    sz.width += extraSpace;
-    sz.height += extraSpace;
-    NSAttributedString* attributedString = [shadow buildAttributedString];
+    NSAttributedString *attributedString = [shadow buildAttributedString];
+    CFRange textRange = CFRangeMake(0, attributedString.length);
     CTFramesetterRef frameSetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
-    CGMutablePathRef framePath = CGPathCreateMutable();
-    CGPathAddRect(framePath, NULL, CGRectMake(0, 0, sz.width, sz.height));
-    CTFrameRef frame = CTFramesetterCreateFrame(frameSetter, CFRangeMake(0, attributedString.length), framePath, NULL);
+    // A fallback font can require more frame height than the label's measured line box.
+    CGSize frameSize = CTFramesetterSuggestFrameSizeWithConstraints(frameSetter, textRange, NULL,
+                                                                    CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX), NULL);
+    CGRect bounds = CGRectMake(0, 0, MAX(anchorWidth, ceil(frameSize.width)) + 1, ceil(frameSize.height) + 1);
+    CGPathRef framePath = CGPathCreateWithRect(bounds, NULL);
+    CTFrameRef frame = CTFramesetterCreateFrame(frameSetter, textRange, framePath, NULL);
     if (CFArrayGetCount(CTFrameGetLines(frame)) > 0) {
         // The first line origin is Core Text's baseline in the frame's y-up coordinates.
         CGPoint firstLineOrigin;

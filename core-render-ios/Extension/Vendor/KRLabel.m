@@ -212,6 +212,74 @@ static NSString *const KRMasureMetaWidth = @"width";
     return [attString.string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]].location != NSNotFound;
 }
 
+/// 对齐测量宽度与绘制宽度。
+///
+/// 背景：iOS 文本测量改用 CoreText，绘制仍是 TextKit。两套排版引擎对
+/// 个别字形的宽度计算不同，导致按测量结果分配的视图宽度比绘制实际需要的窄，
+/// 文本尾部被截断。本函数在逐行测量时把宽度修正为 TextKit 的语义。
+///
+/// 修正一：行尾字形。CoreText 对行尾的全角闭合标点会选用塑形后的替代字形，
+/// 其宽度比字体表里的原始宽度小，例如 14pt 系统字体下的右括号是 6.460 对 7.082；
+/// 而绘制端 NSLayoutManager 计算 usedRect（已用矩形）时按字体表宽度计。
+/// 此处把行尾字形的宽度替换为字体表值，与旧版 TextKit 测量逐值一致，普通字形
+/// 两者恒等、无行为变化；负差字符如 』同样替换，保持与旧版一致。
+///
+/// 修正二：中文弯引号 “ ” ‘ ’。CoreText 在中文上下文里会把弯引号替换成回退
+/// 字体的引号字形，TextKit 则保留基础字体的字形，两引擎渲染的字形本身不同，
+/// 宽度差无法用替换法对齐，实测 15pt 下差值在 0.662 至 1.584 之间浮动。
+/// 此处按每个引号 0.08em 做保守补偿，该值恒大于真实差值，方向安全：最坏情况
+/// 文本比需要的宽 1 至 2px，但不会截断。
+static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttributedString *attString, NSRange charRange) {
+    // 中文弯引号保守补偿
+    if (charRange.length > 0 && charRange.location + charRange.length <= attString.length) {
+        __block CGFloat quoteCompensation = 0;
+        [attString enumerateAttributesInRange:charRange
+                                      options:0
+                                   usingBlock:^(NSDictionary<NSAttributedStringKey, id> *attrs, NSRange sub, BOOL *stop) {
+            UIFont *font = attrs[NSFontAttributeName];
+            if (![font isKindOfClass:[UIFont class]] || sub.length == 0) {
+                return;
+            }
+            NSString *subStr = [attString.string substringWithRange:sub];
+            NSUInteger quoteCount = 0;
+            for (NSUInteger i = 0; i < subStr.length; i++) {
+                unichar c = [subStr characterAtIndex:i];
+                if (c == 0x201C || c == 0x201D || c == 0x2018 || c == 0x2019) {
+                    quoteCount++;
+                }
+            }
+            if (quoteCount > 0) {
+                quoteCompensation += quoteCount * 0.08 * font.pointSize;
+            }
+        }];
+        lineWidth += quoteCompensation;
+    }
+
+    CFArrayRef runs = CTLineGetGlyphRuns(line);
+    if (!runs || CFArrayGetCount(runs) == 0) {
+        return lineWidth;
+    }
+    CTRunRef lastRun = (CTRunRef)CFArrayGetValueAtIndex(runs, CFArrayGetCount(runs) - 1);
+    CFIndex glyphCount = CTRunGetGlyphCount(lastRun);
+    if (glyphCount <= 0) {
+        return lineWidth;
+    }
+    CGGlyph glyph = 0;
+    CGSize shapedAdvance = CGSizeZero;
+    CTRunGetGlyphs(lastRun, CFRangeMake(glyphCount - 1, 1), &glyph);
+    CTRunGetAdvances(lastRun, CFRangeMake(glyphCount - 1, 1), &shapedAdvance);
+    NSDictionary *attrs = (__bridge NSDictionary *)CTRunGetAttributes(lastRun);
+    CTFontRef font = (__bridge CTFontRef)attrs[(NSString *)kCTFontAttributeName];
+    if (font) {
+        CGSize fontAdvance = CGSizeZero;
+        CTFontGetAdvancesForGlyphs(font, kCTFontOrientationHorizontal, &glyph, &fontAdvance, 1);
+        if (fontAdvance.width != shapedAdvance.width) {
+            return lineWidth - shapedAdvance.width + fontAdvance.width;
+        }
+    }
+    return lineWidth;
+}
+
 /// 纯 CoreText 测量：逐行断行。行高语义对齐 KRTextRender 的 layoutManager delegate
 /// （lineHeight>0 时 usedRect 高度 = MAX(强制行高, 自然行高)；否则按 font+paragraphStyle 行高）。
 + (CGSize)kr_coreTextSize:(NSAttributedString *)attString width:(CGFloat)width lines:(NSUInteger)lines mode:(NSLineBreakMode)mode lineHeight:(CGFloat)lineHeight {
@@ -230,6 +298,8 @@ static NSString *const KRMasureMetaWidth = @"width";
         CTLineRef fullLine = CTTypesetterCreateLine(typesetter, CFRangeMake(0, length));
         CGFloat ascent = 0, descent = 0, leading = 0;
         maxWidth = CTLineGetTypographicBounds(fullLine, &ascent, &descent, &leading);
+        // 宽度对齐 TextKit 绘制语义，详见 kr_lineWidthForTextKit 注释
+        maxWidth = kr_lineWidthForTextKit(fullLine, maxWidth, attString, NSMakeRange(0, (NSUInteger)length));
         CFRelease(fullLine);
         // TextKit clip/truncate 单行语义：usedRect 宽度不超过 container 宽（文本延伸被裁剪）
         maxWidth = MIN(maxWidth, width);
@@ -255,6 +325,8 @@ static NSString *const KRMasureMetaWidth = @"width";
             CTLineRef line = CTTypesetterCreateLine(typesetter, CFRangeMake(index, next));
             CGFloat ascent = 0, descent = 0, leading = 0;
             double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+            // 宽度对齐 TextKit 绘制语义，详见 kr_lineWidthForTextKit 注释
+            lineWidth = kr_lineWidthForTextKit(line, (CGFloat)lineWidth, attString, NSMakeRange((NSUInteger)index, (NSUInteger)next));
             CFRelease(line);
             lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
                                         paragraphStyle:ps

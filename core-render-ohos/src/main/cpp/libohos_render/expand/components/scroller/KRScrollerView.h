@@ -134,6 +134,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_state);
     KRAnyValue GetCommonScrollParams();
     KRPoint GetScrollEventContentOffset();
+    KRPoint ToNativeContentOffset(const KRPoint &point);
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);

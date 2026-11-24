@@ -158,7 +158,8 @@ void KRScrollerView::SetRenderViewFrame(const KRRect &frame) {
     if (!is_set_frame_) {
         is_set_frame_ = true;
         if (is_need_set_content_offset_) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_,
+            auto offset = ToNativeContentOffset(KRPoint{first_offset_x_, first_offset_y_});
+            kuikly::util::SetArkUIContentOffset(GetNode(), offset.x, offset.y, first_animate_,
                                                 first_duration_, first_curve_, first_damping_);
             is_need_set_content_offset_ = false;
         }
@@ -327,6 +328,10 @@ KRPoint KRScrollerView::GetScrollEventContentOffset() {
     point.x -= current_content_inset_.start;
     point.y -= current_content_inset_.top;
     return point;
+}
+
+KRPoint KRScrollerView::ToNativeContentOffset(const KRPoint &point) {
+    return KRPoint{point.x + current_content_inset_.start, point.y + current_content_inset_.top};
 }
 
 void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
@@ -516,6 +521,10 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     }
     // 接着播新的弹簧滚动时，上一笔 scroll 会话继续；否则这次取消就是滚动结束。
     CancelSpringScrollAnimation(!start_spring);
+    // 主动滚动先冻结当前 inset，再将对外视觉坐标转换为原生目标。
+    auto offset = ToNativeContentOffset(KRPoint{offset_x, offset_y});
+    offset_x = offset.x;
+    offset_y = offset.y;
     if (start_spring) {
         float velocity_x = direction_row_ ? velocity : 0;
         float velocity_y = direction_row_ ? 0 : velocity;

@@ -21,6 +21,7 @@
 
 class KRScrollerContentInset {
  public:
+    KRScrollerContentInset() = default;
     explicit KRScrollerContentInset(const KRAnyValue &value) {
         auto content_inset_splits = kuikly::util::SplitString(value->toString(), ' ');
         top = content_inset_splits[0]->toFloat();

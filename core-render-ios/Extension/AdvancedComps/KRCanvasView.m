@@ -255,20 +255,19 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
         [shadow hrv_setPropWithKey:@"color" propValue:self.fillStyle];
     }
     
-    CGFloat anchorWidth = 0;
-    BOOL centered = [self.textAlign isEqualToString:@"center"];
-    if (centered || [self.textAlign isEqualToString:@"right"]) {
-        anchorWidth = [shadow hrv_calculateRenderViewSizeWithConstraintSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)].width;
-        x -= centered ? anchorWidth / 2 : anchorWidth;
-    }
-
     NSAttributedString *attributedString = [shadow buildAttributedString];
     CFRange textRange = CFRangeMake(0, attributedString.length);
     CTFramesetterRef frameSetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
     // A fallback font can require more frame height than the label's measured line box.
     CGSize frameSize = CTFramesetterSuggestFrameSizeWithConstraints(frameSetter, textRange, NULL,
                                                                     CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX), NULL);
-    CGRect bounds = CGRectMake(0, 0, MAX(anchorWidth, ceil(frameSize.width)) + 1, ceil(frameSize.height) + 1);
+    CGRect bounds = CGRectMake(0, 0, ceil(frameSize.width) + 1, ceil(frameSize.height) + 1);
+    // Core Text aligns each line within the full frame, including its extra point.
+    if ([self.textAlign isEqualToString:@"center"]) {
+        x -= bounds.size.width / 2;
+    } else if ([self.textAlign isEqualToString:@"right"]) {
+        x -= bounds.size.width;
+    }
     CGPathRef framePath = CGPathCreateWithRect(bounds, NULL);
     CTFrameRef frame = CTFramesetterCreateFrame(frameSetter, textRange, framePath, NULL);
     if (CFArrayGetCount(CTFrameGetLines(frame)) > 0) {

@@ -1063,8 +1063,6 @@ void KRScrollerView::PrepareForComposeReuse() {
     current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
     // Reset drag state
     is_dragging_ = false;
-    // Reset bounces dedup flag
-    current_bounces_enabled_ = false;
     // Clear PullToRefresh residual
     content_inset_when_drag_end_ = nullptr;
     // Reset velocity calculation state

@@ -1088,9 +1088,12 @@ void KRScrollerView::TryApplyPendingFireOnScroll() {
 
 // Clear transient native state for Compose DSL reuse (not the native reuse pool).
 void KRScrollerView::PrepareForComposeReuse() {
-    if (spring_anim_content_inset_) {
-        CancelSpringScrollAnimation(true);
+    CancelSpringScrollAnimation(true);
+    // 动画取消或完成后仍可能保留占位，复用必须独立清理实际 inset。
+    if (content_view_) {
         SetContentInsetMargin(0, 0, 0, 0);
+    } else {
+        current_content_inset_ = KRScrollerContentInset();
     }
     // Reset scroll event dedup cache so restored offset fires a scroll event
     last_fired_scroll_x_ = -FLT_MAX;

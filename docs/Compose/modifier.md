@@ -168,10 +168,59 @@ fun MarginPaddingExample() {
 
 - [`MarginPaddingTestDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/MarginPaddingTestDemo.kt)：内外边距、边框、背景等 Modifier 综合示例
 
+## 点击范围与 Modifier 顺序
+
+`clickable()` 的有效命中区域是**它自己所在节点的测量尺寸**，而不是整条 Modifier 链最外层的尺寸。Modifier 链按**从左到右 = 从外到内**的顺序包裹，因此 `clickable()` 写在 `padding()` 之后时，只能点到内缩后的内容区，padding 环带点不到：
+
+> 注：当 `clickable()` 节点的测量尺寸小于 `minimumTouchTargetSize`（默认 48dp×48dp）时，命中区域会向四周均匀扩展至该尺寸。因此实际可点范围约为 `max(节点尺寸, 48dp)`，但超出该扩展范围的 padding 区域仍不可点。此扩展不能替代把 `clickable()` 放在 `padding()` 之前。
+
+```kotlin
+// ❌ 只有文字本体可点，40dp padding 区域点不到
+Text(
+    "text",
+    modifier = Modifier
+        .background(Color.Yellow)
+        .padding(40.dp)
+        .clickable { onClick() }
+)
+
+// ✅ clickable 在 padding 之前：整块（含 padding）可点
+Box(
+    modifier = Modifier
+        .background(Color.Yellow)
+        .clickable { onClick() }
+        .padding(40.dp),
+    contentAlignment = Alignment.Center
+) {
+    Text("text")
+}
+```
+
+## 文本在 padding 区域内居中
+
+`Text` 是叶子节点，`padding()` 只会把外层盒子撑大并让文字整体偏移，不会在文字周围留出一块"内容区"。`Text.textAlign` 只控制**行内文字的水平对齐**，没有垂直对齐能力，所以无法让文字相对于 padding 区域居中。
+
+需要在 padding 区域内二维居中时，用 `Box(contentAlignment = Alignment.Center)` 包裹 `Text`：
+
+```kotlin
+Box(
+    modifier = Modifier
+        .background(Color.Yellow)
+        .clickable { onClick() }
+        .padding(40.dp),
+    contentAlignment = Alignment.Center  // 横向 + 纵向居中
+) {
+    Text("text")
+}
+```
+
+`fillMaxSize().wrapContentSize(Alignment.Center)` 也可让文本居中，但依赖父级给出有界约束，在 wrap-content 的父容器中会失效，不建议作为通用写法。
+
 ## 注意事项
 
 - **Modifier 顺序很重要**：Modifier 的顺序会直接影响最终效果。例如：
   - `padding().background()` - padding 在外，background 在内（相当于外边距）
   - `background().padding()` - background 在外，padding 在内（相当于内边距）
+  - `padding().clickable()` - 只有内容区可点；`clickable().padding()` - 包含 padding 的整块可点
 - **性能优化**：尽量复用常用的 Modifier 链，避免在高频重组中创建新的 Modifier 对象。
 - **链式组合**：Modifier 支持链式组合，多个 Modifier 可以通过 `.` 操作符连接，按顺序应用。

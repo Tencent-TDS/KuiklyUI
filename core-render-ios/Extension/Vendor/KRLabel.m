@@ -85,12 +85,15 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     if (!self.textRender) {
         return;
     }
-    self.textRender.size = rect.size;
+    // TextKit 排版的行生成以 textContainer 高度为准：CoreText 测量与 TextKit 排版
+    // 存在像素级高度偏差（含附件行最明显），容器高度用测量值会把最后一行挤出
+    // glyph 生成范围，表现为换行后的文字不绘制。绘制时放开容器高度让全部行生成，
+    // 超出 view 的部分由绘制裁剪兜底；lineBreakMargin 避让区仍按测量高度放末行右下角。
     if (self.textRender.lineBreakMargin > 0 && self.textRender.isBreakLine) {
-        CGSize size = self.textRender.size;
-        UIBezierPath * bezierPath = [UIBezierPath bezierPathWithRect:CGRectMake(size.width - self.textRender.lineBreakMargin, size.height - 10, self.textRender.lineBreakMargin, 10)];
+        UIBezierPath * bezierPath = [UIBezierPath bezierPathWithRect:CGRectMake(rect.size.width - self.textRender.lineBreakMargin, rect.size.height - 10, self.textRender.lineBreakMargin, 10)];
         self.textRender.textContainer.exclusionPaths = @[bezierPath];
     }
+    self.textRender.size = CGSizeMake(rect.size.width, CGFLOAT_MAX);
 	
 	// Draw selection background.
     if (self.selectedRange.length > 0 && self.selectedRange.location != NSNotFound && self.selectedRange.location + self.selectedRange.length <= self.textRender.textStorage.length) {
@@ -136,34 +139,30 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 }
 
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight {
-    // context 线程文本测量死锁修复。
-    // 方案：测量改用纯 CoreText（不创建 NSTextStorage、不发 TextKit 编辑通知），从源头免疫
-    // 通知中心中任何 block+queue 观察者（如 _UISearchBarTextFieldTokenCounter 悬垂观察者
-    // 叠加 malloc 地址复用触发的死锁）。渲染树（KRTextRender）延迟到主线程渲染时惰性构建。
+    // TextKit 不能跑在 Context 子线程：iOS 26 起抛异常，其编辑通知也会引发死锁。
+    // 测量统一走 CoreText：图片以 CTRunDelegate 占位，硬换行分段计算。
+    // 渲染仍在主线程由 KRTextRender 构建，不受影响。
     attString = [attString isKindOfClass:[NSAttributedString class]] ? attString : [[NSAttributedString alloc] initWithString:@""];
+    // 测量副本用完即弃，元数据写回原串供渲染使用
+    NSAttributedString *originalString = attString;
     CGSize fitSize = CGSizeZero;
     BOOL isBreakLine = NO;
-    // 含硬换行的文本回退 TextKit 路径——fixEllipsis（硬换行省略号修复，
-    // 对齐 Android/HarmonyOS）仅在 TextKit 路径实现，CoreText 逐行测量未覆盖该场景，
-    // 回退保真；后续版本可将 fixEllipsis 移植到 CoreText 后放开。
-    BOOL useCoreText = ![self kr_containsAttachment:attString] && ![self kr_containsHardLineBreak:attString];
+    BOOL hasAttachment = [self kr_containsAttachment:attString];
+    BOOL needPrepare = hasAttachment || [self kr_containsHardLineBreak:attString];
 
-    if (useCoreText) {
+    if (needPrepare) {
+        attString = [self kr_prepareCoreTextMeasureString:attString] ?: attString;
+    }
+    {
         fitSize = [self kr_coreTextSize:attString width:size.width lines:lines mode:mode lineHeight:lineHeight];
         if (marin > 0 && lines) {
             CGSize fullSize = [self kr_coreTextSize:attString width:size.width lines:0 mode:mode lineHeight:lineHeight];
             isBreakLine = !CGSizeEqualToSize(fitSize, fullSize);
         }
-    } else {
-        // 含 NSTextAttachment（富文本图片混排）或硬换行时走 TextKit 老路径保真
-        //（CoreText 对齐 attachment 宽度需 CTRunDelegate，后续版本补齐）。
-        KRTextRender *textRender = [self kr_textKitMeasure:attString width:size.width lines:lines mode:mode marin:marin lineHeight:lineHeight];
-        fitSize = attString.hr_size;
-        isBreakLine = textRender.isBreakLine;
     }
 
-    // 测量元数据存入 attString：渲染树惰性构建（主线程）时还原 lineHeight/lines/mode/margin/isBreakLine/width
-    attString.hr_measureMeta = @{
+    // 渲染树惰性构建时据此还原测量上下文
+    originalString.hr_measureMeta = @{
         KRMasureMetaLineHeight: @(lineHeight),
         KRMasureMetaLines: @(lines),
         KRMasureMetaMode: @(mode),
@@ -171,7 +170,15 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         KRMasureMetaIsBreakLine: @(isBreakLine),
         KRMasureMetaWidth: @(size.width),
     };
-    attString.hr_size = fitSize;
+    originalString.hr_size = fitSize;
+
+    // spanRect（Context 线程）依赖 TextKit 渲染树定位附件坐标，坐标必须与渲染同源。
+    // 渲染树统一在主线程构建（幂等缓存），子线程不创建 NSTextStorage，规避编辑通知死锁。
+    if (hasAttachment && !originalString.hr_textRender) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [NSAttributedString kr_ensureTextRenderForAttributedString:originalString];
+        });
+    }
 
     return fitSize;
 }
@@ -185,7 +192,7 @@ static NSString *const KRMasureMetaMargin = @"margin";
 static NSString *const KRMasureMetaIsBreakLine = @"isBreakLine";
 static NSString *const KRMasureMetaWidth = @"width";
 
-/// 是否含 NSTextAttachment（富文本图片混排）。含 attachment 时走 TextKit fallback 保真。
+/// 是否含 NSTextAttachment（富文本图片混排）
 + (BOOL)kr_containsAttachment:(NSAttributedString *)attString {
     if (attString.length == 0) {
         return NO;
@@ -203,8 +210,7 @@ static NSString *const KRMasureMetaWidth = @"width";
     return hasAttachment;
 }
 
-/// 是否含硬换行符（\n/\r 等）。含硬换行的文本走 TextKit fallback——
-/// fixEllipsis（硬换行省略号修复）仅在 TextKit 路径实现。
+/// 是否含硬换行符（\n/\r 等）
 + (BOOL)kr_containsHardLineBreak:(NSAttributedString *)attString {
     if (attString.length == 0) {
         return NO;
@@ -212,9 +218,72 @@ static NSString *const KRMasureMetaWidth = @"width";
     return [attString.string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]].location != NSNotFound;
 }
 
+#pragma mark - CoreText 测量：图片占位
+
+typedef struct {
+    CGFloat width;
+    CGFloat height;
+} KRCTAttachmentMetrics;
+
+static CGFloat kr_ctAttachmentGetWidth(void *refCon) {
+    return ((KRCTAttachmentMetrics *)refCon)->width;
+}
+static CGFloat kr_ctAttachmentGetAscent(void *refCon) {
+    return ((KRCTAttachmentMetrics *)refCon)->height;
+}
+static CGFloat kr_ctAttachmentGetDescent(void *refCon) {
+    return 0;
+}
+static void kr_ctAttachmentDealloc(void *refCon) {
+    free(refCon);
+}
+
+/// 在测量副本中给图片位置贴宽度占位，原串不变
++ (NSAttributedString *)kr_prepareCoreTextMeasureString:(NSAttributedString *)attString {
+    if (attString.length == 0) {
+        return attString;
+    }
+    NSMutableAttributedString *measureCopy = [attString mutableCopy];
+    [attString enumerateAttribute:NSAttachmentAttributeName
+                          inRange:NSMakeRange(0, attString.length)
+                          options:0
+                       usingBlock:^(id value, NSRange range, BOOL *stop) {
+        if (![value isKindOfClass:[NSTextAttachment class]]) {
+            return;
+        }
+        NSTextAttachment *attachment = (NSTextAttachment *)value;
+        CGFloat w = CGRectGetWidth(attachment.bounds);
+        CGFloat h = CGRectGetHeight(attachment.bounds);
+        if (w <= 0) {
+            w = 1;
+        }
+        if (h <= 0) {
+            h = 1;
+        }
+        CTRunDelegateCallbacks callbacks;
+        memset(&callbacks, 0, sizeof(callbacks));
+        callbacks.version = kCTRunDelegateVersion1;
+        callbacks.getWidth = kr_ctAttachmentGetWidth;
+        callbacks.getAscent = kr_ctAttachmentGetAscent;
+        callbacks.getDescent = kr_ctAttachmentGetDescent;
+        callbacks.dealloc = kr_ctAttachmentDealloc;
+        KRCTAttachmentMetrics *metrics = (KRCTAttachmentMetrics *)malloc(sizeof(KRCTAttachmentMetrics));
+        metrics->width = w;
+        metrics->height = h;
+        CTRunDelegateRef runDelegate = CTRunDelegateCreate(&callbacks, metrics);
+        if (runDelegate) {
+            [measureCopy addAttribute:(__bridge NSString *)kCTRunDelegateAttributeName
+                                 value:(__bridge id)runDelegate
+                                 range:range];
+            CFRelease(runDelegate);
+        }
+    }];
+    return measureCopy;
+}
+
 /// 对齐测量宽度与绘制宽度。
 ///
-/// 背景：iOS 文本测量改用 CoreText，绘制仍是 TextKit。两套排版引擎对
+/// 背景：2.31.0 起 iOS 文本测量改用 CoreText，绘制仍是 TextKit。两套排版引擎对
 /// 个别字形的宽度计算不同，导致按测量结果分配的视图宽度比绘制实际需要的窄，
 /// 文本尾部被截断。本函数在逐行测量时把宽度修正为 TextKit 的语义。
 ///
@@ -229,18 +298,18 @@ static NSString *const KRMasureMetaWidth = @"width";
 /// 宽度差无法用替换法对齐，实测 15pt 下差值在 0.662 至 1.584 之间浮动。
 /// 此处按每个引号 0.08em 做保守补偿，该值恒大于真实差值，方向安全：最坏情况
 /// 文本比需要的宽 1 至 2px，但不会截断。
-static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttributedString *attString, NSRange charRange) {
+static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttributedString *lineString, NSRange charRange) {
     // 中文弯引号保守补偿
-    if (charRange.length > 0 && charRange.location + charRange.length <= attString.length) {
+    if (charRange.length > 0 && charRange.location + charRange.length <= lineString.length) {
         __block CGFloat quoteCompensation = 0;
-        [attString enumerateAttributesInRange:charRange
+        [lineString enumerateAttributesInRange:charRange
                                       options:0
                                    usingBlock:^(NSDictionary<NSAttributedStringKey, id> *attrs, NSRange sub, BOOL *stop) {
             UIFont *font = attrs[NSFontAttributeName];
             if (![font isKindOfClass:[UIFont class]] || sub.length == 0) {
                 return;
             }
-            NSString *subStr = [attString.string substringWithRange:sub];
+            NSString *subStr = [lineString.string substringWithRange:sub];
             NSUInteger quoteCount = 0;
             for (NSUInteger i = 0; i < subStr.length; i++) {
                 unichar c = [subStr characterAtIndex:i];
@@ -280,8 +349,9 @@ static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttri
     return lineWidth;
 }
 
-/// 纯 CoreText 测量：逐行断行。行高语义对齐 KRTextRender 的 layoutManager delegate
-/// （lineHeight>0 时 usedRect 高度 = MAX(强制行高, 自然行高)；否则按 font+paragraphStyle 行高）。
+/// 纯 CoreText 逐行测量。行高语义对齐 KRTextRender：
+/// lineHeight>0 时取强制行高，否则按字体与段落样式。
+/// 多段间距与截断省略号宽度按 TextKit 近似。
 + (CGSize)kr_coreTextSize:(NSAttributedString *)attString width:(CGFloat)width lines:(NSUInteger)lines mode:(NSLineBreakMode)mode lineHeight:(CGFloat)lineHeight {
     if (attString.length == 0 || width <= 0) {
         return CGSizeZero;
@@ -308,52 +378,145 @@ static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttri
                                      paragraphStyle:attrs[NSParagraphStyleAttributeName]
                                        naturalHeight:ascent + descent + leading];
     } else {
+        // 多段测量：按 \n 切段逐段断行，跨段累计；段间 paragraphSpacing 对齐 TextKit 语义
+        NSArray<NSAttributedString *> *segments = [self kr_splitParagraphs:attString];
         CFIndex index = 0;
         CGFloat totalHeight = 0;
         NSUInteger lineCount = 0;
         CGFloat lastLineSpacing = 0;
-        while (index < length) {
-            NSDictionary *attrs = [attString attributesAtIndex:(NSUInteger)index effectiveRange:nil];
-            NSParagraphStyle *ps = attrs[NSParagraphStyleAttributeName];
-            // 首行缩进（TextKit firstLineHeadIndent 语义）：首行断行宽度扣减，后续行全宽。
-            // 加下限防御：缩进大于等于容器宽时避免断行宽度非正导致测量归零。
-            CGFloat lineBreakWidth = (index == 0) ? MAX(width - ps.firstLineHeadIndent, 0.1) : width;
-            CFIndex next = CTTypesetterSuggestLineBreak(typesetter, index, lineBreakWidth);
-            if (next <= 0) {
-                break;
+        BOOL truncated = NO;
+        UIFont *lastLineFont = nil;
+        for (NSUInteger segIdx = 0; segIdx < segments.count; segIdx++) {
+            NSAttributedString *segment = segments[segIdx];
+            if (segment.length == 0) {
+                // 空段（连续 \n）：占一行高度，取相邻段字体 metrics
+                NSDictionary *attrs = [self kr_emptyParagraphAttributesInSegments:segments atIndex:segIdx];
+                NSParagraphStyle *ps = attrs[NSParagraphStyleAttributeName];
+                UIFont *font = attrs[NSFontAttributeName] ?: [UIFont systemFontOfSize:[UIFont systemFontSize]];
+                CGFloat extent = [self kr_lineExtentOfLineHeight:lineHeight
+                                                   paragraphStyle:ps
+                                                     naturalHeight:font.lineHeight];
+                lastLineSpacing = ps.lineSpacing;
+                totalHeight += extent + lastLineSpacing;
+                lineCount++;
+                lastLineFont = font;
+                if (lines > 0 && lineCount >= lines && segIdx + 1 < segments.count) {
+                    truncated = YES;
+                    break;
+                }
+                continue;
             }
-            CTLineRef line = CTTypesetterCreateLine(typesetter, CFRangeMake(index, next));
-            CGFloat ascent = 0, descent = 0, leading = 0;
-            double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
-            // 宽度对齐 TextKit 绘制语义，详见 kr_lineWidthForTextKit 注释
-            lineWidth = kr_lineWidthForTextKit(line, (CGFloat)lineWidth, attString, NSMakeRange((NSUInteger)index, (NSUInteger)next));
-            CFRelease(line);
-            lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
-                                        paragraphStyle:ps
-                                          naturalHeight:ascent + descent + leading];
-            // TextKit 语义：lineSpacing 加在行与行之间——自然末行的 fragment 不含间距，
-            // 但 numberOfLines 截断行不是自然末行、其 fragment 仍含间距（实测对齐）。
-            // 先每行累加，仅文本自然排完（index>=length）时减去末行的 spacing。
-            // paragraphSpacing 不处理：仅多段(\n)文本计入段末行（该场景已回退 TextKit 路径）；
-            // 单段文本 usedRect 不含段后间距（macOS/iOS 模拟器双平台实测：自然换行与截断均不含，
-            // spacing 落在末个 glyph fragment 之下、usedRect 仅统计 fragment 并集），补上反而偏高。
-            lastLineSpacing = ps.lineSpacing;
-            totalHeight += lineExtent + lastLineSpacing;
-            maxWidth = MAX(maxWidth, (CGFloat)lineWidth);
-            lineCount++;
-            index += next;
-            if (lines > 0 && lineCount >= lines) {
-                break;
+            CTTypesetterRef segTypesetter = (segments.count == 1)
+                ? typesetter
+                : CTTypesetterCreateWithAttributedString((CFAttributedStringRef)segment);
+            CFIndex segLength = (CFIndex)segment.length;
+            CFIndex segIndex = 0;
+            while (segIndex < segLength) {
+                NSDictionary *attrs = [segment attributesAtIndex:(NSUInteger)segIndex effectiveRange:nil];
+                NSParagraphStyle *ps = attrs[NSParagraphStyleAttributeName];
+                // 首行缩进（TextKit firstLineHeadIndent 语义）：首行断行宽度扣减，后续行全宽。
+                CGFloat lineBreakWidth = (index == 0) ? MAX(width - ps.firstLineHeadIndent, 0.1) : width;
+                CFIndex next = CTTypesetterSuggestLineBreak(segTypesetter, segIndex, lineBreakWidth);
+                if (next <= 0) {
+                    break;
+                }
+                CTLineRef line = CTTypesetterCreateLine(segTypesetter, CFRangeMake(segIndex, next));
+                CGFloat ascent = 0, descent = 0, leading = 0;
+                double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+                // 宽度对齐 TextKit 绘制语义，详见 kr_lineWidthForTextKit 注释。
+                // charRange 为段内相对区间，行字形与段属性一一对应
+                lineWidth = kr_lineWidthForTextKit(line, (CGFloat)lineWidth, segment, NSMakeRange((NSUInteger)segIndex, (NSUInteger)next));
+                CFRelease(line);
+                lineExtent = [self kr_lineExtentOfLineHeight:lineHeight
+                                            paragraphStyle:ps
+                                              naturalHeight:ascent + descent + leading];
+                lastLineSpacing = ps.lineSpacing;
+                totalHeight += lineExtent + lastLineSpacing;
+                maxWidth = MAX(maxWidth, (CGFloat)lineWidth);
+                lineCount++;
+                index += next;
+                segIndex += next;
+                lastLineFont = attrs[NSFontAttributeName];
+                if (lines > 0 && lineCount >= lines) {
+                    break;
+                }
+            }
+            if (segTypesetter != typesetter) {
+                CFRelease(segTypesetter);
+            }
+            // 段末：非最后段补 paragraphSpacing；行数截断发生在段边界也视为截断
+            if (segIdx + 1 < segments.count) {
+                if (segment.length > 0) {
+                    NSDictionary *endAttrs = [segment attributesAtIndex:segment.length - 1 effectiveRange:nil];
+                    NSParagraphStyle *endPs = endAttrs[NSParagraphStyleAttributeName];
+                    totalHeight += endPs.paragraphSpacing;
+                }
+                if (lines > 0 && lineCount >= lines) {
+                    truncated = YES;
+                    break;
+                }
             }
         }
-        if (index >= length) {
+        BOOL naturalEnd = !truncated;
+        if (naturalEnd) {
             // 自然末行不加行间距（对齐 NSLayoutManager；截断/断行失败的行保留间距）
             totalHeight -= lastLineSpacing;
+        }
+        // 行数截断且带省略号模式：末行宽度补省略号宽度（对齐 TextKit/fixEllipsis）
+        if (truncated && mode == NSLineBreakByTruncatingTail && lastLineFont) {
+            CGFloat ellipsisWidth = [@"…" sizeWithAttributes:@{NSFontAttributeName: lastLineFont}].width;
+            maxWidth = MAX(maxWidth, MIN(width, (maxWidth > 0 ? maxWidth : 0) + ellipsisWidth));
+            maxWidth = MIN(maxWidth, width + ellipsisWidth);
         }
         lineExtent = totalHeight;
     }
     CFRelease(typesetter);
     return CGSizeMake(ceil(maxWidth), ceil(lineExtent));
+}
+
+/// 按 \n 切段，保留各段属性
++ (NSArray<NSAttributedString *> *)kr_splitParagraphs:(NSAttributedString *)attString {
+    if (attString.length == 0) {
+        return @[];
+    }
+    NSMutableArray<NSAttributedString *> *segments = [NSMutableArray array];
+    NSUInteger start = 0;
+    NSUInteger length = attString.length;
+    while (start < length) {
+        NSRange searchRange = NSMakeRange(start, length - start);
+        NSRange nlRange = [attString.string rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]
+                                                            options:0
+                                                              range:searchRange];
+        if (nlRange.location == NSNotFound) {
+            [segments addObject:[attString attributedSubstringFromRange:NSMakeRange(start, length - start)]];
+            break;
+        }
+        [segments addObject:[attString attributedSubstringFromRange:NSMakeRange(start, nlRange.location - start)]];
+        start = nlRange.location + 1;
+        if (start == length) {
+            // 末尾 \n：补一个空段，保证段数与 TextKit 一致（末空段一般无视觉影响）
+            [segments addObject:[[NSAttributedString alloc] initWithString:@""]];
+            break;
+        }
+    }
+    return segments;
+}
+
+/// 空段行高取相邻首个非空段的属性；全空时用默认字体，避免 attributesAtIndex 越界
++ (NSDictionary *)kr_emptyParagraphAttributesInSegments:(NSArray<NSAttributedString *> *)segments atIndex:(NSUInteger)idx {
+    for (NSInteger i = (NSInteger)idx + 1; i < (NSInteger)segments.count; i++) {
+        NSAttributedString *s = segments[i];
+        if (s.length > 0) {
+            return [s attributesAtIndex:0 effectiveRange:nil];
+        }
+    }
+    for (NSInteger i = (NSInteger)idx - 1; i >= 0; i--) {
+        NSAttributedString *s = segments[i];
+        if (s.length > 0) {
+            return [s attributesAtIndex:s.length - 1 effectiveRange:nil];
+        }
+    }
+    return @{NSFontAttributeName: [UIFont systemFontOfSize:[UIFont systemFontSize]]};
 }
 
 /// 行高对齐 TextKit usedRect 语义，三层约束：
@@ -921,12 +1084,9 @@ static CGFloat kr_lineWidthForTextKit(CTLineRef line, CGFloat lineWidth, NSAttri
     objc_setAssociatedObject(self, @selector(hr_textRender), hr_textRender, OBJC_ASSOCIATION_RETAIN);
 }
 
-/// 渲染树惰性构建：CoreText 测量后不再预建 TextKit 渲染树，渲染时按测量元数据还原
-/// KRTextRender 并缓存到 attString。调用方线程说明：
-/// - 主线程：渲染（drawTextInRect）、点击/长按定位（kr_findSpanIndexWithLocation）；
-/// - context 线程：spanRect（attachment 定位）——该场景文本必含 attachment、
-///   已由测量阶段的 TextKit fallback 预建渲染树（hr_textRender 非 nil），此处构建
-///   分支仅为防御异常路径，正常不会在子线程创建 NSTextStorage。
+/// 渲染树惰性构建：CoreText 测量不预建 TextKit 渲染树，按测量元数据还原并缓存。
+/// 仅主线程调用：测量后的异步预建、渲染（drawTextInRect）、点击/长按定位。
+/// spanRect 在 Context 线程执行，不调用本方法；渲染树未就绪时跳过本次定位。
 + (KRTextRender *)kr_ensureTextRenderForAttributedString:(NSAttributedString *)attString {
     if (![attString isKindOfClass:[NSAttributedString class]]) {
         return nil;

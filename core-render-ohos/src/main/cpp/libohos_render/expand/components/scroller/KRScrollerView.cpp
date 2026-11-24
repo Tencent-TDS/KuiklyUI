@@ -322,8 +322,15 @@ void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &
     }
 }
 
-void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
+KRPoint KRScrollerView::GetScrollEventContentOffset() {
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    point.x -= current_content_inset_.start;
+    point.y -= current_content_inset_.top;
+    return point;
+}
+
+void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
+    auto point = GetScrollEventContentOffset();
     if (point.x == last_fired_scroll_x_ && point.y == last_fired_scroll_y_) {
         return;
     }
@@ -551,7 +558,7 @@ float ClampSpringVelocity(float start, float target, float velocity, float omega
 }  // namespace
 
 bool KRScrollerView::StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
-                                                float velocity_y) {
+                                                float velocity_y, const std::shared_ptr<KRScrollerContentInset> &content_inset) {
     auto root_view = GetRootView().lock();
     auto animate_api = GetAnimateApi();
     if (!root_view || !animate_api || !animate_api->createAnimator) {
@@ -560,6 +567,11 @@ bool KRScrollerView::StartSpringScrollAnimation(float target_x, float target_y, 
     DisposeSpringScrollAnimator();
 
     auto start = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    if (content_inset) {
+        spring_anim_content_inset_ = std::make_shared<KRScrollerContentInset>(*content_inset);
+        spring_anim_start_inset_ = GetContentInset();
+        start = KRPoint{spring_anim_start_inset_.start, spring_anim_start_inset_.top};
+    }
     float omega = kSpringSettleFactor * 1000.0f / duration_ms;
     spring_anim_omega_ = omega;
     spring_anim_duration_ms_ = duration_ms;
@@ -617,7 +629,16 @@ void KRScrollerView::OnSpringScrollAnimationFrame(uint32_t generation) {
                                              spring_anim_omega_, t_sec);
     float y = CriticallyDampedSpringPosition(spring_anim_start_y_, spring_anim_target_y_, spring_anim_velocity_y_,
                                              spring_anim_omega_, t_sec);
-    kuikly::util::SetArkUIContentOffset(GetNode(), x, y, false, 0, 0, 0);
+    if (spring_anim_content_inset_) {
+        float end = CriticallyDampedSpringPosition(spring_anim_start_inset_.end, spring_anim_content_inset_->end,
+                                                   0, spring_anim_omega_, t_sec);
+        float bottom = CriticallyDampedSpringPosition(spring_anim_start_inset_.bottom, spring_anim_content_inset_->bottom,
+                                                      0, spring_anim_omega_, t_sec);
+        SetContentInsetMargin(x, y, end, bottom);
+        FireOnScrollEvent(nullptr);
+    } else {
+        kuikly::util::SetArkUIContentOffset(GetNode(), x, y, false, 0, 0, 0);
+    }
 }
 
 void KRScrollerView::OnSpringScrollAnimationEnd(uint32_t generation) {
@@ -625,7 +646,14 @@ void KRScrollerView::OnSpringScrollAnimationEnd(uint32_t generation) {
         return;
     }
     spring_anim_running_ = false;
-    kuikly::util::SetArkUIContentOffset(GetNode(), spring_anim_target_x_, spring_anim_target_y_, false, 0, 0, 0);
+    if (spring_anim_content_inset_) {
+        auto inset = spring_anim_content_inset_;
+        SetContentInsetMargin(inset->start, inset->top, inset->end, inset->bottom);
+        spring_anim_content_inset_ = nullptr;
+        FireOnScrollEvent(nullptr);
+    } else {
+        kuikly::util::SetArkUIContentOffset(GetNode(), spring_anim_target_x_, spring_anim_target_y_, false, 0, 0, 0);
+    }
     current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
     EndScrollSession();
     FireEndScrollEvent(nullptr);
@@ -640,6 +668,7 @@ void KRScrollerView::CancelSpringScrollAnimation(bool end_session) {
     }
     spring_anim_running_ = false;
     spring_anim_generation_++;
+    spring_anim_content_inset_ = nullptr;
     if (spring_animator_) {
         OH_ArkUI_Animator_Cancel(spring_animator_);
     }
@@ -653,6 +682,7 @@ void KRScrollerView::CancelSpringScrollAnimation(bool end_session) {
 void KRScrollerView::DisposeSpringScrollAnimator() {
     spring_anim_running_ = false;
     spring_anim_generation_++;
+    spring_anim_content_inset_ = nullptr;
     if (spring_animator_) {
         OH_ArkUI_Animator_Cancel(spring_animator_);
         if (auto animate_api = GetAnimateApi()) {
@@ -682,6 +712,18 @@ void KRScrollerView::SetContentInsetWhenDragEnd(const KRAnyValue &value) {
     content_inset_when_drag_end_ = std::make_shared<KRScrollerContentInset>(value);
 }
 
+KRScrollerContentInset KRScrollerView::GetContentInset() {
+    return current_content_inset_;
+}
+
+void KRScrollerView::SetContentInsetMargin(float start, float top, float end, float bottom) {
+    current_content_inset_.start = start;
+    current_content_inset_.top = top;
+    current_content_inset_.end = end;
+    current_content_inset_.bottom = bottom;
+    kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+}
+
 void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset) {
     if (!content_view_) {
         return;
@@ -690,42 +732,49 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     auto start = content_inset->start;
     auto bottom = content_inset->bottom;
     auto end = content_inset->end;
-    auto animate = content_inset->animate;
-    if (animate) {
-        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先滚回合法位置
-        auto current_offset = GetContentOffset();
-        auto target_offset = MaxContentOffsetInContentInset(content_inset);
-        if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
+    if (!content_inset->animate) {
+        if (spring_anim_content_inset_) {
+            CancelSpringScrollAnimation(false);
+        }
+        SetContentInsetMargin(start, top, end, bottom);
+        return;
+    }
+    auto matches_target = [top, start, bottom, end](const KRScrollerContentInset &inset) {
+        return inset.top == top && inset.start == start && inset.bottom == bottom && inset.end == end;
+    };
+    if (spring_anim_running_ && spring_anim_content_inset_ && matches_target(*spring_anim_content_inset_)) {
+        return;
+    }
+    auto current = GetContentInset();
+    auto offset = GetContentOffset();
+    auto target_offset = MaxContentOffsetInContentInset(content_inset);
+    if (matches_target(current) && offset.x == target_offset.x && offset.y == target_offset.y) {
+        if (spring_anim_content_inset_) {
+            CancelSpringScrollAnimation(false);
+        }
+        return;
+    }
+    CancelSpringScrollAnimation(false);
+    if (offset.x > target_offset.x || offset.y > target_offset.y) {
+        SetContentInsetMargin(start, top, end, bottom);
+        if (!StartSpringScrollAnimation(target_offset.x, target_offset.y, 400, 0, 0)) {
             kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0, 0);
         }
-        // 再用原有动画逻辑设置 margin
-        auto root_view = GetRootView().lock();
-        if (!root_view) {
-            kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
-        } else {
-            auto animate_option = std::make_shared<KRAnimateOption>();
-            animate_option->SetDuration(200);
-            auto weak_this = std::weak_ptr<KRScrollerView>(std::dynamic_pointer_cast<KRScrollerView>(shared_from_this()));
-            content_inset_animate_ = std::make_shared<KRAnimation>(
-                root_view->GetUIContextHandle(), animate_option, [weak_this, top, start, bottom, end]() {
-                    if (auto strong_this = weak_this.lock()) {
-                        kuikly::util::SetArkUIMargin(strong_this->content_view_->GetNode(), start, top, end, bottom);
-                    }
-                });
-            content_inset_animate_->SetCompleteCallback(
-                ArkUI_FinishCallbackType::ARKUI_FINISH_CALLBACK_LOGICALLY, [weak_this]() {
-                    if (auto strong_this = weak_this.lock()) {
-                        strong_this->content_inset_animate_ = nullptr;
-                    }
-                });
-            content_inset_animate_->Start();
-        }
-    } else {
-        kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+        return;
+    }
+    if (offset.x < 0 || offset.y < 0) {
+        // 将真实下拉位置转成容器位移，原生 offset 归零后不再依赖超界停留。
+        current.start -= std::min(0.0f, offset.x);
+        current.top -= std::min(0.0f, offset.y);
+        SetContentInsetMargin(current.start, current.top, current.end, current.bottom);
+        kuikly::util::SetArkUIContentOffset(GetNode(), std::max(0.0f, offset.x), std::max(0.0f, offset.y), false, 0, 0, 0);
+    }
+    if (!StartSpringScrollAnimation(start, top, 400, 0, 0, content_inset)) {
+        SetContentInsetMargin(start, top, end, bottom);
     }
 }
 
-// 计算在指定 contentInset 下 offset 的合法位置（对齐 iOS p_maxContentOffsetInContentInset）
+// inset 由内容容器的 margin 实现，原生 offset 从 0 开始，尾部范围包含两侧 margin。
 KRPoint KRScrollerView::MaxContentOffsetInContentInset(
     const std::shared_ptr<KRScrollerContentInset> &content_inset) {
     if (!content_view_) {
@@ -735,37 +784,15 @@ KRPoint KRScrollerView::MaxContentOffsetInContentInset(
     auto frame = GetFrame();
     auto content_frame = content_view_->GetFrame();
     auto current_offset = GetContentOffset();
-
-    if (direction_row_) {
-        float content_size = content_frame.width;
-        float frame_size = frame.width;
-        if (content_size <= frame_size) {
-            return KRPoint();
-        }
-        // 上/左越界：offset 滚到了 inset 头部之前
-        if (current_offset.x < -content_inset->start) {
-            return KRPoint{-content_inset->start, 0};
-        }
-        // 下/右越界：offset 滚过了内容尾部
-        float max_offset = content_size + content_inset->end - frame_size;
-        if (current_offset.x > max_offset) {
-            return KRPoint{max_offset, 0};
-        }
-    } else {
-        float content_size = content_frame.height;
-        float frame_size = frame.height;
-        if (content_size <= frame_size) {
-            return KRPoint();
-        }
-        // 上越界
-        if (current_offset.y < -content_inset->top) {
-            return KRPoint{0, -content_inset->top};
-        }
-        // 下越界
-        float max_offset = content_size + content_inset->bottom - frame_size;
-        if (current_offset.y > max_offset) {
-            return KRPoint{0, max_offset};
-        }
+    float content_size = direction_row_ ? content_frame.width : content_frame.height;
+    float frame_size = direction_row_ ? frame.width : frame.height;
+    float leading_inset = direction_row_ ? content_inset->start : content_inset->top;
+    float trailing_inset = direction_row_ ? content_inset->end : content_inset->bottom;
+    float max_offset = std::max(0.0f, content_size + leading_inset + trailing_inset - frame_size);
+    float offset = direction_row_ ? current_offset.x : current_offset.y;
+    float target_offset = std::max(0.0f, std::min(offset, max_offset));
+    if (target_offset != offset) {
+        return direction_row_ ? KRPoint{target_offset, 0} : KRPoint{0, target_offset};
     }
 
     return current_offset;
@@ -850,9 +877,10 @@ void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
         ArkUI_AttributeItem item = {values, 2};
         kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BY, &item);
     }
-    ApplyContentInsetWhenDragEnd();
     FireWillDragEndEvent(event);
     FireEndDragEvent(event);
+    // 先通知松手，再补偿 offset，避免同步 scroll 被误判为仍在拖拽。
+    ApplyContentInsetWhenDragEnd();
 }
 
 // 注册了同步 scroll 时，ArkUI 滚动开始就通知 KRInputFirstGate。滚动停止、弹簧滚动结束或取消、
@@ -906,7 +934,7 @@ bool KRScrollerView::IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_sta
 
 KRAnyValue KRScrollerView::GetCommonScrollParams() {
     KRRenderValueMap map;
-    auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    auto point = GetScrollEventContentOffset();
     map[kEventKeyOffsetX] = NewKRRenderValue(point.x);
     map[kEventKeyOffsetY] = NewKRRenderValue(point.y);
 
@@ -946,11 +974,12 @@ KRAnyValue KRScrollerView::GetCommonScrollParams() {
 }
 
 void KRScrollerView::ApplyContentInsetWhenDragEnd() {
-    if (!content_inset_when_drag_end_) {
+    if (!content_inset_when_drag_end_ || !content_view_) {
         return;
     }
-    KR_LOG_INFO << "apply content inset: " << content_inset_when_drag_end_->top;
-    SetContentInset(content_inset_when_drag_end_);
+    auto inset = std::make_shared<KRScrollerContentInset>(*content_inset_when_drag_end_);
+    inset->animate = true;
+    SetContentInset(inset);
 }
 
 void KRScrollerView::InnerSetBouncesEnable(bool enable) {
@@ -1015,6 +1044,9 @@ void KRScrollerView::DidMoveToParentView() {
 
 void KRScrollerView::WillRemoveFromParentView() {
     IKRRenderViewExport::WillRemoveFromParentView();
+    if (spring_anim_content_inset_) {
+        CancelSpringScrollAnimation(false);
+    }
     EndScrollSession();
     weak_super_touch_handler_.reset();
 }
@@ -1056,6 +1088,10 @@ void KRScrollerView::TryApplyPendingFireOnScroll() {
 
 // Clear transient native state for Compose DSL reuse (not the native reuse pool).
 void KRScrollerView::PrepareForComposeReuse() {
+    if (spring_anim_content_inset_) {
+        CancelSpringScrollAnimation(true);
+        SetContentInsetMargin(0, 0, 0, 0);
+    }
     // Reset scroll event dedup cache so restored offset fires a scroll event
     last_fired_scroll_x_ = -FLT_MAX;
     last_fired_scroll_y_ = -FLT_MAX;
@@ -1082,11 +1118,6 @@ void KRScrollerView::AbortContentOffsetAnimate() {
     if (!is_dragging_ && current_scroll_state_ == ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE) {
         EndScrollSession();
     }
-    // 停止 ContentInset 动画（释放动画对象）
-    if (content_inset_animate_) {
-        content_inset_animate_ = nullptr;
-    }
-
     // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
     ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
     ArkUI_AttributeItem item = {values, 2};

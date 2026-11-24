@@ -21,7 +21,7 @@
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/foundation/KRRect.h"
-#include "libohos_render/utils/animate/KRAnimation.h"
+#include "libohos_render/utils/animate/KRAnimationUtils.h"
 #include "libohos_render/expand/components/view/SuperTouchHandler.h"
 
 class IKRScrollObserver {
@@ -133,6 +133,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool IsDraggingStateToFlingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToIdeaState(ArkUI_ScrollState new_scroll_state);
     KRAnyValue GetCommonScrollParams();
+    KRPoint GetScrollEventContentOffset();
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
@@ -141,8 +142,10 @@ class KRScrollerView : public IKRRenderViewExport {
     bool SetFlingEnable(bool enable);
     bool SetFlingSpeedLimit(const KRAnyValue &value);
     KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    KRScrollerContentInset GetContentInset();
+    void SetContentInsetMargin(float start, float top, float end, float bottom);
     bool StartSpringScrollAnimation(float target_x, float target_y, int duration_ms, float velocity_x,
-                                    float velocity_y);
+                                    float velocity_y, const std::shared_ptr<KRScrollerContentInset> &content_inset = nullptr);
     void CancelSpringScrollAnimation(bool end_session);
     void DisposeSpringScrollAnimator();
     /** 关闭系统内置的"点击状态栏回顶"。节点为空或系统 API < 15 时不设置，保持原有滚动行为。 */
@@ -179,8 +182,8 @@ class KRScrollerView : public IKRRenderViewExport {
     float first_damping_ = 0;
     ArkUI_ScrollState current_scroll_state_;
 
-    std::shared_ptr<KRAnimation> content_inset_animate_;
     std::shared_ptr<KRScrollerContentInset> content_inset_when_drag_end_;
+    KRScrollerContentInset current_content_inset_;
     std::unordered_set<IKRScrollObserver *> scroll_observers_;
 
     // 滚动相关的成员变量
@@ -196,7 +199,9 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_fired_scroll_y_ = 0;
     bool direction_row_ = false;
 
-    // setContentOffset spring animation driven frame by frame (aligned with iOS UIView spring animation)
+    // offset 和 inset 共用逐帧弹簧驱动，同一时刻只有一个动画写入位置。
+    std::shared_ptr<KRScrollerContentInset> spring_anim_content_inset_;
+    KRScrollerContentInset spring_anim_start_inset_;
     ArkUI_AnimatorHandle spring_animator_ = nullptr;
     ArkUI_AnimatorOption *spring_animator_option_ = nullptr;
     void *spring_animator_user_data_ = nullptr;

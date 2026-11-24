@@ -614,7 +614,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     if (!_mAttributedString) { // 文本还未排版，调用无效
         return @"";
     }
-    // CoreText 测量修复：渲染树可能尚未构建（主线程惰性），span 定位前确保存在
+    // CoreText 测量修复：渲染树由测量后的主线程异步预建，但 spanRect 的调用
+    // （Kotlin 布局完成回调，Context 线程同步执行）可能早于预建任务执行。
+    // 未就绪时回退为子线程构建——与基线（TextKit 回退测量阶段预建）行为一致，
+    // 死锁风险不劣化于基线。
     if (!_mAttributedString.hr_textRender) {
         [NSAttributedString kr_ensureTextRenderForAttributedString:_mAttributedString];
     }

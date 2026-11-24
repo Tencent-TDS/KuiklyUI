@@ -70,6 +70,15 @@ typedef NS_ENUM(NSUInteger, KRDiffExecuteMode) {
 @property (nonatomic, assign) BOOL persistentRealTree;
 @property (nonatomic, readonly) BOOL isPersistentRealTreeEnabled;
 
+/**
+ * @brief 延迟生效的副作用属性 key 集合（默认为 nil，即不拦截任何属性）
+ * @note 适用于 setter 带业务副作用（如宿主经自定义属性通道下发的上报/埋点类属性）、与视觉展示无关的自定义属性：
+ *       此类属性不进 TurboDisplay 缓存树，懒渲染窗口内暂存，接管 diff 完成后统一触发
+ *       真实绑定（属性仍会被正常设置到 View，仅延迟生效，避免缓存回放重复触发副作用）。
+ *       请勿将影响视觉展示的属性加入（会导致缓存首屏缺少该属性的显示效果）。
+ */
+@property (nonatomic, copy, nullable) NSArray<NSString *> *deferredPropKeys;
+
 #pragma mark - 便捷配置方法
 
 /**

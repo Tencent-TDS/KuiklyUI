@@ -65,6 +65,10 @@
 @property (nonatomic, assign) BOOL diffSuspended;
 /** 挂起 diff 是否已被业务触发标志位（幂等锁：覆盖「已触发 → diff异步完成」之间的重复触发窗口） */
 @property (nonatomic, assign) BOOL diffExecuteTriggered;
+/** 副作用属性暂存（tag -> {propKey: propValue}）：懒渲染窗口内拦截，接管diff完成后统一触发 */
+@property (nonatomic, strong, nullable) NSMutableDictionary<NSNumber *, NSMutableDictionary<NSString *, id> *> *deferredProps;
+/** 延迟生效副作用属性集合（Config.deferredPropKeys 的集合形式，init 时一次性转换，运行期只读） */
+@property (nonatomic, copy) NSSet<NSString *> *deferredPropKeysSet;
 
 @end
 
@@ -95,6 +99,8 @@
         
         // 如果未传入配置，创建默认配置
         _config = turboDisplayConfig ?: [[KRTurboDisplayConfig alloc] init];
+        // 延迟生效副作用属性集合：Config 数组一次性转集合（运行期只读，未配置则为空集合即不拦截）
+        _deferredPropKeysSet = [NSSet setWithArray:_config.deferredPropKeys];
         _closeAutoUpdateTurboDisplay = [_config isCloseAutoUpdateTurboDisplay];
         
         
@@ -279,6 +285,27 @@
 }
 
 - (void)setPropWithTag:(NSNumber *)tag propKey:(NSString *)propKey propValue:(id)propValue {
+    
+    // 副作用属性（Deferred Prop，由 Config.deferredPropKeys 声明，如宿主自定义的上报类属性）统一处理：
+    // 1. 采集排除：不写入节点树（缓存树与真实树两侧一致排除，diff 按下标对齐不受干扰，缓存文件不含副作用配置）
+    // 2. 延迟分发：懒渲染窗口内不直接分发（暂存，待接管 diff 完成后统一触发，避免缓存回放触发副作用）
+    // 3. 窗口外（首次打开无缓存 / 接管完成后业务更新）照常直通分发
+    if ([self.deferredPropKeysSet containsObject:propKey]) {
+        if (_lazyRendering) {
+            if (!_deferredProps) {
+                _deferredProps = [NSMutableDictionary new];
+            }
+            NSMutableDictionary *props = _deferredProps[tag];
+            if (!props) {
+                props = [NSMutableDictionary new];
+                _deferredProps[tag] = props;
+            }
+            props[propKey] = propValue;
+        } else {
+            [_renderLayerHandler setPropWithTag:tag propKey:propKey propValue:propValue];
+        }
+        return;
+    }
     
     // ToDo 1：增加 view 粒度的结构变化捕捉的开关
     if ([propKey isEqualToString:@"turboDisplayAutoUpdateEnable"]) {
@@ -655,6 +682,8 @@
                 // 回调关闭懒加载标志，挂起态同点解除
                 self->_lazyRendering = NO;
                 self.diffSuspended = NO;
+                // 【副作用属性】接管diff完成，触发暂存的副作用属性真实绑定
+                [self flushDeferredProps];
 
                 // 缓存写入通道按来源严格区分：挂起来源触发diff-DOM采集，普通来源走rewrite兜底
                 if ([self->_config isSuspendDiffEnabled]) {
@@ -675,6 +704,8 @@
             // 同步关闭懒加载标志
             _lazyRendering = NO;
             self.diffSuspended = NO;
+            // 【副作用属性】接管diff完成，触发暂存的副作用属性真实绑定
+            [self flushDeferredProps];
             [self rewriteTurboDisplayRootNodeIfNeed];
             [self fireLifecycleEvent:@"onInitLayerRealViewDiffFinish" data:@{@"succ": @YES}];
             self.turboDisplayCacheData = nil;
@@ -683,6 +714,8 @@
         // 兜底
         _lazyRendering = NO;
         self.diffSuspended = NO;
+        // 【副作用属性】兜底路径同样收口：窗口已关，触发暂存的副作用属性（若有）
+        [self flushDeferredProps];
         [self rewriteTurboDisplayRootNodeIfNeed];
         self.turboDisplayCacheData = nil;
     }
@@ -772,6 +805,23 @@
         NSString *log = [NSString stringWithFormat:@"[TurboDisplay] updateNextTurboDisplayRootNode: %.2lfms deepCopyCostTime:%.2lf didUpdated:%d page:%@",(endTime - beginTime) * 1000.0, deepCopyCostTime, didUpdated, _contextParam.pageName];
         [KRLogModule logInfo:log];
     }
+}
+
+
+#pragma mark - 副作用属性（Deferred Prop）延迟生效
+
+/// 接管diff完成后统一触发暂存的副作用属性：走正常 setProp 分发链，宿主 setter 正常执行（副作用每页面实例仅真实触发一次）
+- (void)flushDeferredProps {
+    if (_deferredProps.count == 0) {
+        return;
+    }
+    NSDictionary<NSNumber *, NSMutableDictionary<NSString *, id> *> *targetProps = _deferredProps;
+    _deferredProps = nil;
+    [targetProps enumerateKeysAndObjectsUsingBlock:^(NSNumber *tag, NSMutableDictionary<NSString *, id> *props, BOOL *stop) {
+        [props enumerateKeysAndObjectsUsingBlock:^(NSString *propKey, id value, BOOL *innerStop) {
+            [_renderLayerHandler setPropWithTag:tag propKey:propKey propValue:value];
+        }];
+    }];
 }
 
 

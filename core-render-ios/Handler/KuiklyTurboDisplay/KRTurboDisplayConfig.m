@@ -30,6 +30,7 @@
     _autoUpdateTurboDisplay = YES;        // 开启自动刷新，会自动执行 diff-DOM
     _persistentRealTree = YES;            // 默认开启真实树持久更新，保持兼容性
     _diffExecuteMode = KRNormalExecuteDiff;  // 默认系统时机：首帧渲染完成后执行diff
+    _deferredPropKeys = nil;              // 默认 nil，不拦截任何属性
 }
 
 - (id)copyWithZone:(NSZone *)zone {
@@ -39,6 +40,7 @@
     copy.autoUpdateTurboDisplay = self.autoUpdateTurboDisplay;
     copy.persistentRealTree = self.persistentRealTree;
     copy.diffExecuteMode = self.diffExecuteMode;
+    copy.deferredPropKeys = self.deferredPropKeys;
     return copy;
 }
 

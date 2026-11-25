@@ -72,4 +72,9 @@ struct MonitorTaskParam {
         : type(t), monitor_weak_ptr(std::move(ptr)) {}
 };
 
+extern "C" {
+typedef long long (*GetNativeHeapSize)();
+extern long long com_tencent_kuikly_SetGetNativeHeapSize(GetNativeHeapSize getNativeHeapSize);
+}
+
 #endif //CORE_RENDER_OHOS_KRMEMORYMONITOR_H

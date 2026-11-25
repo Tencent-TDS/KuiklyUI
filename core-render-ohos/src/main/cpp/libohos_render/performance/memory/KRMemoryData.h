@@ -36,6 +36,8 @@ class KRMemoryData {
     long long GetFirstDeltaEnvHeap();
     long long GetAvgPss();
     long long GetAvgPssIncrement();
+    long long GetAvgEnv();
+    long long GetAvgEnvIncrement();
     
  private:
     uint32_t init_pss_ = 0;

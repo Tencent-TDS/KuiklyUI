@@ -38,6 +38,8 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             addImport("com.tencent.kuikly.core.manager", "KotlinMethod")
             addImport("kotlinx.cinterop", "staticCFunction")
             addImport("ohos", "com_tencent_kuikly_SetCallKotlin")
+            addImport("ohos", "com_tencent_kuikly_SetGetNativeHeapSize")
+            addImport("com.tencent.kuikly.core.performance", "getNativeHeapSize")
 
             addFunction(createCallNativeFunc())
             addFunction(createInitKuiklyMethod(pagesAnnotations))
@@ -64,6 +66,14 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             )
             .addRegisterPageRouteStatement(pagesAnnotations)
             .addStatement("}\n")
+            .addStatement(
+                "    com_tencent_kuikly_SetGetNativeHeapSize(\n" +
+                        "        staticCFunction { ->\n" +
+                        "            val nativeHeapSize = getNativeHeapSize()\n" +
+                        "            return@staticCFunction nativeHeapSize\n" +
+                        "        }\n" +
+                        "    )\n"
+            )
             .addStatement("""
                 return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
                             // 按方法只转换真正用到的入参；容器 toAny() 会 retain

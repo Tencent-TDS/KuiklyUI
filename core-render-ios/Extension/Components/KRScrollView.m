@@ -33,7 +33,7 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
-@interface KRScrollView()<UIScrollViewDelegate, KRScrollViewOffsetAnimatorDelegate>
+@interface KRScrollView()<UIScrollViewDelegate, KRScrollViewOffsetAnimatorDelegate, UIGestureRecognizerDelegate>
 
 /** attr is bouncesEnable  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(bouncesEnable);
@@ -117,6 +117,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         self.wantsLayer = YES;
         #endif // [macOS]
         self.alwaysBounceVertical = YES;
+        #if !TARGET_OS_OSX // [macOS]
+        // 横滑 Scroller 边界让位：接管 pan 的手势仲裁参与权（见 gestureRecognizer:shouldRequireFailureOfGestureRecognizer:）。
+        // UIScrollView 的 pan 默认无 delegate（实测设置后系统也不会覆写），接管不覆盖任何既有逻辑。
+        self.panGestureRecognizer.delegate = self;
+        #endif // [macOS]
         _delegateProxy = [KRMultiDelegateProxy alloc];
         [_delegateProxy addDelegate:self];
         self.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
@@ -124,6 +129,84 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     return self;
     
 }
+
+#if !TARGET_OS_OSX // [macOS]
+
+/// 横滑 Scroller 边界让位的左缘感应带宽度（pt）。
+///
+/// 取值依据（为何是 24，而不是 0 或更大）：
+/// 1. 不能取 0：触摸坐标是手指接触面的中心。手指物理贴住屏幕左缘时，接触面中心必然
+///    落在屏幕内侧若干 pt（指尖接触面直径约 15~20pt，贴边时中心距边缘约 5~10pt），
+///    取 0 意味着「起点必须精确落在 x<=0」，物理上几乎不可能满足，让位规则将永不生效。
+///    本仓 iOS 18.5 模拟器实测：所有成功让位的滑动起点分布为 x=0.0~17.3pt，无一落在 0。
+/// 2. 上限依据：实测「内容区起滑」（不应让位，正常滚动）的起点分布为 x>=63pt；
+///    系统边缘返回手势（UIScreenEdgePanGestureRecognizer）的激活带宽 Apple 未公开数值
+///    （文档仅描述 "near an edge"），社区长期经验约 20pt。24 落在两组实测分布的空档中，
+///    并完整覆盖 20pt 的系统边缘带 + 4pt 余量（起点由「当前位置-累计位移」反推的浮点误差、
+///    触点中心偏移）。
+/// 3. 调参指引：调大更倾向让位给返回手势、调小更倾向保住滚动；对全屏返回手势宿主
+///    （如 FDFullscreenPopGesture，无边缘限制）本值是唯一防止页面中部起滑被误判为
+///    返回意图的防线，不宜放宽。
+static const CGFloat KRScrollViewPanLeftEdgeYieldZoneWidth = 24.0;
+
+/// 横滑 Scroller 边界让位。
+///
+/// 问题：占满屏幕左缘的横向滚动容器（横滑 Scroller / 横向 List / PageList）的 pan 在
+/// 手势互斥竞争中总是先于宿主返回手势进入 Began，把返回手势无声挤死，侧滑返回失效；
+/// 且滚到边界后 pan 依然保持识别（alwaysBounce 橡皮筋），表现为「滚不动也不放行」。
+///
+/// 方案：满足「横向滚动 + 处于左边界 + 触摸起点位于左缘感应带」时返回 YES，声明本 pan
+/// 必须等对方（宿主返回手势）先分出胜负：
+/// - 对方开始（用户向右拖）→ 本 pan 被强制失败，触摸交还宿主侧滑返回；
+/// - 对方判负（方向不符、导航栈在底等）→ 本 pan 照常开始，正常滚动不受影响。
+/// 其余情况（纵向滚动、非左边界、起点不在左缘、向左拖）一律返回 NO，
+/// 行为与未设置 delegate 时完全一致。
+///
+/// 通道选择：iOS 18 实测 scroll pan 进入 Began 前不咨询 gestureRecognizerShouldBegin:
+/// （delegate 版与 UIView 实例方法版均零调用），本依赖询问是唯一可验证生效的通道。
+/// 若未来 iOS 仲裁机制变化导致本方法不再被咨询，让位将静默退化为修复前的拦截状态
+/// （不崩溃、滚动不受影响），可用回归页 BugReproIosEdgePanConflictTargetPage 验证。
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    if (gestureRecognizer != self.panGestureRecognizer) {
+        return NO;
+    }
+    // 只与「挂在自身或祖先容器上的 pan/边缘 pan」建立依赖（宿主返回手势的形态；
+    // 排除挂在滚动容器上的内部识别器与内容区子视图的手势，避免破坏嵌套滚动/子控件拖动）
+    BOOL otherIsPan = [otherGestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]] ||
+                      [otherGestureRecognizer isKindOfClass:[UIScreenEdgePanGestureRecognizer class]];
+    if (!otherIsPan) {
+        return NO;
+    }
+    UIView *otherView = otherGestureRecognizer.view;
+    if (otherView != self && ![self isDescendantOfView:otherView]) {
+        return NO;
+    }
+    // 仅处理横向 Scroller；纵向滚动行为保持默认
+    if (![_css_directionRow boolValue]) {
+        return NO;
+    }
+    // 不处于左边界（内容还能向右滚回去）时正常识别——此时滚回上一屏才是正确响应，而非触发返回
+    if (self.contentOffset.x > 0.01f) {
+        return NO;
+    }
+    UIPanGestureRecognizer *pan = (UIPanGestureRecognizer *)self.panGestureRecognizer;
+    // 触摸起点位于屏幕左缘感应带内才让位（用当前位置减去累计位移还原起点）
+    CGPoint translation = [pan translationInView:self];
+    CGPoint loc = [pan locationInView:self];
+    CGPoint startInWindow = [self convertPoint:CGPointMake(loc.x - translation.x, loc.y - translation.y)
+                                       toView:nil];
+    if (startInWindow.x > KRScrollViewPanLeftEdgeYieldZoneWidth) {
+        return NO;
+    }
+    // 拖动方向已可判且向左（可滚方向）时不建立依赖，避免多余等待；
+    // 方向未定（依赖询问早于阈值）时先建立，返回 pan 会因方向不符快速判负，代价仅数 pt 延迟
+    if (translation.x < 0) {
+        return NO;
+    }
+    return YES;
+}
+
+#endif // [macOS]
 
 #pragma mark - KuiklyRenderViewExportProtocol
 
@@ -521,6 +604,13 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (self.css_scrollEnabled != css_scrollEnabled) {
         _css_scrollEnabled = css_scrollEnabled;
         self.scrollEnabled = [css_scrollEnabled boolValue];
+        #if !TARGET_OS_OSX // [macOS]
+        // scrollEnabled=NO 只禁止内容滚动，pan 识别器仍参与互斥竞争、持续抢占宿主侧滑返回手势
+        // （AppTabPage 的 scrollEnable(false) PageList 即此场景：业务已禁手势切页，
+        // 内容却仍拦返回）。同步禁用 pan，让「禁滚」语义真正释放手势；
+        // 不影响代码驱动的 setContentOffset / scrollToPageIndex。
+        self.panGestureRecognizer.enabled = self.scrollEnabled;
+        #endif // [macOS]
     }
 }
 

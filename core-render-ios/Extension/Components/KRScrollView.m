@@ -132,35 +132,24 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #if !TARGET_OS_OSX // [macOS]
 
-/// 横滑 Scroller 边界让位的左缘感应带宽度（pt）。
-///
-/// 取值依据（为何是 24，而不是 0 或更大）：
-/// 1. 不能取 0：触摸坐标是手指接触面的中心。手指物理贴住屏幕左缘时，接触面中心必然
-///    落在屏幕内侧若干 pt（指尖接触面直径约 15~20pt，贴边时中心距边缘约 5~10pt），
-///    取 0 意味着「起点必须精确落在 x<=0」，物理上几乎不可能满足，让位规则将永不生效。
-///    本仓 iOS 18.5 模拟器实测：所有成功让位的滑动起点分布为 x=0.0~17.3pt，无一落在 0。
-/// 2. 上限依据：实测「内容区起滑」（不应让位，正常滚动）的起点分布为 x>=63pt；
-///    系统边缘返回手势（UIScreenEdgePanGestureRecognizer）的激活带宽 Apple 未公开数值
-///    （文档仅描述 "near an edge"），社区长期经验约 20pt。24 落在两组实测分布的空档中，
-///    并完整覆盖 20pt 的系统边缘带 + 4pt 余量（起点由「当前位置-累计位移」反推的浮点误差、
-///    触点中心偏移）。
-/// 3. 调参指引：调大更倾向让位给返回手势、调小更倾向保住滚动；对全屏返回手势宿主
-///    （如 FDFullscreenPopGesture，无边缘限制）本值是唯一防止页面中部起滑被误判为
-///    返回意图的防线，不宜放宽。
-static const CGFloat KRScrollViewPanLeftEdgeYieldZoneWidth = 24.0;
-
 /// 横滑 Scroller 边界让位。
 ///
-/// 问题：占满屏幕左缘的横向滚动容器（横滑 Scroller / 横向 List / PageList）的 pan 在
+/// 问题：占满屏幕的横向滚动容器（横滑 Scroller / 横向 List / PageList）的 pan 在
 /// 手势互斥竞争中总是先于宿主返回手势进入 Began，把返回手势无声挤死，侧滑返回失效；
 /// 且滚到边界后 pan 依然保持识别（alwaysBounce 橡皮筋），表现为「滚不动也不放行」。
 ///
-/// 方案：满足「横向滚动 + 处于左边界 + 触摸起点位于左缘感应带」时返回 YES，声明本 pan
-/// 必须等对方（宿主返回手势）先分出胜负：
+/// 方案：满足「横向滚动 + 处于左边界（无法继续向右滚） + 拖动方向朝右（返回方向）」时
+/// 返回 YES，声明本 pan 必须等对方（宿主返回手势）先分出胜负：
 /// - 对方开始（用户向右拖）→ 本 pan 被强制失败，触摸交还宿主侧滑返回；
 /// - 对方判负（方向不符、导航栈在底等）→ 本 pan 照常开始，正常滚动不受影响。
-/// 其余情况（纵向滚动、非左边界、起点不在左缘、向左拖）一律返回 NO，
-/// 行为与未设置 delegate 时完全一致。
+/// 其余情况（纵向滚动、非左边界、向左拖）一律返回 NO，行为与未设置 delegate 时完全一致。
+///
+/// 刻意不做触摸起点位置判定，保证规则与业务布局无关（贴边 10pt 或 100pt 同一规则）：
+/// - 边缘型返回手势宿主（系统 interactivePopGestureRecognizer）：激活带由系统手势自身
+///   执行（仅跟踪左缘约 20pt 内开始的触摸），中部起滑不进入仲裁，无需重复判定；
+/// - 全屏型返回手势宿主（如 FDFullscreenPopGesture）：契约本就是任意位置可返回，
+///   起点判定反而与宿主语义冲突；且让位前提是「滚不动」，滚得动时 pan 永远优先，
+///   不存在误让位。
 ///
 /// 通道选择：iOS 18 实测 scroll pan 进入 Began 前不咨询 gestureRecognizerShouldBegin:
 /// （delegate 版与 UIView 实例方法版均零调用），本依赖询问是唯一可验证生效的通道。
@@ -190,17 +179,9 @@ static const CGFloat KRScrollViewPanLeftEdgeYieldZoneWidth = 24.0;
         return NO;
     }
     UIPanGestureRecognizer *pan = (UIPanGestureRecognizer *)self.panGestureRecognizer;
-    // 触摸起点位于屏幕左缘感应带内才让位（用当前位置减去累计位移还原起点）
-    CGPoint translation = [pan translationInView:self];
-    CGPoint loc = [pan locationInView:self];
-    CGPoint startInWindow = [self convertPoint:CGPointMake(loc.x - translation.x, loc.y - translation.y)
-                                       toView:nil];
-    if (startInWindow.x > KRScrollViewPanLeftEdgeYieldZoneWidth) {
-        return NO;
-    }
     // 拖动方向已可判且向左（可滚方向）时不建立依赖，避免多余等待；
     // 方向未定（依赖询问早于阈值）时先建立，返回 pan 会因方向不符快速判负，代价仅数 pt 延迟
-    if (translation.x < 0) {
+    if ([pan translationInView:self].x < 0) {
         return NO;
     }
     return YES;

@@ -179,6 +179,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     private var lastScrollParentY = 0
 
     /**
+     * 作为父列表被子列表 scrollBy 带动时，自身 scrollState 不变，onScrollStateChanged 不会回调，
+     * 需在 onStopNestedScroll 中补发 dragBegin/dragEnd/scrollEnd。
+     */
+    private var nestedDrivenScrolling = false
+    private var nestedDrivenDragging = false
+
+    /** 作为子列表时：最后一段位移由父列表消费，此时自身结束事件延后到父列表之后发 */
+    internal var lastMoveByNestedParent = false
+    private var pendingEndDrag = false
+    private var pendingEndScroll = false
+
+    /**
      * 用于在嵌套滚动场景中追踪真实的触摸速度 (px/s)，
      * 替代之前使用 lastScrollParentX/Y（单帧位移）作为速度的不准确做法。
      */
@@ -752,6 +764,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 if (offset == 0) {
                     return
                 }
+                lastMoveByNestedParent = false
                 val forceOverScrolling = overScrollHandler?.forceOverScroll ?: false
                 if (!forceOverScrolling) {
                     fireScrollEvent()
@@ -780,11 +793,23 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 if (isDraggingStateToSettlingState(currentState) || isDraggingStateToIdeaState(currentState)
                 ) {
                     isDragging = false
-                    fireEndDragEvent()
+                    if (lastMoveByNestedParent) pendingEndDrag = true else fireEndDragEvent()
                 }
 
                 if (isEndState(currentState)) {
-                    fireEndScrollEvent()
+                    if (lastMoveByNestedParent) {
+                        pendingEndScroll = true
+                        // 惯性被 stopScroll 打断时系统不会 stopNestedScroll(NON_TOUCH)，主动结束让父列表先发 scrollEnd
+                        if (hasNestedScrollingParent(ViewCompat.TYPE_NON_TOUCH)) {
+                            stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+                        }
+                    } else {
+                        fireEndScrollEvent()
+                    }
+                }
+                if (pendingEndDrag || pendingEndScroll) {
+                    // 正常由紧随其后的 stopNestedScroll 发出；兜底防止未走 stopNestedScroll 时丢事件
+                    post { firePendingEndEvents() }
                 }
                 preScrollState = currentState
             }
@@ -854,6 +879,53 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun fireEndScrollEvent() {
         scrollEndEventCallback?.invoke(getCommonScrollParams())
+    }
+
+    private fun firePendingEndEvents() {
+        if (pendingEndDrag) {
+            pendingEndDrag = false
+            fireEndDragEvent()
+        }
+        if (pendingEndScroll) {
+            pendingEndScroll = false
+            lastMoveByNestedParent = false
+            fireEndScrollEvent()
+        }
+    }
+
+    override fun stopNestedScroll(type: Int) {
+        // 父列表在 super 中（onStopNestedScroll）先发结束事件，自身延后的事件随后发出
+        super.stopNestedScroll(type)
+        firePendingEndEvents()
+    }
+
+    /** 作为父列表即将被子列表带动时调用；自身在拖拽/惯性中则由 onScrollStateChanged 负责 */
+    private fun markNestedDrivenScroll(touchType: Int) {
+        if (scrollState != SCROLL_STATE_IDLE || overScrollHandler?.forceOverScroll == true) {
+            return
+        }
+        nestedDrivenScrolling = true
+        if (touchType == ViewCompat.TYPE_TOUCH && !nestedDrivenDragging) {
+            nestedDrivenDragging = true
+            isDragging = true
+            fireBeginDragEvent()
+        }
+    }
+
+    /** 手指抬起补 dragEnd；触摸与子列表惯性都结束后补 scrollEnd */
+    private fun finishNestedDrivenScrollIfNeeded(type: Int) {
+        if (mNestedScrollAxesTouch != SCROLL_AXIS_NONE) {
+            return
+        }
+        if (type == ViewCompat.TYPE_TOUCH && nestedDrivenDragging) {
+            nestedDrivenDragging = false
+            isDragging = false
+            fireEndDragEvent()
+        }
+        if (nestedDrivenScrolling && mNestedScrollAxesNonTouch == SCROLL_AXIS_NONE) {
+            nestedDrivenScrolling = false
+            fireEndScrollEvent()
+        }
     }
 
     private fun getCommonScrollParams(): MutableMap<String, Any> {
@@ -1347,6 +1419,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         skipFlingIfNestOverScroll = false
         lastScrollParentX = 0
         lastScrollParentY = 0
+        nestedDrivenScrolling = false
+        nestedDrivenDragging = false
+        lastMoveByNestedParent = false
+        pendingEndDrag = false
+        pendingEndScroll = false
         nestedScrollLastMoveTime = 0L
         // Reset position offset compensation
         accumulatedPositionOffsetX = 0
@@ -1707,6 +1784,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             target.accumulatedPositionOffsetY = 0
         }
 
+        finishNestedDrivenScrollIfNeeded(type)
+
         overScrollHandler?.let { handler ->
             if ((target as? KRRecyclerView)?.skipFlingIfNestOverScroll == true) {
                 (target as KRRecyclerView).skipFlingIfNestOverScroll = false
@@ -1978,11 +2057,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         var didConsumeY = false  // 标记是否已经设置了 consumed[1]
         if (shouldScrollParentY) {
             if (canScrollVertically(parentDy)) {
+                markNestedDrivenScroll(touchType)
                 // 记录滚动前的偏移量
                 val beforeScrollY = computeVerticalScrollOffset()
                 scrollBy(0, parentDy)
                 // 计算实际滚动的距离
                 val actualScrollY = computeVerticalScrollOffset() - beforeScrollY
+                if (actualScrollY != 0) target.lastMoveByNestedParent = true
                 // 累加补偿消耗的值，避免覆盖
                 consumed[1] = compensationConsumedY + actualScrollY
                 lastScrollParentY = parentDy
@@ -2021,11 +2102,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
         var didConsumeX = false  // 标记是否已经设置了 consumed[0]
         if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
+            markNestedDrivenScroll(touchType)
             // 记录滚动前的偏移量
             val beforeScrollX = computeHorizontalScrollOffset()
             scrollBy(parentDx, 0)
             // 计算实际滚动的距离
             val actualScrollX = computeHorizontalScrollOffset() - beforeScrollX
+            if (actualScrollX != 0) target.lastMoveByNestedParent = true
             // 累加补偿消耗的值，避免覆盖
             consumed[0] = compensationConsumedX + actualScrollX
             lastScrollParentX = parentDx

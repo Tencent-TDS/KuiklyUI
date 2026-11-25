@@ -29,6 +29,24 @@ pod install --repo-update
 
 该配置由宿主 App 生效，Pod 内部无法代为设置。启用后，Kuikly 会跟随系统的动态刷新率（例如 60Hz 与 120Hz 之间切换）；不支持高刷的设备保持原有行为。
 
+### 必需：Kotlin/Native runtime 的线程进入顺序
+
+若某个 Kotlin/Native framework 可能**先**由 Kuikly 的 Context 线程进入，请先在**主线程**调用它的任意一个导出入口，再让它进入 Context 线程。
+
+Kotlin/Native 为 CFRunLoop 创建的 finalizer processor 假定主线程已注册 runtime。Kotlin 2.1.21 下，主线程未注册而 Context 线程先进入 runtime 时，主线程随后处理真实 finalizer 回调可发生 `SIGSEGV / EXC_BAD_ACCESS`（故障地址 `0xf8`）：
+
+```text
+RunLoopFinalizerProcessor<...>::process
+kotlin::objc_support::RunLoopSource::perform
+CFRunLoop source callback
+```
+
+这是 Kotlin/Native 运行时缺陷（上游 [KT-84331](https://youtrack.jetbrains.com/issue/KT-84331)），据 #1829 的模拟器矩阵，Kotlin 2.4.0 下 8/8 真实回调均正常进入并返回；本仓库当前发布流水线固定在 Kotlin 2.1.21（`publish/2.1.21_publish.sh`）。
+
+自 2.23.3（#1566）起，`KuiklyRenderThreadManager` 的 sync / async 调用**都**投递到独立的 Context `NSThread`，主线程不再经由同步调用进入 runtime，因此该顺序要求对两者都成立。旧版本同步调用在主线程执行只是当时的实现巧合，应用不应依赖。
+
+**注意避免死锁**：不要实现成「主线程同步等待 Context 线程」或「Context 线程同步等待主线程」。`KREnsureContextThreadStarted` 启动 Context 线程后会以 `dispatch_semaphore_wait(..., DISPATCH_TIME_FOREVER)` 等待就绪信号；若在该窗口内再从 Context 线程 `dispatch_sync` 回主线程，而主线程正阻塞于该信号，即会死锁。稳妥做法是在 Context 线程启动之前、直接在主线程上完成一次 runtime 进入。
+
 
 
 ## 开发语言选择

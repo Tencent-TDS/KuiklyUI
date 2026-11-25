@@ -181,6 +181,15 @@
 }
 
 
+/*
+ * @brief 强制释放反射注册表内的全部对象（无视 krRetainCount）。
+ *        页面销毁后继续持有这些对象（可能是 View / VC / 容器）没有意义，
+ *        且 Kotlin 侧可通过 retain() 把它们永久钉住，进而反向持有整条页面链路。
+ */
+- (void)p_releaseAllObjects {
+    [self.objectRegistry removeAllObjects];
+}
+
 - (void)p_setNeedAutoRelease {
     if (!self.needAutoReleaseNextLoop) {
         self.needAutoReleaseNextLoop = YES;
@@ -269,25 +278,38 @@
 }
 
 - (void)p_responseCallbackWithArg1:(id)arg1 arg2:(id)arg2 arg3:(id)arg3 arg4:(id)arg4 arg5:(id)arg5 callbackID:(NSString *)callbackID {
-    // __weak typeof(self) weakSelf = self;
+    __weak typeof(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __strong typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) {
+            return;
+        }
         NSMutableDictionary *resData = [[NSMutableDictionary alloc] init];
         if(arg1) {
-            [resData setObject:[self p_setWithObject:arg1] forKey:@"arg1"];
+            [resData setObject:[strongSelf p_setWithObject:arg1] forKey:@"arg1"];
         }
         if(arg2) {
-            [resData setObject:[self p_setWithObject:arg2] forKey:@"arg2"];
+            [resData setObject:[strongSelf p_setWithObject:arg2] forKey:@"arg2"];
         }
         if(arg3) {
-            [resData setObject:[self p_setWithObject:arg3] forKey:@"arg3"];
+            [resData setObject:[strongSelf p_setWithObject:arg3] forKey:@"arg3"];
         }
         if(arg4) {
-            [resData setObject:[self p_setWithObject:arg4] forKey:@"arg4"];
+            [resData setObject:[strongSelf p_setWithObject:arg4] forKey:@"arg4"];
         }
         if(arg5) {
-            [resData setObject:[self p_setWithObject:arg5] forKey:@"arg5"];
+            [resData setObject:[strongSelf p_setWithObject:arg5] forKey:@"arg5"];
         }
-        [((KuiklyRenderView *)self.hr_rootView) fireCallbackWithID:callbackID data:resData];
+        [((KuiklyRenderView *)strongSelf.hr_rootView) fireCallbackWithID:callbackID data:resData];
+    }];
+}
+
+// 页面销毁前强制释放全部反射对象（无视 krRetainCount）
+// objectRegistry 在 context 线程读写，清理需投递回同一线程，避免与 context 线程并发访问字典
+- (void)hr_pageWillDestroy {
+    __weak typeof(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        [weakSelf p_releaseAllObjects];
     }];
 }
 

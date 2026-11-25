@@ -707,7 +707,7 @@ object LayoutImpl {
             val dimen = max(node.boundAxis(mainAxis, originMainDim), paddingAndBorderAxisMain)
             node.setLayoutDimension(mainAxis, dimen)
             if (originMainDim != dimen && node.justifyContent != FlexJustifyContent.FLEX_START && node.childCount != 0) {
-                node.alignChildMainAxis(mainAxis, paddingAndBorderAxisMain)
+                node.alignChildMainAxis(mainAxis, dimen - originMainDim)
             }
             if (mainAxis == FlexDirection.ROW_REVERSE || mainAxis == FlexDirection.COLUMN_REVERSE) {
                 needsMainTrailingPos = true
@@ -875,53 +875,58 @@ object LayoutImpl {
     }
 
     /**
-     * 校准孩子在主轴上的对齐
+     * 主轴尺寸未指定、被 min / max 约束改变后，按 justifyContent 分配差出来的空间。
+     * 子节点此前已按内容尺寸排好（剩余空间按 0 算），这里只在原位置上平移，保留各自的 margin 与相对定位偏移；
+     * 与主流程一致，隐藏和绝对定位的子节点不参与分配
      * @param mainAxis 主轴
-     * @param paddingAndBorderAxisMain 主轴额外的间距大小
+     * @param extraMainDim 约束后的主轴尺寸减去按内容算出的尺寸（均含 padding、border）
      */
-    private fun FlexNode.alignChildMainAxis(mainAxis: FlexDirection, paddingAndBorderAxisMain: Float) {
-        val dimen = getLayoutDimension(mainAxis)
+    private fun FlexNode.alignChildMainAxis(mainAxis: FlexDirection, extraMainDim: Float) {
         val size = childCount
-        var mainContentDim = 0f // 孩子在主轴的总大小
+        var relativeChildCount = 0
         for (i in 0 until size) {
             val child = getChildAt(i) ?: continue
-            mainContentDim += child.getLayoutDimension(mainAxis) + child.getStyleMargin(mainAxis)
+            if (child.isShow && child.isFlexRelative()) {
+                relativeChildCount++
+            }
         }
-        val remainingMainDim = dimen - mainContentDim // 主轴剩余大小
-        var mainDim = paddingAndBorderAxisMain
+        if (relativeChildCount == 0) {
+            return
+        }
         var leadingMainDim = 0f
         var betweenMainDim = 0f
         when (justifyContent) {
             FlexJustifyContent.CENTER -> {
-                leadingMainDim = remainingMainDim / 2
+                leadingMainDim = extraMainDim / 2
             }
             FlexJustifyContent.FLEX_END -> {
-                leadingMainDim = remainingMainDim
+                leadingMainDim = extraMainDim
             }
             FlexJustifyContent.SPACE_BETWEEN -> {
-                betweenMainDim = remainingMainDim / (childCount - 1)
+                if (relativeChildCount > 1) {
+                    betweenMainDim = max(extraMainDim, 0f) / (relativeChildCount - 1)
+                }
             }
             FlexJustifyContent.SPACE_AROUND -> {
                 // leadingMainDim 是 betweenMainDim 的一半
-                betweenMainDim = remainingMainDim / childCount
+                betweenMainDim = extraMainDim / relativeChildCount
                 leadingMainDim = betweenMainDim / 2
             }
             FlexJustifyContent.SPACE_EVENLY -> {
-                betweenMainDim = remainingMainDim / (childCount + 1)
+                betweenMainDim = extraMainDim / (relativeChildCount + 1)
                 leadingMainDim = betweenMainDim
             }
             else -> {}
         }
 
-        mainDim += leadingMainDim
+        var offset = leadingMainDim
         for (i in 0 until size) {
             val child = getChildAt(i) ?: continue
-            child.setLayoutPosition(mainAxis, child.getStyleMargin(mainAxis) + mainDim)
-
-            if (child.isFlexRelative()) {
-                // 主轴上的宽度是由所有的子视图的宽度累加而成
-                mainDim += betweenMainDim + child.getLayoutDimension(mainAxis) + child.getStyleMargin(mainAxis)
+            if (!child.isShow || !child.isFlexRelative()) {
+                continue
             }
+            child.setLayoutPosition(mainAxis, child.getLayoutPosition(mainAxis) + offset)
+            offset += betweenMainDim
         }
     }
 

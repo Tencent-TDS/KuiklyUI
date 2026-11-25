@@ -6,7 +6,7 @@
 
 ## 社区分享汇总
 
-**社区分享平台网址**：https://kuikly.tds.qq.com/third-party?tab=artical
+**社区分享平台网址**：https://kuikly.tds.qq.com/home/blog
 
 ## 社区分享收集
 

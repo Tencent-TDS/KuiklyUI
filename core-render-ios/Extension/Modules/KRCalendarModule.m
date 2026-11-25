@@ -18,8 +18,66 @@
 @implementation KRCalendarModule
 
 
-- (NSCalendar *)localCalendar {
-    return [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierChinese];
+/** 公历日历，时区需与 dateFromString / stringFromDate 保持一致 */
+- (NSCalendar *)gregorianCalendar {
+    NSCalendar *calendar = [[NSCalendar alloc] initWithCalendarIdentifier:NSCalendarIdentifierGregorian];
+    calendar.timeZone = [NSTimeZone timeZoneWithName:@"Asia/Shanghai"];
+    return calendar;
+}
+
+/** set 只累积到 components 不落盘，add 先落盘再加减，最后一次性求值：避免一串 set 的中间态（如 8/31 时 set 到 9 月得到 9-31）被当作非法日期解析成 nil */
+- (NSDate *)dateByApplyingOperations:(NSArray<NSString *> *)operations toDate:(NSDate *)originDate {
+    NSUInteger units = NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay |
+                       NSCalendarUnitHour | NSCalendarUnitMinute | NSCalendarUnitSecond |
+                       NSCalendarUnitNanosecond;
+    NSCalendar *calendar = [self gregorianCalendar];
+    NSDateComponents *components = [calendar components:units fromDate:originDate];
+
+    for (NSString *operationString in operations) {
+        NSDictionary *operation = [operationString kr_stringToDictionary];
+        NSString *opt = operation[@"opt"];
+        NSInteger field = [operation[@"field"] integerValue];
+        NSInteger value = [operation[@"value"] integerValue];
+
+        if ([opt isEqualToString:@"set"]) {
+            if (field == 6) { // DAY_OF_YEAR：等价 add(DAY_OF_MONTH, newDay - currentDay)
+                NSDate *current = [calendar dateFromComponents:components];
+                NSInteger currentDay = [calendar ordinalityOfUnit:NSCalendarUnitDay
+                                                           inUnit:NSCalendarUnitYear
+                                                          forDate:current];
+                components.day += (value - currentDay);
+                continue;
+            }
+            switch (field) {
+                case 1:  components.year = value; break;
+                case 2:  components.month = value + 1; break; // MONTH 从 0 开始
+                case 5:  components.day = value; break;
+                case 11: components.hour = value; break;
+                case 12: components.minute = value; break;
+                case 13: components.second = value; break;
+                case 14: components.nanosecond = (long long)value * 1000000; break;
+                default: break;
+            }
+        } else if ([opt isEqualToString:@"add"]) {
+            NSDate *current = [calendar dateFromComponents:components];
+            NSDateComponents *delta = [[NSDateComponents alloc] init];
+            switch (field) {
+                case 1:  delta.year = value; break;
+                case 2:  delta.month = value; break;
+                case 5:  delta.day = value; break;
+                case 6:  delta.day = value; break;
+                case 11: delta.hour = value; break;
+                case 12: delta.minute = value; break;
+                case 13: delta.second = value; break;
+                case 14: delta.nanosecond = (long long)value * 1000000; break;
+                default: break;
+            }
+            NSDate *next = [calendar dateByAddingComponents:delta toDate:current options:0];
+            components = [calendar components:units fromDate:next];
+        }
+    }
+
+    return [calendar dateFromComponents:components];
 }
 
 - (NSDate *)dateFromString:(NSString *)dateString format:(NSString *)format {
@@ -38,148 +96,17 @@
     return [formatter stringFromDate:date];
 }
 
-- (NSDate *)calcDate:(NSDate *)originDate operation:(NSString *)operationString {
-    NSDictionary *operation = [operationString kr_stringToDictionary];
-    NSString *opt = operation[@"opt"];
-    NSString *value = operation[@"value"];
-    
-    if ([opt isEqualToString:@"set"]) {
-        NSInteger year = [self stringFromDate:originDate format:@"yyyy"].integerValue;
-        NSInteger month = [self stringFromDate:originDate format:@"MM"].integerValue;
-        NSInteger day = [self stringFromDate:originDate format:@"dd"].integerValue;
-        NSInteger hour = [self stringFromDate:originDate format:@"HH"].integerValue;
-        NSInteger minute = [self stringFromDate:originDate format:@"mm"].integerValue;
-        NSInteger second = [self stringFromDate:originDate format:@"ss"].integerValue;
-        NSInteger millisecond = [self stringFromDate:originDate format:@"SSS"].integerValue;
-        switch([operation[@"field"] integerValue]) {
-            case 1: {
-                year = [value integerValue];
-                break;
-            }
-            case 2: {
-                month = [value integerValue] + 1;
-                break;
-            }
-            case 5: {
-                day = [value integerValue];
-                break;
-            }
-            case 6: {
-                NSInteger originDay = [self stringFromDate:originDate format:@"D"].integerValue;
-                NSInteger newDay = [value integerValue];
-                NSDictionary *operation = @{
-                    @"opt": @"add",
-                    @"field": @(5),
-                    @"value": @(newDay - originDay)
-                };
-                return [self calcDate:originDate operation:[operation kr_dictionaryToString]];
-            }
-            case 11: {
-                hour = [value integerValue];
-                break;
-            }
-            case 12: {
-                minute = [value integerValue];
-                break;
-            }
-            case 13: {
-                second = [value integerValue];
-                break;
-            }
-            case 14: {
-                millisecond = [value integerValue];
-                break;
-            }
-        }
-        NSString *dateString = [NSString stringWithFormat:@"%04ld-%02ld-%02ld %02ld:%02ld:%02ld.%03ld",
-                                year, month, day, hour, minute, second, millisecond];
-        return [self dateFromString:dateString format:@"YYYY-MM-dd HH:mm:ss.SSS"];
-    }
-    
-    if (![opt isEqualToString:@"add"]) {
-        NSAssert(NO, @"操作不存在，仅支持add和set");
-        return [NSDate date];
-    }
-    
-    NSDateComponents *dateComponents = [[NSDateComponents alloc] init];
-    dateComponents.year = 0;
-    dateComponents.month = 0;
-    switch([operation[@"field"] integerValue]) {
-        case 1: {
-            dateComponents.year = [value integerValue];
-            break;
-        }
-        case 2: {
-            dateComponents.month = [value integerValue];
-            break;
-        }
-        case 5: {
-            dateComponents.day = [value integerValue];
-            break;
-        }
-        case 6: {
-            dateComponents.day = [value integerValue];
-            break;
-        }
-        case 11: {
-            dateComponents.hour = [value integerValue];
-            break;
-        }
-        case 12: {
-            dateComponents.minute = [value integerValue];
-            break;
-        }
-        case 13: {
-            dateComponents.second = [value integerValue];
-            break;
-        }
-        case 14: {
-            dateComponents.nanosecond = [value integerValue] * 1000000;
-            break;
-        }
-    }
-    
-    NSDate *date;
-    if (dateComponents.year == 0 && dateComponents.month == 0) {
-        date = [self.localCalendar dateByAddingComponents:dateComponents toDate:originDate options:0];
-    } else {
-        NSInteger year = [self stringFromDate:originDate format:@"yyyy"].integerValue + dateComponents.year;
-        NSInteger month = [self stringFromDate:originDate format:@"MM"].integerValue;
-        while (dateComponents.month > 0) {
-            month ++;
-            year += month > 12 ? 1 : 0;
-            month = (month - 1) % 12 + 1;
-            dateComponents.month --;
-        }
-        while (dateComponents.month < 0) {
-            month --;
-            year -= month == 0 ? 1 : 0;
-            month = month == 0 ? 12 : month;
-            dateComponents.month ++;
-        }
-        NSInteger day = [self stringFromDate:originDate format:@"dd"].integerValue;
-        NSInteger maxDayCount = [self.localCalendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:[self dateFromString:[NSString stringWithFormat:@"%04ld-%02ld", year, month] format:@"yyyy-MM"]].length;
-        day = MIN(day, maxDayCount);
-        NSString *dateString = [NSString stringWithFormat:@"%04ld-%02ld-%02ld %@", year, month, day, [self stringFromDate:originDate format:@"HH:mm:ss.SSS"]];
-        date = [self dateFromString:dateString format:@"YYYY-MM-dd HH:mm:ss.SSS"];
-    }
-    
-    return date;
-}
-
 - (NSString *)method_cur_timestamp:(NSDictionary *)args {
-    return [NSString stringWithFormat:@"%ld", (NSInteger)([[NSDate date] timeIntervalSince1970] * 1000)];
+    return [NSString stringWithFormat:@"%lld", (long long)([[NSDate date] timeIntervalSince1970] * 1000)];
 }
 
 - (NSString *)method_get_field:(NSDictionary *)args {
     
     NSDictionary *params = [args[KR_PARAM_KEY] kr_stringToDictionary];
     NSArray<NSString *> *operations = (NSArray *)[params[@"operations"] kr_stringToArray];
-    NSDate *date = [NSDate dateWithTimeIntervalSince1970:[params[@"timeMillis"] integerValue] / 1000.0];
-    
-    for (NSString *operationString in operations) {
-        date = [self calcDate:date operation:operationString];
-    }
+    NSDate *originDate = [NSDate dateWithTimeIntervalSince1970:[params[@"timeMillis"] integerValue] / 1000.0];
+    NSDate *date = [self dateByApplyingOperations:operations toDate:originDate];
+
     switch([params[@"field"] integerValue]) {
         case 1: {
             return [self stringFromDate:date format:@"yyyy"];
@@ -194,7 +121,8 @@
             return [self stringFromDate:date format:@"D"];
         }
         case 7: { // dayOfWeek
-            NSCalendar *calendar = [NSCalendar currentCalendar];
+            // 用系统时区而非 gregorianCalendar(Asia/Shanghai)：与 Android Calendar.getInstance() 口径一致，星期受时区跨日影响
+            NSCalendar *calendar = [NSCalendar calendarWithIdentifier:NSCalendarIdentifierGregorian];
             NSDateComponents *components = [calendar components:NSCalendarUnitWeekday fromDate:date];
             NSInteger dayOfWeek = [components weekday];
             return [NSString stringWithFormat:@"%ld", (long)dayOfWeek];
@@ -218,12 +146,10 @@
 - (NSString *)method_get_time_in_millis:(NSDictionary *)args {
     NSDictionary *params = [args[KR_PARAM_KEY] kr_stringToDictionary];
     NSArray<NSString *> *operations = (NSArray *)[params[@"operations"] kr_stringToArray];
-    NSDate *date = [NSDate dateWithTimeIntervalSince1970:[params[@"timeMillis"] integerValue] / 1000.0];
-    
-    for (NSString *operationString in operations) {
-        date = [self calcDate:date operation:operationString];
-    }
-    return [NSString stringWithFormat:@"%ld", (NSInteger)([date timeIntervalSince1970] * 1000)];
+    NSDate *originDate = [NSDate dateWithTimeIntervalSince1970:[params[@"timeMillis"] integerValue] / 1000.0];
+    NSDate *date = [self dateByApplyingOperations:operations toDate:originDate];
+
+    return [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970] * 1000)];
 }
 
 - (NSString *)method_format:(NSDictionary *)args {
@@ -241,7 +167,7 @@
 - (NSString *)method_parse_format:(NSDictionary *)args {
     NSDictionary *params = [args[KR_PARAM_KEY] kr_stringToDictionary];
     NSDate *date = [self dateFromString:params[@"formattedTime"] format:params[@"format"]];
-    return [NSString stringWithFormat:@"%ld", (NSInteger)([date timeIntervalSince1970] * 1000L)];
+    return [NSString stringWithFormat:@"%lld", (long long)([date timeIntervalSince1970] * 1000)];
 }
 
 

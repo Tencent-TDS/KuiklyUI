@@ -144,6 +144,7 @@ void KRRichTextView::DidMoveToParentView() {
 }
 
 void KRRichTextView::DidRemoveFromParentView() {
+    ClearSelection();
     kuikly::util::GetNodeApi()->resetAttribute(GetNode(), NODE_TEXT_CONTENT_WITH_STYLED_STRING);
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;

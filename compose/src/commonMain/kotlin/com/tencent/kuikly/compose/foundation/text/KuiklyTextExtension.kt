@@ -43,6 +43,7 @@ import com.tencent.kuikly.compose.ui.unit.TextUnit
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Attr.StyleConst
+import com.tencent.kuikly.core.views.FontWeight as KuiklyFontWeight
 import com.tencent.kuikly.core.views.ISpan
 import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.collection.fastArrayListOf
@@ -162,19 +163,17 @@ internal fun TextAttr.applyFontStyle(fontStyle: FontStyle?) {
     setProp(TextConst.FONT_STYLE, value)
 }
 
-// Handles font weight with reuse optimization
+internal fun FontWeight?.toKuiklyFontWeight(): KuiklyFontWeight = when (this) {
+    FontWeight.W100, FontWeight.W300 -> KuiklyFontWeight.LIGHT
+    FontWeight.W200 -> KuiklyFontWeight.EXTRA_LIGHT
+    FontWeight.W500 -> KuiklyFontWeight.MEDIUM
+    FontWeight.W600 -> KuiklyFontWeight.SEMIBOLD
+    FontWeight.W700, FontWeight.W800, FontWeight.W900 -> KuiklyFontWeight.BOLD
+    else -> KuiklyFontWeight.NORMAL
+}
+
 internal fun TextAttr.applyFontWeight(fontWeight: FontWeight?) {
-    val weightValue: String = when (fontWeight) {
-        FontWeight.W100 -> "300"
-        FontWeight.W200 -> "200"
-        FontWeight.W300 -> "300"
-        FontWeight.W400, null -> "400"
-        FontWeight.W500 -> "500"
-        FontWeight.W600 -> "600"
-        FontWeight.W700, FontWeight.W800, FontWeight.W900 -> "700"
-        else -> "400"
-    }
-    
+    val weightValue = fontWeight.toKuiklyFontWeight().value
     if (weightValue == "400" && getProp(TextConst.FONT_WEIGHT) == null) {
         return
     }

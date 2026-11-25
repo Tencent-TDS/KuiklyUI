@@ -255,42 +255,34 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
         [shadow hrv_setPropWithKey:@"color" propValue:self.fillStyle];
     }
     
-    float left;
-    float right;
-    
-    CGSize sz = [shadow hrv_calculateRenderViewSizeWithConstraintSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-    if([self.textAlign isEqualToString:@"center"]){
-        left = sz.width / 2;
-        right = sz.width - left;
-    }else if([self.textAlign isEqualToString:@"right"]){
-        left = sz.width;
-        right = 0;
-    }else{
-        left = 0;
-        right = sz.width;
-    }
-    float descent = (sz.height - self.fontSize.floatValue) / 2;
-    //float ascent = sz.height - descent;
-    
-    x -= left;
-    y += descent;
-    
-    const int extraSpace = 1;
-    sz.width += extraSpace;
-    sz.height += extraSpace;
-    NSAttributedString* attributedString = [shadow buildAttributedString];
-    CGContextSaveGState(context);
-    CGContextTranslateCTM(context, x, y + extraSpace);
-    CGContextScaleCTM(context, 1.0, -1.0);
+    NSAttributedString *attributedString = [shadow buildAttributedString];
+    CFRange textRange = CFRangeMake(0, attributedString.length);
     CTFramesetterRef frameSetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attributedString);
-    CGMutablePathRef framePath = CGPathCreateMutable();
-    CGPathAddRect(framePath, NULL, CGRectMake(0, 0, sz.width, sz.height));
-    CTFrameRef frame = CTFramesetterCreateFrame(frameSetter, CFRangeMake(0, attributedString.length), framePath, NULL);
-    CTFrameDraw(frame, context);
+    // A fallback font can require more frame height than the label's measured line box.
+    CGSize frameSize = CTFramesetterSuggestFrameSizeWithConstraints(frameSetter, textRange, NULL,
+                                                                    CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX), NULL);
+    CGRect bounds = CGRectMake(0, 0, ceil(frameSize.width) + 1, ceil(frameSize.height) + 1);
+    // Core Text aligns each line within the full frame, including its extra point.
+    if ([self.textAlign isEqualToString:@"center"]) {
+        x -= bounds.size.width / 2;
+    } else if ([self.textAlign isEqualToString:@"right"]) {
+        x -= bounds.size.width;
+    }
+    CGPathRef framePath = CGPathCreateWithRect(bounds, NULL);
+    CTFrameRef frame = CTFramesetterCreateFrame(frameSetter, textRange, framePath, NULL);
+    if (CFArrayGetCount(CTFrameGetLines(frame)) > 0) {
+        // The first line origin is Core Text's baseline in the frame's y-up coordinates.
+        CGPoint firstLineOrigin;
+        CTFrameGetLineOrigins(frame, CFRangeMake(0, 1), &firstLineOrigin);
+        CGContextSaveGState(context);
+        CGContextTranslateCTM(context, x, y + firstLineOrigin.y);
+        CGContextScaleCTM(context, 1.0, -1.0);
+        CTFrameDraw(frame, context);
+        CGContextRestoreGState(context);
+    }
     CFRelease(frame);
     CFRelease(framePath);
     CFRelease(frameSetter);
-    CGContextRestoreGState(context);
 }
 
 - (void)css_strokeText:(NSDictionary*)args{

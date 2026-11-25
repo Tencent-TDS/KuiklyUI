@@ -20,20 +20,8 @@ import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.PathEffect
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
-import com.tencent.kuikly.compose.ui.graphics.drawscope.CanvasDrawScope
-import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
 import com.tencent.kuikly.compose.ui.graphics.drawscope.Stroke
 import com.tencent.kuikly.compose.ui.graphics.drawscope.withTransform
-import com.tencent.kuikly.compose.ui.unit.Density
-import com.tencent.kuikly.compose.ui.unit.LayoutDirection
-import com.tencent.kuikly.core.base.ViewBuilder
-import com.tencent.kuikly.core.manager.BridgeManager
-import com.tencent.kuikly.core.manager.NativeMethod
-import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.nvi.NativeBridge
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import com.tencent.kuikly.core.pager.Pager
-import com.tencent.kuikly.core.views.CanvasView
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -42,12 +30,10 @@ import kotlin.test.assertTrue
 
 /**
  * The Compose canvas talks to every renderer through `callViewMethod` commands on the
- * CanvasView. These teeth pin how [PathEffect] and the text primitive are lowered onto
+ * CanvasView. These teeth pin how [PathEffect] and the stroke cap are lowered onto
  * that wire: which commands go out, in what order, and in density-independent units.
  */
 class KuiklyCanvasDashLoweringTest {
-
-    private val density = Density(density = 2f)
 
     @Test
     fun dashedStrokeLowersToLineDashInDensityIndependentUnits() {
@@ -165,92 +151,6 @@ class KuiklyCanvasDashLoweringTest {
             val beforeStroke = afterRestore.subList(0, stroke)
             assertEquals("round", beforeStroke.single { it.method == "lineCap" }.json().optString("style"))
             assertNull(beforeStroke.single { it.method == "lineDash" }.intervals())
-        }
-    }
-
-    private class RecordedCommand(val method: String, val params: String?) {
-        fun json(): JSONObject = JSONObject(params ?: "{}")
-        fun intervals(): List<Double>? {
-            val array = json().optJSONArray("intervals") ?: return null
-            return List(array.length()) { array.optDouble(it) }
-        }
-    }
-
-    private class CanvasFixture(
-        private val view: CanvasView,
-        private val commands: MutableList<RecordedCommand>,
-        private val density: Density,
-    ) {
-        private val canvas = KuiklyCanvas()
-        private val scope = CanvasDrawScope()
-
-        fun draw(block: DrawScope.() -> Unit) {
-            commands.clear()
-            canvas.view = view
-            scope.draw(density, LayoutDirection.Ltr, canvas, Size(200f, 200f), block)
-            canvas.view = null
-        }
-
-        /** Commands of the last draw pass without the bind-time `reset` and the save/restore pair DrawScope.draw adds. */
-        fun commandNames(): List<String> =
-            commands.map { it.method }.filterNot { it == "reset" || it == "save" || it == "restore" }
-
-        fun commandsNamed(method: String): List<RecordedCommand> = commands.filter { it.method == method }
-
-        /** Commands recorded after the first occurrence of [method] in the last draw pass. */
-        fun commandsAfterFirst(method: String): List<RecordedCommand> =
-            commands.drop(commands.indexOfFirst { it.method == method } + 1)
-    }
-
-    private fun withCanvasFixture(
-        measuredSize: String = "0|0",
-        block: (CanvasFixture) -> Unit,
-    ) {
-        val pagerId = "KuiklyCanvasDashLoweringTest"
-        val pageName = pagerId
-        val commands = mutableListOf<RecordedCommand>()
-        val bridge = NativeBridge().apply {
-            delegate = object : NativeBridge.NativeBridgeDelegate {
-                override fun callNative(
-                    methodId: Int,
-                    arg0: Any?,
-                    arg1: Any?,
-                    arg2: Any?,
-                    arg3: Any?,
-                    arg4: Any?,
-                    arg5: Any?
-                ): Any? = when (methodId) {
-                    NativeMethod.CALL_VIEW_METHOD -> {
-                        commands += RecordedCommand(arg2 as String, arg3 as? String)
-                        null
-                    }
-                    NativeMethod.CALCULATE_RENDER_VIEW_SIZE -> measuredSize
-                    else -> null
-                }
-            }
-        }
-        @Suppress("DEPRECATION")
-        val previousPageId = BridgeManager.currentPageId
-        @Suppress("DEPRECATION")
-        fun setCurrentPageId(value: String) {
-            BridgeManager.currentPageId = value
-        }
-        BridgeManager.registerNativeBridge(pagerId, bridge)
-        PagerManager.registerPageRouter(pageName) {
-            object : Pager() {
-                override fun body(): ViewBuilder = {}
-            }
-        }
-        setCurrentPageId(pagerId)
-        PagerManager.createPager(pagerId, pageName, "{\"density\":${density.density}}")
-        try {
-            val view = CanvasView()
-            view.pagerId = pagerId
-            view.createRenderView()
-            block(CanvasFixture(view, commands, density))
-        } finally {
-            PagerManager.destroyPager(pagerId)
-            setCurrentPageId(previousPageId)
         }
     }
 }

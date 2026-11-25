@@ -85,7 +85,7 @@ interface IViewPublicApi<A : Attr, E : Event> {
  * 抽象基类，只保留FlexNode,Event,Attr,renderView相关逻辑
  */
 abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublicApi<A, E>, IModuleAccessor, IPagerId {
-    val nativeRef: Int = ++nativeRefProducer
+    val nativeRef: Int = allocateNativeRef()
     var parentRef: Int = 0
     override var pagerId: String = ""
     protected var layoutFrame = Frame.zero
@@ -226,6 +226,8 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     }
 
     companion object {
+        internal fun allocateNativeRef(): Int = ++nativeRefProducer
+
         private var nativeRefProducer = 0
             set(value) {
                 checkThread("View", "create")

@@ -41,7 +41,21 @@ import com.tencent.kuikly.core.base.RenderView
 import com.tencent.kuikly.core.views.CanvasContext
 import com.tencent.kuikly.core.views.CanvasLinearGradient
 import com.tencent.kuikly.core.views.CanvasView
+import com.tencent.kuikly.core.views.FontStyle
+import com.tencent.kuikly.core.views.FontWeight
+import com.tencent.kuikly.core.views.TextAlign
 import kotlin.math.PI
+
+/**
+ * Font state the Kuikly canvas text primitive draws with; [sizePx] is in pixels and is
+ * converted to the renderer's density-independent size on dispatch.
+ */
+internal data class KuiklyCanvasFont(
+    val sizePx: Float,
+    val weight: FontWeight,
+    val style: FontStyle,
+    val family: String
+)
 
 internal class KuiklyCanvas : Canvas {
 
@@ -96,6 +110,8 @@ internal class KuiklyCanvas : Canvas {
                 densityValue = value.getPager().pagerDensity()
                 value.renderView?.callMethod("reset", "")
                 strokeCap = StrokeCap.Butt
+                textFont = null
+                textAlign = null
                 lineDash = emptyList()
             } else {
                 context = null
@@ -106,13 +122,13 @@ internal class KuiklyCanvas : Canvas {
     private var context: CanvasContext? = null
     private var densityValue: Float = 1f
     /*
-     * Last line cap and dash pattern sent to the renderer, so unchanged state is not resent.
-     * `reset` on bind puts the renderer back to butt caps and no dash. Null means unknown:
-     * renderers disagree on whether `restore` rolls these back (the iOS, OHOS and web
-     * canvases do, Android keeps them), so after a restore the next stroke always resends.
+     * Cache shared canvas state between commands. A bind resets cap and dash; a restore
+     * leaves the renderer state platform-dependent, so the next draw must restate it.
      */
     private var strokeCap: StrokeCap? = StrokeCap.Butt
     private var lineDash: List<Float>? = emptyList()
+    private var textFont: KuiklyCanvasFont? = null
+    private var textAlign: TextAlign? = null
 
     override fun save() {
         context?.save()
@@ -121,6 +137,8 @@ internal class KuiklyCanvas : Canvas {
     override fun restore() {
         context?.restore()
         strokeCap = null
+        textFont = null
+        textAlign = null
         lineDash = null
     }
 
@@ -336,6 +354,49 @@ internal class KuiklyCanvas : Canvas {
             // Draw a point at each provided coordinate
             PointMode.Points -> drawPoints(points, paint)
         }
+    }
+
+    /**
+     * Draws a single line of [text] with the renderer's text primitive. [origin] is the
+     * alphabetic baseline point in pixels; [align] decides which side of `origin.x` the run
+     * extends to, like `textAlign` on an HTML canvas. Filled with [paint] unless its style
+     * is [PaintingStyle.Stroke], in which case the outline is stroked with the paint's width
+     * and cap, as path strokes are; the renderer text stroke has no join or miter controls.
+     */
+    internal fun drawText(
+        text: String,
+        origin: Offset,
+        font: KuiklyCanvasFont,
+        align: TextAlign,
+        paint: Paint
+    ) {
+        context?.apply {
+            applyFont(font)
+            applyTextAlign(align)
+            val x = origin.x / densityValue
+            val y = origin.y / densityValue
+            if (paint.style == PaintingStyle.Fill) {
+                fillStyle(paint.toKuiklyColor())
+                fillText(text, x, y)
+            } else {
+                strokeStyle(paint.toKuiklyColor())
+                lineWidth(paint.strokeWidth / densityValue)
+                applyStrokeCap(paint.strokeCap)
+                strokeText(text, x, y)
+            }
+        }
+    }
+
+    private fun CanvasContext.applyFont(font: KuiklyCanvasFont) {
+        if (textFont == font) return
+        textFont = font
+        font(font.style, font.weight, font.sizePx / densityValue, font.family)
+    }
+
+    private fun CanvasContext.applyTextAlign(align: TextAlign) {
+        if (textAlign == align) return
+        textAlign = align
+        textAlign(align)
     }
 
     override fun enableZ() {

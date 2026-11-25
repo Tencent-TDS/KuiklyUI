@@ -56,6 +56,7 @@ import com.tencent.kuikly.core.render.android.exception.KuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderViewExportException
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderTracer
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
+import com.tencent.kuikly.core.render.android.fold.KuiklyWindowFoldTracker
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
 import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceLoader
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
@@ -147,6 +148,20 @@ class KuiklyRenderView(
     private var isInOnSizeChanged = false
 
     private var lastSafeAreaInsetsString: String? = null
+
+    private val foldTracker: KuiklyWindowFoldTracker? by lazy(LazyThreadSafetyMode.NONE) {
+        try {
+            KuiklyWindowFoldTracker(context).apply {
+                onHingeStatusChanged = { notifyRootMetricsChanged() }
+            }
+        } catch (t: Throwable) {
+            KuiklyRenderLog.i("KuiklyFoldHinge", "Jetpack Window unavailable, hingeStatus stays UNKNOWN")
+            null
+        }
+    }
+
+    private fun hingeStatusRaw(): Int =
+        foldTracker?.lastHingeStatusRaw ?: KuiklyWindowFoldTracker.UNKNOWN
 
     init {
         if (!lazyClipChildren) {
@@ -270,6 +285,7 @@ class KuiklyRenderView(
             KuiklyRenderLog.d("KuiklyRenderView", "--onDetachedFromWindow-- ${Log.getStackTraceString(Throwable())}")
         }
         setOnApplyWindowInsetsListener(null)
+        foldTracker?.stop()
         super.onDetachedFromWindow()
     }
 
@@ -282,6 +298,9 @@ class KuiklyRenderView(
             notifySafeAreaInsetsIfChanged()
             handled
         }
+        context.activity?.let { activity ->
+            foldTracker?.start(activity)
+        }
         super.onAttachedToWindow()
     }
 
@@ -291,8 +310,15 @@ class KuiklyRenderView(
             return
         }
         lastSafeAreaInsetsString = currentSafeAreaInsets
+        notifyRootMetricsChanged(currentSafeAreaInsets)
+    }
+
+    private fun notifyRootMetricsChanged(safeAreaInsets: String? = null) {
         val sizeF = lastSize ?: return
-        sendRootViewSizeChangedEvent(sizeF, currentSafeAreaInsets)
+        val insets = safeAreaInsets
+            ?: lastSafeAreaInsetsString
+            ?: formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext)
+        sendRootViewSizeChangedEvent(sizeF, insets)
     }
 
     private fun sendRootViewSizeChangedEvent(sizeF: SizeF, safeAreaInsets: String) {
@@ -306,7 +332,8 @@ class KuiklyRenderView(
                 ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
                 DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
                 DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
-                SAFE_AREA_INSETS to safeAreaInsets
+                SAFE_AREA_INSETS to safeAreaInsets,
+                HINGE_STATUS to hingeStatusRaw(),
             )
         )
     }
@@ -491,6 +518,7 @@ class KuiklyRenderView(
             put(PARAMS, params)
             put(NATIVE_BUILD, 8)
             put(SAFE_AREA_INSETS, formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext))
+            put(HINGE_STATUS, hingeStatusRaw())
             put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
             put(DENSITY, usingDisplayMetrics.density)
@@ -724,6 +752,7 @@ class KuiklyRenderView(
         private const val PARAMS = "param"
         private const val NATIVE_BUILD = "nativeBuild"
         private const val SAFE_AREA_INSETS = "safeAreaInsets"
+        private const val HINGE_STATUS = "hingeStatus"
         private const val ACTIVITY_WIDTH = "activityWidth"
         private const val ACTIVITY_HEIGHT = "activityHeight"
         private const val SCALE_FONT_ENABLE = "scaleFontEnable"

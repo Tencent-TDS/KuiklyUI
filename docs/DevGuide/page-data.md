@@ -78,7 +78,19 @@ iOS 端可通过实现 `viewControllerHostWindow` 方法，指定当前页面获
 | KuiklyUI 版本 | 平台 | 有效数据条件 |
 |-------------|------|------------|
 | **2.29.0+** | **iOS** | iOS **27.1+** 折叠设备（如 iPhone Duo）；Native 通过 `UIHingeInteraction` 写入 `hingeStatus`，随 `rootViewSizeDidChanged` 更新 |
+| **2.31.0+** | **Android** | 可折叠设备 + 宿主集成 **Jetpack Window**（见下方依赖）；Native 通过 `WindowLayoutInfo` / `FoldingFeature` 映射后随 `rootViewSizeDidChanged` 更新 |
 | **2.31.0+** | **HarmonyOS** | **API 12+** 可折叠设备；Native 通过 `display.getFoldStatus` / `display.on('foldStatusChange')` 获取物理折叠态，**映射**为 `HingeStatus` 随 `rootViewSizeDidChanged` 更新 |
+
+:::tip Android 宿主依赖（2.31.0+ 使用 `hingeStatus` 时必加）
+`core-render-android` 对 Window 为 **compileOnly**，运行时需由宿主 **implementation**（版本建议与官方 Demo 一致，不低于 **1.0.0**；推荐 **1.2.0**）：
+
+```gradle
+implementation("androidx.window:window:1.2.0")
+implementation("androidx.window:window-java:1.2.0")
+```
+
+未添加或版本过旧时，可能无法注册 `WindowLayoutInfo` 监听（`hingeStatus` 保持 `UNKNOWN`），详见 [Android 工程接入 — 折叠屏 hingeStatus](../QuickStart/android.md#折叠屏-hingestatuskuiklyui-2310)。
+:::
 
 上述条件不满足时（含普通手机、平板、不可折鸿蒙机、更低系统版本），`hingeStatus` 为 `UNKNOWN(0)`，可直接按未知处理。
 :::

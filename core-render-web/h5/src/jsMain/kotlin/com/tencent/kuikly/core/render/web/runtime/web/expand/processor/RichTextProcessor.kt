@@ -375,8 +375,8 @@ object RichTextProcessor : IRichTextProcessor {
             return cachedSize
         }
 
-        // No truncation or ellipsis when calculating actual size
-        style.whiteSpace = "pre-wrap"
+        // Canvas measurement does not read DOM layout, so do not touch the display element's
+        // white-space / max-width here; its line style is applied after measurement instead
         // canvas context
         val canvasCtx = getCanvasContext()
         // Default font family
@@ -435,12 +435,6 @@ object RichTextProcessor : IRichTextProcessor {
             return calculateRenderViewSizeByDom(constraintSize, view, renderText)
         }
 
-        // If new properties are supported, use canvas measurement values for calculation
-        if (constraintSize.width > 0) {
-            // If constraint size exists, use the constraint size
-            style.maxWidth = constraintSize.width.toPxF()
-        }
-
         Log.trace(
             "canvas measure size: ",
             ele.innerText,
@@ -464,6 +458,10 @@ object RichTextProcessor : IRichTextProcessor {
                 totalHeight
             }
             
+            // Apply line style to the display element, same as the cache-hit and DOM paths,
+            // otherwise lines(1) text keeps pre-wrap and may wrap instead of ellipsizing
+            setMultiLineStyle(view.numberOfLines, ele)
+
             val result = SizeF(realWidth, realHeight)
             // Cache the result
             TextMeasureCache.put(cacheKey, result)

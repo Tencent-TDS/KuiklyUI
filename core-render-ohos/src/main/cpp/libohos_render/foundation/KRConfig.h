@@ -31,7 +31,7 @@ class KRConfig {
         // at this edge so path leaves match the source encoding.
         const auto cfg = configJson.Parsed();
         if (auto vp2px = cfg.opt(u"vp2px")) {
-            vp2px_ = vp2px.toFloat();
+            vp2px_ = vp2px.toDouble();
             GetDpi(vp2px_);
         }
         if (auto screen_width = cfg.opt(u"screen_width")) {
@@ -92,6 +92,10 @@ class KRConfig {
     }
 
     float vp2px(float vp) {
+        return (float)((double)vp * vp2px_);
+    }
+
+    double vp2px(double vp) {
         return vp * vp2px_;
     }
 
@@ -102,10 +106,18 @@ class KRConfig {
      * @return 转换后的像素值
      */
     float fp2px(float fp) {
-        return fp * fontSizeScale_ * vp2px_;
+        return (float)((double)fp * (double)fontSizeScale_ * vp2px_);
+    }
+
+    double fp2px(double fp) {
+        return fp * (double)fontSizeScale_ * vp2px_;
     }
 
     float Px2Vp(float px) {
+        return (float)((double)px / vp2px_);
+    }
+
+    double Px2Vp(double px) {
         return px / vp2px_;
     }
 
@@ -158,7 +170,7 @@ class KRConfig {
     }
 
  private:
-    float vp2px_ = 0;
+    double vp2px_ = 0;
     float fontWeightScale_ = 1;
     float fontSizeScale_ = 1;
     float screenDensity_ = 1;

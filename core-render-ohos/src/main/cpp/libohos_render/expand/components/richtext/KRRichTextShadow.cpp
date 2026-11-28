@@ -747,10 +747,11 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     OH_Drawing_TypographyLayout(typography_raw, maxWidth);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
-    auto height = OH_Drawing_TypographyGetHeight(typography_raw);
+    auto height = std::ceil(OH_Drawing_TypographyGetHeight(typography_raw));
     auto ouput_measure_height_ = height / dpi;
     auto longestLineWidth =
-        std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(typography_raw)), maxWidth));
+        std::ceil(std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(typography_raw)), maxWidth)));
+    
     context_thread_text_align_ = text_align;
     auto ouput_measure_width_ = (longestLineWidth / dpi);
 #ifndef NDEBUG

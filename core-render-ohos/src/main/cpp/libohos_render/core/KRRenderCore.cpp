@@ -423,14 +423,16 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         //   2) std::round 对负数也按"远离 0"四舍五入，行为与正数一致；
         //   3) 下游属性流直接使用已取整的 vp 值，无需再分散处理。
         const auto &config = context_->Config();
-        auto alignEdgeToPixel = [&config](float vp) {
+        // double 精度版本的对齐：全链路使用 double 计算，避免 float 累积误差（如 32vp -> 31.999996vp），
+        // 仅在最终落 KRRect 时收敛为 float（整数像素在 float 下仍精确）。
+        auto alignEdgeToPixel = [&config](double vp) {
             return config->Px2Vp(std::round(config->vp2px(vp)));
         };
-        const float left = alignEdgeToPixel(arg2->toFloat());
-        const float top = alignEdgeToPixel(arg3->toFloat());
-        const float right = alignEdgeToPixel(arg2->toFloat() + arg4->toFloat());
-        const float bottom = alignEdgeToPixel(arg3->toFloat() + arg5->toFloat());
-        auto rect = KRRect(left, top, right - left, bottom - top);
+        const double leftD = alignEdgeToPixel(arg2->toDouble());
+        const double topD = alignEdgeToPixel(arg3->toDouble());
+        const double rightD = alignEdgeToPixel(arg2->toDouble() + arg4->toDouble());
+        const double bottomD = alignEdgeToPixel(arg3->toDouble() + arg5->toDouble());
+        auto rect = KRRect((float)leftD, (float)topD, (float)(rightD - leftD), (float)(bottomD - topD));
         std::string rectData((const char *)&rect, sizeof(KRRect));
         auto value = KRRenderValue::Make(rectData);
         renderLayerHandler_->SetProp(arg1->toInt(), "frame", value);
